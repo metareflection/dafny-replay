@@ -1304,15 +1304,6 @@ let ConcreteKernel = (function() {
         return ConcreteKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ((h).dtor_future)[_dafny.ZERO], ((h).dtor_future).slice(_dafny.ONE));
       }
     };
-    static HistInv(h) {
-      return ((_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(((h).dtor_past).length)), true, function (_forall_var_0) {
-        let _0_i = _forall_var_0;
-        return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber(((h).dtor_past).length)))) || (ConcreteDomain.__default.Inv(((h).dtor_past)[_0_i]));
-      })) && (ConcreteDomain.__default.Inv((h).dtor_present))) && (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(((h).dtor_future).length)), true, function (_forall_var_1) {
-        let _1_j = _forall_var_1;
-        return !(((_dafny.ZERO).isLessThanOrEqualTo(_1_j)) && ((_1_j).isLessThan(new BigNumber(((h).dtor_future).length)))) || (ConcreteDomain.__default.Inv(((h).dtor_future)[_1_j]));
-      }));
-    };
   };
 
   $module.History = class History {
