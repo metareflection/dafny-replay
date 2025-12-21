@@ -72,7 +72,406 @@ module KanbanDomain refines Domain {
     s[..i] + [x] + s[i..]
   }
 
-  // RemoveFirst lemmas
+  // Flatten lanes in the order of cols
+  function AllIds(m: Model): seq<CardId>
+  {
+    match m
+    case Model(cols, lanes, wip, cards, nextId) =>
+      FlattenCols(cols, lanes)
+  }
+
+  function FlattenCols(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>): seq<CardId>
+  {
+    if |cols| == 0 then []
+    else Lane(lanes, cols[0]) + FlattenCols(cols[1..], lanes)
+  }
+
+  // Does a card id occur in some lane?
+  predicate OccursInLanes(m: Model, id: CardId)
+  {
+    exists i :: 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id)
+  }
+
+  // --------------------------
+  // Invariant (A1 + B + column well-formedness)
+  // --------------------------
+  ghost predicate Inv(m: Model)
+  {
+    // Column list well-formed
+    NoDupSeq(m.cols) &&
+
+    // Lanes/wip defined exactly on existing columns
+    (forall i :: 0 <= i < |m.cols| ==> m.cols[i] in m.lanes && m.cols[i] in m.wip) &&
+    (forall c :: c in m.lanes ==> c in m.cols) &&
+    (forall c :: c in m.wip ==> c in m.cols) &&
+
+    // A1: exact partition (no disappear / no duplicate)
+    NoDupSeq(AllIds(m)) &&
+    (forall id :: id in m.cards <==> OccursInLanes(m, id)) &&
+
+    // B: WIP limits
+    (forall i :: 0 <= i < |m.cols| ==> |m.lanes[m.cols[i]]| <= m.wip[m.cols[i]]) &&
+
+    // Allocator is fresh
+    (forall id :: id in m.cards ==> id < m.nextId)
+  }
+
+  // --------------------------
+  // Normalize
+  // --------------------------
+  // For now, Normalize is the identity.
+  // That keeps semantics simple and makes "no-op on violation" exact.
+  //
+  // If you later want Normalize to "repair" (e.g., drop unknown columns,
+  // clamp positions, etc.), this is the hook point.
+  function Normalize(m: Model): Model { m }
+
+  // --------------------------
+  // Apply
+  // --------------------------
+  function Apply(m: Model, a: Action): Model
+  {
+    match m
+    case Model(cols, lanes, wip, cards, nextId) =>
+      match a
+      case AddColumn(col, limit) =>
+        if col in cols then m
+        else
+          // add an empty lane and a wip entry
+          Model(cols + [col],
+                lanes[col := []],
+                wip[col := limit],
+                cards,
+                nextId)
+
+      case SetWip(col, limit) =>
+        if !(col in cols) then m
+        else if limit < |Lane(lanes, col)| then m
+        else Model(cols, lanes, wip[col := limit], cards, nextId)
+
+      case AddCard(col, title) =>
+        if !(col in cols) then m
+        else if |Lane(lanes, col)| + 1 > (Wip(wip, col)) then m
+        else
+          var id := nextId;
+          Model(cols,
+                lanes[col := Lane(lanes, col) + [id]],
+                wip,
+                cards[id := Card(title)],
+                nextId + 1)
+
+      case MoveCard(id, toCol, pos) =>
+        if !(toCol in cols) then m
+        else if !(id in cards) then m
+        else
+          // Find the source column by scanning cols
+          var src := FindColumnOf(cols, lanes, id);
+          if src == "" then m // should be impossible under Inv; safe fallback
+          else if src == toCol then
+            // reorder within same column (still checks WIP trivially)
+            var s := Lane(lanes, src);
+            var s1 := RemoveFirst(s, id);
+            var k := ClampPos(pos, |s1|);
+            Model(cols, lanes[src := InsertAt(s1, k, id)], wip, cards, nextId)
+          else
+            // cross-column move: check WIP of destination
+            if |Lane(lanes, toCol)| + 1 > (Wip(wip, toCol)) then m
+            else
+              var s := Lane(lanes, src);
+              var t := Lane(lanes, toCol);
+              var s1 := RemoveFirst(s, id);
+              var k := ClampPos(pos, |t|);
+              var t1 := InsertAt(t, k, id);
+              Model(cols, lanes[src := s1][toCol := t1], wip, cards, nextId)
+  }
+
+  // Helper: find which column contains id; returns "" if not found.
+  function FindColumnOf(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId): ColId
+  {
+    if |cols| == 0 then ""
+    else if SeqContains(Lane(lanes, cols[0]), id) then cols[0]
+    else FindColumnOf(cols[1..], lanes, id)
+  }
+
+  function SeqContains<T(==)>(s: seq<T>, x: T): bool
+  {
+    exists i :: 0 <= i < |s| && s[i] == x
+  }
+
+  // --------------------------
+  // The required lemma for dafny-replay
+  // --------------------------
+  //
+  // This is the only thing the replay kernel needs from the domain:
+  // Step preserves Inv (possibly after Normalize, but Normalize is identity here).
+  //
+  // Proof strategy:
+  // - case split on action
+  // - every branch is either "no-op" (model unchanged) or a local update
+  // - show:
+  //   * column keys preserved
+  //   * cards moved/added without duplication
+  //   * WIP checked before insertion
+  //
+  lemma StepPreservesInv(m: Model, a: Action)
+  {
+    assert Normalize(Apply(m,a)) == Apply(m,a);
+    var m' := Apply(m, a);
+    match a
+    case AddColumn(col, limit) => {
+        if col in m.cols {
+          // No-op case
+        } else {
+          // m' = Model(cols + [col], lanes[col := []], wip[col := limit], cards, nextId)
+          var cols' := m.cols + [col];
+          var lanes' := m.lanes[col := []];
+          var wip' := m.wip[col := limit];
+          assert m' == Model(cols', lanes', wip', m.cards, m.nextId);
+
+          // NoDupSeq(cols')
+          assert !(col in m.cols);
+          NoDupSeqAppendFresh(m.cols, col);
+
+          // Lanes/wip defined exactly on existing columns
+          forall i | 0 <= i < |cols'|
+            ensures cols'[i] in lanes' && cols'[i] in wip'
+          {
+            if i < |m.cols| {
+              assert cols'[i] == m.cols[i];
+              assert m.cols[i] in m.lanes;
+              assert m.cols[i] in m.wip;
+            } else {
+              assert cols'[i] == col;
+            }
+          }
+
+          // AllIds(m') = AllIds(m) since the new lane is empty
+          // First show that lanes' agrees with m.lanes on all columns in m.cols
+          assert forall c :: c in m.cols ==> Lane(lanes', c) == Lane(m.lanes, c);
+          FlattenColsSameLanes(m.cols, m.lanes, lanes');
+          assert FlattenCols(m.cols, lanes') == FlattenCols(m.cols, m.lanes);
+          FlattenColsAppendEmpty(m.cols, lanes', col);
+          assert FlattenCols(cols', lanes') == FlattenCols(m.cols, lanes');
+          assert AllIds(m') == AllIds(m);
+
+          // OccursInLanes preserved
+          forall id
+            ensures OccursInLanes(m', id) <==> OccursInLanes(m, id)
+          {
+            if OccursInLanes(m', id) {
+              var i :| 0 <= i < |m'.cols| && (exists j :: 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id);
+              var j :| 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id;
+              if i < |m.cols| {
+                assert m'.cols[i] == m.cols[i];
+                if m.cols[i] == col {
+                  assert false; // col not in m.cols
+                } else {
+                  assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
+                  OccursInLanesWitness(m, id, i, j);
+                }
+              } else {
+                assert m'.cols[i] == col;
+                assert Lane(lanes', col) == [];
+                assert false; // empty lane has no elements
+              }
+            }
+            if OccursInLanes(m, id) {
+              var i :| 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id);
+              var j :| 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id;
+              assert m.cols[i] != col; // since col not in m.cols
+              assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
+              assert i < |cols'|;
+              assert cols'[i] == m.cols[i];
+              OccursInLanesWitness(m', id, i, j);
+            }
+          }
+
+          // WIP limits for new column
+          assert Lane(lanes', col) == [];
+          assert |Lane(lanes', col)| == 0 <= limit;
+
+          assert Inv(m');
+        }
+    }
+    case SetWip(col, limit) => {}
+    case AddCard(col, title) => {
+        if !(col in m.cols) {}
+        else if |Lane(m.lanes, col)| + 1 > (Wip(m.wip, col)) {}
+        else {
+            var newId := m.nextId;
+            var lanes' := m.lanes[col := Lane(m.lanes, col) + [newId]];
+            var cards' := m.cards[newId := Card(title)];
+            assert m' == Model(m.cols, lanes', m.wip, cards', newId + 1);
+
+            // Find col's index
+            ColInColsWitness(m.cols, col);
+            var colIdx :| 0 <= colIdx < |m.cols| && m.cols[colIdx] == col;
+
+            // Prove: new card occurs in lanes
+            var newLane := Lane(lanes', col);
+            assert newLane == Lane(m.lanes, col) + [newId];
+            var posIdx := |Lane(m.lanes, col)|;
+            assert newLane[posIdx] == newId;
+            assert Lane(m'.lanes, m'.cols[colIdx]) == newLane;
+            OccursInLanesWitness(m', newId, colIdx, posIdx);
+
+            // Prove: old cards still occur in lanes
+            forall id | id in m.cards
+              ensures OccursInLanes(m', id)
+            {
+              assert OccursInLanes(m, id);
+              var i :| 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id);
+              var j :| 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id;
+              if m.cols[i] == col {
+                assert Lane(lanes', col) == Lane(m.lanes, col) + [newId];
+                assert j < |Lane(m.lanes, col)|;
+                assert Lane(lanes', col)[j] == Lane(m.lanes, col)[j] == id;
+                OccursInLanesWitness(m', id, i, j);
+              } else {
+                assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
+                OccursInLanesWitness(m', id, i, j);
+              }
+            }
+
+            // Forward direction: in cards' => OccursInLanes
+            forall id | id in cards'
+              ensures OccursInLanes(m', id)
+            {
+              if id == newId {
+                assert OccursInLanes(m', newId);
+              } else {
+                assert id in m.cards;
+              }
+            }
+
+            // Reverse direction: OccursInLanes => in cards'
+            forall id | OccursInLanes(m', id)
+              ensures id in cards'
+            {
+              var i :| 0 <= i < |m'.cols| && (exists j :: 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id);
+              var j :| 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id;
+              if m'.cols[i] == col {
+                if j < |Lane(m.lanes, col)| {
+                  assert Lane(m.lanes, col)[j] == id;
+                  OccursInLanesWitness(m, id, i, j);
+                  assert id in m.cards;
+                } else {
+                  assert j == |Lane(m.lanes, col)|;
+                  assert Lane(lanes', col)[j] == newId;
+                  assert id == newId;
+                }
+              } else {
+                assert Lane(lanes', m'.cols[i]) == Lane(m.lanes, m.cols[i]);
+                OccursInLanesWitness(m, id, i, j);
+                assert id in m.cards;
+              }
+            }
+
+            // NoDupSeq(AllIds(m'))
+            FreshIdNotInAllIds(m, newId);
+            assert !SeqContains(AllIds(m), newId);
+            FlattenColsAppendToLane(m.cols, m.lanes, col, newId);
+
+            assert Inv(m');
+        }
+    }
+    case MoveCard(id, toCol, pos) => {
+        if !(toCol in m.cols) {
+          // No-op
+        } else if !(id in m.cards) {
+          // No-op
+        } else {
+          FindColumnOfInv(m, id);
+          var src := FindColumnOf(m.cols, m.lanes, id);
+          if src == "" {
+            // No-op (shouldn't happen under Inv)
+          } else if src == toCol {
+            // Same-column reorder
+            var s := Lane(m.lanes, src);
+            var s1 := RemoveFirst(s, id);
+            var k := ClampPos(pos, |s1|);
+            var lanes' := m.lanes[src := InsertAt(s1, k, id)];
+            assert m' == Model(m.cols, lanes', m.wip, m.cards, m.nextId);
+
+            // Use the same-column reorder lemma
+            RemoveFirstLength(s, id);
+            FlattenColsSameColReorder(m.cols, m.lanes, src, id, k);
+
+            // AllIds same contents
+            forall y
+              ensures SeqContains(AllIds(m'), y) <==> SeqContains(AllIds(m), y)
+            {
+              assert SeqContains(FlattenCols(m.cols, lanes'), y) <==> SeqContains(FlattenCols(m.cols, m.lanes), y);
+            }
+
+            // OccursInLanes preserved
+            forall y
+              ensures OccursInLanes(m', y) <==> OccursInLanes(m, y)
+            {
+              AllIdsContains(m.cols, lanes', y);
+              AllIdsContains(m.cols, m.lanes, y);
+              OccursInLanesEquivSeqContains(m, y);
+              OccursInLanesEquivSeqContainsLanes(m.cols, lanes', y);
+            }
+
+            // WIP limits preserved (lane length unchanged)
+            RemoveFirstLength(s, id);
+            InsertAtLength(s1, k, id);
+            assert |InsertAt(s1, k, id)| == |s|;
+
+            assert Inv(m');
+          } else {
+            // Cross-column move
+            if |Lane(m.lanes, toCol)| + 1 > (Wip(m.wip, toCol)) {
+              // WIP exceeded, no-op
+            } else {
+              var s := Lane(m.lanes, src);
+              var t := Lane(m.lanes, toCol);
+              var s1 := RemoveFirst(s, id);
+              var k := ClampPos(pos, |t|);
+              var t1 := InsertAt(t, k, id);
+              var lanes' := m.lanes[src := s1][toCol := t1];
+              assert m' == Model(m.cols, lanes', m.wip, m.cards, m.nextId);
+
+              // Use the cross-column move lemma
+              FlattenColsCrossColMove(m.cols, m.lanes, src, toCol, id, k);
+
+              // AllIds same contents
+              forall y
+                ensures SeqContains(AllIds(m'), y) <==> SeqContains(AllIds(m), y)
+              {
+                assert SeqContains(FlattenCols(m.cols, lanes'), y) <==> SeqContains(FlattenCols(m.cols, m.lanes), y);
+              }
+
+              // OccursInLanes preserved
+              forall y
+                ensures OccursInLanes(m', y) <==> OccursInLanes(m, y)
+              {
+                AllIdsContains(m.cols, lanes', y);
+                AllIdsContains(m.cols, m.lanes, y);
+                OccursInLanesEquivSeqContains(m, y);
+                OccursInLanesEquivSeqContainsLanes(m.cols, lanes', y);
+              }
+
+              // WIP limits: src lane shorter, toCol lane longer by 1 (but within limit)
+              RemoveFirstLength(s, id);
+              assert |s1| == |s| - 1;
+              InsertAtLength(t, k, id);
+              assert |t1| == |t| + 1;
+              assert |t1| <= Wip(m.wip, toCol);
+
+              assert Inv(m');
+            }
+          }
+        }
+    }
+  }
+
+  // --------------------------
+  // Helper lemmas
+  // --------------------------
+
+   // RemoveFirst lemmas
   // When NoDupSeq, removing x gives us everything except x
   lemma RemoveFirstNoDupContains<T>(s: seq<T>, x: T, y: T)
     requires NoDupSeq(s)
@@ -991,26 +1390,6 @@ module KanbanDomain refines Domain {
     }
   }
 
-  // Flatten lanes in the order of cols
-  function AllIds(m: Model): seq<CardId>
-  {
-    match m
-    case Model(cols, lanes, wip, cards, nextId) =>
-      FlattenCols(cols, lanes)
-  }
-
-  function FlattenCols(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>): seq<CardId>
-  {
-    if |cols| == 0 then []
-    else Lane(lanes, cols[0]) + FlattenCols(cols[1..], lanes)
-  }
-
-  // Does a card id occur in some lane?
-  predicate OccursInLanes(m: Model, id: CardId)
-  {
-    exists i :: 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id)
-  }
-
   // Helper lemma: if id is in a sequence, it's contained
   lemma SeqContainsWitness<T>(s: seq<T>, x: T, idx: nat)
     requires idx < |s|
@@ -1451,381 +1830,6 @@ module KanbanDomain refines Domain {
       assert OccursInLanes(m, freshId);
       assert freshId in m.cards;
       assert freshId < m.nextId;
-    }
-  }
-
-  // --------------------------
-  // Invariant (A1 + B + column well-formedness)
-  // --------------------------
-  ghost predicate Inv(m: Model)
-  {
-    // Column list well-formed
-    NoDupSeq(m.cols) &&
-
-    // Lanes/wip defined exactly on existing columns
-    (forall i :: 0 <= i < |m.cols| ==> m.cols[i] in m.lanes && m.cols[i] in m.wip) &&
-    (forall c :: c in m.lanes ==> c in m.cols) &&
-    (forall c :: c in m.wip ==> c in m.cols) &&
-
-    // A1: exact partition (no disappear / no duplicate)
-    NoDupSeq(AllIds(m)) &&
-    (forall id :: id in m.cards <==> OccursInLanes(m, id)) &&
-
-    // B: WIP limits
-    (forall i :: 0 <= i < |m.cols| ==> |m.lanes[m.cols[i]]| <= m.wip[m.cols[i]]) &&
-
-    // Allocator is fresh
-    (forall id :: id in m.cards ==> id < m.nextId)
-  }
-
-  // --------------------------
-  // Normalize
-  // --------------------------
-  // For now, Normalize is the identity.
-  // That keeps semantics simple and makes "no-op on violation" exact.
-  //
-  // If you later want Normalize to "repair" (e.g., drop unknown columns,
-  // clamp positions, etc.), this is the hook point.
-  function Normalize(m: Model): Model { m }
-
-  // --------------------------
-  // Apply
-  // --------------------------
-  function Apply(m: Model, a: Action): Model
-  {
-    match m
-    case Model(cols, lanes, wip, cards, nextId) =>
-      match a
-      case AddColumn(col, limit) =>
-        if col in cols then m
-        else
-          // add an empty lane and a wip entry
-          Model(cols + [col],
-                lanes[col := []],
-                wip[col := limit],
-                cards,
-                nextId)
-
-      case SetWip(col, limit) =>
-        if !(col in cols) then m
-        else if limit < |Lane(lanes, col)| then m
-        else Model(cols, lanes, wip[col := limit], cards, nextId)
-
-      case AddCard(col, title) =>
-        if !(col in cols) then m
-        else if |Lane(lanes, col)| + 1 > (Wip(wip, col)) then m
-        else
-          var id := nextId;
-          Model(cols,
-                lanes[col := Lane(lanes, col) + [id]],
-                wip,
-                cards[id := Card(title)],
-                nextId + 1)
-
-      case MoveCard(id, toCol, pos) =>
-        if !(toCol in cols) then m
-        else if !(id in cards) then m
-        else
-          // Find the source column by scanning cols
-          var src := FindColumnOf(cols, lanes, id);
-          if src == "" then m // should be impossible under Inv; safe fallback
-          else if src == toCol then
-            // reorder within same column (still checks WIP trivially)
-            var s := Lane(lanes, src);
-            var s1 := RemoveFirst(s, id);
-            var k := ClampPos(pos, |s1|);
-            Model(cols, lanes[src := InsertAt(s1, k, id)], wip, cards, nextId)
-          else
-            // cross-column move: check WIP of destination
-            if |Lane(lanes, toCol)| + 1 > (Wip(wip, toCol)) then m
-            else
-              var s := Lane(lanes, src);
-              var t := Lane(lanes, toCol);
-              var s1 := RemoveFirst(s, id);
-              var k := ClampPos(pos, |t|);
-              var t1 := InsertAt(t, k, id);
-              Model(cols, lanes[src := s1][toCol := t1], wip, cards, nextId)
-  }
-
-  // Helper: find which column contains id; returns "" if not found.
-  function FindColumnOf(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId): ColId
-  {
-    if |cols| == 0 then ""
-    else if SeqContains(Lane(lanes, cols[0]), id) then cols[0]
-    else FindColumnOf(cols[1..], lanes, id)
-  }
-
-  function SeqContains<T(==)>(s: seq<T>, x: T): bool
-  {
-    exists i :: 0 <= i < |s| && s[i] == x
-  }
-
-  // --------------------------
-  // The required lemma for dafny-replay
-  // --------------------------
-  //
-  // This is the only thing the replay kernel needs from the domain:
-  // Step preserves Inv (possibly after Normalize, but Normalize is identity here).
-  //
-  // Proof strategy:
-  // - case split on action
-  // - every branch is either "no-op" (model unchanged) or a local update
-  // - show:
-  //   * column keys preserved
-  //   * cards moved/added without duplication
-  //   * WIP checked before insertion
-  //
-  lemma StepPreservesInv(m: Model, a: Action)
-  {
-    assert Normalize(Apply(m,a)) == Apply(m,a);
-    var m' := Apply(m, a);
-    match a
-    case AddColumn(col, limit) => {
-        if col in m.cols {
-          // No-op case
-        } else {
-          // m' = Model(cols + [col], lanes[col := []], wip[col := limit], cards, nextId)
-          var cols' := m.cols + [col];
-          var lanes' := m.lanes[col := []];
-          var wip' := m.wip[col := limit];
-          assert m' == Model(cols', lanes', wip', m.cards, m.nextId);
-
-          // NoDupSeq(cols')
-          assert !(col in m.cols);
-          NoDupSeqAppendFresh(m.cols, col);
-
-          // Lanes/wip defined exactly on existing columns
-          forall i | 0 <= i < |cols'|
-            ensures cols'[i] in lanes' && cols'[i] in wip'
-          {
-            if i < |m.cols| {
-              assert cols'[i] == m.cols[i];
-              assert m.cols[i] in m.lanes;
-              assert m.cols[i] in m.wip;
-            } else {
-              assert cols'[i] == col;
-            }
-          }
-
-          // AllIds(m') = AllIds(m) since the new lane is empty
-          // First show that lanes' agrees with m.lanes on all columns in m.cols
-          assert forall c :: c in m.cols ==> Lane(lanes', c) == Lane(m.lanes, c);
-          FlattenColsSameLanes(m.cols, m.lanes, lanes');
-          assert FlattenCols(m.cols, lanes') == FlattenCols(m.cols, m.lanes);
-          FlattenColsAppendEmpty(m.cols, lanes', col);
-          assert FlattenCols(cols', lanes') == FlattenCols(m.cols, lanes');
-          assert AllIds(m') == AllIds(m);
-
-          // OccursInLanes preserved
-          forall id
-            ensures OccursInLanes(m', id) <==> OccursInLanes(m, id)
-          {
-            if OccursInLanes(m', id) {
-              var i :| 0 <= i < |m'.cols| && (exists j :: 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id);
-              var j :| 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id;
-              if i < |m.cols| {
-                assert m'.cols[i] == m.cols[i];
-                if m.cols[i] == col {
-                  assert false; // col not in m.cols
-                } else {
-                  assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
-                  OccursInLanesWitness(m, id, i, j);
-                }
-              } else {
-                assert m'.cols[i] == col;
-                assert Lane(lanes', col) == [];
-                assert false; // empty lane has no elements
-              }
-            }
-            if OccursInLanes(m, id) {
-              var i :| 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id);
-              var j :| 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id;
-              assert m.cols[i] != col; // since col not in m.cols
-              assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
-              assert i < |cols'|;
-              assert cols'[i] == m.cols[i];
-              OccursInLanesWitness(m', id, i, j);
-            }
-          }
-
-          // WIP limits for new column
-          assert Lane(lanes', col) == [];
-          assert |Lane(lanes', col)| == 0 <= limit;
-
-          assert Inv(m');
-        }
-    }
-    case SetWip(col, limit) => {}
-    case AddCard(col, title) => {
-        if !(col in m.cols) {}
-        else if |Lane(m.lanes, col)| + 1 > (Wip(m.wip, col)) {}
-        else {
-            var newId := m.nextId;
-            var lanes' := m.lanes[col := Lane(m.lanes, col) + [newId]];
-            var cards' := m.cards[newId := Card(title)];
-            assert m' == Model(m.cols, lanes', m.wip, cards', newId + 1);
-
-            // Find col's index
-            ColInColsWitness(m.cols, col);
-            var colIdx :| 0 <= colIdx < |m.cols| && m.cols[colIdx] == col;
-
-            // Prove: new card occurs in lanes
-            var newLane := Lane(lanes', col);
-            assert newLane == Lane(m.lanes, col) + [newId];
-            var posIdx := |Lane(m.lanes, col)|;
-            assert newLane[posIdx] == newId;
-            assert Lane(m'.lanes, m'.cols[colIdx]) == newLane;
-            OccursInLanesWitness(m', newId, colIdx, posIdx);
-
-            // Prove: old cards still occur in lanes
-            forall id | id in m.cards
-              ensures OccursInLanes(m', id)
-            {
-              assert OccursInLanes(m, id);
-              var i :| 0 <= i < |m.cols| && (exists j :: 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id);
-              var j :| 0 <= j < |Lane(m.lanes, m.cols[i])| && Lane(m.lanes, m.cols[i])[j] == id;
-              if m.cols[i] == col {
-                assert Lane(lanes', col) == Lane(m.lanes, col) + [newId];
-                assert j < |Lane(m.lanes, col)|;
-                assert Lane(lanes', col)[j] == Lane(m.lanes, col)[j] == id;
-                OccursInLanesWitness(m', id, i, j);
-              } else {
-                assert Lane(lanes', m.cols[i]) == Lane(m.lanes, m.cols[i]);
-                OccursInLanesWitness(m', id, i, j);
-              }
-            }
-
-            // Forward direction: in cards' => OccursInLanes
-            forall id | id in cards'
-              ensures OccursInLanes(m', id)
-            {
-              if id == newId {
-                assert OccursInLanes(m', newId);
-              } else {
-                assert id in m.cards;
-              }
-            }
-
-            // Reverse direction: OccursInLanes => in cards'
-            forall id | OccursInLanes(m', id)
-              ensures id in cards'
-            {
-              var i :| 0 <= i < |m'.cols| && (exists j :: 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id);
-              var j :| 0 <= j < |Lane(m'.lanes, m'.cols[i])| && Lane(m'.lanes, m'.cols[i])[j] == id;
-              if m'.cols[i] == col {
-                if j < |Lane(m.lanes, col)| {
-                  assert Lane(m.lanes, col)[j] == id;
-                  OccursInLanesWitness(m, id, i, j);
-                  assert id in m.cards;
-                } else {
-                  assert j == |Lane(m.lanes, col)|;
-                  assert Lane(lanes', col)[j] == newId;
-                  assert id == newId;
-                }
-              } else {
-                assert Lane(lanes', m'.cols[i]) == Lane(m.lanes, m.cols[i]);
-                OccursInLanesWitness(m, id, i, j);
-                assert id in m.cards;
-              }
-            }
-
-            // NoDupSeq(AllIds(m'))
-            FreshIdNotInAllIds(m, newId);
-            assert !SeqContains(AllIds(m), newId);
-            FlattenColsAppendToLane(m.cols, m.lanes, col, newId);
-
-            assert Inv(m');
-        }
-    }
-    case MoveCard(id, toCol, pos) => {
-        if !(toCol in m.cols) {
-          // No-op
-        } else if !(id in m.cards) {
-          // No-op
-        } else {
-          FindColumnOfInv(m, id);
-          var src := FindColumnOf(m.cols, m.lanes, id);
-          if src == "" {
-            // No-op (shouldn't happen under Inv)
-          } else if src == toCol {
-            // Same-column reorder
-            var s := Lane(m.lanes, src);
-            var s1 := RemoveFirst(s, id);
-            var k := ClampPos(pos, |s1|);
-            var lanes' := m.lanes[src := InsertAt(s1, k, id)];
-            assert m' == Model(m.cols, lanes', m.wip, m.cards, m.nextId);
-
-            // Use the same-column reorder lemma
-            RemoveFirstLength(s, id);
-            FlattenColsSameColReorder(m.cols, m.lanes, src, id, k);
-
-            // AllIds same contents
-            forall y
-              ensures SeqContains(AllIds(m'), y) <==> SeqContains(AllIds(m), y)
-            {
-              assert SeqContains(FlattenCols(m.cols, lanes'), y) <==> SeqContains(FlattenCols(m.cols, m.lanes), y);
-            }
-
-            // OccursInLanes preserved
-            forall y
-              ensures OccursInLanes(m', y) <==> OccursInLanes(m, y)
-            {
-              AllIdsContains(m.cols, lanes', y);
-              AllIdsContains(m.cols, m.lanes, y);
-              OccursInLanesEquivSeqContains(m, y);
-              OccursInLanesEquivSeqContainsLanes(m.cols, lanes', y);
-            }
-
-            // WIP limits preserved (lane length unchanged)
-            RemoveFirstLength(s, id);
-            InsertAtLength(s1, k, id);
-            assert |InsertAt(s1, k, id)| == |s|;
-
-            assert Inv(m');
-          } else {
-            // Cross-column move
-            if |Lane(m.lanes, toCol)| + 1 > (Wip(m.wip, toCol)) {
-              // WIP exceeded, no-op
-            } else {
-              var s := Lane(m.lanes, src);
-              var t := Lane(m.lanes, toCol);
-              var s1 := RemoveFirst(s, id);
-              var k := ClampPos(pos, |t|);
-              var t1 := InsertAt(t, k, id);
-              var lanes' := m.lanes[src := s1][toCol := t1];
-              assert m' == Model(m.cols, lanes', m.wip, m.cards, m.nextId);
-
-              // Use the cross-column move lemma
-              FlattenColsCrossColMove(m.cols, m.lanes, src, toCol, id, k);
-
-              // AllIds same contents
-              forall y
-                ensures SeqContains(AllIds(m'), y) <==> SeqContains(AllIds(m), y)
-              {
-                assert SeqContains(FlattenCols(m.cols, lanes'), y) <==> SeqContains(FlattenCols(m.cols, m.lanes), y);
-              }
-
-              // OccursInLanes preserved
-              forall y
-                ensures OccursInLanes(m', y) <==> OccursInLanes(m, y)
-              {
-                AllIdsContains(m.cols, lanes', y);
-                AllIdsContains(m.cols, m.lanes, y);
-                OccursInLanesEquivSeqContains(m, y);
-                OccursInLanesEquivSeqContainsLanes(m.cols, lanes', y);
-              }
-
-              // WIP limits: src lane shorter, toCol lane longer by 1 (but within limit)
-              RemoveFirstLength(s, id);
-              assert |s1| == |s| - 1;
-              InsertAtLength(t, k, id);
-              assert |t1| == |t| + 1;
-              assert |t1| <= Wip(m.wip, toCol);
-
-              assert Inv(m');
-            }
-          }
-        }
     }
   }
 }
