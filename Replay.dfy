@@ -1,4 +1,4 @@
-module {:compile false} Domain {
+abstract module {:compile false} Domain {
   type Model
   type Action
 
@@ -7,7 +7,7 @@ module {:compile false} Domain {
   function Apply(m: Model, a: Action): Model
   function Normalize(m: Model): Model
 
-  lemma {:axiom} StepPreservesInv(m: Model, a: Action)
+  lemma StepPreservesInv(m: Model, a: Action)
     requires Inv(m)
     ensures Inv(Normalize(Apply(m,a)))
 }
