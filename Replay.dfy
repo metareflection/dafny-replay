@@ -1,4 +1,4 @@
-module Domain {
+module {:compile false} Domain {
   type Model
   type Action
 
@@ -38,7 +38,7 @@ module ConcreteDomain refines Domain {
   }
 }
 
-abstract module Kernel {
+abstract module {:compile false} Kernel {
   import D : Domain
 
   function Step(m: D.Model, a: D.Action): D.Model {
