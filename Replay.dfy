@@ -13,7 +13,6 @@ abstract module {:compile false} Domain {
 }
 
 module ConcreteDomain refines Domain {
-
   type Model = int
 
   datatype Action = Inc | Dec
