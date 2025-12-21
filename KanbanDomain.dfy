@@ -1,5 +1,10 @@
 include "Replay.dfy"
 
+// Goal: prove preservation of
+// - A1 (exact partition, no duplicates)
+// - B (WIP limits)
+// for a dynamic-column Kanban reducer under undo/redo replay.
+
 module KanbanDomain refines Domain {
   // user facing
   type ColId = string
