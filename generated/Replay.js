@@ -1,4 +1,4 @@
-// Dafny program Replay.dfy compiled into JavaScript
+// Dafny program ConcreteDomain.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 

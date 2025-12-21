@@ -5,13 +5,15 @@ A verified replayable state-transition kernel compiled from Dafny to JavaScript 
 ## Architecture
 
 ```
-Replay.dfy          Verified Dafny kernel (undo/redo, invariants)
+Replay.dfy              Abstract Domain & Kernel (verified, not compiled)
+    ↓ include
+ConcreteDomain.dfy      Concrete implementation (refines abstract modules)
     ↓ compile
-generated/Replay.js  Generated JavaScript (don't edit)
+generated/Replay.js     Generated JavaScript (don't edit)
     ↓ wrap
-demo/src/dafny/app.js  ESM wrapper (clean API for React)
+demo/src/dafny/app.js   ESM wrapper (clean API for React)
     ↓ import
-demo/src/App.jsx     React UI
+demo/src/App.jsx        React UI
 ```
 
 React owns rendering. Dafny owns state transitions.
@@ -26,7 +28,7 @@ npm run dev
 
 ## Recompiling After Dafny Changes
 
-If you modify `Replay.dfy`:
+If you modify `Replay.dfy` or `ConcreteDomain.dfy`:
 
 ```bash
 ./compile.sh
@@ -35,7 +37,7 @@ If you modify `Replay.dfy`:
 Or manually:
 
 ```bash
-dafny translate js --no-verify -o generated/Replay --include-runtime Replay.dfy
+dafny translate js --no-verify -o generated/Replay --include-runtime ConcreteDomain.dfy
 cp generated/Replay.js demo/src/dafny/Replay.cjs
 ```
 
@@ -44,3 +46,4 @@ cp generated/Replay.js demo/src/dafny/Replay.cjs
 - Abstract modules need `{:compile false}` to be excluded from JS compilation
 - The generated JS uses CommonJS; the wrapper (`app.js`) bridges to ESM
 - `AppCore` is the only module React should import
+- To create a new domain, make a new file that includes `Replay.dfy` and refines `Domain` and `Kernel`
