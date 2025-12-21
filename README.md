@@ -47,3 +47,8 @@ cp generated/Replay.js demo/src/dafny/Replay.cjs
 - The generated JS uses CommonJS; the wrapper (`app.js`) bridges to ESM
 - `AppCore` is the only module React should import
 - To create a new domain, make a new file that includes `Replay.dfy` and refines `Domain` and `Kernel`
+
+## Domains
+
+- Concrete (demo)
+- Kanban
