@@ -2,7 +2,7 @@ abstract module {:compile false} Domain {
   type Model
   type Action
 
-  predicate Inv(m: Model)
+  ghost predicate Inv(m: Model)
 
   function Apply(m: Model, a: Action): Model
   function Normalize(m: Model): Model
@@ -46,7 +46,7 @@ abstract module {:compile false} Kernel {
     D.StepPreservesInv(h.present, a);
   }
 
-  predicate HistInv(h: History) {
+  ghost predicate HistInv(h: History) {
     (forall i | 0 <= i < |h.past| :: D.Inv(h.past[i])) &&
     D.Inv(h.present) &&
     (forall j | 0 <= j < |h.future| :: D.Inv(h.future[j]))
