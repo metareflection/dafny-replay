@@ -1829,3 +1829,41 @@ module KanbanDomain refines Domain {
     }
   }
 }
+
+module KanbanKernel refines Kernel {
+  import D = KanbanDomain
+}
+
+module KanbanAppCore {
+  import K = KanbanKernel
+  import D = KanbanDomain
+
+  function Init(): K.History {
+    var m := D.Model([], map[], map[], map[], 0);
+    K.History([], m, [])
+  }
+
+  // Action constructors
+  function AddColumn(col: string, limit: nat): D.Action { D.AddColumn(col, limit) }
+  function SetWip(col: string, limit: nat): D.Action { D.SetWip(col, limit) }
+  function AddCard(col: string, title: string): D.Action { D.AddCard(col, title) }
+  function MoveCard(id: nat, toCol: string, pos: int): D.Action { D.MoveCard(id, toCol, pos) }
+
+  // State transitions
+  function Dispatch(h: K.History, a: D.Action): K.History { K.Do(h, a) }
+  function Undo(h: K.History): K.History { K.Undo(h) }
+  function Redo(h: K.History): K.History { K.Redo(h) }
+
+  // Selectors
+  function Present(h: K.History): D.Model { h.present }
+  function CanUndo(h: K.History): bool { |h.past| > 0 }
+  function CanRedo(h: K.History): bool { |h.future| > 0 }
+
+  // Model accessors for JavaScript
+  function GetCols(m: D.Model): seq<string> { m.cols }
+  function GetLane(m: D.Model, col: string): seq<nat> { D.Lane(m.lanes, col) }
+  function GetWip(m: D.Model, col: string): nat { D.Wip(m.wip, col) }
+  function GetCardTitle(m: D.Model, id: nat): string {
+    if id in m.cards then m.cards[id].title else ""
+  }
+}

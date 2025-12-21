@@ -1,0 +1,179 @@
+#root {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.subtitle {
+  color: #888;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-column-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.add-column-form input {
+  flex: 1;
+  max-width: 200px;
+}
+
+.add-column-form input[type="number"] {
+  max-width: 80px;
+}
+
+.board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  min-height: 400px;
+}
+
+.column {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.column-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.wip-badge {
+  font-size: 0.8rem;
+  color: #888;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.wip-badge.at-limit {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: grab;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.card.dragging {
+  opacity: 0.5;
+}
+
+.card-id {
+  font-size: 0.7rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.card-title {
+  font-size: 0.95rem;
+}
+
+.add-card-form {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.add-card-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.add-card-form button {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.empty-board {
+  text-align: center;
+  color: #666;
+  padding: 3rem;
+}
+
+.info {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: light) {
+  .header {
+    border-bottom-color: #ddd;
+  }
+  .column {
+    background: #f5f5f5;
+  }
+  .column-header {
+    border-bottom-color: #ddd;
+  }
+  .wip-badge {
+    background: #e0e0e0;
+    color: #666;
+  }
+  .card {
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
