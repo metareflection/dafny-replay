@@ -72,6 +72,14 @@ module KanbanDomain refines Domain {
     s[..i] + [x] + s[i..]
   }
 
+  function FlatColsPosition(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, c: nat, i: nat): nat
+    requires c < |cols|
+    requires i < |Lane(lanes, cols[c])|
+  {
+    if c == 0 then i
+    else |Lane(lanes, cols[0])| + FlatColsPosition(cols[1..], lanes, c-1, i)
+  }
+
   // Flatten lanes in the order of cols
   function AllIds(m: Model): seq<CardId>
   {
@@ -952,14 +960,6 @@ module KanbanDomain refines Domain {
       FlatColsPositionOrder(cols, lanes, c2, i2, c1, i1);
       assert pos2 < pos1;
     }
-  }
-
-  function FlatColsPosition(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, c: nat, i: nat): nat
-    requires c < |cols|
-    requires i < |Lane(lanes, cols[c])|
-  {
-    if c == 0 then i
-    else |Lane(lanes, cols[0])| + FlatColsPosition(cols[1..], lanes, c-1, i)
   }
 
   lemma FlatColsPositionValid(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, c: nat, i: nat)
