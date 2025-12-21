@@ -250,4 +250,57 @@ module DelegationAuthDomain refines Domain {
       ReachNMonotoneGeneral(m, cap, n, k - 1);
     }
   }
+
+}
+
+module DelegationAuthKernel refines Kernel {
+  import D = DelegationAuthDomain
+}
+
+module DelegationAuthAppCore {
+  import K = DelegationAuthKernel
+  import D = DelegationAuthDomain
+
+  function Init(): K.History {
+    var m := D.Model({}, {}, map[], 0);
+    K.History([], m, [])
+  }
+
+  // Action constructors
+  function AddSubject(s: string): D.Action { D.AddSubject(s) }
+  function Grant(s: string, cap: string): D.Action { D.Grant(s, cap) }
+  function Delegate(from: string, to: string, cap: string): D.Action { D.Delegate(from, to, cap) }
+  function Revoke(eid: nat): D.Action { D.Revoke(eid) }
+
+  // State transitions
+  function Dispatch(h: K.History, a: D.Action): K.History { K.Do(h, a) }
+  function Undo(h: K.History): K.History { K.Undo(h) }
+  function Redo(h: K.History): K.History { K.Redo(h) }
+
+  // Selectors
+  function Present(h: K.History): D.Model { h.present }
+  function CanUndo(h: K.History): bool { |h.past| > 0 }
+  function CanRedo(h: K.History): bool { |h.future| > 0 }
+
+  // Model accessors for JavaScript
+  // Note: Sets and maps are returned directly; JS wrapper handles conversion
+  function GetSubjects(m: D.Model): set<string> {
+    m.subjects
+  }
+
+  function GetGrants(m: D.Model): set<(string, string)> {
+    m.grants
+  }
+
+  function GetDelegations(m: D.Model): map<nat, D.Deleg> {
+    m.delegations
+  }
+
+  function CheckCan(m: D.Model, s: string, cap: string): bool {
+    D.Can(m, s, cap)
+  }
+
+  function GetReachable(m: D.Model, cap: string): set<string> {
+    D.Reach(m, cap)
+  }
 }

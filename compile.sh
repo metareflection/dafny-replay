@@ -13,4 +13,10 @@ dafny translate js --no-verify -o generated/Kanban --include-runtime KanbanDomai
 echo "Copying to kanban project..."
 cp generated/Kanban.js kanban/src/dafny/Kanban.cjs
 
+echo "Compiling DelegationAuthDomain to JavaScript..."
+dafny translate js --no-verify -o generated/DelegationAuth --include-runtime DelegationAuthDomain.dfy
+
+echo "Copying to delegation-auth project..."
+cp generated/DelegationAuth.js delegation-auth/src/dafny/DelegationAuth.cjs
+
 echo "Done."

@@ -102,6 +102,30 @@ A realistic, non-local domain with:
 
 This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
 
+### 3. Delegation Auth (capability delegation)
+
+A permission system with transitive capability delegation:
+
+* subjects (users/entities),
+* direct capability grants,
+* delegations (edges transferring capability access),
+* revocable delegation edges with unique IDs.
+
+**Key invariants:**
+
+1. **Referential integrity**
+   All grant subjects and delegation endpoints must exist in the subject set.
+2. **Fresh edge IDs**
+   Delegation IDs are always less than the allocator counter.
+
+**Access semantics:**
+
+A subject *can* access a capability if:
+* they have a direct grant, OR
+* there exists a delegation chain from a granted subject to them.
+
+The `Reach` function computes transitive closure via bounded iteration, with a proof (`ReachCorrect`) that it matches the ghost specification `HasCap`.
+
 ---
 
 ## Why this is interesting
@@ -162,8 +186,9 @@ This produces JavaScript artifacts consumed by the demo.
 ### 3. Run the React demos
 
 ```bash
-cd demo # or
-cd kanban
+cd demo           # counter demo
+cd kanban         # kanban board
+cd delegation-auth # capability delegation
 npm install
 npm run dev
 ```
