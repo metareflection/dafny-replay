@@ -26,7 +26,7 @@ abstract module {:compile false} Domain {
   // --------------------------
 
   // Global invariant
-  predicate Inv(m: Model)
+  ghost predicate Inv(m: Model)
 
   // Apply a concrete action; may reject with a domain error
   function TryStep(m: Model, a: Action): Result<Model, Err>

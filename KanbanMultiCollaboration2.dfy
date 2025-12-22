@@ -34,9 +34,75 @@ module KanbanDomain refines Domain {
     | MoveCard(id: CardId, toCol: ColId, place: Place)
     | EditTitle(id: CardId, title: string)
 
-  predicate Inv(m: Model)
+  // --- Invariant helpers ---
+
+  // No duplicates in a sequence
+  predicate NoDupSeq<T(==)>(s: seq<T>)
   {
-    true // TODO: your real invariant
+    forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
+  }
+
+  // Flatten all lanes along cols order into a single sequence of CardIds
+  function AllIds(m: Model): seq<CardId>
+  {
+    AllIdsHelper(m.cols, m.lanes)
+  }
+
+  function AllIdsHelper(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>): seq<CardId>
+  {
+    if |cols| == 0 then []
+    else
+      var c := cols[0];
+      var lane := if c in lanes then lanes[c] else [];
+      lane + AllIdsHelper(cols[1..], lanes)
+  }
+
+  // Check if id occurs in any lane
+  predicate OccursInLanes(m: Model, id: CardId)
+  {
+    exists c :: c in m.lanes && SeqContains(m.lanes[c], id)
+  }
+
+  // Count occurrences of id across all lanes
+  function CountInLanes(m: Model, id: CardId): nat
+  {
+    CountInLanesHelper(m.cols, m.lanes, id)
+  }
+
+  function CountInLanesHelper(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId): nat
+  {
+    if |cols| == 0 then 0
+    else
+      var c := cols[0];
+      var lane := if c in lanes then lanes[c] else [];
+      var here := if SeqContains(lane, id) then 1 else 0;
+      here + CountInLanesHelper(cols[1..], lanes, id)
+  }
+
+  // --- Real invariant ---
+  ghost predicate Inv(m: Model)
+  {
+    // A: Columns are unique
+    NoDupSeq(m.cols)
+
+    // B: lanes and wip defined exactly on cols
+    && (forall c :: c in m.lanes <==> SeqContains(m.cols, c))
+    && (forall c :: c in m.wip <==> SeqContains(m.cols, c))
+
+    // C: Every id in any lane exists in cards
+    && (forall c, id :: c in m.lanes && SeqContains(m.lanes[c], id) ==> id in m.cards)
+
+    // D: Every card id occurs in exactly one lane (no duplicates, no orphans)
+    && (forall id :: id in m.cards ==> CountInLanes(m, id) == 1)
+
+    // E: No duplicate ids within any single lane
+    && (forall c :: c in m.lanes ==> NoDupSeq(m.lanes[c]))
+
+    // F: WIP respected: each lane length <= its limit
+    && (forall c :: c in m.cols && c in m.lanes && c in m.wip ==> |m.lanes[c]| <= m.wip[c])
+
+    // G: Allocator fresh: all card ids are < nextId
+    && (forall id :: id in m.cards ==> id < m.nextId)
   }
 
   // --- Helpers ---
@@ -186,7 +252,8 @@ module KanbanDomain refines Domain {
 
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
   {
-    // stub; you’ll fill later
+    // TODO: prove each action case preserves invariant
+    assume {:axiom} false;
   }
 
   lemma CandidatesComplete(m: Model, orig: Action, aGood: Action, m2: Model)
