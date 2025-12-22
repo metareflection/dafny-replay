@@ -85,20 +85,92 @@ module KanbanDomain refines Domain {
         true
     }
 
-    // Semantic step — stub for now.
-    // Replace with your real reducer:
-    // - enforce referential integrity
-    // - enforce WIP limits (Err(WipExceeded))
-    // - allow identity steps (domain no-op)
+    // Semantic step: apply action to model, may reject with error.
     function TryStep(m: Model, a: Action): Result<Model, Err>
     {
         match a
         case NoOp =>
             Ok(m)
 
-        // Placeholders; implement properly later.
-        case _ =>
-            Err(MissingColumn)
+        case AddColumn(col, limit) =>
+            if col in m.columns then
+                Ok(m)  // Column already exists, no-op
+            else
+                Ok(Model(
+                    m.columns[col := []],
+                    m.wip[col := limit],
+                    m.cards
+                ))
+
+        case DeleteColumn(col) =>
+            if col !in m.columns then
+                Err(MissingColumn)
+            else if |m.columns[col]| > 0 then
+                Err(MissingColumn)  // Can't delete non-empty column
+            else
+                var newCols := map k | k in m.columns && k != col :: m.columns[k];
+                var newWip := map k | k in m.wip && k != col :: m.wip[k];
+                Ok(Model(newCols, newWip, m.cards))
+
+        case SetWip(col, limit) =>
+            if col !in m.columns then
+                Err(MissingColumn)
+            else
+                Ok(Model(m.columns, m.wip[col := limit], m.cards))
+
+        case AddCard(col, id, pos, title) =>
+            if col !in m.columns then
+                Err(MissingColumn)
+            else if id in m.cards then
+                Err(DuplicateCardId)
+            else if pos > |m.columns[col]| then
+                Err(BadPos)
+            else
+                var lane := m.columns[col];
+                var newLane := lane[..pos] + [id] + lane[pos..];
+                Ok(Model(
+                    m.columns[col := newLane],
+                    m.wip,
+                    m.cards[id := Card(title)]
+                ))
+
+        case DeleteCard(id) =>
+            if id !in m.cards then
+                Err(MissingCard)
+            else
+                // Find and remove from column
+                var newCols := map col | col in m.columns :: RemoveFromSeq(m.columns[col], id);
+                var newCards := map k | k in m.cards && k != id :: m.cards[k];
+                Ok(Model(newCols, m.wip, newCards))
+
+        case MoveCard(id, toCol, pos) =>
+            if id !in m.cards then
+                Err(MissingCard)
+            else if toCol !in m.columns then
+                Err(MissingColumn)
+            else
+                // Remove from all columns, then add to target
+                var removed := map col | col in m.columns :: RemoveFromSeq(m.columns[col], id);
+                var targetLane := if toCol in removed then removed[toCol] else [];
+                if pos > |targetLane| then
+                    Err(BadPos)
+                else
+                    var newLane := targetLane[..pos] + [id] + targetLane[pos..];
+                    Ok(Model(removed[toCol := newLane], m.wip, m.cards))
+
+        case EditTitle(id, title) =>
+            if id !in m.cards then
+                Err(MissingCard)
+            else
+                Ok(Model(m.columns, m.wip, m.cards[id := Card(title)]))
+    }
+
+    // Helper: remove first occurrence of element from sequence
+    function RemoveFromSeq(s: seq<CardId>, x: CardId): seq<CardId>
+    {
+        if |s| == 0 then []
+        else if s[0] == x then s[1..]
+        else [s[0]] + RemoveFromSeq(s[1..], x)
     }
 
     // Domain obligation.
