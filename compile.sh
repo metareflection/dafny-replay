@@ -26,4 +26,11 @@ echo "Copying to demo-authority project..."
 cp generated/Authority.js demo-authority/server/Authority.cjs
 cp generated/Authority.js demo-authority/src/dafny/Authority.cjs
 
+echo "Compiling KanbanMultiCollaboration to JavaScript..."
+dafny translate js --no-verify -o generated/KanbanMulti --include-runtime KanbanMultiCollaboration.dfy
+
+echo "Copying to kanban-multi-collaboration project..."
+cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
+cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
+
 echo "Done."
