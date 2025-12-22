@@ -263,6 +263,7 @@ cd demo           # counter demo
 cd kanban         # kanban board
 cd delegation-auth # capability delegation
 cd demo-authority # counter demo with client-server protocol
+cd kanban-multi-collaboration # kanban with client-server protocol and offline clients
 npm install
 npm run dev
 ```
