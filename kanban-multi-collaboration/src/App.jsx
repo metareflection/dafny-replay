@@ -86,6 +86,19 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
   )
 }
 
+function Toast({ message, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  return (
+    <div className="toast">
+      {message}
+    </div>
+  )
+}
+
 function KanbanBoard() {
   const [client, setClient] = useState(null)
   const [serverVersion, setServerVersion] = useState(0)
@@ -95,6 +108,7 @@ function KanbanBoard() {
   const [newColName, setNewColName] = useState('')
   const [newColLimit, setNewColLimit] = useState(5)
   const [isFlushing, setIsFlushing] = useState(false)
+  const [toast, setToast] = useState(null)
 
   // Sync with server
   const sync = useCallback(async () => {
@@ -153,8 +167,10 @@ function KanbanBoard() {
         setStatus('synced')
         setError(null)
       } else {
-        setStatus('rejected')
-        setError('Action rejected by server')
+        setStatus('synced')
+        // Show toast for rejected action
+        const actionJson = App.actionToJson(action)
+        setToast(`Action lost: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
         // Re-sync to recover
         await sync()
       }
@@ -226,6 +242,8 @@ function KanbanBoard() {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
       <form className="add-column-form" onSubmit={handleAddColumn}>
         <input
