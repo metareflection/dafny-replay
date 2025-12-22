@@ -197,7 +197,7 @@ All accepted states are proved to satisfy the domain invariant.
 
 Future kernels may combine this authoritative semantic layer with richer structural convergence mechanisms, while preserving the same invariant guarantees at the server boundary.
 
---
+---
 
 ## Why this is interesting
 
