@@ -1,0 +1,92 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.card {
+  padding: 2em;
+  background: #ffffff;
+  border-radius: 8px;
+  margin: 1em 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.value {
+  font-size: 4rem;
+  font-weight: bold;
+  margin: 1rem 0;
+  color: #646cff;
+}
+
+.version {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+button {
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background-color: #ffffff;
+  color: #213547;
+  transition: all 0.25s;
+}
+
+button:hover {
+  border-color: #646cff;
+  background-color: #f0f0ff;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.subtitle {
+  color: #666;
+  margin-top: -0.5rem;
+}
+
+.info {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.status {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 1rem 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: #e8e8e8;
+}
+
+.status.error {
+  color: #c53030;
+  background: #fed7d7;
+}
+
+.error-msg {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
