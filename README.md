@@ -248,6 +248,7 @@ This produces JavaScript artifacts consumed by the demo.
 cd demo           # counter demo
 cd kanban         # kanban board
 cd delegation-auth # capability delegation
+cd demo-authority # counter demo with client-server protocol
 npm install
 npm run dev
 ```
