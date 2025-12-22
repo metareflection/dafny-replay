@@ -16,6 +16,7 @@ This repository contains:
 
 * a **generic replay kernel** proved once,
 * a **generic authority kernel** for server-authoritative client–server protocols,
+* a **generic multi-collaboration kernel** for a server-authorative protocol with possibly offline clients,
 * multiple **concrete domains** proved against these kernels,
 * a **React demo pipeline** using the compiled JavaScript.
 
