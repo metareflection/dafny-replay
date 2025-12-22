@@ -19,4 +19,11 @@ dafny translate js --no-verify -o generated/DelegationAuth --include-runtime Del
 echo "Copying to delegation-auth project..."
 cp generated/DelegationAuth.js delegation-auth/src/dafny/DelegationAuth.cjs
 
+echo "Compiling ConcreteAuthority to JavaScript..."
+dafny translate js --no-verify -o generated/Authority --include-runtime ConcreteAuthority.dfy
+
+echo "Copying to demo-authority project..."
+cp generated/Authority.js demo-authority/server/Authority.cjs
+cp generated/Authority.js demo-authority/src/dafny/Authority.cjs
+
 echo "Done."
