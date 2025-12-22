@@ -1,26 +1,39 @@
 # dafny-replay
 
-**A verified replay (undo/redo) kernel for UI state, written in Dafny and compiled to JavaScript.**
+**Verified kernels, written in Dafny and compiled to JavaScript, for correct-by-construction state in interactive web applications.**
 
-`dafny-replay` provides a small, reusable kernel for **replayable application state** (undo/redo, time-travel) with **global invariants proved once and preserved for all histories**.
+This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.
+
+`dafny-replay` provides small, reusable **verified kernels for application state**—including replayable (undo/redo, time-travel) state and experimental client–server authority kernels—where **global invariants are proved once and preserved by construction**.
 
 The core idea is simple:
 
-> If every state transition preserves an invariant, then *every* state reachable by replay (including undo/redo) also satisfies that invariant — by construction.
+> If every state transition preserves an invariant, then *every* state reachable through the system
+> (including via replay or protocol interaction) also satisfies that invariant — by construction.
+
 
 This repository contains:
 
 * a **generic replay kernel** proved once,
-* multiple **concrete domains** proved against that kernel,
-* and a **React demo pipeline** using the compiled JavaScript.
+* a **generic authority kernel** for server-authoritative client–server protocols,
+* multiple **concrete domains** proved against these kernels,
+* a **React demo pipeline** using the compiled JavaScript.
 
 It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising non-local invariants and sequence/map reasoning.
+
+### List of Kernels
+
+| Kernel    | Setting          | Guarantees |
+|-----------|------------------|------------|
+| Replay    | Local UI state   | Undo/redo preserves global invariants |
+| Authority | Client–server    | Server state always satisfies invariants |
 
 ---
 
 ## What this gives you
 
 * ✅ **Undo / redo for free**, once the domain invariant is proved
+* ✅ Server-authoritative state with explicit *protocol-level rejection*
 * ✅ **Impossible states ruled out**, not just tested against
 * ✅ **Pure, deterministic reducers** (React-friendly)
 * ✅ **Executable JavaScript**, not a model
@@ -31,7 +44,7 @@ The guarantees come from Dafny verification.
 
 ---
 
-## Architecture
+## Architecture (Replay Kernel)
 
 ```
 Abstract Domain (spec)
@@ -128,6 +141,52 @@ The `Reach` function computes transitive closure via bounded iteration, with a p
 
 ---
 
+## The Authority Kernel
+
+In addition to local replay, the repository includes an experimental **authority kernel** for **server-authoritative application state** with optimistic clients.
+
+The authority kernel models a single authoritative server that maintains:
+
+```text
+ServerState = { version, present }
+```
+
+and exposes two operations:
+
+* `Dispatch(clientVersion, action)`
+* `Sync()`
+
+Clients may optimistically apply actions locally, but the server evolves its state **only through verified transitions**.
+
+Each request is handled as follows:
+
+* **Stale version** → rejected (client must resync)
+* **Invalid action** → rejected (domain-level failure)
+* **Valid action** → applied, version incremented
+
+On success, the server returns the updated state; on failure, the server state remains unchanged.
+
+### Domain obligation (authority)
+
+For a given domain, the only required proof is that **successful transitions preserve the invariant**:
+
+```text
+Inv(m) ∧ TryStep(m, action) = Ok(m′) ⇒ Inv(m′)
+```
+
+The authority kernel is proved once to preserve the invariant of the authoritative state across all protocol interactions, regardless of client behavior.
+
+### What this gives you
+
+* ✅ **Server-side invariants by construction**
+* ✅ **Explicit separation of protocol errors vs domain errors**
+* ✅ **Optimistic UI compatibility**
+* ✅ **Executable JavaScript server logic**
+
+This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions but are currently out of scope.
+
+---
+
 ## Why this is interesting
 
 Undo/redo logic is deceptively subtle. Bugs typically involve:
@@ -200,7 +259,7 @@ npm run dev
 
 * Not a UI framework
 * Not a CRDT library
-* Not protection against malicious clients
+* Not a security or authentication framework
 * Not optimized for performance
 
 This is about **correctness by construction** for application state.
@@ -210,7 +269,6 @@ This is about **correctness by construction** for application state.
 ## Status
 
 * ✔ Generic replay kernel proved
+* ✔ Generic authority kernel for client–server architectures proved
 * ✔ JavaScript compilation
 * ✔ React integration
-
-
