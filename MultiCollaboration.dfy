@@ -109,12 +109,14 @@ abstract module {:compile false} MultiCollaboration {
 
   // ---- Kernel theorems (stated as axioms for now; remove {:axiom} to prove) ----
 
-  // The core kernel safety statement you’ll eventually prove by induction over a trace
-  // (using D.StepPreservesInv).
-  lemma {:axiom} DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
+  // The core kernel safety statement: Dispatch preserves the domain invariant.
+  lemma DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
     requires baseVersion <= Version(s)
     requires D.Inv(s.present)
     ensures  D.Inv(Dispatch(s, baseVersion, orig).0.present)
+  {
+    // Follows directly from Dispatch's postcondition.
+  }
 
   // Event-sourcing statement for appliedLog (state equals replay of appliedLog from init).
   // This is intentionally abstract until you pick the replay fold definition you want.
