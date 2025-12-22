@@ -107,7 +107,26 @@ abstract module {:compile false} MultiCollaboration {
          Rejected(DomainInvalid, cand))
   }
 
-  // ---- Kernel theorems (stated as axioms for now; remove {:axiom} to prove) ----
+  // Replay a sequence of actions from an initial model.
+  // Returns the final model if all actions succeed, or an error if any fails.
+  function Replay(m: D.Model, log: seq<D.Action>): D.Result<D.Model, D.Err>
+    decreases |log|
+  {
+    if |log| == 0 then D.Ok(m)
+    else
+      match D.TryStep(m, log[0])
+        case Ok(m2) => Replay(m2, log[1..])
+        case Err(e) => D.Err(e)
+  }
+
+  // A server state is reachable from init if replaying its applied log
+  // from init yields its present state.
+  predicate ReachableFrom(init: D.Model, s: ServerState)
+  {
+    Replay(init, s.appliedLog) == D.Ok(s.present)
+  }
+
+  // ---- Kernel theorems ----
 
   // The core kernel safety statement: Dispatch preserves the domain invariant.
   lemma DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
@@ -118,10 +137,32 @@ abstract module {:compile false} MultiCollaboration {
     // Follows directly from Dispatch's postcondition.
   }
 
-  // Event-sourcing statement for appliedLog (state equals replay of appliedLog from init).
-  // This is intentionally abstract until you pick the replay fold definition you want.
-  lemma {:axiom} PresentAgreesWithAppliedLog(init: D.Model, s: ServerState)
+  // Event-sourcing: if replay succeeds, the result satisfies the invariant.
+  lemma ReplayPreservesInv(init: D.Model, log: seq<D.Action>, result: D.Model)
     requires D.Inv(init)
-    requires D.Inv(s.present)
-    ensures  true
+    requires Replay(init, log) == D.Ok(result)
+    ensures  D.Inv(result)
+    decreases |log|
+  {
+    if |log| == 0 {
+      // Base case: result == init, and D.Inv(init) holds.
+    } else {
+      // Inductive case: first action succeeds, then recurse.
+      match D.TryStep(init, log[0])
+        case Ok(m2) =>
+          D.StepPreservesInv(init, log[0], m2);
+          ReplayPreservesInv(m2, log[1..], result);
+        case Err(_) =>
+          // Contradiction: Replay would have returned Err.
+    }
+  }
+
+  // If a server state is reachable from a valid init, its present state is valid.
+  lemma PresentAgreesWithAppliedLog(init: D.Model, s: ServerState)
+    requires D.Inv(init)
+    requires ReachableFrom(init, s)
+    ensures  D.Inv(s.present)
+  {
+    ReplayPreservesInv(init, s.appliedLog, s.present);
+  }
 }

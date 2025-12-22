@@ -102,8 +102,9 @@ module KanbanDomain refines Domain {
     }
 
     // Domain obligation.
-    lemma {:axiom} StepPreservesInv(m: Model, a: Action, m2: Model)
+    lemma StepPreservesInv(m: Model, a: Action, m2: Model)
     {
+      // Trivial: Inv(m) == true for all m.
     }
 }
 
