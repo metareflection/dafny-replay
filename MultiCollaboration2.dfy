@@ -160,15 +160,43 @@ abstract module {:compile false} MultiCollaboration {
   }
 
   // Minimal-reject property (relative to CandidatesComplete):
-  // If Dispatch rejects, then no "explainable" admissible action exists.
+  // If there exists an explainable action that succeeds, Dispatch must not reject.
+  // Contrapositive: if Dispatch rejects, no explainable action can succeed.
   lemma DispatchRejectIsMinimal(s: ServerState, baseVersion: nat, orig: D.Action, aGood: D.Action, m2: D.Model)
     requires baseVersion <= Version(s)
     requires D.Inv(s.present)
     requires D.Explains(D.RebaseThroughSuffix(s.appliedLog[baseVersion..], orig), aGood)
     requires D.TryStep(s.present, aGood) == D.Ok(m2)
-    ensures  Dispatch(s, baseVersion, orig).1 != Rejected(DomainInvalid, D.RebaseThroughSuffix(s.appliedLog[baseVersion..], orig))
-            ==> true
+    // If an explainable action succeeds, Dispatch cannot reject
+    ensures  !Dispatch(s, baseVersion, orig).1.Rejected?
   {
-    // Intentionally left as a stub: you’ll prove via CandidatesComplete + ChooseCandidate behavior.
+    // Proof sketch:
+    // 1. By CandidatesComplete, aGood is in Candidates(s.present, rebased)
+    // 2. Since TryStep(s.present, aGood) == Ok(m2), ChooseCandidate will find it
+    // 3. Therefore Dispatch returns Accepted, not Rejected
+    var rebased := D.RebaseThroughSuffix(s.appliedLog[baseVersion..], orig);
+    D.CandidatesComplete(s.present, rebased, aGood, m2);
+    ChooseCandidateFindsGood(s.present, D.Candidates(s.present, rebased), aGood, m2);
+  }
+
+  // Helper: if aGood is in candidates and succeeds, ChooseCandidate returns Ok
+  lemma ChooseCandidateFindsGood(m: D.Model, cs: seq<D.Action>, aGood: D.Action, m2: D.Model)
+    requires aGood in cs
+    requires D.TryStep(m, aGood) == D.Ok(m2)
+    ensures  ChooseCandidate(m, cs).Ok?
+    decreases |cs|
+  {
+    if |cs| == 0 {
+      // Contradiction: aGood in [] is false
+    } else if cs[0] == aGood {
+      // First candidate is aGood, and it succeeds
+    } else {
+      match D.TryStep(m, cs[0])
+        case Ok(_) => // First succeeds, we're done
+        case Err(_) =>
+          // Recurse: aGood must be in cs[1..]
+          assert aGood in cs[1..];
+          ChooseCandidateFindsGood(m, cs[1..], aGood, m2);
+    }
   }
 }
