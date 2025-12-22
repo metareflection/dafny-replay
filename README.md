@@ -187,6 +187,18 @@ This kernel is intentionally minimal: it models a single authoritative state and
 
 ---
 
+## The Multi-Collaboration Kernel
+
+An experimental kernel for server-authoritative collaboration with offline clients.
+
+Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
+
+All accepted states are proved to satisfy the domain invariant.
+
+Future kernels may combine this authoritative semantic layer with richer structural convergence mechanisms, while preserving the same invariant guarantees at the server boundary.
+
+--
+
 ## Why this is interesting
 
 Undo/redo logic is deceptively subtle. Bugs typically involve:
