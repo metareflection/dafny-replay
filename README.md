@@ -16,7 +16,7 @@ This repository contains:
 
 * a **generic replay kernel** proved once,
 * a **generic authority kernel** for server-authoritative client–server protocols,
-* a **generic multi-collaboration kernel** for a server-authorative protocol with possibly offline clients,
+* a **generic multi-collaboration kernel** for server-authoritative protocols with offline clients,
 * multiple **concrete domains** proved against these kernels,
 * a **React demo pipeline** using the compiled JavaScript.
 
@@ -24,10 +24,11 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 ### List of Kernels
 
-| Kernel    | Setting          | Guarantees |
-|-----------|------------------|------------|
-| Replay    | Local UI state   | Undo/redo preserves global invariants |
-| Authority | Client–server    | Server state always satisfies invariants |
+| Kernel              | Setting                        | Guarantees |
+|---------------------|--------------------------------|------------|
+| Replay              | Local UI state                 | Undo/redo preserves global invariants |
+| Authority           | Client–server                  | Server state always satisfies invariants |
+| Multi-Collaboration | Client–server, offline clients | Accepted server states satisfy invariants |
 
 ---
 
