@@ -183,7 +183,7 @@ The authority kernel is proved once to preserve the invariant of the authoritati
 * ✅ **Optimistic UI compatibility**
 * ✅ **Executable JavaScript server logic**
 
-This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions but are currently out of scope.
+This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions.
 
 ---
 
