@@ -273,7 +273,12 @@ module KanbanDomain refines Domain {
   // - Non-move actions: exact equality
   // - MoveCard: same card + same destination column; placement can be:
   //   (1) same as original, or (2) AtEnd fallback
-  //   This aligns with what Candidates offers.
+  //
+  // NOTE: This definition is deliberately restrictive. The minimal-reject
+  // guarantee we prove is: "If origPlace OR AtEnd would succeed, server
+  // won't reject." The server also tries Before(first) as a heuristic,
+  // but that's not covered by this guarantee. See BeforeFirstImpliesAtEnd
+  // for why Before(first) success implies AtEnd success anyway.
   ghost predicate Explains(orig: Action, cand: Action)
   {
     match (orig, cand)
@@ -1486,6 +1491,28 @@ module KanbanDomain refines Domain {
         assert Candidates(m, orig) == [orig];
         assert aGood in Candidates(m, orig);
     }
+  }
+
+  // Before(first) is a heuristic candidate in Candidates, but not in Explains.
+  // This lemma shows that Before(first) success implies AtEnd success, so
+  // the heuristic never helps avoid rejection—it only affects final position.
+  //
+  // Proof: TryStep failure modes are:
+  //   1. MissingCard   - same for all placements
+  //   2. MissingColumn - same for all placements
+  //   3. WipExceeded   - same for all placements (depends on lane size, not placement)
+  //   4. BadAnchor     - only for Before/After when anchor not found
+  // AtEnd never fails due to (4), so if Before(first) passes (1)-(4), AtEnd passes (1)-(3).
+  lemma BeforeFirstImpliesAtEnd(m: Model, id: CardId, toCol: ColId, anchor: CardId, m2: Model)
+    requires TryStep(m, MoveCard(id, toCol, Before(anchor))).Ok?
+    ensures  TryStep(m, MoveCard(id, toCol, AtEnd)).Ok?
+  {
+    // TryStep for Before(anchor) succeeded, so:
+    // - id in m.cards
+    // - toCol in m.cols
+    // - WIP check passed
+    // - anchor was found in target lane (PosFromPlace >= 0)
+    // For AtEnd, same first three checks pass, and AtEnd always has pos >= 0.
   }
 }
 
