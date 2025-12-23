@@ -192,7 +192,7 @@ This kernel is intentionally minimal: it models a single authoritative state and
 
 ## The Multi-Collaboration Kernel
 
-An experimental kernel for server-authoritative collaboration with offline clients.
+A kernel for server-authoritative collaboration with offline clients.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
 
@@ -216,7 +216,7 @@ The v2 kernel (`MultiCollaboration2.dfy`) introduces several improvements:
 
 * **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
 
-The v2 kernel is designed for domains where "intent" matters more than exact positioning—common in collaborative editing scenarios.
+The v2 kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
 ---
 
