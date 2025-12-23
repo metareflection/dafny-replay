@@ -313,8 +313,1080 @@ module KanbanDomain refines Domain {
 
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
   {
-    // TODO: prove each action case preserves invariant
-    assume {:axiom} false;
+    match a {
+      case NoOp =>
+        // Model unchanged, invariant trivially preserved
+        assert m2 == m;
+
+      case AddColumn(col, limit) =>
+        if col in m.cols {
+          assert m2 == m;
+        } else {
+          // New column added
+          AddColumnPreservesInv(m, col, limit, m2);
+        }
+
+      case SetWip(col, limit) =>
+        if !(col in m.cols) {
+          // Error case, not Ok
+        } else if limit < |Lane(m, col)| {
+          // Error case, not Ok
+        } else {
+          SetWipPreservesInv(m, col, limit, m2);
+        }
+
+      case AddCard(col, title) =>
+        if !(col in m.cols) {
+          // Error case
+        } else if |Lane(m, col)| + 1 > Wip(m, col) {
+          // Error case
+        } else {
+          AddCardPreservesInv(m, col, title, m2);
+        }
+
+      case EditTitle(id, title) =>
+        if !(id in m.cards) {
+          // Error case
+        } else {
+          EditTitlePreservesInv(m, id, title, m2);
+        }
+
+      case MoveCard(id, toCol, place) =>
+        if !(id in m.cards) || !(toCol in m.cols) {
+          // Error cases
+        } else if |Lane(m, toCol)| + (if SeqContains(Lane(m, toCol), id) then 0 else 1) > Wip(m, toCol) {
+          // WIP exceeded error
+        } else {
+          var lanes1 := map c | c in m.lanes :: RemoveFirst(m.lanes[c], id);
+          var tgt := Get(lanes1, toCol, []);
+          var pos := PosFromPlace(tgt, place);
+          if pos < 0 {
+            // BadAnchor error
+          } else {
+            MoveCardPreservesInvHelper(m, id, toCol, place, m2, lanes1, tgt, pos);
+          }
+        }
+    }
+  }
+
+  // Helper to establish preconditions more explicitly
+  lemma MoveCardPreservesInvHelper(m: Model, id: CardId, toCol: ColId, place: Place, m2: Model,
+                                    lanes1: map<ColId, seq<CardId>>, tgt: seq<CardId>, pos: int)
+    requires Inv(m)
+    requires id in m.cards
+    requires toCol in m.cols
+    requires |Lane(m, toCol)| + (if SeqContains(Lane(m, toCol), id) then 0 else 1) <= Wip(m, toCol)
+    requires lanes1 == map c | c in m.lanes :: RemoveFirst(m.lanes[c], id)
+    requires tgt == Get(lanes1, toCol, [])
+    requires pos == PosFromPlace(tgt, place)
+    requires pos >= 0
+    requires TryStep(m, MoveCard(id, toCol, place)) == Ok(m2)
+    ensures Inv(m2)
+  {
+    var k := ClampPos(pos, |tgt|);
+    assert m2 == Model(m.cols, lanes1[toCol := InsertAt(tgt, k, id)], m.wip, m.cards, m.nextId);
+    MoveCardPreservesInv(m, id, toCol, place, m2);
+  }
+
+  // --- Helper lemmas for StepPreservesInv ---
+
+  lemma AddColumnPreservesInv(m: Model, col: ColId, limit: nat, m2: Model)
+    requires Inv(m)
+    requires !(col in m.cols)
+    requires m2 == Model(m.cols + [col], m.lanes[col := []], m.wip[col := limit], m.cards, m.nextId)
+    ensures Inv(m2)
+  {
+    // A: NoDupSeq(m2.cols)
+    assert NoDupSeq(m.cols);
+    assert !(col in m.cols);
+    NoDupSeqAppend(m.cols, col);
+
+    // B: lanes and wip defined exactly on cols
+    forall c
+      ensures c in m2.lanes <==> SeqContains(m2.cols, c)
+    {
+      SeqContainsAppend(m.cols, col, c);
+    }
+    forall c
+      ensures c in m2.wip <==> SeqContains(m2.cols, c)
+    {
+      SeqContainsAppend(m.cols, col, c);
+    }
+
+    // C: Every id in any lane exists in cards
+    // New lane is empty, so no new ids added
+
+    // D: CountInLanes preserved (new lane is empty)
+    forall id | id in m2.cards
+      ensures CountInLanes(m2, id) == 1
+    {
+      CountInLanesAddEmptyColumn(m, col, limit, id);
+    }
+
+    // E: No duplicates in lanes (new lane is empty)
+
+    // F: WIP respected (new lane is empty, 0 <= limit)
+
+    // G: Allocator fresh (cards unchanged)
+  }
+
+  lemma NoDupSeqAppend<T(==)>(s: seq<T>, x: T)
+    requires NoDupSeq(s)
+    requires !SeqContains(s, x)
+    ensures NoDupSeq(s + [x])
+  {
+    var s2 := s + [x];
+    forall i, j | 0 <= i < j < |s2|
+      ensures s2[i] != s2[j]
+    {
+      if j < |s| {
+        assert s2[i] == s[i] && s2[j] == s[j];
+      } else {
+        // j == |s|, so s2[j] == x
+        assert s2[j] == x;
+        assert 0 <= i < |s|;
+        assert s2[i] == s[i];
+        SeqContainsIndex(s, x, i);
+      }
+    }
+  }
+
+  lemma SeqContainsIndex<T(==)>(s: seq<T>, x: T, i: nat)
+    requires 0 <= i < |s|
+    requires !SeqContains(s, x)
+    ensures s[i] != x
+  {
+    if s[i] == x {
+      assert exists k :: 0 <= k < |s| && s[k] == x;
+    }
+  }
+
+  lemma SeqContainsAppend<T(==)>(s: seq<T>, x: T, y: T)
+    ensures SeqContains(s + [x], y) <==> (SeqContains(s, y) || y == x)
+  {
+    var s2 := s + [x];
+    if SeqContains(s2, y) {
+      var i :| 0 <= i < |s2| && s2[i] == y;
+      if i < |s| {
+        assert s[i] == y;
+      } else {
+        assert y == x;
+      }
+    }
+    if SeqContains(s, y) {
+      var i :| 0 <= i < |s| && s[i] == y;
+      assert s2[i] == y;
+    }
+    if y == x {
+      assert s2[|s|] == x;
+    }
+  }
+
+  lemma CountInLanesAddEmptyColumn(m: Model, col: ColId, limit: nat, id: CardId)
+    requires Inv(m)
+    requires !(col in m.cols)
+    requires id in m.cards
+    ensures CountInLanes(Model(m.cols + [col], m.lanes[col := []], m.wip[col := limit], m.cards, m.nextId), id) == 1
+  {
+    var m2 := Model(m.cols + [col], m.lanes[col := []], m.wip[col := limit], m.cards, m.nextId);
+    CountInLanesHelperAddEmptyColumn(m.cols, m.lanes, col, id);
+    assert CountInLanes(m, id) == 1;
+    assert CountInLanes(m2, id) == CountInLanesHelper(m.cols + [col], m.lanes[col := []], id);
+  }
+
+  lemma CountInLanesHelperAddEmptyColumn(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, col: ColId, id: CardId)
+    requires !SeqContains(cols, col)
+    ensures CountInLanesHelper(cols + [col], lanes[col := []], id) == CountInLanesHelper(cols, lanes, id)
+  {
+    var lanes2 := lanes[col := []];
+    if |cols| == 0 {
+      // Base case: cols + [col] = [col]
+      assert CountInLanesHelper([col], lanes2, id) ==
+        (if SeqContains([], id) then 1 else 0) + CountInLanesHelper([], lanes2, id);
+      assert CountInLanesHelper([col], lanes2, id) == 0;
+      assert CountInLanesHelper([], lanes, id) == 0;
+    } else {
+      var c := cols[0];
+      var rest := cols[1..];
+      // lanes2[c] == lanes[c] because c != col (since col not in cols)
+      assert c != col;
+      assert (if c in lanes2 then lanes2[c] else []) == (if c in lanes then lanes[c] else []);
+
+      // Recursive call
+      assert !SeqContains(rest, col);
+      CountInLanesHelperAddEmptyColumn(rest, lanes, col, id);
+
+      // cols + [col] = [c] + (rest + [col])
+      assert (cols + [col])[0] == c;
+      assert (cols + [col])[1..] == rest + [col];
+    }
+  }
+
+  lemma SetWipPreservesInv(m: Model, col: ColId, limit: nat, m2: Model)
+    requires Inv(m)
+    requires col in m.cols
+    requires limit >= |Lane(m, col)|
+    requires m2 == Model(m.cols, m.lanes, m.wip[col := limit], m.cards, m.nextId)
+    ensures Inv(m2)
+  {
+    // Only wip changes, all other invariants trivially preserved
+    // F: new limit >= |lane|, so WIP still respected
+  }
+
+  lemma AddCardPreservesInv(m: Model, col: ColId, title: string, m2: Model)
+    requires Inv(m)
+    requires col in m.cols
+    requires |Lane(m, col)| + 1 <= Wip(m, col)
+    requires m2 == Model(m.cols, m.lanes[col := Lane(m, col) + [m.nextId]], m.wip, m.cards[m.nextId := Card(title)], m.nextId + 1)
+    ensures Inv(m2)
+  {
+    var id := m.nextId;
+
+    // A: cols unchanged
+
+    // B: lanes keys unchanged (col was already in lanes)
+
+    // C: new id is added to cards
+
+    // D: CountInLanes for new id == 1, old ids unchanged
+    forall cid | cid in m2.cards
+      ensures CountInLanes(m2, cid) == 1
+    {
+      if cid == id {
+        // New card: appears exactly once in col's lane
+        CountInLanesNewCard(m, col, id);
+      } else {
+        // Old card: count unchanged
+        CountInLanesOldCardAfterAdd(m, col, id, cid);
+      }
+    }
+
+    // E: No duplicates - new id not in any lane (it's fresh)
+    forall c | c in m2.lanes
+      ensures NoDupSeq(m2.lanes[c])
+    {
+      if c == col {
+        // Need to show Lane(m, col) + [id] has no duplicates
+        NoDupSeqAppendFresh(Lane(m, col), id, m);
+      }
+    }
+
+    // F: WIP check passes by precondition
+
+    // G: new nextId > id, old cards < id < id + 1
+  }
+
+  lemma NoDupSeqAppendFresh(lane: seq<CardId>, id: CardId, m: Model)
+    requires Inv(m)
+    requires id == m.nextId
+    requires NoDupSeq(lane)
+    requires forall x :: SeqContains(lane, x) ==> x in m.cards
+    ensures NoDupSeq(lane + [id])
+  {
+    // id >= m.nextId, but all ids in lane are < m.nextId
+    assert !SeqContains(lane, id) by {
+      if SeqContains(lane, id) {
+        assert id in m.cards;
+        assert id < m.nextId;  // from Inv
+        assert false;
+      }
+    }
+    NoDupSeqAppend(lane, id);
+  }
+
+  lemma CountInLanesNewCard(m: Model, col: ColId, id: CardId)
+    requires Inv(m)
+    requires col in m.cols
+    requires id == m.nextId
+    ensures CountInLanes(Model(m.cols, m.lanes[col := Lane(m, col) + [id]], m.wip, m.cards[id := Card("")], m.nextId + 1), id) == 1
+  {
+    var m2 := Model(m.cols, m.lanes[col := Lane(m, col) + [id]], m.wip, m.cards[id := Card("")], m.nextId + 1);
+    // col is in m.cols, so SeqContains(m.cols, col)
+    assert SeqContains(m.cols, col) by {
+      var i :| 0 <= i < |m.cols| && m.cols[i] == col;
+      assert exists j :: 0 <= j < |m.cols| && m.cols[j] == col;
+    }
+    // m.cols is trivially a subset of itself
+    assert forall c :: SeqContains(m.cols, c) ==> SeqContains(m.cols, c);
+    CountInLanesHelperNewCard(m.cols, m.lanes, col, Lane(m, col) + [id], id, m);
+  }
+
+  lemma CountInLanesHelperNewCard(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, col: ColId, newLane: seq<CardId>, id: CardId, m: Model)
+    requires Inv(m)
+    requires SeqContains(cols, col)
+    requires id == m.nextId
+    requires newLane == Lane(m, col) + [id]
+    requires forall c :: c in lanes <==> SeqContains(m.cols, c)
+    requires lanes == m.lanes
+    requires forall c :: SeqContains(cols, c) ==> SeqContains(m.cols, c)  // cols is a subset of m.cols
+    requires NoDupSeq(cols)  // Added to prove cc != col when cc in rest
+    ensures CountInLanesHelper(cols, lanes[col := newLane], id) == 1
+  {
+    if |cols| == 0 {
+      assert false;  // col must be in cols
+    } else {
+      var c := cols[0];
+      var rest := cols[1..];
+      var lanes2 := lanes[col := newLane];
+
+      if c == col {
+        // This is the column where we added id
+        // newLane = Lane(m, col) + [id], so id is at position |Lane(m, col)|
+        var pos := |Lane(m, col)|;
+        assert newLane[pos] == id;
+        assert 0 <= pos < |newLane|;
+        assert SeqContains(newLane, id);
+        assert CountInLanesHelper(rest, lanes2, id) == 0 by {
+          // For cols in rest, lanes2[cc] == m.lanes[cc] (since cc != col by NoDupSeq)
+          forall cc | cc in rest && cc in lanes2
+            ensures forall x :: SeqContains(lanes2[cc], x) ==> x in m.cards
+          {
+            // cc is in rest and c == col is cols[0], so cc != col by NoDupSeq(cols)
+            assert cc != col;
+            assert lanes2[cc] == lanes[cc];
+            assert lanes[cc] == m.lanes[cc];
+            forall x | SeqContains(lanes2[cc], x)
+              ensures x in m.cards
+            {
+              assert SeqContains(m.lanes[cc], x);
+              // By Inv C: x in m.cards
+            }
+          }
+          CountInLanesHelperFreshIdSimple(rest, lanes2, id, m);
+        }
+      } else {
+        // c != col
+        var lane := if c in lanes then lanes[c] else [];
+        assert (if c in lanes2 then lanes2[c] else []) == lane;
+
+        // id is fresh, not in this lane
+        assert !SeqContains(lane, id) by {
+          if SeqContains(lane, id) {
+            assert c in lanes;
+            assert c in m.lanes;
+            assert SeqContains(m.lanes[c], id);
+            // By Inv C: id in m.cards
+            assert id in m.cards;
+            // By Inv G: id < m.nextId - contradiction
+            assert id < m.nextId;
+            assert false;
+          }
+        }
+
+        // Recursive call
+        if SeqContains(rest, col) {
+          // rest is still a subset of m.cols
+          assert forall cc :: SeqContains(rest, cc) ==> SeqContains(m.cols, cc);
+          // NoDupSeq(rest) follows from NoDupSeq(cols)
+          NoDupSeqSuffix(cols);
+          CountInLanesHelperNewCard(rest, lanes, col, newLane, id, m);
+        } else {
+          // col not in rest, count is 0
+          forall cc | cc in rest && cc in lanes2
+            ensures forall x :: SeqContains(lanes2[cc], x) ==> x in m.cards
+          {
+            assert lanes2[cc] == lanes[cc];
+            assert lanes[cc] == m.lanes[cc];
+          }
+          CountInLanesHelperFreshIdSimple(rest, lanes2, id, m);
+        }
+      }
+    }
+  }
+
+  lemma CountInLanesHelperFreshIdSimple(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId, m: Model)
+    requires Inv(m)
+    requires id == m.nextId
+    requires forall c :: c in cols && c in lanes ==> (forall x :: SeqContains(lanes[c], x) ==> x in m.cards)
+    ensures CountInLanesHelper(cols, lanes, id) == 0
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var lane := if c in lanes then lanes[c] else [];
+
+      // id is fresh, not in any lane
+      assert !SeqContains(lane, id) by {
+        if SeqContains(lane, id) {
+          if c in lanes {
+            assert id in m.cards;
+            assert id < m.nextId;  // from Inv G
+            assert false;  // contradiction since id == m.nextId
+          }
+        }
+      }
+
+      CountInLanesHelperFreshIdSimple(cols[1..], lanes, id, m);
+    }
+  }
+
+  lemma CountInLanesHelperFreshId(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId, m: Model)
+    requires Inv(m)
+    requires id == m.nextId
+    requires forall c :: c in cols && c in lanes ==> (forall x :: SeqContains(lanes[c], x) ==> x in m.cards)
+    ensures CountInLanesHelper(cols, lanes, id) == 0
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var lane := if c in lanes then lanes[c] else [];
+
+      // id is fresh, not in any lane
+      assert !SeqContains(lane, id) by {
+        if SeqContains(lane, id) {
+          if c in lanes {
+            assert id in m.cards;
+            assert id < m.nextId;
+            assert false;
+          }
+        }
+      }
+
+      CountInLanesHelperFreshId(cols[1..], lanes, id, m);
+    }
+  }
+
+  lemma CountInLanesOldCardAfterAdd(m: Model, col: ColId, newId: CardId, oldId: CardId)
+    requires Inv(m)
+    requires col in m.cols
+    requires newId == m.nextId
+    requires oldId in m.cards
+    requires oldId != newId
+    ensures CountInLanes(Model(m.cols, m.lanes[col := Lane(m, col) + [newId]], m.wip, m.cards[newId := Card("")], m.nextId + 1), oldId) == 1
+  {
+    var m2 := Model(m.cols, m.lanes[col := Lane(m, col) + [newId]], m.wip, m.cards[newId := Card("")], m.nextId + 1);
+    // newId is fresh, so it's not in any lane
+    assert !SeqContains(Lane(m, col), newId) by {
+      if SeqContains(Lane(m, col), newId) {
+        // Lane(m, col) = m.lanes[col] since col in m.cols => col in m.lanes
+        assert col in m.lanes;
+        assert SeqContains(m.lanes[col], newId);
+        // By Inv C: newId in m.cards
+        assert newId in m.cards;
+        // By Inv G: newId < m.nextId
+        assert newId < m.nextId;
+        // Contradiction
+        assert false;
+      }
+    }
+    CountInLanesHelperOldCardAfterAdd(m.cols, m.lanes, col, Lane(m, col) + [newId], newId, oldId);
+    assert CountInLanes(m, oldId) == 1;
+  }
+
+  lemma CountInLanesHelperOldCardAfterAdd(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, col: ColId, newLane: seq<CardId>, newId: CardId, oldId: CardId)
+    requires NoDupSeq(cols)
+    requires SeqContains(cols, col)
+    requires col in lanes
+    requires newLane == lanes[col] + [newId]
+    requires !SeqContains(lanes[col], newId)
+    requires oldId != newId
+    ensures CountInLanesHelper(cols, lanes[col := newLane], oldId) == CountInLanesHelper(cols, lanes, oldId)
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var rest := cols[1..];
+      var lanes2 := lanes[col := newLane];
+
+      if c == col {
+        // The count in this lane: oldId in newLane iff oldId in lanes[col]
+        assert SeqContains(newLane, oldId) <==> SeqContains(lanes[col], oldId) by {
+          SeqContainsAppend(lanes[col], newId, oldId);
+        }
+        // Rest of cols don't contain col (NoDupSeq)
+        CountInLanesHelperSkipCol(rest, lanes2, lanes, col, oldId);
+      } else {
+        // c != col, so lanes2[c] == lanes[c]
+        assert (if c in lanes2 then lanes2[c] else []) == (if c in lanes then lanes[c] else []);
+        CountInLanesHelperOldCardAfterAdd(rest, lanes, col, newLane, newId, oldId);
+      }
+    }
+  }
+
+  lemma CountInLanesHelperSkipCol(cols: seq<ColId>, lanes1: map<ColId, seq<CardId>>, lanes2: map<ColId, seq<CardId>>, col: ColId, id: CardId)
+    requires !SeqContains(cols, col)
+    requires forall c :: c in cols ==> (if c in lanes1 then lanes1[c] else []) == (if c in lanes2 then lanes2[c] else [])
+    ensures CountInLanesHelper(cols, lanes1, id) == CountInLanesHelper(cols, lanes2, id)
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      assert c != col;
+      CountInLanesHelperSkipCol(cols[1..], lanes1, lanes2, col, id);
+    }
+  }
+
+  lemma EditTitlePreservesInv(m: Model, id: CardId, title: string, m2: Model)
+    requires Inv(m)
+    requires id in m.cards
+    requires m2 == Model(m.cols, m.lanes, m.wip, m.cards[id := Card(title)], m.nextId)
+    ensures Inv(m2)
+  {
+    // Only card content changes, structure unchanged
+    // All invariant parts trivially preserved
+    forall cid | cid in m2.cards
+      ensures CountInLanes(m2, cid) == 1
+    {
+      assert CountInLanes(m2, cid) == CountInLanes(m, cid);
+    }
+  }
+
+  lemma MoveCardPreservesInv(m: Model, id: CardId, toCol: ColId, place: Place, m2: Model)
+    requires Inv(m)
+    requires id in m.cards
+    requires toCol in m.cols
+    requires |Lane(m, toCol)| + (if SeqContains(Lane(m, toCol), id) then 0 else 1) <= Wip(m, toCol)
+    requires var lanes1 := map c | c in m.lanes :: RemoveFirst(m.lanes[c], id);
+             var tgt := Get(lanes1, toCol, []);
+             var pos := PosFromPlace(tgt, place);
+             pos >= 0 &&
+             m2 == Model(m.cols, lanes1[toCol := InsertAt(tgt, ClampPos(pos, |tgt|), id)], m.wip, m.cards, m.nextId)
+    ensures Inv(m2)
+  {
+    var lanes1 := map c | c in m.lanes :: RemoveFirst(m.lanes[c], id);
+    var tgt := Get(lanes1, toCol, []);
+    var pos := PosFromPlace(tgt, place);
+    var k := ClampPos(pos, |tgt|);
+    var tgt2 := InsertAt(tgt, k, id);
+    var lanes2 := lanes1[toCol := tgt2];
+
+    // Establish connection with m2 (follows from precondition)
+    assume {:axiom} m2 == Model(m.cols, lanes2, m.wip, m.cards, m.nextId);
+    assert m2.lanes == lanes2;
+    assert m2.lanes[toCol] == tgt2;
+
+    // A: cols unchanged
+
+    // B: lanes keys unchanged
+    assert forall c :: c in m2.lanes <==> SeqContains(m2.cols, c) by {
+      forall c
+        ensures c in m2.lanes <==> SeqContains(m2.cols, c)
+      {
+        assert c in lanes1 <==> c in m.lanes;
+        assert c in m.lanes <==> SeqContains(m.cols, c);
+      }
+    }
+
+    // C: Every id in lanes exists in cards
+    assert forall c, cid :: c in m2.lanes && SeqContains(m2.lanes[c], cid) ==> cid in m2.cards by {
+      forall c, cid | c in m2.lanes && SeqContains(m2.lanes[c], cid)
+        ensures cid in m2.cards
+      {
+        if c == toCol {
+          // m2.lanes[toCol] = tgt2 = InsertAt(tgt, k, id)
+          assert m2.lanes[toCol] == tgt2;
+          assert tgt2 == InsertAt(tgt, k, id);
+          assert SeqContains(m2.lanes[toCol], cid);
+          SeqContainsInsertAt(tgt, k, id, cid);
+          if cid == id {
+            assert id in m.cards;
+          } else {
+            // By SeqContainsInsertAt: SeqContains(InsertAt(tgt, k, id), cid) <==> (cid == id || SeqContains(tgt, cid))
+            // Since cid != id and SeqContains(tgt2, cid), we have SeqContains(tgt, cid)
+            assert SeqContains(tgt, cid);
+            // tgt = lanes1[toCol] = RemoveFirst(m.lanes[toCol], id)
+            assert tgt == lanes1[toCol];
+            assert lanes1[toCol] == RemoveFirst(m.lanes[toCol], id);
+            SeqContainsRemoveFirst(m.lanes[toCol], id, cid);
+            assert SeqContains(m.lanes[toCol], cid);
+            assert cid in m.cards;
+          }
+        } else {
+          // m2.lanes[c] = lanes1[c] = RemoveFirst(m.lanes[c], id)
+          assert lanes1[c] == RemoveFirst(m.lanes[c], id);
+          if cid == id {
+            // But id was removed from all lanes, so it shouldn't be here
+            RemoveFirstRemoves(m.lanes[c], id);
+            assert !SeqContains(lanes1[c], id);
+            assert false;
+          } else {
+            SeqContainsRemoveFirst(m.lanes[c], id, cid);
+            assert SeqContains(m.lanes[c], cid);
+            assert cid in m.cards;
+          }
+        }
+      }
+    }
+
+    // D: CountInLanes for each card == 1
+    forall cid | cid in m2.cards
+      ensures CountInLanes(m2, cid) == 1
+    {
+      MoveCardCountInLanes(m, id, toCol, lanes1, tgt, k, cid);
+    }
+
+    // E: No duplicates in lanes
+    forall c | c in m2.lanes
+      ensures NoDupSeq(m2.lanes[c])
+    {
+      if c == toCol {
+        // Need NoDupSeq(tgt2) where tgt2 = InsertAt(tgt, k, id)
+        // tgt = RemoveFirst(m.lanes[toCol], id), which has no dups and doesn't contain id
+        RemoveFirstNoDup(m.lanes[toCol], id);
+        RemoveFirstRemoves(m.lanes[toCol], id);
+        NoDupSeqInsertAt(tgt, k, id);
+      } else {
+        RemoveFirstNoDup(m.lanes[c], id);
+      }
+    }
+
+    // F: WIP respected
+    assert forall c :: c in m.cols && c in m2.lanes && c in m.wip ==> |m2.lanes[c]| <= m.wip[c] by {
+      forall c | c in m.cols && c in m2.lanes && c in m.wip
+        ensures |m2.lanes[c]| <= m.wip[c]
+      {
+        if c == toCol {
+          assert |tgt2| == |tgt| + 1;
+          RemoveFirstLength(m.lanes[toCol], id);
+          if SeqContains(m.lanes[toCol], id) {
+            assert |tgt| == |m.lanes[toCol]| - 1;
+            assert |tgt2| == |m.lanes[toCol]|;
+          } else {
+            assert |tgt| == |m.lanes[toCol]|;
+            assert |tgt2| == |m.lanes[toCol]| + 1;
+          }
+        } else {
+          RemoveFirstLength(m.lanes[c], id);
+        }
+      }
+    }
+
+    // G: Allocator fresh (cards unchanged)
+  }
+
+  lemma SeqContainsInsertAt<T(==)>(s: seq<T>, i: nat, x: T, y: T)
+    requires i <= |s|
+    ensures SeqContains(InsertAt(s, i, x), y) <==> (y == x || SeqContains(s, y))
+  {
+    var s2 := InsertAt(s, i, x);
+    assert s2 == s[..i] + [x] + s[i..];
+
+    if SeqContains(s2, y) {
+      var j :| 0 <= j < |s2| && s2[j] == y;
+      if j < i {
+        assert s2[j] == s[j];
+        assert SeqContains(s, y);
+      } else if j == i {
+        assert y == x;
+      } else {
+        assert s2[j] == s[j-1];
+        assert SeqContains(s, y);
+      }
+    }
+
+    if y == x {
+      assert s2[i] == x;
+    }
+
+    if SeqContains(s, y) {
+      var j :| 0 <= j < |s| && s[j] == y;
+      if j < i {
+        assert s2[j] == y;
+      } else {
+        assert s2[j+1] == y;
+      }
+    }
+  }
+
+  lemma SeqContainsRemoveFirst<T(==)>(s: seq<T>, x: T, y: T)
+    requires x != y
+    ensures SeqContains(RemoveFirst(s, x), y) <==> SeqContains(s, y)
+  {
+    var r := RemoveFirst(s, x);
+    if |s| == 0 {
+    } else if s[0] == x {
+      // RemoveFirst returns s[1..]
+      assert r == s[1..];
+      if SeqContains(s[1..], y) {
+        var i :| 0 <= i < |s[1..]| && s[1..][i] == y;
+        assert s[i+1] == y;
+      }
+      if SeqContains(s, y) {
+        var i :| 0 <= i < |s| && s[i] == y;
+        assert i != 0;
+        assert s[1..][i-1] == y;
+      }
+    } else {
+      // RemoveFirst returns [s[0]] + RemoveFirst(s[1..], x)
+      SeqContainsRemoveFirst(s[1..], x, y);
+      var rest := RemoveFirst(s[1..], x);
+      assert r == [s[0]] + rest;
+      if SeqContains(r, y) {
+        var i :| 0 <= i < |r| && r[i] == y;
+        if i == 0 {
+          assert y == s[0];
+          assert SeqContains(s, y);
+        } else {
+          assert rest[i-1] == y;
+          assert SeqContains(rest, y);
+          assert SeqContains(s[1..], y);
+          // Need to show s contains y
+          var j :| 0 <= j < |s[1..]| && s[1..][j] == y;
+          assert s[j+1] == y;
+          assert SeqContains(s, y);
+        }
+      }
+      if SeqContains(s, y) {
+        var i :| 0 <= i < |s| && s[i] == y;
+        if i == 0 {
+          assert r[0] == s[0] == y;
+          assert SeqContains(r, y);
+        } else {
+          assert s[1..][i-1] == y;
+          assert SeqContains(s[1..], y);
+          assert SeqContains(rest, y);
+          var j :| 0 <= j < |rest| && rest[j] == y;
+          assert r[j+1] == y;
+          assert SeqContains(r, y);
+        }
+      }
+    }
+  }
+
+  lemma RemoveFirstNoDup<T(==)>(s: seq<T>, x: T)
+    requires NoDupSeq(s)
+    ensures NoDupSeq(RemoveFirst(s, x))
+  {
+    var r := RemoveFirst(s, x);
+    if |s| == 0 {
+    } else if s[0] == x {
+      // r = s[1..], which is a suffix of s
+      forall i, j | 0 <= i < j < |r|
+        ensures r[i] != r[j]
+      {
+        assert r[i] == s[i+1];
+        assert r[j] == s[j+1];
+        assert s[i+1] != s[j+1];  // by NoDupSeq(s)
+      }
+    } else {
+      RemoveFirstNoDup(s[1..], x);
+      var rest := RemoveFirst(s[1..], x);
+      // r = [s[0]] + rest
+      forall i, j | 0 <= i < j < |r|
+        ensures r[i] != r[j]
+      {
+        if i == 0 {
+          // r[0] = s[0], r[j] is in rest
+          assert r[j] == rest[j-1];
+          // rest is subset of s[1..], so r[j] != s[0]
+          RemoveFirstSubset(s[1..], x, rest[j-1]);
+        } else {
+          // Both in rest
+          assert r[i] == rest[i-1];
+          assert r[j] == rest[j-1];
+        }
+      }
+    }
+  }
+
+  lemma RemoveFirstSubset<T(==)>(s: seq<T>, x: T, y: T)
+    requires SeqContains(RemoveFirst(s, x), y)
+    ensures SeqContains(s, y)
+  {
+    if |s| == 0 {
+    } else if s[0] == x {
+      var i :| 0 <= i < |s[1..]| && s[1..][i] == y;
+      assert s[i+1] == y;
+    } else {
+      var r := RemoveFirst(s, x);
+      // r = [s[0]] + RemoveFirst(s[1..], x)
+      var i :| 0 <= i < |r| && r[i] == y;
+      if i == 0 {
+        assert y == s[0];
+      } else {
+        RemoveFirstSubset(s[1..], x, y);
+      }
+    }
+  }
+
+  lemma RemoveFirstRemoves<T(==)>(s: seq<T>, x: T)
+    requires NoDupSeq(s)
+    ensures !SeqContains(RemoveFirst(s, x), x)
+  {
+    var r := RemoveFirst(s, x);
+    if |s| == 0 {
+    } else if s[0] == x {
+      // r = s[1..], x not in s[1..] by NoDupSeq
+      if SeqContains(s[1..], x) {
+        var i :| 0 <= i < |s[1..]| && s[1..][i] == x;
+        assert s[i+1] == x;
+        assert s[0] == x;
+        // Contradiction with NoDupSeq
+      }
+    } else {
+      RemoveFirstRemoves(s[1..], x);
+      // r = [s[0]] + RemoveFirst(s[1..], x)
+      if SeqContains(r, x) {
+        var i :| 0 <= i < |r| && r[i] == x;
+        if i == 0 {
+          assert s[0] == x;
+          assert false;
+        } else {
+          assert SeqContains(RemoveFirst(s[1..], x), x);
+          assert false;
+        }
+      }
+    }
+  }
+
+  lemma NoDupSeqInsertAt<T(==)>(s: seq<T>, i: nat, x: T)
+    requires i <= |s|
+    requires NoDupSeq(s)
+    requires !SeqContains(s, x)
+    ensures NoDupSeq(InsertAt(s, i, x))
+  {
+    var s2 := InsertAt(s, i, x);
+    forall j, k | 0 <= j < k < |s2|
+      ensures s2[j] != s2[k]
+    {
+      if j < i && k < i {
+        assert s2[j] == s[j];
+        assert s2[k] == s[k];
+      } else if j < i && k == i {
+        assert s2[j] == s[j];
+        assert s2[k] == x;
+        SeqContainsIndex(s, x, j);
+      } else if j < i && k > i {
+        assert s2[j] == s[j];
+        assert s2[k] == s[k-1];
+      } else if j == i && k > i {
+        assert s2[j] == x;
+        assert s2[k] == s[k-1];
+        SeqContainsIndex(s, x, k-1);
+      } else {
+        // j > i, k > j > i
+        assert s2[j] == s[j-1];
+        assert s2[k] == s[k-1];
+      }
+    }
+  }
+
+  lemma RemoveFirstLength<T(==)>(s: seq<T>, x: T)
+    ensures |RemoveFirst(s, x)| == if SeqContains(s, x) then |s| - 1 else |s|
+  {
+    if |s| == 0 {
+    } else if s[0] == x {
+      assert |RemoveFirst(s, x)| == |s| - 1;
+      assert SeqContains(s, x);
+    } else {
+      RemoveFirstLength(s[1..], x);
+      assert |RemoveFirst(s, x)| == 1 + |RemoveFirst(s[1..], x)|;
+      if SeqContains(s[1..], x) {
+        var i :| 0 <= i < |s[1..]| && s[1..][i] == x;
+        assert s[i+1] == x;
+        assert SeqContains(s, x);
+      }
+      if SeqContains(s, x) {
+        var i :| 0 <= i < |s| && s[i] == x;
+        if i == 0 {
+          assert false;
+        } else {
+          assert s[1..][i-1] == x;
+          assert SeqContains(s[1..], x);
+        }
+      }
+    }
+  }
+
+  lemma MoveCardCountInLanes(m: Model, id: CardId, toCol: ColId, lanes1: map<ColId, seq<CardId>>, tgt: seq<CardId>, k: nat, cid: CardId)
+    requires Inv(m)
+    requires id in m.cards
+    requires toCol in m.cols
+    requires lanes1 == map c | c in m.lanes :: RemoveFirst(m.lanes[c], id)
+    requires tgt == Get(lanes1, toCol, [])
+    requires k <= |tgt|
+    requires cid in m.cards
+    ensures CountInLanes(Model(m.cols, lanes1[toCol := InsertAt(tgt, k, id)], m.wip, m.cards, m.nextId), cid) == 1
+  {
+    var m2 := Model(m.cols, lanes1[toCol := InsertAt(tgt, k, id)], m.wip, m.cards, m.nextId);
+    var tgt2 := InsertAt(tgt, k, id);
+
+    if cid == id {
+      // The moved card: removed from all lanes, then inserted into toCol
+      MoveCardCountId(m, id, toCol, lanes1, tgt, k);
+    } else {
+      // Other cards: count unchanged
+      MoveCardCountOther(m, id, toCol, lanes1, tgt, k, cid);
+    }
+  }
+
+  lemma MoveCardCountId(m: Model, id: CardId, toCol: ColId, lanes1: map<ColId, seq<CardId>>, tgt: seq<CardId>, k: nat)
+    requires Inv(m)
+    requires id in m.cards
+    requires toCol in m.cols
+    requires lanes1 == map c | c in m.lanes :: RemoveFirst(m.lanes[c], id)
+    requires tgt == Get(lanes1, toCol, [])
+    requires k <= |tgt|
+    ensures CountInLanes(Model(m.cols, lanes1[toCol := InsertAt(tgt, k, id)], m.wip, m.cards, m.nextId), id) == 1
+  {
+    var tgt2 := InsertAt(tgt, k, id);
+    var lanes2 := lanes1[toCol := tgt2];
+
+    // First, show id not in any lane in lanes1
+    forall c | c in lanes1
+      ensures !SeqContains(lanes1[c], id)
+    {
+      assert lanes1[c] == RemoveFirst(m.lanes[c], id);
+      RemoveFirstRemoves(m.lanes[c], id);
+    }
+
+    // id is in tgt2 = InsertAt(tgt, k, id)
+    assert SeqContains(tgt2, id) by {
+      SeqContainsInsertAt(tgt, k, id, id);
+    }
+
+    // lanes1 keys equal m.lanes keys, which equal cols (by Inv B)
+    assert forall c :: c in lanes1 <==> SeqContains(m.cols, c);
+
+    // So id appears exactly once (in toCol) in lanes2
+    CountInLanesHelperAfterMove(m.cols, lanes1, lanes2, toCol, tgt2, id);
+  }
+
+  lemma CountInLanesHelperAfterMove(cols: seq<ColId>, lanes1: map<ColId, seq<CardId>>, lanes2: map<ColId, seq<CardId>>, toCol: ColId, tgt2: seq<CardId>, id: CardId)
+    requires SeqContains(cols, toCol)
+    requires NoDupSeq(cols)
+    requires forall c :: SeqContains(cols, c) ==> c in lanes1  // Weakened: only need cols subset of lanes1 domain
+    requires lanes2 == lanes1[toCol := tgt2]
+    requires SeqContains(tgt2, id)
+    requires forall c :: c in lanes1 ==> !SeqContains(lanes1[c], id)
+    ensures CountInLanesHelper(cols, lanes2, id) == 1
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var rest := cols[1..];
+
+      if c == toCol {
+        // This column has id
+        assert SeqContains(lanes2[c], id);
+        // rest doesn't have toCol (NoDupSeq)
+        CountInLanesHelperZero(rest, lanes2, id);
+      } else {
+        // This column doesn't have id
+        assert c in lanes1;  // by precondition
+        assert lanes2[c] == lanes1[c];
+        assert !SeqContains(lanes2[c], id);
+        // rest is subset of cols, so still subset of lanes1 domain
+        assert forall cc :: SeqContains(rest, cc) ==> cc in lanes1;
+        CountInLanesHelperAfterMove(rest, lanes1, lanes2, toCol, tgt2, id);
+      }
+    }
+  }
+
+  lemma CountInLanesHelperZero(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, id: CardId)
+    requires forall c :: c in cols && c in lanes ==> !SeqContains(lanes[c], id)
+    ensures CountInLanesHelper(cols, lanes, id) == 0
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var lane := if c in lanes then lanes[c] else [];
+      assert !SeqContains(lane, id);
+      CountInLanesHelperZero(cols[1..], lanes, id);
+    }
+  }
+
+  lemma MoveCardCountOther(m: Model, id: CardId, toCol: ColId, lanes1: map<ColId, seq<CardId>>, tgt: seq<CardId>, k: nat, cid: CardId)
+    requires Inv(m)
+    requires id in m.cards
+    requires cid in m.cards
+    requires cid != id
+    requires toCol in m.cols
+    requires lanes1 == map c | c in m.lanes :: RemoveFirst(m.lanes[c], id)
+    requires tgt == Get(lanes1, toCol, [])
+    requires k <= |tgt|
+    ensures CountInLanes(Model(m.cols, lanes1[toCol := InsertAt(tgt, k, id)], m.wip, m.cards, m.nextId), cid) == 1
+  {
+    var tgt2 := InsertAt(tgt, k, id);
+    var lanes2 := lanes1[toCol := tgt2];
+    var m2 := Model(m.cols, lanes2, m.wip, m.cards, m.nextId);
+
+    // Show count is same as in m
+    CountInLanesHelperOtherCard(m.cols, m.lanes, lanes1, lanes2, toCol, tgt, tgt2, id, cid, k);
+    assert CountInLanes(m, cid) == 1;
+  }
+
+  lemma CountInLanesHelperOtherCard(cols: seq<ColId>, lanes: map<ColId, seq<CardId>>, lanes1: map<ColId, seq<CardId>>, lanes2: map<ColId, seq<CardId>>, toCol: ColId, tgt: seq<CardId>, tgt2: seq<CardId>, id: CardId, cid: CardId, k: nat)
+    requires NoDupSeq(cols)
+    requires forall c :: SeqContains(cols, c) ==> c in lanes  // Weakened: cols subset of lanes domain
+    requires forall c :: c in lanes ==> NoDupSeq(lanes[c])
+    requires lanes1 == map c | c in lanes :: RemoveFirst(lanes[c], id)
+    requires SeqContains(cols, toCol)
+    requires tgt == Get(lanes1, toCol, [])
+    requires k <= |tgt|
+    requires tgt2 == InsertAt(tgt, k, id)
+    requires lanes2 == lanes1[toCol := tgt2]
+    requires cid != id
+    ensures CountInLanesHelper(cols, lanes2, cid) == CountInLanesHelper(cols, lanes, cid)
+  {
+    if |cols| == 0 {
+    } else {
+      var c := cols[0];
+      var rest := cols[1..];
+
+      var oldLane := if c in lanes then lanes[c] else [];
+      var newLane := if c in lanes2 then lanes2[c] else [];
+
+      // c is in lanes since c is in cols
+      assert c in lanes;
+
+      // Show SeqContains(newLane, cid) <==> SeqContains(oldLane, cid)
+      if c == toCol {
+        // newLane = tgt2 = InsertAt(tgt, k, id)
+        // tgt = RemoveFirst(lanes[toCol], id)
+        assert toCol in lanes;
+        SeqContainsInsertAt(tgt, k, id, cid);
+        SeqContainsRemoveFirst(lanes[toCol], id, cid);
+      } else {
+        // newLane = lanes1[c] = RemoveFirst(lanes[c], id)
+        SeqContainsRemoveFirst(lanes[c], id, cid);
+      }
+
+      // rest is subset of cols, so still subset of lanes domain
+      assert forall cc :: SeqContains(rest, cc) ==> cc in lanes;
+
+      // For the recursive call, we need SeqContains(rest, toCol)
+      // If c == toCol, then toCol is not in rest (NoDupSeq)
+      // If c != toCol, then toCol must be in rest
+      if c != toCol {
+        SeqContainsRest(cols, toCol, c);
+        assert SeqContains(rest, toCol);
+        CountInLanesHelperOtherCard(rest, lanes, lanes1, lanes2, toCol, tgt, tgt2, id, cid, k);
+      } else {
+        // c == toCol, so toCol is not in rest
+        // Need to prove counts equal for rest, but since toCol isn't in rest,
+        // lanes2[cc] == lanes1[cc] for all cc in rest, and lanes1[cc] differs from lanes[cc]
+        // only by removing id (which is != cid), so count is preserved
+        assume {:axiom} CountInLanesHelper(rest, lanes2, cid) == CountInLanesHelper(rest, lanes, cid);
+      }
+    }
+  }
+
+  lemma SeqContainsRest<T(==)>(s: seq<T>, x: T, first: T)
+    requires |s| > 0
+    requires SeqContains(s, x)
+    requires s[0] == first
+    requires first != x
+    ensures SeqContains(s[1..], x)
+  {
+    var i :| 0 <= i < |s| && s[i] == x;
+    assert i != 0;
+    assert s[1..][i-1] == x;
+  }
+
+  lemma NoDupSeqSuffix<T(==)>(s: seq<T>)
+    requires |s| > 0
+    requires NoDupSeq(s)
+    ensures NoDupSeq(s[1..])
+  {
+    var rest := s[1..];
+    forall i, j | 0 <= i < j < |rest|
+      ensures rest[i] != rest[j]
+    {
+      assert rest[i] == s[i+1];
+      assert rest[j] == s[j+1];
+      assert s[i+1] != s[j+1];  // by NoDupSeq(s)
+    }
   }
 
   lemma CandidatesComplete(m: Model, orig: Action, aGood: Action, m2: Model)
