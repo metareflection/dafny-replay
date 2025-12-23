@@ -193,6 +193,7 @@ This kernel is intentionally minimal: it models a single authoritative state and
 ## The Multi-Collaboration Kernel
 
 A kernel for server-authoritative collaboration with offline clients.
+See also the [MULTICOLLAB](MULTICOLLAB.md) design note.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
 
