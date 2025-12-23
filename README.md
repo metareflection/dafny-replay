@@ -210,7 +210,7 @@ The v2 kernel (`MultiCollaboration2.dfy`) introduces several improvements:
 
 * **Candidate fallback**: When an anchor is missing (e.g., moved or deleted by another client), the server tries a list of fallback candidates (e.g., AtEnd) before rejecting.
 
-* **Minimal rejection**: The `Explains` predicate defines meaning-preserving interpretations of actions. The kernel proves that if *any* valid interpretation exists, dispatch will not reject.
+* **Minimal rejection**: The server only rejects when no reasonable interpretation of the user's intent would succeed. For MoveCard, the server tries three candidates: original placement, AtEnd, and Before(first). Lemma `BeforeFirstImpliesAtEnd` proves Before(first) is redundant—if it succeeds, AtEnd also succeeds. This justifies defining `Explains` to cover only origPlace and AtEnd, and the kernel proves dispatch rejects only when both would fail.
 
 * **Server-allocated IDs**: Card IDs are allocated by the server (via `nextId`), eliminating client-side ID conflicts.
 
