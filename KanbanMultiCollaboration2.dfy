@@ -437,7 +437,7 @@ module KanbanDomain refines Domain {
     // G: Allocator fresh (cards unchanged)
   }
 
-  lemma NoDupSeqAppend<T(==)>(s: seq<T>, x: T)
+  lemma NoDupSeqAppend<T>(s: seq<T>, x: T)
     requires NoDupSeq(s)
     requires !SeqContains(s, x)
     ensures NoDupSeq(s + [x])
@@ -458,7 +458,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma SeqContainsIndex<T(==)>(s: seq<T>, x: T, i: nat)
+  lemma SeqContainsIndex<T>(s: seq<T>, x: T, i: nat)
     requires 0 <= i < |s|
     requires !SeqContains(s, x)
     ensures s[i] != x
@@ -468,7 +468,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma SeqContainsAppend<T(==)>(s: seq<T>, x: T, y: T)
+  lemma SeqContainsAppend<T>(s: seq<T>, x: T, y: T)
     ensures SeqContains(s + [x], y) <==> (SeqContains(s, y) || y == x)
   {
     var s2 := s + [x];
@@ -964,7 +964,7 @@ module KanbanDomain refines Domain {
     // G: Allocator fresh (cards unchanged)
   }
 
-  lemma SeqContainsInsertAt<T(==)>(s: seq<T>, i: nat, x: T, y: T)
+  lemma SeqContainsInsertAt<T>(s: seq<T>, i: nat, x: T, y: T)
     requires i <= |s|
     ensures SeqContains(InsertAt(s, i, x), y) <==> (y == x || SeqContains(s, y))
   {
@@ -998,7 +998,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma SeqContainsRemoveFirst<T(==)>(s: seq<T>, x: T, y: T)
+  lemma SeqContainsRemoveFirst<T>(s: seq<T>, x: T, y: T)
     requires x != y
     ensures SeqContains(RemoveFirst(s, x), y) <==> SeqContains(s, y)
   {
@@ -1053,7 +1053,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma RemoveFirstNoDup<T(==)>(s: seq<T>, x: T)
+  lemma RemoveFirstNoDup<T>(s: seq<T>, x: T)
     requires NoDupSeq(s)
     ensures NoDupSeq(RemoveFirst(s, x))
   {
@@ -1089,7 +1089,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma RemoveFirstSubset<T(==)>(s: seq<T>, x: T, y: T)
+  lemma RemoveFirstSubset<T>(s: seq<T>, x: T, y: T)
     requires SeqContains(RemoveFirst(s, x), y)
     ensures SeqContains(s, y)
   {
@@ -1109,7 +1109,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma RemoveFirstRemoves<T(==)>(s: seq<T>, x: T)
+  lemma RemoveFirstRemoves<T>(s: seq<T>, x: T)
     requires NoDupSeq(s)
     ensures !SeqContains(RemoveFirst(s, x), x)
   {
@@ -1139,7 +1139,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma NoDupSeqInsertAt<T(==)>(s: seq<T>, i: nat, x: T)
+  lemma NoDupSeqInsertAt<T>(s: seq<T>, i: nat, x: T)
     requires i <= |s|
     requires NoDupSeq(s)
     requires !SeqContains(s, x)
@@ -1171,7 +1171,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma RemoveFirstLength<T(==)>(s: seq<T>, x: T)
+  lemma RemoveFirstLength<T>(s: seq<T>, x: T)
     ensures |RemoveFirst(s, x)| == if SeqContains(s, x) then |s| - 1 else |s|
   {
     if |s| == 0 {
@@ -1381,7 +1381,7 @@ module KanbanDomain refines Domain {
     }
   }
 
-  lemma SeqContainsRest<T(==)>(s: seq<T>, x: T, first: T)
+  lemma SeqContainsRest<T>(s: seq<T>, x: T, first: T)
     requires |s| > 0
     requires SeqContains(s, x)
     requires s[0] == first
@@ -1393,7 +1393,7 @@ module KanbanDomain refines Domain {
     assert s[1..][i-1] == x;
   }
 
-  lemma NoDupSeqSuffix<T(==)>(s: seq<T>)
+  lemma NoDupSeqSuffix<T>(s: seq<T>)
     requires |s| > 0
     requires NoDupSeq(s)
     ensures NoDupSeq(s[1..])
