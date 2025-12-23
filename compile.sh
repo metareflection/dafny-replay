@@ -33,4 +33,11 @@ echo "Copying to kanban-multi-collaboration project..."
 cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
 cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
 
+echo "Compiling KanbanMultiCollaboration2 to JavaScript..."
+dafny translate js --no-verify -o generated/KanbanMulti2 --include-runtime KanbanMultiCollaboration2.dfy
+
+echo "Copying to kanban-multi-collaboration2 project..."
+cp generated/KanbanMulti2.js kanban-multi-collaboration2/server/KanbanMulti2.cjs
+cp generated/KanbanMulti2.js kanban-multi-collaboration2/src/dafny/KanbanMulti2.cjs
+
 echo "Done."

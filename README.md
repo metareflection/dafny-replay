@@ -24,11 +24,12 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 ### List of Kernels
 
-| Kernel              | Setting                        | Guarantees |
-|---------------------|--------------------------------|------------|
-| Replay              | Local UI state                 | Undo/redo preserves global invariants |
-| Authority           | Client–server                  | Server state always satisfies invariants |
-| Multi-Collaboration | Client–server, offline clients | Accepted server states satisfy invariants |
+| Kernel                 | Setting                        | Guarantees |
+|------------------------|--------------------------------|------------|
+| Replay                 | Local UI state                 | Undo/redo preserves global invariants |
+| Authority              | Client–server                  | Server state always satisfies invariants |
+| Multi-Collaboration v1 | Client–server, offline clients | Accepted server states satisfy invariants |
+| Multi-Collaboration v2 | Client–server, offline clients | Anchor-based moves, candidate fallback, minimal rejection |
 
 ---
 
@@ -191,13 +192,31 @@ This kernel is intentionally minimal: it models a single authoritative state and
 
 ## The Multi-Collaboration Kernel
 
-An experimental kernel for server-authoritative collaboration with offline clients.
+A kernel for server-authoritative collaboration with offline clients.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
 
 All accepted states are proved to satisfy the domain invariant.
 
-Future kernels may combine this authoritative semantic layer with richer structural convergence mechanisms, while preserving the same invariant guarantees at the server boundary.
+### v1: Position-based
+
+The original kernel uses positional indices for card placement. Actions specify exact positions, and rebasing transforms stale actions against the intervening history.
+
+### v2: Anchor-based with candidate fallback
+
+The v2 kernel (`MultiCollaboration2.dfy`) introduces several improvements:
+
+* **Anchor-based placement**: Instead of positional indices, moves use `Place` (AtEnd, Before, After) to express intent relative to other cards. This is more robust to concurrent edits.
+
+* **Candidate fallback**: When an anchor is missing (e.g., moved or deleted by another client), the server tries a list of fallback candidates (e.g., AtEnd) before rejecting.
+
+* **Minimal rejection**: The server rejects a request only if no interpretation within the domain’s declared intent envelope would succeed. For MoveCard, the server tries three candidates: original placement, AtEnd, and Before(first). Lemma `BeforeFirstImpliesAtEnd` proves Before(first) is redundant—if it succeeds, AtEnd also succeeds. This justifies defining `Explains` to cover only origPlace and AtEnd, and the kernel proves dispatch rejects only when both would fail.
+
+* **Server-allocated IDs**: Card IDs are allocated by the server (via `nextId`), eliminating client-side ID conflicts.
+
+* **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
+
+The v2 kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
 ---
 
@@ -263,7 +282,8 @@ cd demo           # counter demo
 cd kanban         # kanban board
 cd delegation-auth # capability delegation
 cd demo-authority # counter demo with client-server protocol
-cd kanban-multi-collaboration # kanban with client-server protocol and offline clients
+cd kanban-multi-collaboration  # kanban with multi-collaboration v1 (position-based)
+cd kanban-multi-collaboration2 # kanban with multi-collaboration v2 (anchor-based)
 npm install
 npm run dev
 ```
