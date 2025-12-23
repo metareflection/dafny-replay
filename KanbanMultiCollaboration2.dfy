@@ -271,15 +271,17 @@ module KanbanDomain refines Domain {
   // "Explains": candidate is a meaning-preserving interpretation of orig.
   // For Kanban:
   // - Non-move actions: exact equality
-  // - MoveCard: same card + same destination column; placement can degrade
-  //   (i.e., anchor fallback allowed if anchor missing)
+  // - MoveCard: same card + same destination column; placement can be:
+  //   (1) same as original, or (2) AtEnd fallback
+  //   This aligns with what Candidates offers.
   ghost predicate Explains(orig: Action, cand: Action)
   {
     match (orig, cand)
-      // MoveCard: same card, same destination column = meaning preserved
-      // (placement can differ due to anchor fallback)
-      case (MoveCard(oid, otoCol, _), MoveCard(cid, ctoCol, _)) =>
-        oid == cid && otoCol == ctoCol
+      // MoveCard: same card, same destination column, and placement is either
+      // the original placement or AtEnd (the universal fallback)
+      case (MoveCard(oid, otoCol, origPlace), MoveCard(cid, ctoCol, candPlace)) =>
+        oid == cid && otoCol == ctoCol &&
+        (candPlace == origPlace || candPlace == AtEnd)
 
       // All other actions: exact equality
       case (_, _) => orig == cand
@@ -1438,59 +1440,43 @@ module KanbanDomain refines Domain {
   {
     match (orig, aGood) {
       case (MoveCard(oid, otoCol, origPlace), MoveCard(gid, gtoCol, goodPlace)) =>
-        // By Explains: oid == gid && otoCol == gtoCol
+        // By Explains: oid == gid && otoCol == gtoCol && (goodPlace == origPlace || goodPlace == AtEnd)
         assert oid == gid;
         assert otoCol == gtoCol;
+        assert goodPlace == origPlace || goodPlace == AtEnd;
 
-        // By TryStep success: goodPlace resolves successfully
         var lane := Lane(m, otoCol);
 
+        // Candidates always includes orig and MoveCard(oid, otoCol, AtEnd)
+        // (either as the only element, or as part of a larger list)
         if origPlace == AtEnd {
           // Candidates = [MoveCard(oid, otoCol, AtEnd)]
-          // For aGood to be in this, goodPlace must equal AtEnd
-          // By Explains, aGood = MoveCard(oid, otoCol, goodPlace)
-          // Since Explains only requires same id/col, goodPlace can differ
-          // But for CandidatesComplete, we need aGood in Candidates
-          // This only works if goodPlace == AtEnd
-          assert Candidates(m, orig) == [MoveCard(oid, otoCol, AtEnd)];
-          assert aGood == MoveCard(oid, otoCol, goodPlace);
-          // aGood is in Candidates iff goodPlace == AtEnd
-          // Since Explains allows any goodPlace, we need to show this case
-          // Actually this is where the proof might need assumptions
-          // For now, try: aGood == orig would give us aGood in Candidates
-          if goodPlace == AtEnd {
-            assert aGood == MoveCard(oid, otoCol, AtEnd);
-            assert aGood in Candidates(m, orig);
-          } else {
-            // Other placements - need to show they can't actually happen
-            // or that they are still in Candidates somehow
-            assume aGood in Candidates(m, orig);
-          }
+          // By Explains, goodPlace == origPlace (== AtEnd) or goodPlace == AtEnd
+          // Either way, goodPlace == AtEnd
+          assert goodPlace == AtEnd;
+          assert aGood == MoveCard(oid, otoCol, AtEnd);
+          assert aGood in Candidates(m, orig);
         } else if |lane| == 0 {
           // Candidates = [orig, MoveCard(oid, otoCol, AtEnd)]
+          // By Explains, goodPlace == origPlace or goodPlace == AtEnd
           if goodPlace == origPlace {
             assert aGood == orig;
             assert orig in Candidates(m, orig);
-          } else if goodPlace == AtEnd {
+          } else {
+            assert goodPlace == AtEnd;
             assert aGood == MoveCard(oid, otoCol, AtEnd);
             assert MoveCard(oid, otoCol, AtEnd) in Candidates(m, orig);
-          } else {
-            assume aGood in Candidates(m, orig);
           }
         } else {
           // Candidates = [orig, MoveCard(oid, otoCol, AtEnd), MoveCard(oid, otoCol, Before(first))]
-          var first := lane[0];
+          // By Explains, goodPlace == origPlace or goodPlace == AtEnd
           if goodPlace == origPlace {
             assert aGood == orig;
             assert orig in Candidates(m, orig);
-          } else if goodPlace == AtEnd {
+          } else {
+            assert goodPlace == AtEnd;
             assert aGood == MoveCard(oid, otoCol, AtEnd);
             assert MoveCard(oid, otoCol, AtEnd) in Candidates(m, orig);
-          } else if goodPlace == Before(first) {
-            assert aGood == MoveCard(oid, otoCol, Before(first));
-            assert MoveCard(oid, otoCol, Before(first)) in Candidates(m, orig);
-          } else {
-            assume aGood in Candidates(m, orig);
           }
         }
 
