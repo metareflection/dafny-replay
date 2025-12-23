@@ -33,20 +33,6 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 ---
 
-## What this gives you
-
-* ✅ **Undo / redo for free**, once the domain invariant is proved
-* ✅ Server-authoritative state with explicit *protocol-level rejection*
-* ✅ **Impossible states ruled out**, not just tested against
-* ✅ **Pure, deterministic reducers** (React-friendly)
-* ✅ **Executable JavaScript**, not a model
-* ✅ **A real proof stress test** (not a toy example)
-
-No runtime checks. No post-hoc validation.
-The guarantees come from Dafny verification.
-
----
-
 ## Architecture (Replay Kernel)
 
 ```
@@ -223,19 +209,13 @@ The v2 kernel is designed for domains where "intent" matters more than exact pos
 
 ## Why this is interesting
 
-Undo/redo logic is deceptively subtle. Bugs typically involve:
+Using AI for code generation today means choosing between blind trust and heavy supervision. We want a third option: reduce the surface area of human review while increasing trust in correctness. `dafny-replay` demonstrates this approach with UI state:
 
-* duplicated or lost elements,
-* stale state after undo,
-* partial updates that violate global constraints.
-
-In `dafny-replay`, these bugs are **unrepresentable**:
-
-* every reachable state is the result of replaying valid actions,
-* replay is proved invariant-preserving,
-* and invariants are global, not local.
-
-This is especially relevant for UI state, where reducers are often assumed to be “simple” but are rarely specified precisely.
+* The human expresses intent in natural language
+* The LLM generates a formal spec
+* The human reviews and approves the spec (the only review required)
+* The LLM writes implementations, automatically verified against the spec
+* All final implementations are mathematically guaranteed to satisfy the spec
 
 ---
 
@@ -299,7 +279,7 @@ npm run dev
 * Not a security or authentication framework
 * Not optimized for performance
 
-This is about **correctness by construction** for application state.
+This is an experimental methodology that ensures **correctness by construction** for application state.
 
 ---
 
