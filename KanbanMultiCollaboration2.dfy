@@ -19,6 +19,10 @@ module KanbanDomain refines Domain {
     | MissingCard
     | WipExceeded
     | BadAnchor
+    | Rejected  // Used by kernel when no candidate succeeds
+
+  // Distinguished error for rejection
+  function RejectErr(): Err { Rejected }
 
   datatype Option<T> = None | Some(value: T)
 
