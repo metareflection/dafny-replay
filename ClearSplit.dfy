@@ -17,7 +17,9 @@ module ClearSplit {
     amount: Money,
     // Each entry is how much that person "consumed" from this expense.
     // Convention: shares are >= 0 and sum(shares) = amount.
-    shares: map<PersonId, Money>
+    shares: map<PersonId, Money>,
+    // Keys for iterating over shares (for compiled code)
+    shareKeys: seq<PersonId>
   )
 
   datatype Settlement = Settlement(
@@ -290,7 +292,7 @@ module ClearSplit {
   }
 
   // Equivalence lemma
-  lemma ValidExpenseEquiv(members: set<PersonId>, e: Expense, shareKeys: seq<PersonId>)
+  lemma {:vcs_split_on_every_assert} ValidExpenseEquiv(members: set<PersonId>, e: Expense, shareKeys: seq<PersonId>)
     requires forall k :: k in e.shares.Keys <==> k in shareKeys
     requires |shareKeys| == |e.shares|
     ensures ValidExpenseCheck(members, e, shareKeys) == ValidExpense(members, e)
@@ -474,14 +476,13 @@ module ClearSplit {
 
   function ApplyExpenseToBalances(
       b: map<PersonId, Money>,
-      e: Expense,
-      shareKeys: seq<PersonId>
+      e: Expense
     ): map<PersonId, Money>
   {
     // 1) payer +amount
     // 2) for each (p -> share) in e.shares: p -= share
     var b' := AddToMap(b, e.paidBy, e.amount);
-    ApplySharesSeq(b', e.shares, shareKeys)
+    ApplySharesSeq(b', e.shares, e.shareKeys)
   }
 
   function ApplySettlementToBalances(
@@ -498,16 +499,14 @@ module ClearSplit {
   // Fold over expenses
   function ApplyExpensesSeq(
       b: map<PersonId, Money>,
-      expenses: seq<Expense>,
-      expenseShareKeys: seq<seq<PersonId>>
+      expenses: seq<Expense>
     ): map<PersonId, Money>
-    requires |expenses| == |expenseShareKeys|
     decreases |expenses|
   {
     if |expenses| == 0 then b
     else
-      var b' := ApplyExpenseToBalances(b, expenses[0], expenseShareKeys[0]);
-      ApplyExpensesSeq(b', expenses[1..], expenseShareKeys[1..])
+      var b' := ApplyExpenseToBalances(b, expenses[0]);
+      ApplyExpensesSeq(b', expenses[1..])
   }
 
   // Fold over settlements
@@ -527,13 +526,11 @@ module ClearSplit {
   function ComputeBalancesSeq(
       memberList: seq<PersonId>,
       expenses: seq<Expense>,
-      expenseShareKeys: seq<seq<PersonId>>,
       settlements: seq<Settlement>
     ): map<PersonId, Money>
-    requires |expenses| == |expenseShareKeys|
   {
     var b := ZeroBalancesSeq(memberList);
-    var b' := ApplyExpensesSeq(b, expenses, expenseShareKeys);
+    var b' := ApplyExpensesSeq(b, expenses);
     ApplySettlementsSeq(b', settlements)
   }
 
@@ -541,7 +538,7 @@ module ClearSplit {
   lemma ComputeBalancesSeqEquivBase(members: set<PersonId>, memberList: seq<PersonId>)
     requires forall p :: p in members <==> p in memberList
     requires |memberList| == |members|
-    ensures ComputeBalancesSeq(memberList, [], [], []) == ZeroBalances(members)
+    ensures ComputeBalancesSeq(memberList, [], []) == ZeroBalances(members)
   {
     ZeroBalancesEquiv(members, memberList);
   }
@@ -600,7 +597,7 @@ module ClearSplit {
     | BadSettlement
 
   datatype Action =
-    | AddExpense(e: Expense, shareKeys: seq<PersonId>)
+    | AddExpense(e: Expense)
     | AddSettlement(s: Settlement)
 
   // Helper: check all sequence elements are in the map
@@ -713,15 +710,15 @@ module ClearSplit {
 
   method Step(model: Model, a: Action) returns (result: Result<Model, Err>)
     requires Inv(model)
-    requires a.AddExpense? ==> KeysCoverExactly(a.shareKeys, a.e.shares)
+    requires a.AddExpense? ==> KeysCoverExactly(a.e.shareKeys, a.e.shares)
     ensures result.Ok? ==> Inv(result.value)
   {
     match a
-    case AddExpense(e, shareKeys) =>
+    case AddExpense(e) =>
       // The ghost requires ensures shareKeys covers e.shares exactly
-      assert KeysCoverExactly(shareKeys, e.shares);
-      if ValidExpenseCheck(model.members, e, shareKeys) {
-        ValidExpenseEquiv(model.members, e, shareKeys);
+      assert KeysCoverExactly(e.shareKeys, e.shares);
+      if ValidExpenseCheck(model.members, e, e.shareKeys) {
+        ValidExpenseEquiv(model.members, e, e.shareKeys);
         result := Ok(Model(model.members, model.expenses + [e], model.settlements));
       } else {
         result := Error(BadExpense);
