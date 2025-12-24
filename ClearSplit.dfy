@@ -36,8 +36,10 @@ module ClearSplit {
   // Invariants
   // -----------------------------
   // Ghost spec: non-deterministic iteration over map
+  // The ensures clause establishes that any decomposition gives the same result
   ghost function SumValues(m: map<PersonId, Money>): Money
     decreases |m|
+    ensures |m| > 0 ==> exists k :: k in m && SumValues(m) == m[k] + SumValues(m - {k})
   {
     if |m| == 0 then 0
     else
@@ -45,11 +47,48 @@ module ClearSplit {
       m[k] + SumValues(m - {k})
   }
 
-  // Axiom: SumValues can be computed by removing any key first
-  // This is mathematically true because addition is commutative and associative
-  lemma {:axiom} SumValuesRemoveKey(m: map<PersonId, Money>, p: PersonId)
+  // Key lemma: SumValues(m) can be computed by removing any key p first
+  // The proof relies on the commutativity of addition.
+  lemma SumValuesRemoveKey(m: map<PersonId, Money>, p: PersonId)
     requires p in m
+    decreases |m|, 1
     ensures SumValues(m) == m[p] + SumValues(m - {p})
+  {
+    if |m| == 1 {
+      assert m.Keys == {p};
+    } else {
+      // m has at least 2 keys. Use the ensures clause to get a witness k
+      assert |m| > 0;
+      var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
+      if k == p {
+        // Direct match - done
+      } else {
+        // Different key - use commutativity
+        SumValuesAnyKey(m, p, k);
+      }
+    }
+  }
+
+  // Commutativity: any two decompositions give the same result
+  lemma SumValuesAnyKey(m: map<PersonId, Money>, p: PersonId, q: PersonId)
+    requires p in m
+    requires q in m
+    requires p != q
+    decreases |m|, 0
+    ensures m[p] + SumValues(m - {p}) == m[q] + SumValues(m - {q})
+  {
+    var mp := m - {p};
+    var mq := m - {q};
+    var mpq := m - {p} - {q};
+
+    assert q in mp;
+    assert p in mq;
+    assert mp - {q} == mpq;
+    assert mq - {p} == mpq;
+
+    SumValuesRemoveKey(mp, q);
+    SumValuesRemoveKey(mq, p);
+  }
 
   // Compilable version: iterate over a sequence of keys
   function SumValuesSeq(m: map<PersonId, Money>, keys: seq<PersonId>): Money
@@ -63,65 +102,163 @@ module ClearSplit {
       else SumValuesSeq(m, rest)
   }
 
-  // Axiom: a sequence that bijects with a map has no duplicates
-  // This is mathematically obvious: if the sequence has |m| elements and
-  // each element is in m.Keys, and the sequence covers all of m.Keys,
-  // then there can be no duplicates.
-  lemma {:axiom} SeqNoDuplicates(keys: seq<PersonId>, m: map<PersonId, Money>)
+  // A sequence that bijects with a map has no duplicates
+  lemma SeqNoDuplicates(keys: seq<PersonId>, m: map<PersonId, Money>)
     requires forall k :: k in m.Keys <==> k in keys
     requires |keys| == |m|
     ensures forall i, j :: 0 <= i < j < |keys| ==> keys[i] != keys[j]
+  {
+    // Proof by contradiction using cardinality
+    // The set of elements in keys equals m.Keys
+    // If there were duplicates, |set of keys elements| < |keys| = |m| = |m.Keys|
+    // But the set of keys elements == m.Keys, contradiction
+    var keySet := set i | 0 <= i < |keys| :: keys[i];
+
+    // keySet == m.Keys because of the bijection
+    forall k | k in keySet
+      ensures k in m.Keys
+    {
+      var i :| 0 <= i < |keys| && keys[i] == k;
+      assert k in keys;
+    }
+    forall k | k in m.Keys
+      ensures k in keySet
+    {
+      assert k in keys;
+      var i :| 0 <= i < |keys| && keys[i] == k;
+      assert k in keySet;
+    }
+    assert keySet == m.Keys;
+
+    // Now prove no duplicates
+    if exists i, j :: 0 <= i < j < |keys| && keys[i] == keys[j] {
+      var i, j :| 0 <= i < j < |keys| && keys[i] == keys[j];
+      // Show this leads to |keySet| < |keys|
+      SeqToSetSizeBound(keys);
+      assert |keySet| <= |keys|;
+      SeqWithDupSmallerSet(keys, i, j);
+      assert |keySet| < |keys|;
+      assert |keySet| < |m.Keys|;
+      assert false;  // contradiction: keySet == m.Keys but |keySet| < |m.Keys|
+    }
+  }
+
+  // Helper: set of sequence elements has size <= sequence length
+  lemma SeqToSetSizeBound(s: seq<PersonId>)
+    ensures |set i | 0 <= i < |s| :: s[i]| <= |s|
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      var init := s[..|s|-1];
+      SeqToSetSizeBound(init);
+      var initSet := set i | 0 <= i < |init| :: init[i];
+      var fullSet := set i | 0 <= i < |s| :: s[i];
+      assert fullSet == initSet + {s[|s|-1]};
+    }
+  }
+
+  // Helper: if sequence has duplicate, set is strictly smaller
+  lemma SeqWithDupSmallerSet(s: seq<PersonId>, i: int, j: int)
+    requires 0 <= i < j < |s|
+    requires s[i] == s[j]
+    ensures |set k | 0 <= k < |s| :: s[k]| < |s|
+    decreases |s|
+  {
+    var sSet := set k | 0 <= k < |s| :: s[k];
+    // The element s[i] = s[j] is counted once in the set but twice in the sequence
+    // So |sSet| < |s|
+    SeqToSetSizeBound(s);
+    // We need to show strict inequality
+    // Remove s[j] from the sequence, the set stays the same
+    var s' := s[..j] + s[j+1..];
+    var s'Set := set k | 0 <= k < |s'| :: s'[k];
+
+    // s'Set == sSet because s[j] = s[i] is still in s'
+    assert s[i] in s';
+    forall k | k in sSet
+      ensures k in s'Set
+    {
+      var idx :| 0 <= idx < |s| && s[idx] == k;
+      if idx < j {
+        assert s'[idx] == k;
+      } else if idx > j {
+        assert s'[idx-1] == k;
+      } else {
+        // idx == j, but s[i] == s[j] == k and i < j
+        assert s'[i] == k;
+      }
+    }
+    forall k | k in s'Set
+      ensures k in sSet
+    {
+      var idx :| 0 <= idx < |s'| && s'[idx] == k;
+      if idx < j {
+        assert s[idx] == k;
+      } else {
+        assert s[idx+1] == k;
+      }
+    }
+    assert s'Set == sSet;
+
+    SeqToSetSizeBound(s');
+    assert |sSet| == |s'Set| <= |s'| == |s| - 1 < |s|;
+  }
 
   // Equivalence lemma: if keys covers all map keys exactly once, results match
-  lemma SumValuesSeqEquiv(m: map<PersonId, Money>, keys: seq<PersonId>)
+  lemma {:vcs_split_on_every_assert} SumValuesSeqEquiv(m: map<PersonId, Money>, keys: seq<PersonId>)
     requires forall k :: k in m.Keys <==> k in keys
     requires |keys| == |m|  // no duplicates, covers exactly
     decreases |keys|
     ensures SumValuesSeq(m, keys) == SumValues(m)
   {
-    SeqNoDuplicates(keys, m);  // Establish no duplicates
-
     if |keys| == 0 {
-      assert |m| == 0;
     } else {
       var k := keys[0];
       var rest := keys[1..];
-      assert k in m;
       var m' := m - {k};
 
-      // Use the key lemma to show SumValues(m) = m[k] + SumValues(m')
+      SeqNoDuplicates(keys, m);
       SumValuesRemoveKey(m, k);
-      assert SumValues(m) == m[k] + SumValues(m');
 
-      // Show rest covers exactly m'
-      assert |rest| == |m'| by {
-        assert |rest| == |keys| - 1;
-        assert |m'| == |m| - 1;
-      }
-
-      forall k' | k' in m'.Keys
-        ensures k' in rest
-      {
-        assert k' in m.Keys;
-        assert k' in keys;
-        assert k' != k;
-        var i :| 0 <= i < |keys| && keys[i] == k';
-        assert i > 0;  // because keys[0] = k and k' != k
-        assert keys[i] == rest[i-1];
-      }
-
-      forall k' | k' in rest
-        ensures k' in m'.Keys
-      {
-        var i :| 0 <= i < |rest| && rest[i] == k';
-        assert keys[i+1] == k';
-        assert k' in keys;
-        assert k' in m.Keys;
-        // k' != k because keys has no duplicates
-        assert k' != k;  // keys[0] = k, keys[i+1] = k', and 0 != i+1
-      }
+      // Establish rest covers m' exactly
+      RestCoversMapMinus(keys, m, k);
 
       SumValuesSeqEquiv(m', rest);
+    }
+  }
+
+  // Helper lemma to avoid timeout
+  lemma RestCoversMapMinus(keys: seq<PersonId>, m: map<PersonId, Money>, k: PersonId)
+    requires |keys| > 0
+    requires k == keys[0]
+    requires k in m
+    requires forall x :: x in m.Keys <==> x in keys
+    requires |keys| == |m|
+    ensures forall x :: x in (m - {k}).Keys <==> x in keys[1..]
+    ensures |keys[1..]| == |m - {k}|
+  {
+    var rest := keys[1..];
+    var m' := m - {k};
+    SeqNoDuplicates(keys, m);
+
+    forall x | x in m'.Keys
+      ensures x in rest
+    {
+      assert x in m.Keys && x != k;
+      assert x in keys;
+      var i :| 0 <= i < |keys| && keys[i] == x;
+      assert i != 0;  // because keys[0] == k and x != k
+    }
+
+    forall x | x in rest
+      ensures x in m'.Keys
+    {
+      var i :| 0 <= i < |rest| && rest[i] == x;
+      assert keys[i+1] == x;
+      assert x in keys;
+      assert x in m.Keys;
+      assert x != k;  // because no duplicates and i+1 != 0
     }
   }
 
@@ -237,11 +374,39 @@ module ClearSplit {
       ZeroBalancesSeq(memberList[1..])[p := 0]
   }
 
-  // Axiom: same as SeqNoDuplicates but for sets
-  lemma {:axiom} MemberListNoDuplicates(memberList: seq<PersonId>, members: set<PersonId>)
+  // Same as SeqNoDuplicates but for sets
+  lemma MemberListNoDuplicates(memberList: seq<PersonId>, members: set<PersonId>)
     requires forall p :: p in members <==> p in memberList
     requires |memberList| == |members|
     ensures forall i, j :: 0 <= i < j < |memberList| ==> memberList[i] != memberList[j]
+  {
+    // Similar proof to SeqNoDuplicates
+    var elemSet := set i | 0 <= i < |memberList| :: memberList[i];
+
+    // elemSet == members
+    forall k | k in elemSet
+      ensures k in members
+    {
+      var i :| 0 <= i < |memberList| && memberList[i] == k;
+      assert k in memberList;
+    }
+    forall k | k in members
+      ensures k in elemSet
+    {
+      assert k in memberList;
+      var i :| 0 <= i < |memberList| && memberList[i] == k;
+    }
+    assert elemSet == members;
+
+    // Prove no duplicates by contradiction
+    if exists i, j :: 0 <= i < j < |memberList| && memberList[i] == memberList[j] {
+      var i, j :| 0 <= i < j < |memberList| && memberList[i] == memberList[j];
+      SeqWithDupSmallerSet(memberList, i, j);
+      assert |elemSet| < |memberList|;
+      assert |elemSet| < |members|;
+      assert false;
+    }
+  }
 
   // Equivalence lemma
   lemma ZeroBalancesEquiv(members: set<PersonId>, memberList: seq<PersonId>)
@@ -322,11 +487,30 @@ module ClearSplit {
     ZeroBalances(model.members)
   }
 
-  // Axiom: SumValues of a map where all values are zero is zero
-  // This follows from the recursive definition: each step adds 0
-  lemma {:axiom} SumValuesAllZero(m: map<PersonId, Money>)
+  // SumValues of a map where all values are zero is zero
+  lemma SumValuesAllZero(m: map<PersonId, Money>)
     requires forall p :: p in m ==> m[p] == 0
     ensures SumValues(m) == 0
+    decreases |m|
+  {
+    if |m| == 0 {
+      // Base case: empty map has sum 0
+    } else {
+      // Pick any key p
+      var p :| p in m;
+      // SumValues(m) == m[p] + SumValues(m - {p}) by the ensures of SumValues
+      // m[p] == 0 by precondition
+      // m - {p} also has all zeros
+      var m' := m - {p};
+      forall q | q in m'
+        ensures m'[q] == 0
+      {
+        assert m'[q] == m[q];
+      }
+      SumValuesAllZero(m');
+      // SumValues(m) == 0 + 0 == 0
+    }
+  }
 
   lemma ZeroBalancesSum(members: set<PersonId>)
     ensures SumValues(ZeroBalances(members)) == 0
