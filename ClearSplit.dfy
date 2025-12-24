@@ -454,15 +454,34 @@ module ClearSplit {
     }
   }
 
+  // Helper: apply shares to balances using a sequence of keys
+  function ApplySharesSeq(
+      b: map<PersonId, Money>,
+      shares: map<PersonId, Money>,
+      keys: seq<PersonId>
+    ): map<PersonId, Money>
+    decreases |keys|
+  {
+    if |keys| == 0 then b
+    else
+      var p := keys[0];
+      var rest := keys[1..];
+      if p in shares then
+        ApplySharesSeq(AddToMap(b, p, -shares[p]), shares, rest)
+      else
+        ApplySharesSeq(b, shares, rest)
+  }
+
   function ApplyExpenseToBalances(
       b: map<PersonId, Money>,
-      e: Expense
+      e: Expense,
+      shareKeys: seq<PersonId>
     ): map<PersonId, Money>
   {
-    // TODO: implement as a fold:
     // 1) payer +amount
     // 2) for each (p -> share) in e.shares: p -= share
-    b
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    ApplySharesSeq(b', e.shares, shareKeys)
   }
 
   function ApplySettlementToBalances(
@@ -470,10 +489,61 @@ module ClearSplit {
       s: Settlement
     ): map<PersonId, Money>
   {
-    // TODO:
-    //   from += amount
-    //   to   -= amount
-    b
+    //   from += amount (payer owes less)
+    //   to   -= amount (payee is owed less)
+    var b' := AddToMap(b, s.from, s.amount);
+    AddToMap(b', s.to, -s.amount)
+  }
+
+  // Fold over expenses
+  function ApplyExpensesSeq(
+      b: map<PersonId, Money>,
+      expenses: seq<Expense>,
+      expenseShareKeys: seq<seq<PersonId>>
+    ): map<PersonId, Money>
+    requires |expenses| == |expenseShareKeys|
+    decreases |expenses|
+  {
+    if |expenses| == 0 then b
+    else
+      var b' := ApplyExpenseToBalances(b, expenses[0], expenseShareKeys[0]);
+      ApplyExpensesSeq(b', expenses[1..], expenseShareKeys[1..])
+  }
+
+  // Fold over settlements
+  function ApplySettlementsSeq(
+      b: map<PersonId, Money>,
+      settlements: seq<Settlement>
+    ): map<PersonId, Money>
+    decreases |settlements|
+  {
+    if |settlements| == 0 then b
+    else
+      var b' := ApplySettlementToBalances(b, settlements[0]);
+      ApplySettlementsSeq(b', settlements[1..])
+  }
+
+  // Compilable version of ComputeBalances
+  function ComputeBalancesSeq(
+      memberList: seq<PersonId>,
+      expenses: seq<Expense>,
+      expenseShareKeys: seq<seq<PersonId>>,
+      settlements: seq<Settlement>
+    ): map<PersonId, Money>
+    requires |expenses| == |expenseShareKeys|
+  {
+    var b := ZeroBalancesSeq(memberList);
+    var b' := ApplyExpensesSeq(b, expenses, expenseShareKeys);
+    ApplySettlementsSeq(b', settlements)
+  }
+
+  // Equivalence: ComputeBalancesSeq with no expenses/settlements equals ZeroBalances
+  lemma ComputeBalancesSeqEquivBase(members: set<PersonId>, memberList: seq<PersonId>)
+    requires forall p :: p in members <==> p in memberList
+    requires |memberList| == |members|
+    ensures ComputeBalancesSeq(memberList, [], [], []) == ZeroBalances(members)
+  {
+    ZeroBalancesEquiv(members, memberList);
   }
 
   ghost function ComputeBalances(model: Model): map<PersonId, Money>
