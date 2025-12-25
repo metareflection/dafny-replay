@@ -71,9 +71,31 @@ abstract module {:compile false} Kernel {
     D.StepPreservesInv(h.present, a);
   }
 
-  // Proxy for linear undo: after a new action, there is no redo branch.
+  // proxy for linear undo: after a new action, there is no redo branch
   lemma DoHasNoRedoBranch(h: History, a: D.Action)
   ensures Redo(Do(h, a)) == Do(h, a)
+  {
+  }
+  // round-tripping properties
+  lemma UndoRedoRoundTrip(h: History)
+  requires |h.past| > 0
+  ensures Redo(Undo(h)) == h
+  {
+  }
+  lemma RedoUndoRoundTrip(h: History)
+  requires |h.future| > 0
+  ensures Undo(Redo(h)) == h
+  {
+  }
+  // idempotence at boundaries
+  lemma UndoAtBeginningIsNoOp(h: History)
+  requires |h.past| == 0
+  ensures Undo(h) == h
+  {
+  }
+  lemma RedoAtEndIsNoOp(h: History)
+  requires |h.future| == 0
+  ensures Redo(h) == h
   {
   }
 }
