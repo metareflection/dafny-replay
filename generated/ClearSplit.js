@@ -1196,6 +1196,73 @@ let ClearSplit = (function() {
     _parentTraits() {
       return [];
     }
+    static GetFromMap(b, p) {
+      if ((b).contains(p)) {
+        return (b).get(p);
+      } else {
+        return _dafny.ZERO;
+      }
+    };
+    static Step(model, a) {
+      let result = ClearSplit.Result.Default(ClearSplit.Model.Default());
+      let _source0 = a;
+      Lmatch0: {
+        {
+          if (_source0.is_AddExpense) {
+            let _0_e = (_source0).e;
+            if (ClearSplit.__default.ValidExpenseCheck((model).dtor_members, _0_e)) {
+              result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model((model).dtor_members, (model).dtor_memberList, _dafny.Seq.Concat((model).dtor_expenses, _dafny.Seq.of(_0_e)), (model).dtor_settlements));
+            } else {
+              result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadExpense());
+            }
+            break Lmatch0;
+          }
+        }
+        {
+          let _1_s = (_source0).s;
+          if (ClearSplit.__default.ValidSettlement((model).dtor_members, _1_s)) {
+            result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model((model).dtor_members, (model).dtor_memberList, (model).dtor_expenses, _dafny.Seq.Concat((model).dtor_settlements, _dafny.Seq.of(_1_s))));
+          } else {
+            result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadSettlement());
+          }
+        }
+      }
+      return result;
+    }
+    static Init(memberList) {
+      let result = ClearSplit.Result.Default(ClearSplit.Model.Default());
+      if (!(ClearSplit.__default.NoDuplicates(memberList))) {
+        result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadExpense());
+        return result;
+      }
+      let _0_members;
+      _0_members = function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of _dafny.IntegerRange(_dafny.ZERO, new BigNumber((memberList).length))) {
+          let _1_i = _compr_0;
+          if (((_dafny.ZERO).isLessThanOrEqualTo(_1_i)) && ((_1_i).isLessThan(new BigNumber((memberList).length)))) {
+            _coll0.add((memberList)[_1_i]);
+          }
+        }
+        return _coll0;
+      }();
+      result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model(_0_members, memberList, _dafny.Seq.of(), _dafny.Seq.of()));
+      return result;
+    }
+    static GetCertificate(model) {
+      let cert = ClearSplit.Certificate.Default();
+      cert = ClearSplit.Certificate.create_Certificate(new BigNumber(((model).dtor_members).length), new BigNumber(((model).dtor_expenses).length), new BigNumber(((model).dtor_settlements).length), true);
+      return cert;
+    }
+    static NoDuplicates(s) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((s).length)), true, function (_forall_var_0) {
+        let _0_i = _forall_var_0;
+        return _dafny.Quantifier(_dafny.IntegerRange((_0_i).plus(_dafny.ONE), new BigNumber((s).length)), true, function (_forall_var_1) {
+          let _1_j = _forall_var_1;
+          return !((((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(_1_j))) && ((_1_j).isLessThan(new BigNumber((s).length)))) || (!_dafny.areEqual((s)[_0_i], (s)[_1_j]));
+        });
+      });
+    };
     static SumValuesSeq(m, keys) {
       let _0___accumulator = _dafny.ZERO;
       TAIL_CALL_START: while (true) {
@@ -1220,15 +1287,6 @@ let ClearSplit = (function() {
           }
         }
       }
-    };
-    static NoDuplicates(s) {
-      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((s).length)), true, function (_forall_var_0) {
-        let _0_i = _forall_var_0;
-        return _dafny.Quantifier(_dafny.IntegerRange((_0_i).plus(_dafny.ONE), new BigNumber((s).length)), true, function (_forall_var_1) {
-          let _1_j = _forall_var_1;
-          return !((((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(_1_j))) && ((_1_j).isLessThan(new BigNumber((s).length)))) || (!_dafny.areEqual((s)[_0_i], (s)[_1_j]));
-        });
-      });
     };
     static ShareKeysOk(e) {
       return (((new BigNumber(((e).dtor_shareKeys).length)).isEqualTo(new BigNumber(((e).dtor_shares).length))) && (ClearSplit.__default.NoDuplicates((e).dtor_shareKeys))) && (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(((e).dtor_shareKeys).length)), true, function (_forall_var_0) {
@@ -1331,38 +1389,6 @@ let ClearSplit = (function() {
       let _1_b_k = ClearSplit.__default.ApplyExpensesSeq(_0_b, (model).dtor_expenses);
       return ClearSplit.__default.ApplySettlementsSeq(_1_b_k, (model).dtor_settlements);
     };
-    static SeqCoversMap(keys, m) {
-      return (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((keys).length)), true, function (_forall_var_0) {
-        let _0_i = _forall_var_0;
-        return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((keys).length)))) || ((m).contains((keys)[_0_i]));
-      })) && ((new BigNumber((keys).length)).isEqualTo(new BigNumber((m).length)));
-    };
-    static Step(model, a) {
-      let result = ClearSplit.Result.Default(ClearSplit.Model.Default());
-      let _source0 = a;
-      Lmatch0: {
-        {
-          if (_source0.is_AddExpense) {
-            let _0_e = (_source0).e;
-            if (ClearSplit.__default.ValidExpenseCheck((model).dtor_members, _0_e)) {
-              result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model((model).dtor_members, (model).dtor_memberList, _dafny.Seq.Concat((model).dtor_expenses, _dafny.Seq.of(_0_e)), (model).dtor_settlements));
-            } else {
-              result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadExpense());
-            }
-            break Lmatch0;
-          }
-        }
-        {
-          let _1_s = (_source0).s;
-          if (ClearSplit.__default.ValidSettlement((model).dtor_members, _1_s)) {
-            result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model((model).dtor_members, (model).dtor_memberList, (model).dtor_expenses, _dafny.Seq.Concat((model).dtor_settlements, _dafny.Seq.of(_1_s))));
-          } else {
-            result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadSettlement());
-          }
-        }
-      }
-      return result;
-    }
     static GetBalance(model, p) {
       let _0_b = ClearSplit.__default.Balances(model);
       if ((_0_b).contains(p)) {
@@ -1371,31 +1397,62 @@ let ClearSplit = (function() {
         return _dafny.ZERO;
       }
     };
-    static GetCertificate(model) {
-      let cert = ClearSplit.Certificate.Default();
-      cert = ClearSplit.Certificate.create_Certificate(new BigNumber(((model).dtor_members).length), new BigNumber(((model).dtor_expenses).length), new BigNumber(((model).dtor_settlements).length), true);
-      return cert;
-    }
-    static Init(memberList) {
-      let result = ClearSplit.Result.Default(ClearSplit.Model.Default());
-      if (!(ClearSplit.__default.NoDuplicates(memberList))) {
-        result = ClearSplit.Result.create_Error(ClearSplit.Err.create_BadExpense());
-        return result;
-      }
-      let _0_members;
-      _0_members = function () {
-        let _coll0 = new _dafny.Set();
-        for (const _compr_0 of _dafny.IntegerRange(_dafny.ZERO, new BigNumber((memberList).length))) {
-          let _1_i = _compr_0;
-          if (((_dafny.ZERO).isLessThanOrEqualTo(_1_i)) && ((_1_i).isLessThan(new BigNumber((memberList).length)))) {
-            _coll0.add((memberList)[_1_i]);
-          }
+    static SumSeq(s) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((s).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          _0___accumulator = (_0___accumulator).plus((s)[_dafny.ZERO]);
+          let _in0 = (s).slice(_dafny.ONE);
+          s = _in0;
+          continue TAIL_CALL_START;
         }
-        return _coll0;
-      }();
-      result = ClearSplit.Result.create_Ok(ClearSplit.Model.create_Model(_0_members, memberList, _dafny.Seq.of(), _dafny.Seq.of()));
-      return result;
-    }
+      }
+    };
+    static ExpenseDeltaForPerson(e, p) {
+      let _0_payerDelta = ((_dafny.areEqual(p, (e).dtor_paidBy)) ? ((e).dtor_amount) : (_dafny.ZERO));
+      let _1_shareDelta = ((((e).dtor_shares).contains(p)) ? ((_dafny.ZERO).minus(((e).dtor_shares).get(p))) : (_dafny.ZERO));
+      return (_0_payerDelta).plus(_1_shareDelta);
+    };
+    static ExpenseDeltas(expenses, p) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((expenses).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
+        } else {
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of(ClearSplit.__default.ExpenseDeltaForPerson((expenses)[_dafny.ZERO], p)));
+          let _in0 = (expenses).slice(_dafny.ONE);
+          let _in1 = p;
+          expenses = _in0;
+          p = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static SettlementDeltaForPerson(s, p) {
+      let _0_fromDelta = ((_dafny.areEqual(p, (s).dtor_from)) ? ((s).dtor_amount) : (_dafny.ZERO));
+      let _1_toDelta = ((_dafny.areEqual(p, (s).dtor_to)) ? ((_dafny.ZERO).minus((s).dtor_amount)) : (_dafny.ZERO));
+      return (_0_fromDelta).plus(_1_toDelta);
+    };
+    static SettlementDeltas(settlements, p) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((settlements).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
+        } else {
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of(ClearSplit.__default.SettlementDeltaForPerson((settlements)[_dafny.ZERO], p)));
+          let _in0 = (settlements).slice(_dafny.ONE);
+          let _in1 = p;
+          settlements = _in0;
+          p = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static ExplainExpenses(model, p) {
+      return _dafny.Seq.Concat(ClearSplit.__default.ExpenseDeltas((model).dtor_expenses, p), ClearSplit.__default.SettlementDeltas((model).dtor_settlements, p));
+    };
   };
 
   $module.Expense = class Expense {
