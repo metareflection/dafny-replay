@@ -30,6 +30,12 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Authority              | Client–server                  | Server state always satisfies invariants |
 | Multi-Collaboration    | Client–server, offline clients | Anchor-based moves, candidate fallback, minimal rejection |
 
+### List of Apps
+
+| App         | Domain                    | Key Guarantees |
+|-------------|---------------------------|----------------|
+| ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
+
 ---
 
 ## Architecture (Replay Kernel)
@@ -197,6 +203,43 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 * **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
 
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
+
+---
+
+## Apps
+
+### ClearSplit (expense splitting)
+
+A verified expense-splitting application with mathematically guaranteed conservation of money.
+
+**Model:**
+* Members (group participants)
+* Expenses (payer, amount, shares per participant)
+* Settlements (payments between members)
+
+**Key invariants and theorems:**
+
+1. **Conservation Theorem**
+   The sum of all balances is always zero—money cannot appear or disappear.
+
+2. **AddExpense Delta Law**
+   When an expense is added:
+   * Payer's balance increases by amount (minus their share if they're a participant)
+   * Each participant's balance decreases by their share
+   * All other balances unchanged
+
+3. **AddSettlement Delta Law**
+   When a settlement is recorded:
+   * Payer's balance increases by amount (they owe less)
+   * Recipient's balance decreases by amount (they are owed less)
+   * All other balances unchanged
+
+4. **ExplainSumsToBalance**
+   A person's balance equals the sum of all their transaction deltas—providing an auditable history.
+
+**Architecture:**
+
+The code is structured as an abstract specification module (`ClearSplitSpec`) containing user-facing types, predicates, and theorem signatures, refined by an implementation module (`ClearSplit`) containing all helper lemmas and proofs.
 
 ---
 
