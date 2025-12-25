@@ -231,60 +231,9 @@ function MyApp() {
 export default MyApp
 ```
 
-## Step 9: Add Styling
+## Step 9: Add Styling (Optional)
 
-Replace `my-app/src/App.css`:
-
-```css
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
-
-.subtitle {
-  color: #888;
-  margin-top: -0.5rem;
-  margin-bottom: 2rem;
-}
-
-.card {
-  padding: 2em;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  margin: 1rem 0;
-}
-
-.value {
-  font-size: 4rem;
-  font-weight: bold;
-  margin: 1rem 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.button-row {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin: 1rem 0;
-}
-
-.button-row button {
-  min-width: 80px;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.info {
-  color: #888;
-  font-size: 0.9rem;
-  margin-top: 2rem;
-}
-```
+Edit `my-app/src/App.css` as you see fit.
 
 ## Step 10: Run the App
 
