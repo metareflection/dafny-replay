@@ -285,7 +285,7 @@ function ClearSplit() {
           <button className="btn btn-primary" onClick={addExpense}>
             Add Expense
           </button>
-          {status && <p className="status-msg">{status}</p>}
+          <p className="status-msg">{status || '\u00A0'}</p>
         </div>
       )}
 
@@ -328,7 +328,7 @@ function ClearSplit() {
           <button className="btn btn-primary" onClick={addSettlement}>
             Record Payment
           </button>
-          {status && <p className="status-msg">{status}</p>}
+          <p className="status-msg">{status || '\u00A0'}</p>
         </div>
       )}
 
