@@ -199,7 +199,7 @@ function KanbanBoard() {
   if (!client) {
     return (
       <div className="loading">
-        <h1>Kanban Multi-Collaboration v2</h1>
+        <h1>Kanban Multi-Collaboration</h1>
         <p>Loading...</p>
       </div>
     )
@@ -214,7 +214,7 @@ function KanbanBoard() {
     <>
       <div className="header">
         <div>
-          <h1>Kanban Multi-Collaboration v2</h1>
+          <h1>Kanban Multi-Collaboration</h1>
           <p className="subtitle">Anchor-based moves, server-allocated IDs, candidate fallback</p>
         </div>
         <div className="controls">
@@ -277,7 +277,7 @@ function KanbanBoard() {
       )}
 
       <p className="info">
-        v2: Server-allocated card IDs, anchor-based placement (AtEnd, Before, After).
+        Server-allocated card IDs, anchor-based placement (AtEnd, Before, After).
         <br />
         Stale anchors automatically fall back to AtEnd via candidate selection.
       </p>
