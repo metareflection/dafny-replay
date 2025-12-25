@@ -1112,6 +1112,266 @@ module ClearSplit {
     // Conservation preserved
     ensures SumValues(Balances(model')) == 0
 
+  // =============================
+  // History filter per person
+  // =============================
+
+  // Sum a sequence of Money values
+  function SumSeq(s: seq<Money>): Money
+    decreases |s|
+  {
+    if |s| == 0 then 0
+    else s[0] + SumSeq(s[1..])
+  }
+
+  // Helper: Get the delta for a person from a single expense
+  // Payer gains +amount, share owners lose -share
+  function ExpenseDeltaForPerson(e: Expense, p: PersonId): Money
+  {
+    var payerDelta := if p == e.paidBy then e.amount else 0;
+    var shareDelta := if p in e.shares then -e.shares[p] else 0;
+    payerDelta + shareDelta
+  }
+
+  // Helper: Get all deltas from a sequence of expenses for a person
+  function ExpenseDeltas(expenses: seq<Expense>, p: PersonId): seq<Money>
+    decreases |expenses|
+  {
+    if |expenses| == 0 then []
+    else [ExpenseDeltaForPerson(expenses[0], p)] + ExpenseDeltas(expenses[1..], p)
+  }
+
+  // Helper: Get the delta for a person from a single settlement
+  // From gains +amount (owes less), To loses -amount (is owed less)
+  function SettlementDeltaForPerson(s: Settlement, p: PersonId): Money
+  {
+    var fromDelta := if p == s.from then s.amount else 0;
+    var toDelta := if p == s.to then -s.amount else 0;
+    fromDelta + toDelta
+  }
+
+  // Helper: Get all deltas from a sequence of settlements for a person
+  function SettlementDeltas(settlements: seq<Settlement>, p: PersonId): seq<Money>
+    decreases |settlements|
+  {
+    if |settlements| == 0 then []
+    else [SettlementDeltaForPerson(settlements[0], p)] + SettlementDeltas(settlements[1..], p)
+  }
+
+  // Returns all money deltas for a person from expenses and settlements
+  function ExplainExpenses(model: Model, p: PersonId): seq<Money>
+  {
+    ExpenseDeltas(model.expenses, p) + SettlementDeltas(model.settlements, p)
+  }
+
+  // Helper: SumSeq distributes over concatenation
+  lemma SumSeqConcat(a: seq<Money>, b: seq<Money>)
+    ensures SumSeq(a + b) == SumSeq(a) + SumSeq(b)
+    decreases |a|
+  {
+    if |a| == 0 {
+      assert a + b == b;
+    } else {
+      calc {
+        SumSeq(a + b);
+        == { assert (a + b)[0] == a[0]; assert (a + b)[1..] == a[1..] + b; }
+        a[0] + SumSeq(a[1..] + b);
+        == { SumSeqConcat(a[1..], b); }
+        a[0] + SumSeq(a[1..]) + SumSeq(b);
+        ==
+        SumSeq(a) + SumSeq(b);
+      }
+    }
+  }
+
+  // Helper: Get balance for p from a balance map, defaulting to 0
+  function GetFromMap(b: map<PersonId, Money>, p: PersonId): Money
+  {
+    if p in b then b[p] else 0
+  }
+
+  // Helper: Applying a single expense to balances changes p's balance by ExpenseDeltaForPerson
+  lemma ApplyExpenseDeltaForPerson(b: map<PersonId, Money>, e: Expense, p: PersonId)
+    requires NoDuplicates(e.shareKeys)
+    requires forall k :: k in e.shares <==> k in e.shareKeys
+    ensures GetFromMap(ApplyExpenseToBalances(b, e), p) == GetFromMap(b, p) + ExpenseDeltaForPerson(e, p)
+  {
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    AddToMapDelta(b, e.paidBy, e.amount, p);
+    ApplySharesDelta(b', e.shares, e.shareKeys, p);
+  }
+
+  // Helper: AddToMap changes p's value correctly
+  lemma AddToMapDelta(b: map<PersonId, Money>, q: PersonId, delta: Money, p: PersonId)
+    ensures GetFromMap(AddToMap(b, q, delta), p) == GetFromMap(b, p) + (if p == q then delta else 0)
+  {
+    // Direct from definition of AddToMap and GetFromMap
+  }
+
+  // Helper: ApplySharesSeq changes p's balance by the negative of their share
+  // Requires no duplicates in keys to ensure each person is processed at most once
+  lemma ApplySharesDelta(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
+    requires NoDuplicates(keys)
+    ensures GetFromMap(ApplySharesSeq(b, shares, keys), p) ==
+            GetFromMap(b, p) + (if p in shares && p in keys then -shares[p] else 0)
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      NoDuplicatesRest(keys);
+      if k in shares {
+        var b' := AddToMap(b, k, -shares[k]);
+        AddToMapDelta(b, k, -shares[k], p);
+        if k == p {
+          // p is processed at index 0, and since no duplicates, p !in rest
+          NoDuplicatesFirstNotInRest(keys);
+          ApplySharesDeltaAfterProcessed(b', shares, rest, p);
+        } else {
+          ApplySharesDelta(b', shares, rest, p);
+        }
+      } else {
+        ApplySharesDelta(b, shares, rest, p);
+      }
+    }
+  }
+
+  // Helper: NoDuplicates is preserved for the rest of the sequence
+  lemma NoDuplicatesRest(keys: seq<PersonId>)
+    requires |keys| > 0
+    requires NoDuplicates(keys)
+    ensures NoDuplicates(keys[1..])
+  {
+    var rest := keys[1..];
+    forall i, j | 0 <= i < j < |rest|
+      ensures rest[i] != rest[j]
+    {
+      assert keys[i+1] == rest[i];
+      assert keys[j+1] == rest[j];
+    }
+  }
+
+  // Helper: First element of a no-duplicate sequence is not in the rest
+  lemma NoDuplicatesFirstNotInRest(keys: seq<PersonId>)
+    requires |keys| > 0
+    requires NoDuplicates(keys)
+    ensures keys[0] !in keys[1..]
+  {
+    var first := keys[0];
+    var rest := keys[1..];
+    if first in rest {
+      var i :| 0 <= i < |rest| && rest[i] == first;
+      assert keys[i+1] == first;
+      assert keys[0] == first;
+      // But NoDuplicates says keys[0] != keys[i+1] since 0 < i+1
+      assert false;
+    }
+  }
+
+  // Helper: Once p is processed (not in remaining keys), their balance doesn't change
+  lemma ApplySharesDeltaAfterProcessed(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
+    requires p !in keys
+    ensures GetFromMap(ApplySharesSeq(b, shares, keys), p) == GetFromMap(b, p)
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      assert p !in rest;
+      if k in shares {
+        var b' := AddToMap(b, k, -shares[k]);
+        AddToMapDelta(b, k, -shares[k], p);
+        assert k != p;
+        ApplySharesDeltaAfterProcessed(b', shares, rest, p);
+      } else {
+        ApplySharesDeltaAfterProcessed(b, shares, rest, p);
+      }
+    }
+  }
+
+  // Helper: Applying all expenses changes p's balance by SumSeq of ExpenseDeltas
+  lemma ApplyExpensesDeltaForPerson(b: map<PersonId, Money>, expenses: seq<Expense>, p: PersonId)
+    requires forall i :: 0 <= i < |expenses| ==> ShareKeysConsistent(expenses[i])
+    ensures GetFromMap(ApplyExpensesSeq(b, expenses), p) == GetFromMap(b, p) + SumSeq(ExpenseDeltas(expenses, p))
+    decreases |expenses|
+  {
+    if |expenses| == 0 {
+    } else {
+      var e := expenses[0];
+      var b' := ApplyExpenseToBalances(b, e);
+      ApplyExpenseDeltaForPerson(b, e, p);
+      ApplyExpensesDeltaForPerson(b', expenses[1..], p);
+    }
+  }
+
+  // Helper: Applying a single settlement changes p's balance by SettlementDeltaForPerson
+  lemma ApplySettlementDeltaForPerson(b: map<PersonId, Money>, s: Settlement, p: PersonId)
+    ensures GetFromMap(ApplySettlementToBalances(b, s), p) == GetFromMap(b, p) + SettlementDeltaForPerson(s, p)
+  {
+    var b' := AddToMap(b, s.from, s.amount);
+    AddToMapDelta(b, s.from, s.amount, p);
+    var result := AddToMap(b', s.to, -s.amount);
+    AddToMapDelta(b', s.to, -s.amount, p);
+  }
+
+  // Helper: Applying all settlements changes p's balance by SumSeq of SettlementDeltas
+  lemma ApplySettlementsDeltaForPerson(b: map<PersonId, Money>, settlements: seq<Settlement>, p: PersonId)
+    ensures GetFromMap(ApplySettlementsSeq(b, settlements), p) == GetFromMap(b, p) + SumSeq(SettlementDeltas(settlements, p))
+    decreases |settlements|
+  {
+    if |settlements| == 0 {
+    } else {
+      var s := settlements[0];
+      var b' := ApplySettlementToBalances(b, s);
+      ApplySettlementDeltaForPerson(b, s, p);
+      ApplySettlementsDeltaForPerson(b', settlements[1..], p);
+    }
+  }
+
+  lemma ExplainSumsToBalance(model: Model, p: PersonId)
+    requires Inv(model)
+    requires p in model.members
+    ensures SumSeq(ExplainExpenses(model, p)) == GetBalance(model, p)
+  {
+    // ExplainExpenses(model, p) = ExpenseDeltas(...) + SettlementDeltas(...)
+    var expDeltas := ExpenseDeltas(model.expenses, p);
+    var setDeltas := SettlementDeltas(model.settlements, p);
+    SumSeqConcat(expDeltas, setDeltas);
+    // SumSeq(ExplainExpenses) == SumSeq(expDeltas) + SumSeq(setDeltas)
+
+    // Balances(model) is computed as:
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+
+    // GetBalance is GetFromMap(b2, p) where p in model.members
+    assert p in b0 by {
+      ZeroBalancesSeqContains(model.memberList, p);
+    }
+    assert GetFromMap(b0, p) == 0;
+
+    ApplyExpensesDeltaForPerson(b0, model.expenses, p);
+    // GetFromMap(b1, p) == 0 + SumSeq(expDeltas)
+
+    ApplySettlementsDeltaForPerson(b1, model.settlements, p);
+    // GetFromMap(b2, p) == SumSeq(expDeltas) + SumSeq(setDeltas)
+  }
+
+  // Helper: ZeroBalancesSeq contains all members from the list
+  lemma ZeroBalancesSeqContains(memberList: seq<PersonId>, p: PersonId)
+    requires p in memberList
+    ensures p in ZeroBalancesSeq(memberList)
+    decreases |memberList|
+  {
+    if |memberList| == 0 {
+    } else if memberList[0] == p {
+      // p is added at the end, so it's in the result
+    } else {
+      ZeroBalancesSeqContains(memberList[1..], p);
+    }
+  }
 }
 
 // =============================
