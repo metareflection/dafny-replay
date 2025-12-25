@@ -447,13 +447,9 @@ module ClearSplit refines ClearSplitSpec {
     if |m| == 0 {
     } else {
       var p :| p in m;
-      var m' := m - {p};
-      forall q | q in m'
-        ensures m'[q] == 0
-      {
-        assert m'[q] == m[q];
-      }
-      SumValuesAllZero(m');
+      SumValuesRemoveKey(m, p);
+      // SumValues(m) == m[p] + SumValues(m - {p}) == 0 + SumValues(m - {p})
+      SumValuesAllZero(m - {p});
     }
   }
 
