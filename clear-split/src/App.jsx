@@ -135,7 +135,7 @@ function ClearSplit() {
       <div className="clear-split setup-container">
         <div className="setup-header">
           <h1>ClearSplit</h1>
-          <p>Verified group finance</p>
+          <p>Correct-by-construction group expense tracking</p>
         </div>
 
         <div className="section">
