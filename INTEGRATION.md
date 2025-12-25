@@ -2,9 +2,13 @@
 
 This document describes patterns for integrating Dafny-generated JavaScript with client (React/Vite) and server (Node.js/Express) code.
 
-## Loading Dafny Code
+## Essential Patterns
 
-### Client (Vite)
+These patterns are always needed when integrating Dafny-generated JavaScript.
+
+### Loading Dafny Code
+
+**Client (Vite):**
 
 ```js
 import BigNumber from 'bignumber.js';
@@ -25,7 +29,7 @@ const initDafny = new Function('require', `
 const { _dafny, AppCore } = initDafny(require);
 ```
 
-### Server (Node.js)
+**Server (Node.js):**
 
 ```js
 import { readFileSync } from 'fs';
@@ -39,22 +43,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const myAppCode = readFileSync(join(__dirname, 'MyApp.cjs'), 'utf-8');
 
-const require = (mod) => {
-  if (mod === 'bignumber.js') return BigNumber;
-  throw new Error(`Unknown module: ${mod}`);
-};
-
-const initDafny = new Function('require', `
-  ${myAppCode}
-  return { _dafny, MyAppDomain, AppCore };
-`);
-
-const { _dafny, AppCore } = initDafny(require);
+// ... same require stub and initDafny pattern
 ```
 
-## Type Conversions
+### Calling Functions
 
-### Numbers
+Functions live under `Module.__default`:
+
+```js
+AppCore.__default.Init()
+AppCore.__default.Dispatch(state, action)
+```
+
+### Numbers (BigNumber)
+
+Dafny integers become BigNumber:
 
 ```js
 // JS → Dafny
@@ -69,6 +72,8 @@ _dafny.ZERO
 
 ### Strings
 
+Dafny strings are sequences of characters:
+
 ```js
 // JS → Dafny
 _dafny.Seq.UnicodeFromString("hello")
@@ -77,163 +82,110 @@ _dafny.Seq.UnicodeFromString("hello")
 seq.toVerbatimString(false)
 ```
 
-### Sequences (Arrays)
+### Sequences
 
 ```js
-// JS → Dafny
-_dafny.Seq.of(item1, item2, item3)
+// JS array → Dafny seq
 _dafny.Seq.of(...jsArray)
 
-// Dafny → JS
-const seqToArray = (seq) => {
-  const arr = [];
-  for (let i = 0; i < seq.length; i++) {
-    arr.push(seq[i]);
-  }
-  return arr;
-};
-```
-
-### Maps (Objects)
-
-```js
-// JS → Dafny
-let m = _dafny.Map.Empty;
-m = m.update(key, value);
-
-// Dafny → JS (iterate pairs)
-const fromMap = (dafnyMap) => {
-  const obj = {};
-  for (let i = 0; i < dafnyMap.length; i++) {
-    const [key, val] = dafnyMap[i];
-    obj[key] = val;
-  }
-  return obj;
-};
-
-// Dafny → JS (iterate keys)
-for (const key of dafnyMap.Keys.Elements) {
-  const val = dafnyMap.get(key);
+// Dafny seq → JS array
+const arr = [];
+for (let i = 0; i < seq.length; i++) {
+  arr.push(seq[i]);
 }
-
-// Map operations
-map.contains(key)  // check membership
-map.get(key)       // get value
 ```
 
-## Datatype Access
-
-### Constructors
-
-Dafny datatypes use `Module.Type.create_Variant(args...)`:
+### Maps
 
 ```js
-// datatype Action = Inc | Dec | Add(n: int)
+// Empty map
+_dafny.Map.Empty
+
+// Add entry
+map = map.update(key, value)
+
+// Check/get
+map.contains(key)
+map.get(key)
+
+// Iterate keys
+for (const key of map.Keys.Elements) { ... }
+
+// Iterate pairs
+for (let i = 0; i < map.length; i++) {
+  const [key, val] = map[i];
+}
+```
+
+### Datatype Access
+
+```js
+// Constructors: Module.Type.create_Variant(args...)
 Module.Action.create_Inc()
-Module.Action.create_Dec()
-Module.Action.create_Add(new BigNumber(5))
 
-// datatype Place = AtEnd | Before(anchor: int) | After(anchor: int)
-Module.Place.create_AtEnd()
-Module.Place.create_Before(new BigNumber(id))
-```
-
-### Variant Checks
-
-Use the `is_` prefix:
-
-```js
+// Variant checks: is_ prefix
 if (action.is_Inc) { ... }
-if (action.is_Dec) { ... }
-if (place.is_AtEnd) { ... }
-if (place.is_Before) { ... }
+
+// Field access: dtor_ prefix
+card.dtor_title
 ```
 
-### Field Access
+Note: Reserved words like `from` become `dtor_from`.
 
-Use the `dtor_` prefix:
+### Tuple Returns
 
 ```js
-// datatype Card = Card(title: string, done: bool)
-card.dtor_title
-card.dtor_done
-
-// datatype Action = Add(n: int)
-action.dtor_n
+const [a, b] = Module.__default.SomeFunction(...)
 ```
 
-Note: `from` is a reserved word in JS, so a field named `from` becomes `dtor_from`.
+---
+
+## Incidental Patterns
+
+These patterns depend on how your `.dfy` files define types and APIs.
 
 ### Result Types
 
-For `Result<T, E>` or similar:
+If your Dafny code defines `Result<T, E>`:
 
 ```js
 if (result.is_Ok) {
-  const value = result.value;  // or result.dtor_value
+  const value = result.value;
 } else {
-  const error = result.error;  // or result.dtor_error
+  const error = result.error;
 }
 ```
 
-## Calling Dafny Functions
+### Response Discriminators
 
-Functions live under `Module.__default`:
-
-```js
-AppCore.__default.Init()
-AppCore.__default.Dispatch(state, action)
-AppCore.__default.Present(history)
-```
-
-## Tuple Returns
-
-Dafny functions returning tuples come back as arrays:
+If your server API defines response types with discriminator functions:
 
 ```js
-const [newState, response] = AppCore.__default.Dispatch(state, version, action);
+if (AppCore.__default.IsAccepted(reply)) { ... }
+if (AppCore.__default.IsSuccess(response)) { ... }
+if (AppCore.__default.IsStale(response)) { ... }
 ```
 
-## Server State Management
+### Server State
 
-For server apps, maintain mutable state:
+If your app uses a server state pattern:
 
 ```js
 let serverState = AppCore.__default.InitServer(initialModel);
 
-app.post('/dispatch', (req, res) => {
-  const [newState, response] = AppCore.__default.Dispatch(serverState, ...);
-  serverState = newState;  // update state
-  // ... handle response
-});
+// On each request
+const [newState, response] = AppCore.__default.Dispatch(serverState, ...);
+serverState = newState;
 ```
 
-## Response Handling
+### JSON Serialization
 
-Server responses often use discriminator functions:
-
-```js
-if (AppCore.__default.IsAccepted(reply)) {
-  // success path
-} else if (AppCore.__default.IsRejected(reply)) {
-  // failure path
-}
-
-// Or with multiple response types
-if (AppCore.__default.IsSuccess(response)) { ... }
-if (AppCore.__default.IsStale(response)) { ... }
-if (AppCore.__default.IsInvalid(response)) { ... }
-```
-
-## JSON Serialization
-
-For API communication, convert Dafny types to/from JSON:
+If you need to send Dafny types over the wire:
 
 ```js
 // Dafny → JSON
 const actionToJson = (action) => {
   if (action.is_Inc) return { type: 'Inc' };
-  if (action.is_Dec) return { type: 'Dec' };
   if (action.is_Add) return { type: 'Add', n: action.dtor_n.toNumber() };
 };
 
@@ -241,8 +193,17 @@ const actionToJson = (action) => {
 const actionFromJson = (json) => {
   switch (json.type) {
     case 'Inc': return Module.Action.create_Inc();
-    case 'Dec': return Module.Action.create_Dec();
     case 'Add': return Module.Action.create_Add(new BigNumber(json.n));
   }
 };
+```
+
+### Custom Getters
+
+If your AppCore exposes getter functions:
+
+```js
+AppCore.__default.Present(history)
+AppCore.__default.CanUndo(history)
+AppCore.__default.GetVersion(state)
 ```
