@@ -1232,15 +1232,122 @@ module ClearSplit {
   // Delta Laws: How Step affects Balances
   // =============================
 
+  // Helper: ApplyExpensesSeq distributes over concatenation
+  lemma ApplyExpensesSeqConcat(b: map<PersonId, Money>, expenses1: seq<Expense>, expenses2: seq<Expense>)
+    ensures ApplyExpensesSeq(b, expenses1 + expenses2) == ApplyExpensesSeq(ApplyExpensesSeq(b, expenses1), expenses2)
+    decreases |expenses1|
+  {
+    if |expenses1| == 0 {
+      assert expenses1 + expenses2 == expenses2;
+    } else {
+      var b' := ApplyExpenseToBalances(b, expenses1[0]);
+      assert (expenses1 + expenses2)[0] == expenses1[0];
+      assert (expenses1 + expenses2)[1..] == expenses1[1..] + expenses2;
+      ApplyExpensesSeqConcat(b', expenses1[1..], expenses2);
+    }
+  }
+
+  // Helper: Balance relation when adding one expense
+  lemma AddExpenseBalanceRelation(model: Model, e: Expense, model': Model)
+    requires Inv(model)
+    requires ValidExpenseCheck(model.members, e)
+    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
+    // Payer gains amount (unless also a share owner)
+    ensures forall p :: p == e.paidBy && p !in e.shares ==>
+      GetBalance(model', p) == GetBalance(model, p) + e.amount
+    // Share owners (not payer) lose their share
+    ensures forall p :: p in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
+    // Payer who is also a share owner: net change is amount - share
+    ensures e.paidBy in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
+    // Others unchanged
+    ensures forall p :: p !in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p)
+  {
+    ValidExpenseCheckImpliesWellFormed(model.members, e);
+
+    // Balances(model') uses model.expenses + [e]
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b1' := ApplyExpensesSeq(b0, model.expenses + [e]);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+    var b2' := ApplySettlementsSeq(b1', model.settlements);
+
+    // Key: b1' = ApplyExpenseToBalances(b1, e)
+    ApplyExpensesSeqConcat(b0, model.expenses, [e]);
+    assert ApplyExpensesSeq(b1, [e]) == ApplyExpenseToBalances(b1, e);
+    assert b1' == ApplyExpenseToBalances(b1, e);
+
+    // Connect to Balances
+    assert Balances(model) == b2;
+    assert Balances(model') == b2';
+
+    // For each person p, track how their balance changes
+    forall p
+      ensures GetFromMap(b1', p) == GetFromMap(b1, p) + ExpenseDeltaForPerson(e, p)
+    {
+      ApplyExpenseDeltaForPerson(b1, e, p);
+    }
+
+    // Settlements don't change from model to model'
+    forall p
+      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + ExpenseDeltaForPerson(e, p)
+    {
+      SettlementsPreserveDelta(b1, b1', model.settlements, p, ExpenseDeltaForPerson(e, p));
+    }
+
+    // Connect GetFromMap to GetBalance
+    forall p
+      ensures GetBalance(model', p) == GetBalance(model, p) + ExpenseDeltaForPerson(e, p)
+    {
+      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
+      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
+    }
+  }
+
+  // Helper: If b1'[p] = b1[p] + delta, then after applying same settlements,
+  // b2'[p] = b2[p] + delta
+  lemma SettlementsPreserveDelta(
+    b1: map<PersonId, Money>,
+    b1': map<PersonId, Money>,
+    settlements: seq<Settlement>,
+    p: PersonId,
+    delta: Money
+  )
+    requires GetFromMap(b1', p) == GetFromMap(b1, p) + delta
+    ensures GetFromMap(ApplySettlementsSeq(b1', settlements), p) ==
+            GetFromMap(ApplySettlementsSeq(b1, settlements), p) + delta
+    decreases |settlements|
+  {
+    if |settlements| == 0 {
+    } else {
+      var s := settlements[0];
+      var b2 := ApplySettlementToBalances(b1, s);
+      var b2' := ApplySettlementToBalances(b1', s);
+
+      // Show b2'[p] = b2[p] + delta
+      ApplySettlementDeltaForPerson(b1, s, p);
+      ApplySettlementDeltaForPerson(b1', s, p);
+      // b2[p] = b1[p] + SettlementDeltaForPerson(s, p)
+      // b2'[p] = b1'[p] + SettlementDeltaForPerson(s, p)
+      //       = b1[p] + delta + SettlementDeltaForPerson(s, p)
+      //       = b2[p] + delta
+
+      SettlementsPreserveDelta(b2, b2', settlements[1..], p, delta);
+    }
+  }
+
   // AddExpense delta law: payer gains amount, share owners lose their shares
-  lemma {:axiom} AddExpenseDelta(model: Model, e: Expense, model': Model)
+  lemma AddExpenseDelta(model: Model, e: Expense, model': Model)
     requires Inv(model)
     requires ValidExpenseCheck(model.members, e)
     requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
     ensures Inv(model')
-    // Payer gains amount
-    ensures GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount
-    // Share owners lose their share
+    // Payer gains amount (when not a share owner)
+    ensures e.paidBy !in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount
+    // Share owners (not payer) lose their share
     ensures forall p :: p in e.shares && p != e.paidBy ==>
       GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
     // Payer who is also a share owner: net change is amount - share
@@ -1251,6 +1358,16 @@ module ClearSplit {
       GetBalance(model', p) == GetBalance(model, p)
     // Conservation preserved
     ensures SumValues(Balances(model')) == 0
+  {
+    // First establish Inv(model')
+    ValidExpenseCheckImpliesWellFormed(model.members, e);
+
+    // Need helper lemma to relate Balances(model') to Balances(model)
+    AddExpenseBalanceRelation(model, e, model');
+
+    // Conservation follows from the main Conservation theorem
+    Conservation(model');
+  }
 
   // AddSettlement delta law: from gains, to loses
   lemma {:axiom} AddSettlementDelta(model: Model, s: Settlement, model': Model)
