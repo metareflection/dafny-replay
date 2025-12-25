@@ -12,7 +12,7 @@ BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 // Load Dafny-generated code
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const authorityCode = readFileSync(join(__dirname, 'Authority.cjs'), 'utf-8');
+const counterAuthorityCode = readFileSync(join(__dirname, 'CounterAuthority.cjs'), 'utf-8');
 
 // Set up require stub for the Dafny code
 const require = (mod) => {
@@ -22,8 +22,8 @@ const require = (mod) => {
 
 // Evaluate the Dafny code and extract modules
 const initDafny = new Function('require', `
-  ${authorityCode}
-  return { _dafny, AppCore, ConcreteDomain, ConcreteServer };
+  ${counterAuthorityCode}
+  return { _dafny, AppCore, CounterDomain, CounterServer };
 `);
 
 const { _dafny, AppCore } = initDafny(require);
@@ -109,7 +109,7 @@ app.get('/state', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Authority server running on http://localhost:${PORT}`);
+  console.log(`Counter authority server running on http://localhost:${PORT}`);
   console.log('Endpoints:');
   console.log('  GET  /sync     - Get current state');
   console.log('  POST /dispatch - Dispatch action { clientVer, action: "Inc"|"Dec" }');

@@ -1196,91 +1196,156 @@ let KanbanDomain = (function() {
     _parentTraits() {
       return [];
     }
-    static NoOp() {
-      return KanbanDomain.Action.create_NoOp();
+    static RejectErr() {
+      return KanbanDomain.Err.create_Rejected();
     };
-    static Transform(remote, local) {
-      let _source0 = remote;
-      {
-        if (_source0.is_NoOp) {
-          return local;
+    static NoDupSeq(s) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((s).length)), true, function (_forall_var_0) {
+        let _0_i = _forall_var_0;
+        return _dafny.Quantifier(_dafny.IntegerRange((_0_i).plus(_dafny.ONE), new BigNumber((s).length)), true, function (_forall_var_1) {
+          let _1_j = _forall_var_1;
+          return !((((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(_1_j))) && ((_1_j).isLessThan(new BigNumber((s).length)))) || (!_dafny.areEqual((s)[_0_i], (s)[_1_j]));
+        });
+      });
+    };
+    static AllIds(m) {
+      return KanbanDomain.__default.AllIdsHelper((m).dtor_cols, (m).dtor_lanes);
+    };
+    static AllIdsHelper(cols, lanes) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((cols).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
+        } else {
+          let _1_c = (cols)[_dafny.ZERO];
+          let _2_lane = (((lanes).contains(_1_c)) ? ((lanes).get(_1_c)) : (_dafny.Seq.of()));
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _2_lane);
+          let _in0 = (cols).slice(_dafny.ONE);
+          let _in1 = lanes;
+          cols = _in0;
+          lanes = _in1;
+          continue TAIL_CALL_START;
         }
-      }
-      {
-        if (_source0.is_DeleteCard) {
-          let _0_rc = (_source0).id;
-          let _source1 = local;
-          {
-            if (_source1.is_EditTitle) {
-              let _1_lc = (_source1).id;
-              if ((_1_lc).isEqualTo(_0_rc)) {
-                return KanbanDomain.__default.NoOp();
-              } else {
-                return local;
-              }
-            }
-          }
-          {
-            if (_source1.is_MoveCard) {
-              let _2_lc = (_source1).id;
-              if ((_2_lc).isEqualTo(_0_rc)) {
-                return KanbanDomain.__default.NoOp();
-              } else {
-                return local;
-              }
-            }
-          }
-          {
-            if (_source1.is_DeleteCard) {
-              let _3_lc = (_source1).id;
-              if ((_3_lc).isEqualTo(_0_rc)) {
-                return KanbanDomain.__default.NoOp();
-              } else {
-                return local;
-              }
-            }
-          }
-          {
-            return local;
-          }
-        }
-      }
-      {
-        if (_source0.is_EditTitle) {
-          let _4_rc = (_source0).id;
-          let _source2 = local;
-          {
-            if (_source2.is_EditTitle) {
-              let _5_lc = (_source2).id;
-              return local;
-            }
-          }
-          {
-            return local;
-          }
-        }
-      }
-      {
-        if (_source0.is_MoveCard) {
-          let _6_rc = (_source0).id;
-          let _source3 = local;
-          {
-            if (_source3.is_MoveCard) {
-              let _7_lc = (_source3).id;
-              return local;
-            }
-          }
-          {
-            return local;
-          }
-        }
-      }
-      {
-        return local;
       }
     };
-    static Inv(m) {
-      return true;
+    static OccursInLanes(m, id) {
+      return _dafny.Quantifier(((m).dtor_lanes).Keys.Elements, false, function (_exists_var_0) {
+        let _0_c = _exists_var_0;
+        return (((m).dtor_lanes).contains(_0_c)) && (KanbanDomain.__default.SeqContains(((m).dtor_lanes).get(_0_c), id));
+      });
+    };
+    static CountInLanes(m, id) {
+      return KanbanDomain.__default.CountInLanesHelper((m).dtor_cols, (m).dtor_lanes, id);
+    };
+    static CountInLanesHelper(cols, lanes, id) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((cols).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          let _1_c = (cols)[_dafny.ZERO];
+          let _2_lane = (((lanes).contains(_1_c)) ? ((lanes).get(_1_c)) : (_dafny.Seq.of()));
+          let _3_here = ((KanbanDomain.__default.SeqContains(_2_lane, id)) ? (_dafny.ONE) : (_dafny.ZERO));
+          _0___accumulator = (_0___accumulator).plus(_3_here);
+          let _in0 = (cols).slice(_dafny.ONE);
+          let _in1 = lanes;
+          let _in2 = id;
+          cols = _in0;
+          lanes = _in1;
+          id = _in2;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static Get(mp, k, d) {
+      if ((mp).contains(k)) {
+        return (mp).get(k);
+      } else {
+        return d;
+      }
+    };
+    static Lane(m, c) {
+      return KanbanDomain.__default.Get((m).dtor_lanes, c, _dafny.Seq.of());
+    };
+    static Wip(m, c) {
+      return KanbanDomain.__default.Get((m).dtor_wip, c, _dafny.ZERO);
+    };
+    static SeqContains(s, x) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((s).length)), false, function (_exists_var_0) {
+        let _0_i = _exists_var_0;
+        return (((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((s).length)))) && (_dafny.areEqual((s)[_0_i], x));
+      });
+    };
+    static RemoveFirst(s, x) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((s).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
+        } else if (_dafny.areEqual((s)[_dafny.ZERO], x)) {
+          return _dafny.Seq.Concat(_0___accumulator, (s).slice(_dafny.ONE));
+        } else {
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of((s)[_dafny.ZERO]));
+          let _in0 = (s).slice(_dafny.ONE);
+          let _in1 = x;
+          s = _in0;
+          x = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static InsertAt(s, i, x) {
+      return _dafny.Seq.Concat(_dafny.Seq.Concat((s).slice(0, i), _dafny.Seq.of(x)), (s).slice(i));
+    };
+    static IndexOf(s, x) {
+      if ((new BigNumber((s).length)).isEqualTo(_dafny.ZERO)) {
+        return new BigNumber(-1);
+      } else if (_dafny.areEqual((s)[_dafny.ZERO], x)) {
+        return _dafny.ZERO;
+      } else {
+        let _0_j = KanbanDomain.__default.IndexOf((s).slice(_dafny.ONE), x);
+        if ((_0_j).isLessThan(_dafny.ZERO)) {
+          return new BigNumber(-1);
+        } else {
+          return (_0_j).plus(_dafny.ONE);
+        }
+      }
+    };
+    static ClampPos(pos, n) {
+      if ((pos).isLessThanOrEqualTo(_dafny.ZERO)) {
+        return _dafny.ZERO;
+      } else if ((n).isLessThanOrEqualTo(pos)) {
+        return (n);
+      } else {
+        return (pos);
+      }
+    };
+    static PosFromPlace(lane, p) {
+      let _source0 = p;
+      {
+        if (_source0.is_AtEnd) {
+          return new BigNumber((lane).length);
+        }
+      }
+      {
+        if (_source0.is_Before) {
+          let _0_a = (_source0).anchor;
+          let _1_i = KanbanDomain.__default.IndexOf(lane, _0_a);
+          if ((_1_i).isLessThan(_dafny.ZERO)) {
+            return new BigNumber(-1);
+          } else {
+            return _1_i;
+          }
+        }
+      }
+      {
+        let _2_a = (_source0).anchor;
+        let _3_i = KanbanDomain.__default.IndexOf(lane, _2_a);
+        if ((_3_i).isLessThan(_dafny.ZERO)) {
+          return new BigNumber(-1);
+        } else {
+          return (_3_i).plus(_dafny.ONE);
+        }
+      }
     };
     static TryStep(m, a) {
       let _source0 = a;
@@ -1293,160 +1358,235 @@ let KanbanDomain = (function() {
         if (_source0.is_AddColumn) {
           let _0_col = (_source0).col;
           let _1_limit = (_source0).limit;
-          if (((m).dtor_columns).contains(_0_col)) {
+          if (_dafny.Seq.contains((m).dtor_cols, _0_col)) {
             return KanbanDomain.Result.create_Ok(m);
           } else {
-            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model(((m).dtor_columns).update(_0_col, _dafny.Seq.of()), ((m).dtor_wip).update(_0_col, _1_limit), (m).dtor_cards));
-          }
-        }
-      }
-      {
-        if (_source0.is_DeleteColumn) {
-          let _2_col = (_source0).col;
-          if (!((m).dtor_columns).contains(_2_col)) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
-          } else if ((_dafny.ZERO).isLessThan(new BigNumber((((m).dtor_columns).get(_2_col)).length))) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
-          } else {
-            let _3_newCols = function () {
-              let _coll0 = new _dafny.Map();
-              for (const _compr_0 of ((m).dtor_columns).Keys.Elements) {
-                let _4_k = _compr_0;
-                if ((((m).dtor_columns).contains(_4_k)) && (!_dafny.areEqual(_4_k, _2_col))) {
-                  _coll0.push([_4_k,((m).dtor_columns).get(_4_k)]);
-                }
-              }
-              return _coll0;
-            }();
-            let _5_newWip = function () {
-              let _coll1 = new _dafny.Map();
-              for (const _compr_1 of ((m).dtor_wip).Keys.Elements) {
-                let _6_k = _compr_1;
-                if ((((m).dtor_wip).contains(_6_k)) && (!_dafny.areEqual(_6_k, _2_col))) {
-                  _coll1.push([_6_k,((m).dtor_wip).get(_6_k)]);
-                }
-              }
-              return _coll1;
-            }();
-            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model(_3_newCols, _5_newWip, (m).dtor_cards));
+            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model(_dafny.Seq.Concat((m).dtor_cols, _dafny.Seq.of(_0_col)), ((m).dtor_lanes).update(_0_col, _dafny.Seq.of()), ((m).dtor_wip).update(_0_col, _1_limit), (m).dtor_cards, (m).dtor_nextId));
           }
         }
       }
       {
         if (_source0.is_SetWip) {
-          let _7_col = (_source0).col;
-          let _8_limit = (_source0).limit;
-          if (!((m).dtor_columns).contains(_7_col)) {
+          let _2_col = (_source0).col;
+          let _3_limit = (_source0).limit;
+          if (!(_dafny.Seq.contains((m).dtor_cols, _2_col))) {
             return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
+          } else if ((_3_limit).isLessThan(new BigNumber((KanbanDomain.__default.Lane(m, _2_col)).length))) {
+            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_WipExceeded());
           } else {
-            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_columns, ((m).dtor_wip).update(_7_col, _8_limit), (m).dtor_cards));
+            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_cols, (m).dtor_lanes, ((m).dtor_wip).update(_2_col, _3_limit), (m).dtor_cards, (m).dtor_nextId));
           }
         }
       }
       {
         if (_source0.is_AddCard) {
-          let _9_col = (_source0).col;
-          let _10_id = (_source0).id;
-          let _11_pos = (_source0).pos;
-          let _12_title = (_source0).title;
-          if (!((m).dtor_columns).contains(_9_col)) {
+          let _4_col = (_source0).col;
+          let _5_title = (_source0).title;
+          if (!(_dafny.Seq.contains((m).dtor_cols, _4_col))) {
             return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
-          } else if (((m).dtor_cards).contains(_10_id)) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_DuplicateCardId());
-          } else if ((new BigNumber((((m).dtor_columns).get(_9_col)).length)).isLessThan(_11_pos)) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_BadPos());
+          } else if ((KanbanDomain.__default.Wip(m, _4_col)).isLessThan((new BigNumber((KanbanDomain.__default.Lane(m, _4_col)).length)).plus(_dafny.ONE))) {
+            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_WipExceeded());
           } else {
-            let _13_lane = ((m).dtor_columns).get(_9_col);
-            let _14_newLane = _dafny.Seq.Concat(_dafny.Seq.Concat((_13_lane).slice(0, _11_pos), _dafny.Seq.of(_10_id)), (_13_lane).slice(_11_pos));
-            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model(((m).dtor_columns).update(_9_col, _14_newLane), (m).dtor_wip, ((m).dtor_cards).update(_10_id, _12_title)));
+            let _6_id = (m).dtor_nextId;
+            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_cols, ((m).dtor_lanes).update(_4_col, _dafny.Seq.Concat(KanbanDomain.__default.Lane(m, _4_col), _dafny.Seq.of(_6_id))), (m).dtor_wip, ((m).dtor_cards).update(_6_id, _5_title), ((m).dtor_nextId).plus(_dafny.ONE)));
           }
         }
       }
       {
-        if (_source0.is_DeleteCard) {
-          let _15_id = (_source0).id;
-          if (!((m).dtor_cards).contains(_15_id)) {
+        if (_source0.is_EditTitle) {
+          let _7_id = (_source0).id;
+          let _8_title = (_source0).title;
+          if (!(((m).dtor_cards).contains(_7_id))) {
             return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingCard());
           } else {
-            let _16_newCols = function () {
-              let _coll2 = new _dafny.Map();
-              for (const _compr_2 of ((m).dtor_columns).Keys.Elements) {
-                let _17_col = _compr_2;
-                if (((m).dtor_columns).contains(_17_col)) {
-                  _coll2.push([_17_col,KanbanDomain.__default.RemoveFromSeq(((m).dtor_columns).get(_17_col), _15_id)]);
-                }
-              }
-              return _coll2;
-            }();
-            let _18_newCards = function () {
-              let _coll3 = new _dafny.Map();
-              for (const _compr_3 of ((m).dtor_cards).Keys.Elements) {
-                let _19_k = _compr_3;
-                if (_System.nat._Is(_19_k)) {
-                  if ((((m).dtor_cards).contains(_19_k)) && (!(_19_k).isEqualTo(_15_id))) {
-                    _coll3.push([_19_k,((m).dtor_cards).get(_19_k)]);
-                  }
-                }
-              }
-              return _coll3;
-            }();
-            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model(_16_newCols, (m).dtor_wip, _18_newCards));
+            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_cols, (m).dtor_lanes, (m).dtor_wip, ((m).dtor_cards).update(_7_id, _8_title), (m).dtor_nextId));
           }
         }
       }
       {
-        if (_source0.is_MoveCard) {
-          let _20_id = (_source0).id;
-          let _21_toCol = (_source0).toCol;
-          let _22_pos = (_source0).pos;
-          if (!((m).dtor_cards).contains(_20_id)) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingCard());
-          } else if (!((m).dtor_columns).contains(_21_toCol)) {
-            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
-          } else {
-            let _23_removed = function () {
-              let _coll4 = new _dafny.Map();
-              for (const _compr_4 of ((m).dtor_columns).Keys.Elements) {
-                let _24_col = _compr_4;
-                if (((m).dtor_columns).contains(_24_col)) {
-                  _coll4.push([_24_col,KanbanDomain.__default.RemoveFromSeq(((m).dtor_columns).get(_24_col), _20_id)]);
-                }
+        let _9_id = (_source0).id;
+        let _10_toCol = (_source0).toCol;
+        let _11_place = (_source0).place;
+        if (!(((m).dtor_cards).contains(_9_id))) {
+          return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingCard());
+        } else if (!(_dafny.Seq.contains((m).dtor_cols, _10_toCol))) {
+          return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingColumn());
+        } else if ((KanbanDomain.__default.Wip(m, _10_toCol)).isLessThan((new BigNumber((KanbanDomain.__default.Lane(m, _10_toCol)).length)).plus(((KanbanDomain.__default.SeqContains(KanbanDomain.__default.Lane(m, _10_toCol), _9_id)) ? (_dafny.ZERO) : (_dafny.ONE))))) {
+          return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_WipExceeded());
+        } else {
+          let _12_lanes1 = function () {
+            let _coll0 = new _dafny.Map();
+            for (const _compr_0 of ((m).dtor_lanes).Keys.Elements) {
+              let _13_c = _compr_0;
+              if (((m).dtor_lanes).contains(_13_c)) {
+                _coll0.push([_13_c,KanbanDomain.__default.RemoveFirst(((m).dtor_lanes).get(_13_c), _9_id)]);
               }
-              return _coll4;
-            }();
-            let _25_targetLane = (((_23_removed).contains(_21_toCol)) ? ((_23_removed).get(_21_toCol)) : (_dafny.Seq.of()));
-            if ((new BigNumber((_25_targetLane).length)).isLessThan(_22_pos)) {
-              return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_BadPos());
+            }
+            return _coll0;
+          }();
+          let _14_tgt = KanbanDomain.__default.Get(_12_lanes1, _10_toCol, _dafny.Seq.of());
+          let _15_pos = KanbanDomain.__default.PosFromPlace(_14_tgt, _11_place);
+          if ((_15_pos).isLessThan(_dafny.ZERO)) {
+            return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_BadAnchor());
+          } else {
+            let _16_k = KanbanDomain.__default.ClampPos(_15_pos, new BigNumber((_14_tgt).length));
+            let _17_tgt2 = KanbanDomain.__default.InsertAt(_14_tgt, _16_k, _9_id);
+            return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_cols, (_12_lanes1).update(_10_toCol, _17_tgt2), (m).dtor_wip, (m).dtor_cards, (m).dtor_nextId));
+          }
+        }
+      }
+    };
+    static PlaceAnchor(p) {
+      let _source0 = p;
+      {
+        if (_source0.is_AtEnd) {
+          return KanbanDomain.Option.create_None();
+        }
+      }
+      {
+        if (_source0.is_Before) {
+          let _0_a = (_source0).anchor;
+          return KanbanDomain.Option.create_Some(_0_a);
+        }
+      }
+      {
+        let _1_a = (_source0).anchor;
+        return KanbanDomain.Option.create_Some(_1_a);
+      }
+    };
+    static DegradeIfAnchorMoved(movedId, p) {
+      let _source0 = p;
+      {
+        if (_source0.is_AtEnd) {
+          return KanbanDomain.Place.create_AtEnd();
+        }
+      }
+      {
+        if (_source0.is_Before) {
+          let _0_a = (_source0).anchor;
+          if ((_0_a).isEqualTo(movedId)) {
+            return KanbanDomain.Place.create_AtEnd();
+          } else {
+            return p;
+          }
+        }
+      }
+      {
+        let _1_a = (_source0).anchor;
+        if ((_1_a).isEqualTo(movedId)) {
+          return KanbanDomain.Place.create_AtEnd();
+        } else {
+          return p;
+        }
+      }
+    };
+    static Rebase(remote, local) {
+      let _source0 = _dafny.Tuple.of(remote, local);
+      {
+        let _00 = (_source0)[0];
+        if (_00.is_NoOp) {
+          return local;
+        }
+      }
+      {
+        let _10 = (_source0)[1];
+        if (_10.is_NoOp) {
+          return KanbanDomain.Action.create_NoOp();
+        }
+      }
+      {
+        let _01 = (_source0)[0];
+        if (_01.is_MoveCard) {
+          let _0_rid = (_01).id;
+          let _11 = (_source0)[1];
+          if (_11.is_MoveCard) {
+            let _1_lid = (_11).id;
+            let _2_ltoCol = (_11).toCol;
+            let _3_lplace = (_11).place;
+            if ((_0_rid).isEqualTo(_1_lid)) {
+              return local;
             } else {
-              let _26_newLane = _dafny.Seq.Concat(_dafny.Seq.Concat((_25_targetLane).slice(0, _22_pos), _dafny.Seq.of(_20_id)), (_25_targetLane).slice(_22_pos));
-              return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((_23_removed).update(_21_toCol, _26_newLane), (m).dtor_wip, (m).dtor_cards));
+              return KanbanDomain.Action.create_MoveCard(_1_lid, _2_ltoCol, KanbanDomain.__default.DegradeIfAnchorMoved(_0_rid, _3_lplace));
             }
           }
         }
       }
       {
-        let _27_id = (_source0).id;
-        let _28_title = (_source0).title;
-        if (!((m).dtor_cards).contains(_27_id)) {
-          return KanbanDomain.Result.create_Err(KanbanDomain.Err.create_MissingCard());
-        } else {
-          return KanbanDomain.Result.create_Ok(KanbanDomain.Model.create_Model((m).dtor_columns, (m).dtor_wip, ((m).dtor_cards).update(_27_id, _28_title)));
+        let _02 = (_source0)[0];
+        if (_02.is_EditTitle) {
+          let _4_rid = (_02).id;
+          let _12 = (_source0)[1];
+          if (_12.is_EditTitle) {
+            let _5_lid = (_12).id;
+            if ((_4_rid).isEqualTo(_5_lid)) {
+              return local;
+            } else {
+              return local;
+            }
+          }
         }
       }
+      {
+        let _03 = (_source0)[0];
+        if (_03.is_MoveCard) {
+          let _6_rid = (_03).id;
+          return local;
+        }
+      }
+      {
+        let _04 = (_source0)[0];
+        if (_04.is_AddColumn) {
+          return local;
+        }
+      }
+      {
+        let _05 = (_source0)[0];
+        if (_05.is_SetWip) {
+          return local;
+        }
+      }
+      {
+        let _06 = (_source0)[0];
+        if (_06.is_AddCard) {
+          return local;
+        }
+      }
+      {
+        let _07 = (_source0)[0];
+        return local;
+      }
     };
-    static RemoveFromSeq(s, x) {
-      let _0___accumulator = _dafny.Seq.of();
+    static Candidates(m, a) {
+      let _source0 = a;
+      {
+        if (_source0.is_MoveCard) {
+          let _0_id = (_source0).id;
+          let _1_toCol = (_source0).toCol;
+          let _2_place = (_source0).place;
+          let _3_lane = KanbanDomain.__default.Lane(m, _1_toCol);
+          if (_dafny.areEqual(_2_place, KanbanDomain.Place.create_AtEnd())) {
+            return _dafny.Seq.of(KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, KanbanDomain.Place.create_AtEnd()));
+          } else if ((new BigNumber((_3_lane).length)).isEqualTo(_dafny.ZERO)) {
+            return _dafny.Seq.of(KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, _2_place), KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, KanbanDomain.Place.create_AtEnd()));
+          } else {
+            let _4_first = (_3_lane)[_dafny.ZERO];
+            return _dafny.Seq.of(KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, _2_place), KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, KanbanDomain.Place.create_AtEnd()), KanbanDomain.Action.create_MoveCard(_0_id, _1_toCol, KanbanDomain.Place.create_Before(_4_first)));
+          }
+        }
+      }
+      {
+        return _dafny.Seq.of(a);
+      }
+    };
+    static RebaseThroughSuffix(suffix, a) {
       TAIL_CALL_START: while (true) {
-        if ((new BigNumber((s).length)).isEqualTo(_dafny.ZERO)) {
-          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
-        } else if (((s)[_dafny.ZERO]).isEqualTo(x)) {
-          return _dafny.Seq.Concat(_0___accumulator, (s).slice(_dafny.ONE));
+        if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
+          return a;
         } else {
-          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of((s)[_dafny.ZERO]));
-          let _in0 = (s).slice(_dafny.ONE);
-          let _in1 = x;
-          s = _in0;
-          x = _in1;
+          let _in0 = (suffix).slice(0, (new BigNumber((suffix).length)).minus(_dafny.ONE));
+          let _in1 = KanbanDomain.__default.Rebase((suffix)[(new BigNumber((suffix).length)).minus(_dafny.ONE)], a);
+          suffix = _in0;
+          a = _in1;
           continue TAIL_CALL_START;
         }
       }
@@ -1496,20 +1636,24 @@ let KanbanDomain = (function() {
     constructor(tag) {
       this.$tag = tag;
     }
-    static create_Model(columns, wip, cards) {
+    static create_Model(cols, lanes, wip, cards, nextId) {
       let $dt = new Model(0);
-      $dt.columns = columns;
+      $dt.cols = cols;
+      $dt.lanes = lanes;
       $dt.wip = wip;
       $dt.cards = cards;
+      $dt.nextId = nextId;
       return $dt;
     }
     get is_Model() { return this.$tag === 0; }
-    get dtor_columns() { return this.columns; }
+    get dtor_cols() { return this.cols; }
+    get dtor_lanes() { return this.lanes; }
     get dtor_wip() { return this.wip; }
     get dtor_cards() { return this.cards; }
+    get dtor_nextId() { return this.nextId; }
     toString() {
       if (this.$tag === 0) {
-        return "KanbanDomain.Model.Model" + "(" + _dafny.toString(this.columns) + ", " + _dafny.toString(this.wip) + ", " + _dafny.toString(this.cards) + ")";
+        return "KanbanDomain.Model.Model" + "(" + _dafny.toString(this.cols) + ", " + _dafny.toString(this.lanes) + ", " + _dafny.toString(this.wip) + ", " + _dafny.toString(this.cards) + ", " + _dafny.toString(this.nextId) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1518,13 +1662,13 @@ let KanbanDomain = (function() {
       if (this === other) {
         return true;
       } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.columns, other.columns) && _dafny.areEqual(this.wip, other.wip) && _dafny.areEqual(this.cards, other.cards);
+        return other.$tag === 0 && _dafny.areEqual(this.cols, other.cols) && _dafny.areEqual(this.lanes, other.lanes) && _dafny.areEqual(this.wip, other.wip) && _dafny.areEqual(this.cards, other.cards) && _dafny.areEqual(this.nextId, other.nextId);
       } else  {
         return false; // unexpected
       }
     }
     static Default() {
-      return KanbanDomain.Model.create_Model(_dafny.Map.Empty, _dafny.Map.Empty, _dafny.Map.Empty);
+      return KanbanDomain.Model.create_Model(_dafny.Seq.of(), _dafny.Map.Empty, _dafny.Map.Empty, _dafny.Map.Empty, _dafny.ZERO);
     }
     static Rtd() {
       return class {
@@ -1547,32 +1691,32 @@ let KanbanDomain = (function() {
       let $dt = new Err(1);
       return $dt;
     }
-    static create_DuplicateCardId() {
+    static create_WipExceeded() {
       let $dt = new Err(2);
       return $dt;
     }
-    static create_WipExceeded() {
+    static create_BadAnchor() {
       let $dt = new Err(3);
       return $dt;
     }
-    static create_BadPos() {
+    static create_Rejected() {
       let $dt = new Err(4);
       return $dt;
     }
     get is_MissingColumn() { return this.$tag === 0; }
     get is_MissingCard() { return this.$tag === 1; }
-    get is_DuplicateCardId() { return this.$tag === 2; }
-    get is_WipExceeded() { return this.$tag === 3; }
-    get is_BadPos() { return this.$tag === 4; }
+    get is_WipExceeded() { return this.$tag === 2; }
+    get is_BadAnchor() { return this.$tag === 3; }
+    get is_Rejected() { return this.$tag === 4; }
     static get AllSingletonConstructors() {
       return this.AllSingletonConstructors_();
     }
     static *AllSingletonConstructors_() {
       yield Err.create_MissingColumn();
       yield Err.create_MissingCard();
-      yield Err.create_DuplicateCardId();
       yield Err.create_WipExceeded();
-      yield Err.create_BadPos();
+      yield Err.create_BadAnchor();
+      yield Err.create_Rejected();
     }
     toString() {
       if (this.$tag === 0) {
@@ -1580,11 +1724,11 @@ let KanbanDomain = (function() {
       } else if (this.$tag === 1) {
         return "KanbanDomain.Err.MissingCard";
       } else if (this.$tag === 2) {
-        return "KanbanDomain.Err.DuplicateCardId";
-      } else if (this.$tag === 3) {
         return "KanbanDomain.Err.WipExceeded";
+      } else if (this.$tag === 3) {
+        return "KanbanDomain.Err.BadAnchor";
       } else if (this.$tag === 4) {
-        return "KanbanDomain.Err.BadPos";
+        return "KanbanDomain.Err.Rejected";
       } else  {
         return "<unexpected>";
       }
@@ -1618,6 +1762,112 @@ let KanbanDomain = (function() {
     }
   }
 
+  $module.Option = class Option {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_None() {
+      let $dt = new Option(0);
+      return $dt;
+    }
+    static create_Some(value) {
+      let $dt = new Option(1);
+      $dt.value = value;
+      return $dt;
+    }
+    get is_None() { return this.$tag === 0; }
+    get is_Some() { return this.$tag === 1; }
+    get dtor_value() { return this.value; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanDomain.Option.None";
+      } else if (this.$tag === 1) {
+        return "KanbanDomain.Option.Some" + "(" + _dafny.toString(this.value) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.value, other.value);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanDomain.Option.create_None();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Option.Default();
+        }
+      };
+    }
+  }
+
+  $module.Place = class Place {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_AtEnd() {
+      let $dt = new Place(0);
+      return $dt;
+    }
+    static create_Before(anchor) {
+      let $dt = new Place(1);
+      $dt.anchor = anchor;
+      return $dt;
+    }
+    static create_After(anchor) {
+      let $dt = new Place(2);
+      $dt.anchor = anchor;
+      return $dt;
+    }
+    get is_AtEnd() { return this.$tag === 0; }
+    get is_Before() { return this.$tag === 1; }
+    get is_After() { return this.$tag === 2; }
+    get dtor_anchor() { return this.anchor; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanDomain.Place.AtEnd";
+      } else if (this.$tag === 1) {
+        return "KanbanDomain.Place.Before" + "(" + _dafny.toString(this.anchor) + ")";
+      } else if (this.$tag === 2) {
+        return "KanbanDomain.Place.After" + "(" + _dafny.toString(this.anchor) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.anchor, other.anchor);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.anchor, other.anchor);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanDomain.Place.create_AtEnd();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Place.Default();
+        }
+      };
+    }
+  }
+
   $module.Action = class Action {
     constructor(tag) {
       this.$tag = tag;
@@ -1632,73 +1882,55 @@ let KanbanDomain = (function() {
       $dt.limit = limit;
       return $dt;
     }
-    static create_DeleteColumn(col) {
-      let $dt = new Action(2);
-      $dt.col = col;
-      return $dt;
-    }
     static create_SetWip(col, limit) {
-      let $dt = new Action(3);
+      let $dt = new Action(2);
       $dt.col = col;
       $dt.limit = limit;
       return $dt;
     }
-    static create_AddCard(col, id, pos, title) {
-      let $dt = new Action(4);
+    static create_AddCard(col, title) {
+      let $dt = new Action(3);
       $dt.col = col;
-      $dt.id = id;
-      $dt.pos = pos;
       $dt.title = title;
       return $dt;
     }
-    static create_DeleteCard(id) {
-      let $dt = new Action(5);
-      $dt.id = id;
-      return $dt;
-    }
-    static create_MoveCard(id, toCol, pos) {
-      let $dt = new Action(6);
+    static create_MoveCard(id, toCol, place) {
+      let $dt = new Action(4);
       $dt.id = id;
       $dt.toCol = toCol;
-      $dt.pos = pos;
+      $dt.place = place;
       return $dt;
     }
     static create_EditTitle(id, title) {
-      let $dt = new Action(7);
+      let $dt = new Action(5);
       $dt.id = id;
       $dt.title = title;
       return $dt;
     }
     get is_NoOp() { return this.$tag === 0; }
     get is_AddColumn() { return this.$tag === 1; }
-    get is_DeleteColumn() { return this.$tag === 2; }
-    get is_SetWip() { return this.$tag === 3; }
-    get is_AddCard() { return this.$tag === 4; }
-    get is_DeleteCard() { return this.$tag === 5; }
-    get is_MoveCard() { return this.$tag === 6; }
-    get is_EditTitle() { return this.$tag === 7; }
+    get is_SetWip() { return this.$tag === 2; }
+    get is_AddCard() { return this.$tag === 3; }
+    get is_MoveCard() { return this.$tag === 4; }
+    get is_EditTitle() { return this.$tag === 5; }
     get dtor_col() { return this.col; }
     get dtor_limit() { return this.limit; }
-    get dtor_id() { return this.id; }
-    get dtor_pos() { return this.pos; }
     get dtor_title() { return this.title; }
+    get dtor_id() { return this.id; }
     get dtor_toCol() { return this.toCol; }
+    get dtor_place() { return this.place; }
     toString() {
       if (this.$tag === 0) {
         return "KanbanDomain.Action.NoOp";
       } else if (this.$tag === 1) {
         return "KanbanDomain.Action.AddColumn" + "(" + this.col.toVerbatimString(true) + ", " + _dafny.toString(this.limit) + ")";
       } else if (this.$tag === 2) {
-        return "KanbanDomain.Action.DeleteColumn" + "(" + this.col.toVerbatimString(true) + ")";
-      } else if (this.$tag === 3) {
         return "KanbanDomain.Action.SetWip" + "(" + this.col.toVerbatimString(true) + ", " + _dafny.toString(this.limit) + ")";
+      } else if (this.$tag === 3) {
+        return "KanbanDomain.Action.AddCard" + "(" + this.col.toVerbatimString(true) + ", " + this.title.toVerbatimString(true) + ")";
       } else if (this.$tag === 4) {
-        return "KanbanDomain.Action.AddCard" + "(" + this.col.toVerbatimString(true) + ", " + _dafny.toString(this.id) + ", " + _dafny.toString(this.pos) + ", " + this.title.toVerbatimString(true) + ")";
+        return "KanbanDomain.Action.MoveCard" + "(" + _dafny.toString(this.id) + ", " + this.toCol.toVerbatimString(true) + ", " + _dafny.toString(this.place) + ")";
       } else if (this.$tag === 5) {
-        return "KanbanDomain.Action.DeleteCard" + "(" + _dafny.toString(this.id) + ")";
-      } else if (this.$tag === 6) {
-        return "KanbanDomain.Action.MoveCard" + "(" + _dafny.toString(this.id) + ", " + this.toCol.toVerbatimString(true) + ", " + _dafny.toString(this.pos) + ")";
-      } else if (this.$tag === 7) {
         return "KanbanDomain.Action.EditTitle" + "(" + _dafny.toString(this.id) + ", " + this.title.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
@@ -1712,17 +1944,13 @@ let KanbanDomain = (function() {
       } else if (this.$tag === 1) {
         return other.$tag === 1 && _dafny.areEqual(this.col, other.col) && _dafny.areEqual(this.limit, other.limit);
       } else if (this.$tag === 2) {
-        return other.$tag === 2 && _dafny.areEqual(this.col, other.col);
+        return other.$tag === 2 && _dafny.areEqual(this.col, other.col) && _dafny.areEqual(this.limit, other.limit);
       } else if (this.$tag === 3) {
-        return other.$tag === 3 && _dafny.areEqual(this.col, other.col) && _dafny.areEqual(this.limit, other.limit);
+        return other.$tag === 3 && _dafny.areEqual(this.col, other.col) && _dafny.areEqual(this.title, other.title);
       } else if (this.$tag === 4) {
-        return other.$tag === 4 && _dafny.areEqual(this.col, other.col) && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.pos, other.pos) && _dafny.areEqual(this.title, other.title);
+        return other.$tag === 4 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.toCol, other.toCol) && _dafny.areEqual(this.place, other.place);
       } else if (this.$tag === 5) {
-        return other.$tag === 5 && _dafny.areEqual(this.id, other.id);
-      } else if (this.$tag === 6) {
-        return other.$tag === 6 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.toCol, other.toCol) && _dafny.areEqual(this.pos, other.pos);
-      } else if (this.$tag === 7) {
-        return other.$tag === 7 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.title, other.title);
+        return other.$tag === 5 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.title, other.title);
       } else  {
         return false; // unexpected
       }
@@ -1803,68 +2031,50 @@ let KanbanMultiCollaboration = (function() {
     static Version(s) {
       return new BigNumber(((s).dtor_appliedLog).length);
     };
-    static IsSuspiciousNoOp(orig, cand) {
-      return (_dafny.areEqual(cand, KanbanDomain.Action.create_NoOp())) && (!_dafny.areEqual(orig, KanbanDomain.Action.create_NoOp()));
-    };
-    static TransformThroughSuffix(suffix, a) {
+    static ChooseCandidate(m, cs) {
       TAIL_CALL_START: while (true) {
-        if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
-          return a;
+        if ((new BigNumber((cs).length)).isEqualTo(_dafny.ZERO)) {
+          return KanbanDomain.Result.create_Err(KanbanDomain.__default.RejectErr());
         } else {
-          let _in0 = (suffix).slice(0, (new BigNumber((suffix).length)).minus(_dafny.ONE));
-          let _in1 = KanbanDomain.__default.Transform((suffix)[(new BigNumber((suffix).length)).minus(_dafny.ONE)], a);
-          suffix = _in0;
-          a = _in1;
-          continue TAIL_CALL_START;
+          let _source0 = KanbanDomain.__default.TryStep(m, (cs)[_dafny.ZERO]);
+          {
+            if (_source0.is_Ok) {
+              let _0_m2 = (_source0).value;
+              return KanbanDomain.Result.create_Ok(_dafny.Tuple.of(_0_m2, (cs)[_dafny.ZERO]));
+            }
+          }
+          {
+            let _in0 = m;
+            let _in1 = (cs).slice(_dafny.ONE);
+            m = _in0;
+            cs = _in1;
+            continue TAIL_CALL_START;
+          }
         }
       }
     };
     static Dispatch(s, baseVersion, orig) {
       let _0_suffix = ((s).dtor_appliedLog).slice(baseVersion);
-      let _1_cand = KanbanMultiCollaboration.__default.TransformThroughSuffix(_0_suffix, orig);
-      let _source0 = KanbanDomain.__default.TryStep((s).dtor_present, _1_cand);
+      let _1_rebased = KanbanDomain.__default.RebaseThroughSuffix(_0_suffix, orig);
+      let _2_cs = KanbanDomain.__default.Candidates((s).dtor_present, _1_rebased);
+      let _source0 = KanbanMultiCollaboration.__default.ChooseCandidate((s).dtor_present, _2_cs);
       {
         if (_source0.is_Ok) {
-          let _2_m2 = (_source0).value;
-          let _3_noChange = _dafny.areEqual(_2_m2, (s).dtor_present);
-          let _4_newApplied = _dafny.Seq.Concat((s).dtor_appliedLog, _dafny.Seq.of(_1_cand));
-          let _5_suspicious = KanbanMultiCollaboration.__default.IsSuspiciousNoOp(orig, _1_cand);
-          let _6_rec = KanbanMultiCollaboration.RequestRecord.create_Req(baseVersion, orig, _1_cand, KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(_1_cand, _5_suspicious, _3_noChange));
-          let _7_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_6_rec));
-          return _dafny.Tuple.of(KanbanMultiCollaboration.ServerState.create_ServerState(_2_m2, _4_newApplied, _7_newAudit), KanbanMultiCollaboration.Reply.create_Accepted(new BigNumber((_4_newApplied).length), _2_m2, _1_cand, _3_noChange));
+          let _3_pair = (_source0).value;
+          let _4_m2 = (_3_pair)[0];
+          let _5_chosen = (_3_pair)[1];
+          let _6_noChange = _dafny.areEqual(_4_m2, (s).dtor_present);
+          let _7_newApplied = _dafny.Seq.Concat((s).dtor_appliedLog, _dafny.Seq.of(_5_chosen));
+          let _8_rec = KanbanMultiCollaboration.RequestRecord.create_Req(baseVersion, orig, _1_rebased, _5_chosen, KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(_5_chosen, _6_noChange));
+          let _9_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_8_rec));
+          return _dafny.Tuple.of(KanbanMultiCollaboration.ServerState.create_ServerState(_4_m2, _7_newApplied, _9_newAudit), KanbanMultiCollaboration.Reply.create_Accepted(new BigNumber((_7_newApplied).length), _4_m2, _5_chosen, _6_noChange));
         }
       }
       {
-        let _8_rec = KanbanMultiCollaboration.RequestRecord.create_Req(baseVersion, orig, _1_cand, KanbanMultiCollaboration.RequestOutcome.create_AuditRejected(KanbanMultiCollaboration.RejectReason.create_DomainInvalid(), _1_cand));
-        let _9_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_8_rec));
-        return _dafny.Tuple.of(KanbanMultiCollaboration.ServerState.create_ServerState((s).dtor_present, (s).dtor_appliedLog, _9_newAudit), KanbanMultiCollaboration.Reply.create_Rejected(KanbanMultiCollaboration.RejectReason.create_DomainInvalid(), _1_cand));
+        let _10_rec = KanbanMultiCollaboration.RequestRecord.create_Req(baseVersion, orig, _1_rebased, _1_rebased, KanbanMultiCollaboration.RequestOutcome.create_AuditRejected(KanbanMultiCollaboration.RejectReason.create_DomainInvalid(), _1_rebased));
+        let _11_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_10_rec));
+        return _dafny.Tuple.of(KanbanMultiCollaboration.ServerState.create_ServerState((s).dtor_present, (s).dtor_appliedLog, _11_newAudit), KanbanMultiCollaboration.Reply.create_Rejected(KanbanMultiCollaboration.RejectReason.create_DomainInvalid(), _1_rebased));
       }
-    };
-    static Replay(m, log) {
-      TAIL_CALL_START: while (true) {
-        if ((new BigNumber((log).length)).isEqualTo(_dafny.ZERO)) {
-          return KanbanDomain.Result.create_Ok(m);
-        } else {
-          let _source0 = KanbanDomain.__default.TryStep(m, (log)[_dafny.ZERO]);
-          {
-            if (_source0.is_Ok) {
-              let _0_m2 = (_source0).value;
-              let _in0 = _0_m2;
-              let _in1 = (log).slice(_dafny.ONE);
-              m = _in0;
-              log = _in1;
-              continue TAIL_CALL_START;
-            }
-          }
-          {
-            let _1_e = (_source0).error;
-            return KanbanDomain.Result.create_Err(_1_e);
-          }
-        }
-      }
-    };
-    static ReachableFrom(init, s) {
-      return _dafny.areEqual(KanbanMultiCollaboration.__default.Replay(init, (s).dtor_appliedLog), KanbanDomain.Result.create_Ok((s).dtor_present));
     };
   };
 
@@ -1923,10 +2133,10 @@ let KanbanMultiCollaboration = (function() {
       $dt.noChange = noChange;
       return $dt;
     }
-    static create_Rejected(reason, candidate) {
+    static create_Rejected(reason, rebased) {
       let $dt = new Reply(1);
       $dt.reason = reason;
-      $dt.candidate = candidate;
+      $dt.rebased = rebased;
       return $dt;
     }
     get is_Accepted() { return this.$tag === 0; }
@@ -1936,12 +2146,12 @@ let KanbanMultiCollaboration = (function() {
     get dtor_applied() { return this.applied; }
     get dtor_noChange() { return this.noChange; }
     get dtor_reason() { return this.reason; }
-    get dtor_candidate() { return this.candidate; }
+    get dtor_rebased() { return this.rebased; }
     toString() {
       if (this.$tag === 0) {
         return "KanbanMultiCollaboration.Reply.Accepted" + "(" + _dafny.toString(this.newVersion) + ", " + _dafny.toString(this.newPresent) + ", " + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
       } else if (this.$tag === 1) {
-        return "KanbanMultiCollaboration.Reply.Rejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.candidate) + ")";
+        return "KanbanMultiCollaboration.Reply.Rejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1952,7 +2162,7 @@ let KanbanMultiCollaboration = (function() {
       } else if (this.$tag === 0) {
         return other.$tag === 0 && _dafny.areEqual(this.newVersion, other.newVersion) && _dafny.areEqual(this.newPresent, other.newPresent) && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
       } else if (this.$tag === 1) {
-        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.candidate, other.candidate);
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
       } else  {
         return false; // unexpected
       }
@@ -1973,31 +2183,29 @@ let KanbanMultiCollaboration = (function() {
     constructor(tag) {
       this.$tag = tag;
     }
-    static create_AuditAccepted(applied, suspiciousNoOp, noChange) {
+    static create_AuditAccepted(applied, noChange) {
       let $dt = new RequestOutcome(0);
       $dt.applied = applied;
-      $dt.suspiciousNoOp = suspiciousNoOp;
       $dt.noChange = noChange;
       return $dt;
     }
-    static create_AuditRejected(reason, candidate) {
+    static create_AuditRejected(reason, rebased) {
       let $dt = new RequestOutcome(1);
       $dt.reason = reason;
-      $dt.candidate = candidate;
+      $dt.rebased = rebased;
       return $dt;
     }
     get is_AuditAccepted() { return this.$tag === 0; }
     get is_AuditRejected() { return this.$tag === 1; }
     get dtor_applied() { return this.applied; }
-    get dtor_suspiciousNoOp() { return this.suspiciousNoOp; }
     get dtor_noChange() { return this.noChange; }
     get dtor_reason() { return this.reason; }
-    get dtor_candidate() { return this.candidate; }
+    get dtor_rebased() { return this.rebased; }
     toString() {
       if (this.$tag === 0) {
-        return "KanbanMultiCollaboration.RequestOutcome.AuditAccepted" + "(" + _dafny.toString(this.applied) + ", " + _dafny.toString(this.suspiciousNoOp) + ", " + _dafny.toString(this.noChange) + ")";
+        return "KanbanMultiCollaboration.RequestOutcome.AuditAccepted" + "(" + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
       } else if (this.$tag === 1) {
-        return "KanbanMultiCollaboration.RequestOutcome.AuditRejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.candidate) + ")";
+        return "KanbanMultiCollaboration.RequestOutcome.AuditRejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -2006,15 +2214,15 @@ let KanbanMultiCollaboration = (function() {
       if (this === other) {
         return true;
       } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.applied, other.applied) && this.suspiciousNoOp === other.suspiciousNoOp && this.noChange === other.noChange;
+        return other.$tag === 0 && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
       } else if (this.$tag === 1) {
-        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.candidate, other.candidate);
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
       } else  {
         return false; // unexpected
       }
     }
     static Default() {
-      return KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(KanbanDomain.Action.Default(), false, false);
+      return KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(KanbanDomain.Action.Default(), false);
     }
     static Rtd() {
       return class {
@@ -2029,22 +2237,24 @@ let KanbanMultiCollaboration = (function() {
     constructor(tag) {
       this.$tag = tag;
     }
-    static create_Req(baseVersion, orig, candidate, outcome) {
+    static create_Req(baseVersion, orig, rebased, chosen, outcome) {
       let $dt = new RequestRecord(0);
       $dt.baseVersion = baseVersion;
       $dt.orig = orig;
-      $dt.candidate = candidate;
+      $dt.rebased = rebased;
+      $dt.chosen = chosen;
       $dt.outcome = outcome;
       return $dt;
     }
     get is_Req() { return this.$tag === 0; }
     get dtor_baseVersion() { return this.baseVersion; }
     get dtor_orig() { return this.orig; }
-    get dtor_candidate() { return this.candidate; }
+    get dtor_rebased() { return this.rebased; }
+    get dtor_chosen() { return this.chosen; }
     get dtor_outcome() { return this.outcome; }
     toString() {
       if (this.$tag === 0) {
-        return "KanbanMultiCollaboration.RequestRecord.Req" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.orig) + ", " + _dafny.toString(this.candidate) + ", " + _dafny.toString(this.outcome) + ")";
+        return "KanbanMultiCollaboration.RequestRecord.Req" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.orig) + ", " + _dafny.toString(this.rebased) + ", " + _dafny.toString(this.chosen) + ", " + _dafny.toString(this.outcome) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -2053,13 +2263,13 @@ let KanbanMultiCollaboration = (function() {
       if (this === other) {
         return true;
       } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.orig, other.orig) && _dafny.areEqual(this.candidate, other.candidate) && _dafny.areEqual(this.outcome, other.outcome);
+        return other.$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.orig, other.orig) && _dafny.areEqual(this.rebased, other.rebased) && _dafny.areEqual(this.chosen, other.chosen) && _dafny.areEqual(this.outcome, other.outcome);
       } else  {
         return false; // unexpected
       }
     }
     static Default() {
-      return KanbanMultiCollaboration.RequestRecord.create_Req(_dafny.ZERO, KanbanDomain.Action.Default(), KanbanDomain.Action.Default(), KanbanMultiCollaboration.RequestOutcome.Default());
+      return KanbanMultiCollaboration.RequestRecord.create_Req(_dafny.ZERO, KanbanDomain.Action.Default(), KanbanDomain.Action.Default(), KanbanDomain.Action.Default(), KanbanMultiCollaboration.RequestOutcome.Default());
     }
     static Rtd() {
       return class {
@@ -2124,181 +2334,97 @@ let KanbanAppCore = (function() {
     _parentTraits() {
       return [];
     }
-    static InitServer() {
-      let _0_m = KanbanDomain.Model.create_Model(_dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice());
-      return KanbanMultiCollaboration.ServerState.create_ServerState(_0_m, _dafny.Seq.of(), _dafny.Seq.of());
+    static InitServer(initModel) {
+      return KanbanMultiCollaboration.ServerState.create_ServerState(initModel, _dafny.Seq.of(), _dafny.Seq.of());
     };
-    static InitClientFromServer(s) {
-      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(s), (s).dtor_present, _dafny.Seq.of());
+    static InitClientFromServer(server) {
+      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
     };
-    static NoOp() {
-      return KanbanDomain.Action.create_NoOp();
-    };
-    static AddColumn(col, limit) {
-      return KanbanDomain.Action.create_AddColumn(col, limit);
-    };
-    static DeleteColumn(col) {
-      return KanbanDomain.Action.create_DeleteColumn(col);
-    };
-    static SetWip(col, limit) {
-      return KanbanDomain.Action.create_SetWip(col, limit);
-    };
-    static AddCard(col, id, pos, title) {
-      return KanbanDomain.Action.create_AddCard(col, id, pos, title);
-    };
-    static DeleteCard(id) {
-      return KanbanDomain.Action.create_DeleteCard(id);
-    };
-    static MoveCard(id, toCol, pos) {
-      return KanbanDomain.Action.create_MoveCard(id, toCol, pos);
-    };
-    static EditTitle(id, title) {
-      return KanbanDomain.Action.create_EditTitle(id, title);
-    };
-    static ClientLocalStep(m, a) {
-      let _source0 = KanbanDomain.__default.TryStep(m, a);
+    static ClientLocalDispatch(client, action) {
+      let _0_result = KanbanDomain.__default.TryStep((client).dtor_present, action);
+      let _source0 = _0_result;
       {
         if (_source0.is_Ok) {
-          let _0_m2 = (_source0).value;
-          return _0_m2;
+          let _1_newModel = (_source0).value;
+          return KanbanAppCore.ClientState.create_ClientState((client).dtor_baseVersion, _1_newModel, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
         }
       }
       {
-        return m;
+        return KanbanAppCore.ClientState.create_ClientState((client).dtor_baseVersion, (client).dtor_present, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
       }
     };
-    static LocalDispatch(c, a) {
-      let _0_m2 = KanbanAppCore.__default.ClientLocalStep((c).dtor_present, a);
-      return KanbanAppCore.ClientState.create_ClientState((c).dtor_baseVersion, _0_m2, _dafny.Seq.Concat((c).dtor_pending, _dafny.Seq.of(a)));
-    };
-    static Sync(c, s) {
-      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(s), (s).dtor_present, (c).dtor_pending);
-    };
-    static FlushAll(s, c) {
-      if ((new BigNumber(((c).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
-        return _dafny.Tuple.of(s, KanbanAppCore.FlushOutcome.create_FlushOutcome(c, _dafny.Seq.of()));
+    static FlushOne(server, client) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanDomain.Option.create_None();
       } else {
-        let _0_a = ((c).dtor_pending)[_dafny.ZERO];
-        let _1_rest = ((c).dtor_pending).slice(_dafny.ONE);
-        let _let_tmp_rhs0 = KanbanMultiCollaboration.__default.Dispatch(s, (c).dtor_baseVersion, _0_a);
-        let _2_s2 = (_let_tmp_rhs0)[0];
-        let _3_r = (_let_tmp_rhs0)[1];
-        let _4_c2 = function () {
-          let _source0 = _3_r;
-          {
-            if (_source0.is_Accepted) {
-              let _5_v = (_source0).newVersion;
-              let _6_m = (_source0).newPresent;
-              return KanbanAppCore.ClientState.create_ClientState(_5_v, _6_m, _1_rest);
-            }
+        let _0_action = ((client).dtor_pending)[_dafny.ZERO];
+        let _1_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _let_tmp_rhs0 = KanbanMultiCollaboration.__default.Dispatch(server, (client).dtor_baseVersion, _0_action);
+        let _2_newServer = (_let_tmp_rhs0)[0];
+        let _3_reply = (_let_tmp_rhs0)[1];
+        let _source0 = _3_reply;
+        {
+          if (_source0.is_Accepted) {
+            let _4_newVersion = (_source0).newVersion;
+            let _5_newPresent = (_source0).newPresent;
+            let _6_applied = (_source0).applied;
+            let _7_noChange = (_source0).noChange;
+            let _8_newClient = KanbanAppCore.ClientState.create_ClientState(_4_newVersion, _5_newPresent, _1_rest);
+            return KanbanDomain.Option.create_Some(KanbanAppCore.FlushResult.create_FlushResult(_2_newServer, _8_newClient, _3_reply));
           }
-          {
-            return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(_2_s2), (_2_s2).dtor_present, _1_rest);
+        }
+        {
+          let _9_reason = (_source0).reason;
+          let _10_rebased = (_source0).rebased;
+          let _11_newClient = KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _1_rest);
+          return KanbanDomain.Option.create_Some(KanbanAppCore.FlushResult.create_FlushResult(_2_newServer, _11_newClient, _3_reply));
+        }
+      }
+    };
+    static FlushAll(server, client) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanAppCore.FlushAllResult.create_FlushAllResult(server, client, _dafny.Seq.of());
+      } else {
+        let _0_flushResult = KanbanAppCore.__default.FlushOne(server, client);
+        if ((_0_flushResult).is_None) {
+          return KanbanAppCore.FlushAllResult.create_FlushAllResult(server, client, _dafny.Seq.of());
+        } else {
+          let _1_result = (_0_flushResult).dtor_value;
+          if ((((_1_result).dtor_client).dtor_baseVersion).isLessThanOrEqualTo(KanbanMultiCollaboration.__default.Version((_1_result).dtor_server))) {
+            let _2_rest = KanbanAppCore.__default.FlushAll((_1_result).dtor_server, (_1_result).dtor_client);
+            return KanbanAppCore.FlushAllResult.create_FlushAllResult((_2_rest).dtor_server, (_2_rest).dtor_client, _dafny.Seq.Concat(_dafny.Seq.of((_1_result).dtor_reply), (_2_rest).dtor_replies));
+          } else {
+            return KanbanAppCore.FlushAllResult.create_FlushAllResult((_1_result).dtor_server, (_1_result).dtor_client, _dafny.Seq.of((_1_result).dtor_reply));
           }
-        }();
-        let _let_tmp_rhs1 = KanbanAppCore.__default.FlushAll(_2_s2, _4_c2);
-        let _7_s3 = (_let_tmp_rhs1)[0];
-        let _8_out = (_let_tmp_rhs1)[1];
-        return _dafny.Tuple.of(_7_s3, KanbanAppCore.FlushOutcome.create_FlushOutcome((_8_out).dtor_client, _dafny.Seq.Concat(_dafny.Seq.of(_3_r), (_8_out).dtor_replies)));
-      }
-    };
-    static Flush(s, c) {
-      let _let_tmp_rhs0 = KanbanAppCore.__default.FlushAll(s, c);
-      let _0_s2 = (_let_tmp_rhs0)[0];
-      let _1_out = (_let_tmp_rhs0)[1];
-      return _dafny.Tuple.of(_0_s2, (_1_out).dtor_client, (_1_out).dtor_replies);
-    };
-    static GetServerVersion(s) {
-      return KanbanMultiCollaboration.__default.Version(s);
-    };
-    static GetServerPresent(s) {
-      return (s).dtor_present;
-    };
-    static GetAppliedLogLen(s) {
-      return new BigNumber(((s).dtor_appliedLog).length);
-    };
-    static GetAuditLogLen(s) {
-      return new BigNumber(((s).dtor_auditLog).length);
-    };
-    static GetClientBaseVersion(c) {
-      return (c).dtor_baseVersion;
-    };
-    static GetClientPresent(c) {
-      return (c).dtor_present;
-    };
-    static GetClientPendingLen(c) {
-      return new BigNumber(((c).dtor_pending).length);
-    };
-    static IsAccepted(r) {
-      let _source0 = r;
-      {
-        if (_source0.is_Accepted) {
-          return true;
         }
       }
-      {
-        return false;
-      }
     };
-    static IsRejected(r) {
-      return !(KanbanAppCore.__default.IsAccepted(r));
+    static Sync(server) {
+      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
     };
-    static GetResponseVersion(r) {
-      let _source0 = r;
-      {
-        if (_source0.is_Accepted) {
-          let _0_v = (_source0).newVersion;
-          return _0_v;
-        }
-      }
-      {
-        return _dafny.ZERO;
-      }
+    static ServerVersion(server) {
+      return KanbanMultiCollaboration.__default.Version(server);
     };
-    static GetSuccessPresent(r) {
-      let _source0 = r;
-      {
-        if (_source0.is_Accepted) {
-          let _0_m = (_source0).newPresent;
-          return _0_m;
-        }
-      }
-      {
-        return KanbanDomain.Model.create_Model(_dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice());
-      }
+    static ServerModel(server) {
+      return (server).dtor_present;
     };
-    static GetRejectedCandidate(r) {
-      let _source0 = r;
-      {
-        if (_source0.is_Rejected) {
-          let _0_cand = (_source0).candidate;
-          return _0_cand;
-        }
-      }
-      {
-        return KanbanDomain.Action.create_NoOp();
-      }
+    static AuditLength(server) {
+      return new BigNumber(((server).dtor_auditLog).length);
     };
-    static GetLane(m, col) {
-      if (((m).dtor_columns).contains(col)) {
-        return ((m).dtor_columns).get(col);
-      } else {
-        return _dafny.Seq.of();
-      }
+    static PendingCount(client) {
+      return new BigNumber(((client).dtor_pending).length);
     };
-    static GetWip(m, col) {
-      if (((m).dtor_wip).contains(col)) {
-        return ((m).dtor_wip).get(col);
-      } else {
-        return _dafny.ZERO;
-      }
+    static ClientModel(client) {
+      return (client).dtor_present;
     };
-    static GetCardTitle(m, id) {
-      if (((m).dtor_cards).contains(id)) {
-        return (((m).dtor_cards).get(id));
-      } else {
-        return _dafny.Seq.UnicodeFromString("");
-      }
+    static ClientVersion(client) {
+      return (client).dtor_baseVersion;
+    };
+    static IsAccepted(reply) {
+      return (reply).is_Accepted;
+    };
+    static IsRejected(reply) {
+      return (reply).is_Rejected;
     };
   };
 
@@ -2345,22 +2471,24 @@ let KanbanAppCore = (function() {
     }
   }
 
-  $module.FlushOutcome = class FlushOutcome {
+  $module.FlushResult = class FlushResult {
     constructor(tag) {
       this.$tag = tag;
     }
-    static create_FlushOutcome(client, replies) {
-      let $dt = new FlushOutcome(0);
+    static create_FlushResult(server, client, reply) {
+      let $dt = new FlushResult(0);
+      $dt.server = server;
       $dt.client = client;
-      $dt.replies = replies;
+      $dt.reply = reply;
       return $dt;
     }
-    get is_FlushOutcome() { return this.$tag === 0; }
+    get is_FlushResult() { return this.$tag === 0; }
+    get dtor_server() { return this.server; }
     get dtor_client() { return this.client; }
-    get dtor_replies() { return this.replies; }
+    get dtor_reply() { return this.reply; }
     toString() {
       if (this.$tag === 0) {
-        return "KanbanAppCore.FlushOutcome.FlushOutcome" + "(" + _dafny.toString(this.client) + ", " + _dafny.toString(this.replies) + ")";
+        return "KanbanAppCore.FlushResult.FlushResult" + "(" + _dafny.toString(this.server) + ", " + _dafny.toString(this.client) + ", " + _dafny.toString(this.reply) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -2369,18 +2497,61 @@ let KanbanAppCore = (function() {
       if (this === other) {
         return true;
       } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.client, other.client) && _dafny.areEqual(this.replies, other.replies);
+        return other.$tag === 0 && _dafny.areEqual(this.server, other.server) && _dafny.areEqual(this.client, other.client) && _dafny.areEqual(this.reply, other.reply);
       } else  {
         return false; // unexpected
       }
     }
     static Default() {
-      return KanbanAppCore.FlushOutcome.create_FlushOutcome(KanbanAppCore.ClientState.Default(), _dafny.Seq.of());
+      return KanbanAppCore.FlushResult.create_FlushResult(KanbanMultiCollaboration.ServerState.Default(), KanbanAppCore.ClientState.Default(), KanbanMultiCollaboration.Reply.Default());
     }
     static Rtd() {
       return class {
         static get Default() {
-          return FlushOutcome.Default();
+          return FlushResult.Default();
+        }
+      };
+    }
+  }
+
+  $module.FlushAllResult = class FlushAllResult {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_FlushAllResult(server, client, replies) {
+      let $dt = new FlushAllResult(0);
+      $dt.server = server;
+      $dt.client = client;
+      $dt.replies = replies;
+      return $dt;
+    }
+    get is_FlushAllResult() { return this.$tag === 0; }
+    get dtor_server() { return this.server; }
+    get dtor_client() { return this.client; }
+    get dtor_replies() { return this.replies; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanAppCore.FlushAllResult.FlushAllResult" + "(" + _dafny.toString(this.server) + ", " + _dafny.toString(this.client) + ", " + _dafny.toString(this.replies) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.server, other.server) && _dafny.areEqual(this.client, other.client) && _dafny.areEqual(this.replies, other.replies);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanAppCore.FlushAllResult.create_FlushAllResult(KanbanMultiCollaboration.ServerState.Default(), KanbanAppCore.ClientState.Default(), _dafny.Seq.of());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return FlushAllResult.Default();
         }
       };
     }

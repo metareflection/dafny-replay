@@ -1,4 +1,4 @@
-// Dafny program ConcreteDomain.dfy compiled into JavaScript
+// Dafny program CounterDomain.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
@@ -1186,12 +1186,12 @@ let _System = (function() {
 
   return $module;
 })(); // end of module _System
-let ConcreteDomain = (function() {
+let CounterDomain = (function() {
   let $module = {};
 
   $module.__default = class __default {
     constructor () {
-      this._tname = "ConcreteDomain._default";
+      this._tname = "CounterDomain._default";
     }
     _parentTraits() {
       return [];
@@ -1242,9 +1242,9 @@ let ConcreteDomain = (function() {
     }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteDomain.Action.Inc";
+        return "CounterDomain.Action.Inc";
       } else if (this.$tag === 1) {
-        return "ConcreteDomain.Action.Dec";
+        return "CounterDomain.Action.Dec";
       } else  {
         return "<unexpected>";
       }
@@ -1261,7 +1261,7 @@ let ConcreteDomain = (function() {
       }
     }
     static Default() {
-      return ConcreteDomain.Action.create_Inc();
+      return CounterDomain.Action.create_Inc();
     }
     static Rtd() {
       return class {
@@ -1272,36 +1272,36 @@ let ConcreteDomain = (function() {
     }
   }
   return $module;
-})(); // end of module ConcreteDomain
-let ConcreteKernel = (function() {
+})(); // end of module CounterDomain
+let CounterKernel = (function() {
   let $module = {};
 
   $module.__default = class __default {
     constructor () {
-      this._tname = "ConcreteKernel._default";
+      this._tname = "CounterKernel._default";
     }
     _parentTraits() {
       return [];
     }
     static Step(m, a) {
-      return ConcreteDomain.__default.Normalize(ConcreteDomain.__default.Apply(m, a));
+      return CounterDomain.__default.Normalize(CounterDomain.__default.Apply(m, a));
     };
     static Do(h, a) {
-      return ConcreteKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ConcreteKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
+      return CounterKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), CounterKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
     static Undo(h) {
       if ((new BigNumber(((h).dtor_past).length)).isEqualTo(_dafny.ZERO)) {
         return h;
       } else {
         let _0_i = (new BigNumber(((h).dtor_past).length)).minus(_dafny.ONE);
-        return ConcreteKernel.History.create_History(((h).dtor_past).slice(0, _0_i), ((h).dtor_past)[_0_i], _dafny.Seq.Concat(_dafny.Seq.of((h).dtor_present), (h).dtor_future));
+        return CounterKernel.History.create_History(((h).dtor_past).slice(0, _0_i), ((h).dtor_past)[_0_i], _dafny.Seq.Concat(_dafny.Seq.of((h).dtor_present), (h).dtor_future));
       }
     };
     static Redo(h) {
       if ((new BigNumber(((h).dtor_future).length)).isEqualTo(_dafny.ZERO)) {
         return h;
       } else {
-        return ConcreteKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ((h).dtor_future)[_dafny.ZERO], ((h).dtor_future).slice(_dafny.ONE));
+        return CounterKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ((h).dtor_future)[_dafny.ZERO], ((h).dtor_future).slice(_dafny.ONE));
       }
     };
   };
@@ -1323,7 +1323,7 @@ let ConcreteKernel = (function() {
     get dtor_future() { return this.future; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteKernel.History.History" + "(" + _dafny.toString(this.past) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.future) + ")";
+        return "CounterKernel.History.History" + "(" + _dafny.toString(this.past) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.future) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1338,7 +1338,7 @@ let ConcreteKernel = (function() {
       }
     }
     static Default() {
-      return ConcreteKernel.History.create_History(_dafny.Seq.of(), _dafny.ZERO, _dafny.Seq.of());
+      return CounterKernel.History.create_History(_dafny.Seq.of(), _dafny.ZERO, _dafny.Seq.of());
     }
     static Rtd() {
       return class {
@@ -1349,7 +1349,7 @@ let ConcreteKernel = (function() {
     }
   }
   return $module;
-})(); // end of module ConcreteKernel
+})(); // end of module CounterKernel
 let AppCore = (function() {
   let $module = {};
 
@@ -1361,22 +1361,22 @@ let AppCore = (function() {
       return [];
     }
     static Init() {
-      return ConcreteKernel.History.create_History(_dafny.Seq.of(), _dafny.ZERO, _dafny.Seq.of());
+      return CounterKernel.History.create_History(_dafny.Seq.of(), _dafny.ZERO, _dafny.Seq.of());
     };
     static Inc() {
-      return ConcreteDomain.Action.create_Inc();
+      return CounterDomain.Action.create_Inc();
     };
     static Dec() {
-      return ConcreteDomain.Action.create_Dec();
+      return CounterDomain.Action.create_Dec();
     };
     static Dispatch(h, a) {
-      return ConcreteKernel.__default.Do(h, a);
+      return CounterKernel.__default.Do(h, a);
     };
     static Undo(h) {
-      return ConcreteKernel.__default.Undo(h);
+      return CounterKernel.__default.Undo(h);
     };
     static Redo(h) {
-      return ConcreteKernel.__default.Redo(h);
+      return CounterKernel.__default.Redo(h);
     };
     static Present(h) {
       return (h).dtor_present;
@@ -1403,8 +1403,8 @@ let AppCoreTest = (function() {
     static Test() {
       let _0_h;
       _0_h = AppCore.__default.Init();
-      _0_h = AppCore.__default.Dispatch(_0_h, ConcreteDomain.Action.create_Dec());
-      _0_h = AppCore.__default.Dispatch(_0_h, ConcreteDomain.Action.create_Inc());
+      _0_h = AppCore.__default.Dispatch(_0_h, CounterDomain.Action.create_Dec());
+      _0_h = AppCore.__default.Dispatch(_0_h, CounterDomain.Action.create_Inc());
       _0_h = AppCore.__default.Undo(_0_h);
       _0_h = AppCore.__default.Redo(_0_h);
       return;

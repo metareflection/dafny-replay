@@ -1,4 +1,5 @@
 // Express server using Dafny-verified KanbanAppCore
+// Uses anchor-based Place for moves and server-allocated card IDs
 import express from 'express';
 import cors from 'cors';
 import { readFileSync } from 'fs';
@@ -52,23 +53,25 @@ const toNumber = (bn) => {
   return bn;
 };
 
-// Convert Dafny Model to JS object for API response
+// Convert Dafny Model v2 to JS object for API response
+// Model v2: { cols, lanes, wip, cards, nextId }
 const modelToJs = (m) => {
-  // Get columns from the model
-  const columnsMap = m.dtor_columns;
+  const cols = seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c));
+  const lanesMap = m.dtor_lanes;
   const wipMap = m.dtor_wip;
   const cardsMap = m.dtor_cards;
+  const nextId = toNumber(m.dtor_nextId);
 
-  const columns = {};
+  const lanes = {};
   const wip = {};
   const cards = {};
 
-  // Convert columns map
-  if (columnsMap && columnsMap.Keys) {
-    for (const key of columnsMap.Keys.Elements) {
+  // Convert lanes map
+  if (lanesMap && lanesMap.Keys) {
+    for (const key of lanesMap.Keys.Elements) {
       const colName = dafnyStringToJs(key);
-      const cardIds = columnsMap.get(key);
-      columns[colName] = seqToArray(cardIds).map(id => toNumber(id));
+      const cardIds = lanesMap.get(key);
+      lanes[colName] = seqToArray(cardIds).map(id => toNumber(id));
     }
   }
 
@@ -81,22 +84,44 @@ const modelToJs = (m) => {
   }
 
   // Convert cards map
-  // Note: Dafny may optimize Card datatype to just the title string
   if (cardsMap && cardsMap.Keys) {
     for (const key of cardsMap.Keys.Elements) {
       const cardId = toNumber(key);
       const card = cardsMap.get(key);
-      // Handle both wrapped Card and unwrapped string
+      // Card datatype: Card(title: string)
       const title = card.dtor_title !== undefined ? card.dtor_title : card;
       cards[cardId] = { title: dafnyStringToJs(title) };
     }
   }
 
-  return { columns, wip, cards };
+  return { cols, lanes, wip, cards, nextId };
+};
+
+// Helper to parse Place from JSON
+const placeFromJson = (placeJson) => {
+  if (!placeJson || placeJson.type === 'AtEnd') {
+    return KanbanDomain.Place.create_AtEnd();
+  } else if (placeJson.type === 'Before') {
+    return KanbanDomain.Place.create_Before(new BigNumber(placeJson.anchor));
+  } else if (placeJson.type === 'After') {
+    return KanbanDomain.Place.create_After(new BigNumber(placeJson.anchor));
+  }
+  return KanbanDomain.Place.create_AtEnd();
+};
+
+// Create initial model with empty state
+const createInitialModel = () => {
+  return KanbanDomain.Model.create_Model(
+    _dafny.Seq.of(),           // cols
+    _dafny.Map.Empty,          // lanes
+    _dafny.Map.Empty,          // wip
+    _dafny.Map.Empty,          // cards
+    _dafny.ZERO                // nextId
+  );
 };
 
 // Server state (in-memory, single board)
-let serverState = KanbanAppCore.__default.InitServer();
+let serverState = KanbanAppCore.__default.InitServer(createInitialModel());
 
 const app = express();
 app.use(cors());
@@ -104,8 +129,8 @@ app.use(express.json());
 
 // GET /sync - Get current state
 app.get('/sync', (req, res) => {
-  const version = toNumber(KanbanAppCore.__default.GetServerVersion(serverState));
-  const present = KanbanAppCore.__default.GetServerPresent(serverState);
+  const version = toNumber(KanbanAppCore.__default.ServerVersion(serverState));
+  const present = KanbanAppCore.__default.ServerModel(serverState);
   res.json({
     version,
     model: modelToJs(present)
@@ -124,45 +149,37 @@ app.post('/dispatch', (req, res) => {
   try {
     switch (action.type) {
       case 'NoOp':
-        dafnyAction = KanbanAppCore.__default.NoOp();
+        dafnyAction = KanbanDomain.Action.create_NoOp();
         break;
       case 'AddColumn':
-        dafnyAction = KanbanAppCore.__default.AddColumn(
+        dafnyAction = KanbanDomain.Action.create_AddColumn(
           _dafny.Seq.UnicodeFromString(action.col),
           new BigNumber(action.limit)
         );
         break;
-      case 'DeleteColumn':
-        dafnyAction = KanbanAppCore.__default.DeleteColumn(
-          _dafny.Seq.UnicodeFromString(action.col)
-        );
-        break;
       case 'SetWip':
-        dafnyAction = KanbanAppCore.__default.SetWip(
+        dafnyAction = KanbanDomain.Action.create_SetWip(
           _dafny.Seq.UnicodeFromString(action.col),
           new BigNumber(action.limit)
         );
         break;
       case 'AddCard':
-        dafnyAction = KanbanAppCore.__default.AddCard(
+        // v2: AddCard only takes col and title; server allocates id
+        dafnyAction = KanbanDomain.Action.create_AddCard(
           _dafny.Seq.UnicodeFromString(action.col),
-          new BigNumber(action.id),
-          new BigNumber(action.pos),
           _dafny.Seq.UnicodeFromString(action.title)
         );
         break;
-      case 'DeleteCard':
-        dafnyAction = KanbanAppCore.__default.DeleteCard(new BigNumber(action.id));
-        break;
       case 'MoveCard':
-        dafnyAction = KanbanAppCore.__default.MoveCard(
+        // v2: MoveCard uses Place instead of position
+        dafnyAction = KanbanDomain.Action.create_MoveCard(
           new BigNumber(action.id),
           _dafny.Seq.UnicodeFromString(action.toCol),
-          new BigNumber(action.pos)
+          placeFromJson(action.place)
         );
         break;
       case 'EditTitle':
-        dafnyAction = KanbanAppCore.__default.EditTitle(
+        dafnyAction = KanbanDomain.Action.create_EditTitle(
           new BigNumber(action.id),
           _dafny.Seq.UnicodeFromString(action.title)
         );
@@ -175,7 +192,7 @@ app.post('/dispatch', (req, res) => {
   }
 
   // Check version constraint
-  const currentVersion = toNumber(KanbanAppCore.__default.GetServerVersion(serverState));
+  const currentVersion = toNumber(KanbanAppCore.__default.ServerVersion(serverState));
   if (baseVersion > currentVersion) {
     return res.status(400).json({ error: 'Invalid base version' });
   }
@@ -190,8 +207,8 @@ app.post('/dispatch', (req, res) => {
 
   // Build response
   if (KanbanAppCore.__default.IsAccepted(reply)) {
-    const newVersion = toNumber(KanbanAppCore.__default.GetResponseVersion(reply));
-    const newPresent = KanbanAppCore.__default.GetSuccessPresent(reply);
+    const newVersion = toNumber(reply.dtor_newVersion);
+    const newPresent = reply.dtor_newPresent;
     res.json({
       status: 'accepted',
       version: newVersion,
@@ -207,13 +224,11 @@ app.post('/dispatch', (req, res) => {
 
 // GET /state - Debug endpoint to see raw server state
 app.get('/state', (req, res) => {
-  const version = toNumber(KanbanAppCore.__default.GetServerVersion(serverState));
-  const present = KanbanAppCore.__default.GetServerPresent(serverState);
-  const appliedLogLen = toNumber(KanbanAppCore.__default.GetAppliedLogLen(serverState));
-  const auditLogLen = toNumber(KanbanAppCore.__default.GetAuditLogLen(serverState));
+  const version = toNumber(KanbanAppCore.__default.ServerVersion(serverState));
+  const present = KanbanAppCore.__default.ServerModel(serverState);
+  const auditLogLen = toNumber(KanbanAppCore.__default.AuditLength(serverState));
   res.json({
     version,
-    appliedLogLen,
     auditLogLen,
     model: modelToJs(present)
   });
@@ -226,4 +241,9 @@ app.listen(PORT, () => {
   console.log('  GET  /sync     - Get current state');
   console.log('  POST /dispatch - Dispatch action { baseVersion, action }');
   console.log('  GET  /state    - Debug: raw server state');
+  console.log('');
+  console.log('Features:');
+  console.log('  - Anchor-based moves (AtEnd, Before, After)');
+  console.log('  - Server-allocated card IDs');
+  console.log('  - Candidate fallback for stale anchors');
 });

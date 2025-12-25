@@ -1,9 +1,9 @@
 file_format_version = "1.0"
 dafny_version = "4.11.0.0"
-[options_by_module.ConcreteDomain]
+[options_by_module.CounterDomain]
 legacy-module-names = false
 rust-sync = false
-[options_by_module.ConcreteKernel]
+[options_by_module.CounterKernel]
 legacy-module-names = false
 rust-sync = false
 [options_by_module.AppCore]
