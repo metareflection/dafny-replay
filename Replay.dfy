@@ -70,5 +70,11 @@ abstract module {:compile false} Kernel {
   {
     D.StepPreservesInv(h.present, a);
   }
+
+  // Proxy for linear undo: after a new action, there is no redo branch.
+  lemma DoHasNoRedoBranch(h: History, a: D.Action)
+  ensures Redo(Do(h, a)) == Do(h, a)
+  {
+  }
 }
 
