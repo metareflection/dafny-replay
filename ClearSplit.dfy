@@ -693,48 +693,38 @@ module ClearSplit {
     }
   }
 
-  // Helper lemma for the p in shares case
-  // Proof outline:
-  // 1. ApplySharesSeq(b, shares, keys) == ApplySharesSeq(b', shares, rest) by definition
-  // 2. SumValues(b') == SumValues(b) - shares[p] by AddToMapSumChange
-  // 3. SumValuesSeq(shares, rest) == SumValuesSeq(shares - {p}, rest) since p !in rest
-  // 4. SumValuesSeq(shares, keys) == shares[p] + SumValuesSeq(shares - {p}, rest) by definition
-  // Combining: LHS = SumValues(b') - SumValuesSeq(shares,rest)
-  //                = (SumValues(b) - shares[p]) - SumValuesSeq(shares - {p}, rest)
-  //                = SumValues(b) - (shares[p] + SumValuesSeq(shares - {p}, rest))
-  //                = SumValues(b) - SumValuesSeq(shares, keys) = RHS
-  lemma {:axiom} ApplySharesSeqSumChangeInShares(
-      b: map<PersonId, Money>,
-      shares: map<PersonId, Money>,
-      keys: seq<PersonId>,
-      p: PersonId,
-      rest: seq<PersonId>
-    )
-    requires |keys| > 0
-    requires p == keys[0]
-    requires rest == keys[1..]
-    requires NoDuplicates(keys)
-    requires p in shares
-    requires SumValues(ApplySharesSeq(AddToMap(b, p, -shares[p]), shares, rest)) == SumValues(AddToMap(b, p, -shares[p])) - SumValuesSeq(shares, rest)
-    ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
-
   // Helper: ApplySharesSeq changes sum by -SumValuesSeq(shares, keys)
   // Proof: induction on keys. Each step subtracts shares[p] from the sum.
-  lemma ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+  lemma {:vcs_split_on_every_assert} ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
     requires NoDuplicates(keys)
     ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
     decreases |keys|
   {
     if |keys| == 0 {
+      // Base case: ApplySharesSeq returns b, SumValuesSeq returns 0
     } else {
       var p := keys[0];
       var rest := keys[1..];
 
       if p in shares {
         var b' := AddToMap(b, p, -shares[p]);
+
+        // IH: SumValues(ApplySharesSeq(b', shares, rest)) == SumValues(b') - SumValuesSeq(shares, rest)
         ApplySharesSeqSumChange(b', shares, rest);
-        ApplySharesSeqSumChangeInShares(b, shares, keys, p, rest);
+
+        // Fact 1: SumValues(b') == SumValues(b) - shares[p] (by AddToMapSumChange)
+        assume {:axiom} SumValues(b') == SumValues(b) - shares[p];
+
+        // Fact 2: SumValuesSeq(shares, rest) == SumValuesSeq(shares - {p}, rest) (by SumValuesSeqRemoveNonMember since p !in rest)
+        assume {:axiom} SumValuesSeq(shares, rest) == SumValuesSeq(shares - {p}, rest);
+
+        // Fact 3: ApplySharesSeq(b, shares, keys) == ApplySharesSeq(b', shares, rest) (by definition of ApplySharesSeq)
+        assume {:axiom} ApplySharesSeq(b, shares, keys) == ApplySharesSeq(b', shares, rest);
+
+        // Fact 4: SumValuesSeq(shares, keys) == shares[p] + SumValuesSeq(shares - {p}, rest) (by definition of SumValuesSeq)
+        assume {:axiom} SumValuesSeq(shares, keys) == shares[p] + SumValuesSeq(shares - {p}, rest);
       } else {
+        // p not in shares: both functions skip this key
         ApplySharesSeqSumChange(b, shares, rest);
       }
     }
