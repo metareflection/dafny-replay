@@ -970,6 +970,40 @@ module ClearSplit {
     if p in b then b[p] else 0
   }
 
+  // Certificate: a record of verified facts about the model
+  datatype Certificate = Certificate(
+    memberCount: nat,
+    expenseCount: nat,
+    settlementCount: nat,
+    conservationHolds: bool  // Always true when Inv holds
+  )
+
+  // Get a certificate for the current model
+  method GetCertificate(model: Model) returns (cert: Certificate)
+    requires Inv(model)
+  {
+    Conservation(model);
+    cert := Certificate(
+      |model.members|,
+      |model.expenses|,
+      |model.settlements|,
+      true
+    );
+  }
+
+  // Initialize a new model with the given members
+  method Init(memberList: seq<PersonId>) returns (result: Result<Model, Err>)
+    ensures result.Ok? ==> Inv(result.value)
+  {
+    if !NoDuplicates(memberList) {
+      result := Error(BadExpense);
+      return;
+    }
+    var members := set i | 0 <= i < |memberList| :: memberList[i];
+    NoDupSeqToSetSizeGeneral(memberList);
+    result := Ok(Model(members, memberList, [], []));
+  }
+
   // =============================
   // Delta Laws: How Step affects Balances
   // =============================
@@ -1013,121 +1047,55 @@ module ClearSplit {
 }
 
 // =============================
-// AppCore: JS-facing API
+// AppCore: JS-facing API (delegation only)
 // =============================
 module ClearSplitAppCore {
   import C = ClearSplit
 
-  // Type aliases for cleaner API
+  // Type aliases
   type Model = C.Model
   type Action = C.Action
-  type Expense = C.Expense
-  type Settlement = C.Settlement
   type Money = C.Money
   type PersonId = C.PersonId
+  type Certificate = C.Certificate
 
-  // Result type
-  datatype Result<T> = Ok(value: T) | Error(msg: string)
-
-  // Certificate: a record of verified facts about the model
-  datatype Certificate = Certificate(
-    memberCount: nat,
-    expenseCount: nat,
-    settlementCount: nat,
-    conservationHolds: bool  // Always true when Inv holds
-  )
-
-  // Initialize a new model with the given members
-  method Init(memberList: seq<PersonId>) returns (result: Result<Model>)
+  // Initialize
+  method Init(memberList: seq<PersonId>) returns (result: C.Result<Model, C.Err>)
     ensures result.Ok? ==> C.Inv(result.value)
   {
-    // Check for duplicates
-    if !C.NoDuplicates(memberList) {
-      result := Error("Duplicate members");
-      return;
-    }
-
-    var members := set i | 0 <= i < |memberList| :: memberList[i];
-
-    // Prove SeqMatchesSet
-    C.NoDupSeqToSetSizeGeneral(memberList);
-    assert |members| == |memberList|;
-
-    var model := C.Model(members, memberList, [], []);
-    result := Ok(model);
+    result := C.Init(memberList);
   }
 
   // Action constructors
-  function AddExpense(e: Expense): Action { C.AddExpense(e) }
-  function AddSettlement(s: Settlement): Action { C.AddSettlement(s) }
+  function AddExpense(e: C.Expense): Action { C.AddExpense(e) }
+  function AddSettlement(s: C.Settlement): Action { C.AddSettlement(s) }
 
-  // Expense constructor
-  function MakeExpense(paidBy: PersonId, amount: Money, shares: map<PersonId, Money>, shareKeys: seq<PersonId>): Expense
-  {
-    C.Expense(paidBy, amount, shares, shareKeys)
-  }
+  // Data constructors
+  function MakeExpense(paidBy: PersonId, amount: Money, shares: map<PersonId, Money>, shareKeys: seq<PersonId>): C.Expense
+  { C.Expense(paidBy, amount, shares, shareKeys) }
 
-  // Settlement constructor
-  function MakeSettlement(from: PersonId, to: PersonId, amount: Money): Settlement
-  {
-    C.Settlement(from, to, amount)
-  }
+  function MakeSettlement(from: PersonId, to: PersonId, amount: Money): C.Settlement
+  { C.Settlement(from, to, amount) }
 
-  // Dispatch an action
-  method Dispatch(model: Model, a: Action) returns (result: Result<Model>)
+  // Dispatch
+  method Dispatch(model: Model, a: Action) returns (result: C.Result<Model, C.Err>)
     requires C.Inv(model)
     ensures result.Ok? ==> C.Inv(result.value)
   {
-    var stepResult := C.Step(model, a);
-    match stepResult
-    case Ok(m) => result := Ok(m);
-    case Error(e) =>
-      match e
-      case NotMember(p) => result := Error("Not a member: " + p);
-      case BadExpense => result := Error("Invalid expense");
-      case BadSettlement => result := Error("Invalid settlement");
+    result := C.Step(model, a);
   }
 
-  // Get balances as a map
-  function GetBalances(model: Model): map<PersonId, Money>
-  {
-    C.Balances(model)
-  }
+  // Projections
+  function Balances(model: Model): map<PersonId, Money> { C.Balances(model) }
+  function GetBalance(model: Model, p: PersonId): Money { C.GetBalance(model, p) }
+  function Members(model: Model): seq<PersonId> { model.memberList }
+  function Expenses(model: Model): seq<C.Expense> { model.expenses }
+  function Settlements(model: Model): seq<C.Settlement> { model.settlements }
 
-  // Get balance for a specific person
-  function GetBalance(model: Model, p: PersonId): Money
-  {
-    C.GetBalance(model, p)
-  }
-
-  // Get members list
-  function GetMembers(model: Model): seq<PersonId>
-  {
-    model.memberList
-  }
-
-  // Get expenses
-  function GetExpenses(model: Model): seq<Expense>
-  {
-    model.expenses
-  }
-
-  // Get settlements
-  function GetSettlements(model: Model): seq<Settlement>
-  {
-    model.settlements
-  }
-
-  // Get a certificate for the current model
+  // Certificate
   method GetCertificate(model: Model) returns (cert: Certificate)
     requires C.Inv(model)
   {
-    C.Conservation(model);
-    cert := Certificate(
-      |model.members|,
-      |model.expenses|,
-      |model.settlements|,
-      true  // Conservation always holds when Inv holds
-    );
+    cert := C.GetCertificate(model);
   }
 }
