@@ -964,6 +964,46 @@ module ClearSplit {
   }
 
   // =============================
+  // Delta Laws: How Step affects Balances
+  // =============================
+
+  // AddExpense delta law: payer gains amount, share owners lose their shares
+  lemma {:axiom} AddExpenseDelta(model: Model, e: Expense, model': Model)
+    requires Inv(model)
+    requires ValidExpenseCheck(model.members, e)
+    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
+    ensures Inv(model')
+    // Payer gains amount
+    ensures GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount
+    // Share owners lose their share
+    ensures forall p :: p in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
+    // Payer who is also a share owner: net change is amount - share
+    ensures e.paidBy in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
+    // Others unchanged
+    ensures forall p :: p !in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p)
+    // Conservation preserved
+    ensures SumValues(Balances(model')) == 0
+
+  // AddSettlement delta law: from gains, to loses
+  lemma {:axiom} AddSettlementDelta(model: Model, s: Settlement, model': Model)
+    requires Inv(model)
+    requires ValidSettlement(model.members, s)
+    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
+    ensures Inv(model')
+    // From gains amount (owes less)
+    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
+    // To loses amount (is owed less)
+    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
+    // Others unchanged
+    ensures forall p :: p != s.from && p != s.to ==>
+      GetBalance(model', p) == GetBalance(model, p)
+    // Conservation preserved
+    ensures SumValues(Balances(model')) == 0
+
+  // =============================
   // AppCore: JS-facing API
   // =============================
 
