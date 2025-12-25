@@ -406,19 +406,15 @@ module ClearSplit refines ClearSplitSpec {
     ensures SumValues(m) == m[p] + SumValues(m - {p})
   {
     if |m| == 1 {
-      assert |m.Keys| == 1;
-      assert p in m.Keys;
-      assert m.Keys - {p} == {};
-      assert |m.Keys - {p}| == 0;
-      forall x | x in m.Keys
-        ensures x == p
-      {
-        if x != p {
-          assert x in m.Keys - {p};
-          assert false;
-        }
+      // With |m| == 1 and p in m, removing p leaves empty map
+      var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
+      // k is the unique element, must equal p
+      if k != p {
+        assert k in m && p in m && k != p;
+        assert |m.Keys| >= 2;
+        assert false;
       }
-      assert m.Keys == {p};
+      assert k == p;
     } else {
       assert |m| > 0;
       var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
