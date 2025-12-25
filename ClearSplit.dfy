@@ -1,4 +1,3 @@
-// ClearSplit.dfy
 // Expense splitting with verified conservation of money
 
 // =============================
