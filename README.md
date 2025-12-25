@@ -28,7 +28,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 |------------------------|--------------------------------|------------|
 | Replay                 | Local UI state                 | Undo/redo preserves global invariants |
 | Authority              | Client–server                  | Server state always satisfies invariants |
-| Multi-Collaboration    | Client–server, offline clients | Anchor-based moves, candidate fallback, minimal rejection |
+| Multi-Collaboration    | Client–server, offline clients | State satisfies invariants; Anchor-based moves, candidate fallback, minimal rejection |
 
 ### List of Apps
 
