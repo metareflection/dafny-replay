@@ -1,6 +1,6 @@
 include "Authority.dfy"
 
-module ConcreteDomain refines Domain {
+module CounterDomain refines Domain {
   type Model = int
   datatype Action = Inc | Dec
 
@@ -19,14 +19,14 @@ module ConcreteDomain refines Domain {
   }
 }
 
-module ConcreteServer refines ServerKernel {
-  import D = ConcreteDomain
+module CounterServer refines ServerKernel {
+  import D = CounterDomain
 }
 
 // AppCore exposes server API for JavaScript
 module AppCore {
-  import S = ConcreteServer
-  import D = ConcreteDomain
+  import S = CounterServer
+  import D = CounterDomain
 
   // Server state type alias
   type ServerState = S.S

@@ -1,4 +1,4 @@
-// Dafny program ConcreteAuthority.dfy compiled into JavaScript
+// Dafny program CounterAuthority.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
@@ -1186,12 +1186,12 @@ let _System = (function() {
 
   return $module;
 })(); // end of module _System
-let ConcreteDomain = (function() {
+let CounterDomain = (function() {
   let $module = {};
 
   $module.__default = class __default {
     constructor () {
-      this._tname = "ConcreteDomain._default";
+      this._tname = "CounterDomain._default";
     }
     _parentTraits() {
       return [];
@@ -1203,14 +1203,14 @@ let ConcreteDomain = (function() {
       let _source0 = a;
       {
         if (_source0.is_Inc) {
-          return ConcreteDomain.TryStepResult.create_Ok((m).plus(_dafny.ONE));
+          return CounterDomain.TryStepResult.create_Ok((m).plus(_dafny.ONE));
         }
       }
       {
         if ((m).isEqualTo(_dafny.ZERO)) {
-          return ConcreteDomain.TryStepResult.create_Invalid(_dafny.Seq.UnicodeFromString("cannot decrement at 0"));
+          return CounterDomain.TryStepResult.create_Invalid(_dafny.Seq.UnicodeFromString("cannot decrement at 0"));
         } else {
-          return ConcreteDomain.TryStepResult.create_Ok((m).minus(_dafny.ONE));
+          return CounterDomain.TryStepResult.create_Ok((m).minus(_dafny.ONE));
         }
       }
     };
@@ -1239,9 +1239,9 @@ let ConcreteDomain = (function() {
     }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteDomain.Action.Inc";
+        return "CounterDomain.Action.Inc";
       } else if (this.$tag === 1) {
-        return "ConcreteDomain.Action.Dec";
+        return "CounterDomain.Action.Dec";
       } else  {
         return "<unexpected>";
       }
@@ -1258,7 +1258,7 @@ let ConcreteDomain = (function() {
       }
     }
     static Default() {
-      return ConcreteDomain.Action.create_Inc();
+      return CounterDomain.Action.create_Inc();
     }
     static Rtd() {
       return class {
@@ -1289,9 +1289,9 @@ let ConcreteDomain = (function() {
     get dtor_msg() { return this.msg; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteDomain.TryStepResult.Ok" + "(" + _dafny.toString(this.m_k) + ")";
+        return "CounterDomain.TryStepResult.Ok" + "(" + _dafny.toString(this.m_k) + ")";
       } else if (this.$tag === 1) {
-        return "ConcreteDomain.TryStepResult.Invalid" + "(" + this.msg.toVerbatimString(true) + ")";
+        return "CounterDomain.TryStepResult.Invalid" + "(" + this.msg.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1308,7 +1308,7 @@ let ConcreteDomain = (function() {
       }
     }
     static Default() {
-      return ConcreteDomain.TryStepResult.create_Ok(_dafny.ZERO);
+      return CounterDomain.TryStepResult.create_Ok(_dafny.ZERO);
     }
     static Rtd() {
       return class {
@@ -1319,34 +1319,34 @@ let ConcreteDomain = (function() {
     }
   }
   return $module;
-})(); // end of module ConcreteDomain
-let ConcreteServer = (function() {
+})(); // end of module CounterDomain
+let CounterServer = (function() {
   let $module = {};
 
   $module.__default = class __default {
     constructor () {
-      this._tname = "ConcreteServer._default";
+      this._tname = "CounterServer._default";
     }
     _parentTraits() {
       return [];
     }
     static Sync(s) {
-      return ConcreteServer.SyncResponse.create_SyncResponse((s).dtor_ver, (s).dtor_present);
+      return CounterServer.SyncResponse.create_SyncResponse((s).dtor_ver, (s).dtor_present);
     };
     static Dispatch(s, clientVer, a) {
       if (!(clientVer).isEqualTo((s).dtor_ver)) {
-        return _dafny.Tuple.of(s, ConcreteServer.Response.create_Response((s).dtor_ver, ConcreteServer.Result.create_Failure(ConcreteServer.FailureReason.create_Stale())));
+        return _dafny.Tuple.of(s, CounterServer.Response.create_Response((s).dtor_ver, CounterServer.Result.create_Failure(CounterServer.FailureReason.create_Stale())));
       } else {
-        let _source0 = ConcreteDomain.__default.TryStep((s).dtor_present, a);
+        let _source0 = CounterDomain.__default.TryStep((s).dtor_present, a);
         {
           if (_source0.is_Ok) {
             let _0_m_k = (_source0).m_k;
-            return _dafny.Tuple.of(ConcreteServer.S.create_S(((s).dtor_ver).plus(_dafny.ONE), _0_m_k), ConcreteServer.Response.create_Response(((s).dtor_ver).plus(_dafny.ONE), ConcreteServer.Result.create_Success(_0_m_k)));
+            return _dafny.Tuple.of(CounterServer.S.create_S(((s).dtor_ver).plus(_dafny.ONE), _0_m_k), CounterServer.Response.create_Response(((s).dtor_ver).plus(_dafny.ONE), CounterServer.Result.create_Success(_0_m_k)));
           }
         }
         {
           let _1_msg = (_source0).msg;
-          return _dafny.Tuple.of(s, ConcreteServer.Response.create_Response((s).dtor_ver, ConcreteServer.Result.create_Failure(ConcreteServer.FailureReason.create_InvalidAction(_1_msg))));
+          return _dafny.Tuple.of(s, CounterServer.Response.create_Response((s).dtor_ver, CounterServer.Result.create_Failure(CounterServer.FailureReason.create_InvalidAction(_1_msg))));
         }
       }
     };
@@ -1370,9 +1370,9 @@ let ConcreteServer = (function() {
     get dtor_msg() { return this.msg; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteServer.FailureReason.Stale";
+        return "CounterServer.FailureReason.Stale";
       } else if (this.$tag === 1) {
-        return "ConcreteServer.FailureReason.InvalidAction" + "(" + this.msg.toVerbatimString(true) + ")";
+        return "CounterServer.FailureReason.InvalidAction" + "(" + this.msg.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1389,7 +1389,7 @@ let ConcreteServer = (function() {
       }
     }
     static Default() {
-      return ConcreteServer.FailureReason.create_Stale();
+      return CounterServer.FailureReason.create_Stale();
     }
     static Rtd() {
       return class {
@@ -1420,9 +1420,9 @@ let ConcreteServer = (function() {
     get dtor_reason() { return this.reason; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteServer.Result.Success" + "(" + _dafny.toString(this.present) + ")";
+        return "CounterServer.Result.Success" + "(" + _dafny.toString(this.present) + ")";
       } else if (this.$tag === 1) {
-        return "ConcreteServer.Result.Failure" + "(" + _dafny.toString(this.reason) + ")";
+        return "CounterServer.Result.Failure" + "(" + _dafny.toString(this.reason) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1439,7 +1439,7 @@ let ConcreteServer = (function() {
       }
     }
     static Default() {
-      return ConcreteServer.Result.create_Success(_dafny.ZERO);
+      return CounterServer.Result.create_Success(_dafny.ZERO);
     }
     static Rtd() {
       return class {
@@ -1465,7 +1465,7 @@ let ConcreteServer = (function() {
     get dtor_res() { return this.res; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteServer.Response.Response" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.res) + ")";
+        return "CounterServer.Response.Response" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.res) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1480,7 +1480,7 @@ let ConcreteServer = (function() {
       }
     }
     static Default() {
-      return ConcreteServer.Response.create_Response(_dafny.ZERO, ConcreteServer.Result.Default());
+      return CounterServer.Response.create_Response(_dafny.ZERO, CounterServer.Result.Default());
     }
     static Rtd() {
       return class {
@@ -1506,7 +1506,7 @@ let ConcreteServer = (function() {
     get dtor_present() { return this.present; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteServer.SyncResponse.SyncResponse" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.present) + ")";
+        return "CounterServer.SyncResponse.SyncResponse" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.present) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1521,7 +1521,7 @@ let ConcreteServer = (function() {
       }
     }
     static Default() {
-      return ConcreteServer.SyncResponse.create_SyncResponse(_dafny.ZERO, _dafny.ZERO);
+      return CounterServer.SyncResponse.create_SyncResponse(_dafny.ZERO, _dafny.ZERO);
     }
     static Rtd() {
       return class {
@@ -1547,7 +1547,7 @@ let ConcreteServer = (function() {
     get dtor_present() { return this.present; }
     toString() {
       if (this.$tag === 0) {
-        return "ConcreteServer.S.S" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.present) + ")";
+        return "CounterServer.S.S" + "(" + _dafny.toString(this.ver) + ", " + _dafny.toString(this.present) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1562,7 +1562,7 @@ let ConcreteServer = (function() {
       }
     }
     static Default() {
-      return ConcreteServer.S.create_S(_dafny.ZERO, _dafny.ZERO);
+      return CounterServer.S.create_S(_dafny.ZERO, _dafny.ZERO);
     }
     static Rtd() {
       return class {
@@ -1573,7 +1573,7 @@ let ConcreteServer = (function() {
     }
   }
   return $module;
-})(); // end of module ConcreteServer
+})(); // end of module CounterServer
 let AppCore = (function() {
   let $module = {};
 
@@ -1585,19 +1585,19 @@ let AppCore = (function() {
       return [];
     }
     static InitServer(initial) {
-      return ConcreteServer.S.create_S(_dafny.ZERO, (((_dafny.ZERO).isLessThanOrEqualTo(initial)) ? (initial) : (_dafny.ZERO)));
+      return CounterServer.S.create_S(_dafny.ZERO, (((_dafny.ZERO).isLessThanOrEqualTo(initial)) ? (initial) : (_dafny.ZERO)));
     };
     static Inc() {
-      return ConcreteDomain.Action.create_Inc();
+      return CounterDomain.Action.create_Inc();
     };
     static Dec() {
-      return ConcreteDomain.Action.create_Dec();
+      return CounterDomain.Action.create_Dec();
     };
     static Sync(s) {
-      return ConcreteServer.__default.Sync(s);
+      return CounterServer.__default.Sync(s);
     };
     static Dispatch(s, clientVer, a) {
-      return ConcreteServer.__default.Dispatch(s, clientVer, a);
+      return CounterServer.__default.Dispatch(s, clientVer, a);
     };
     static GetVersion(s) {
       return (s).dtor_ver;

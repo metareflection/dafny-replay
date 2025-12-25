@@ -252,10 +252,10 @@ This produces JavaScript artifacts consumed by the demo.
 ### 3. Run the React demos
 
 ```bash
-cd demo           # counter demo
-cd kanban         # kanban board
-cd delegation-auth # capability delegation
-cd demo-authority # counter demo with client-server protocol
+cd counter           # counter
+cd kanban            # kanban board
+cd delegation-auth   # capability delegation
+cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
 npm install
 npm run dev
