@@ -198,12 +198,3 @@ const actionFromJson = (json) => {
 };
 ```
 
-### Custom Getters
-
-If your AppCore exposes getter functions:
-
-```js
-AppCore.__default.Present(history)
-AppCore.__default.CanUndo(history)
-AppCore.__default.GetVersion(state)
-```
