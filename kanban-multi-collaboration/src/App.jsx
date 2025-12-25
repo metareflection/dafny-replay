@@ -18,7 +18,7 @@ function Card({ id, title, onDragStart, onDragEnd }) {
   )
 }
 
-function Column({ name, cards, wip, model, onAddCard, onDrop }) {
+function Column({ name, cards, wip, model, onAddCard, onMoveCard }) {
   const [newCardTitle, setNewCardTitle] = useState('')
   const count = cards.length
   const atLimit = wip > 0 && count >= wip
@@ -38,7 +38,8 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
   const handleDrop = (e) => {
     e.preventDefault()
     const cardId = parseInt(e.dataTransfer.getData('cardId'), 10)
-    onDrop(cardId, name, cards.length)
+    // v2: Use AtEnd placement (drop at end of column)
+    onMoveCard(cardId, name, App.AtEnd())
   }
 
   return (
@@ -54,7 +55,7 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
         </span>
       </div>
       <div className="cards">
-        {cards.map((cardId) => (
+        {cards.map((cardId, index) => (
           <Card
             key={cardId}
             id={cardId}
@@ -104,10 +105,8 @@ function KanbanBoard() {
   const [serverVersion, setServerVersion] = useState(0)
   const [status, setStatus] = useState('syncing...')
   const [error, setError] = useState(null)
-  const [nextCardId, setNextCardId] = useState(1)
   const [newColName, setNewColName] = useState('')
   const [newColLimit, setNewColLimit] = useState(5)
-  const [isFlushing, setIsFlushing] = useState(false)
   const [toast, setToast] = useState(null)
 
   // Sync with server
@@ -119,11 +118,6 @@ function KanbanBoard() {
       setServerVersion(data.version)
       const newClient = App.InitClient(data.version, data.model)
       setClient(newClient)
-
-      // Update nextCardId based on existing cards
-      const maxId = Math.max(0, ...Object.keys(data.model.cards || {}).map(Number))
-      setNextCardId(maxId + 1)
-
       setStatus('synced')
       setError(null)
     } catch (e) {
@@ -161,16 +155,16 @@ function KanbanBoard() {
 
       if (data.status === 'accepted') {
         setServerVersion(data.version)
-        // Re-sync to get authoritative state
+        // Re-sync to get authoritative state (includes server-allocated IDs)
         const syncClient = App.InitClient(data.version, data.model)
         setClient(syncClient)
         setStatus('synced')
         setError(null)
       } else {
-        setStatus('synced')
+        setStatus('rejected')
         // Show toast for rejected action
         const actionJson = App.actionToJson(action)
-        setToast(`Action lost: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
+        setToast(`Action rejected: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
         // Re-sync to recover
         await sync()
       }
@@ -192,22 +186,20 @@ function KanbanBoard() {
     }
   }
 
+  // v2: AddCard only needs col and title; server allocates ID
   const handleAddCard = (col, title) => {
-    const id = nextCardId
-    setNextCardId(id + 1)
-    const model = client ? App.GetPresent(client) : null
-    const pos = model ? App.GetLane(model, col).length : 0
-    dispatch(App.AddCard(col, id, pos, title))
+    dispatch(App.AddCard(col, title))
   }
 
-  const handleMoveCard = (cardId, toCol, pos) => {
-    dispatch(App.MoveCard(cardId, toCol, pos))
+  // v2: MoveCard uses Place (AtEnd, Before, After) instead of position
+  const handleMoveCard = (cardId, toCol, place) => {
+    dispatch(App.MoveCard(cardId, toCol, place))
   }
 
   if (!client) {
     return (
       <div className="loading">
-        <h1>Kanban Multi-Collaboration</h1>
+        <h1>Kanban Multi-Collaboration v2</h1>
         <p>Loading...</p>
       </div>
     )
@@ -222,8 +214,8 @@ function KanbanBoard() {
     <>
       <div className="header">
         <div>
-          <h1>Kanban Multi-Collaboration</h1>
-          <p className="subtitle">Verified with Dafny - Server-authoritative state</p>
+          <h1>Kanban Multi-Collaboration v2</h1>
+          <p className="subtitle">Anchor-based moves, server-allocated IDs, candidate fallback</p>
         </div>
         <div className="controls">
           <button onClick={sync}>Sync</button>
@@ -278,16 +270,16 @@ function KanbanBoard() {
               wip={App.GetWip(model, col)}
               model={model}
               onAddCard={handleAddCard}
-              onDrop={handleMoveCard}
+              onMoveCard={handleMoveCard}
             />
           ))}
         </div>
       )}
 
       <p className="info">
-        Server owns authoritative state, client syncs via OT protocol.
+        v2: Server-allocated card IDs, anchor-based placement (AtEnd, Before, After).
         <br />
-        State transitions are verified at compile time with Dafny.
+        Stale anchors automatically fall back to AtEnd via candidate selection.
       </p>
     </>
   )

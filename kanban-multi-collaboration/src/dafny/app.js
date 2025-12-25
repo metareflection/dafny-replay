@@ -1,5 +1,5 @@
 // ESM wrapper for Dafny-generated KanbanAppCore (client-side)
-// Provides a clean API for React without modifying generated code
+// Uses anchor-based Place for moves instead of positional index
 
 import BigNumber from 'bignumber.js';
 
@@ -50,32 +50,40 @@ const dafnyStringToJs = (seq) => {
 // Create a clean API wrapper for client-side use
 const App = {
   // Initialize a new client state from server sync response
+  // Model v2: { cols: [], lanes: {}, wip: {}, cards: {}, nextId }
   InitClient: (version, model) => {
     // Build Dafny Model from JS object
-    // Use .update() instead of .updateUnsafe() to avoid mutating shared Empty singleton
-    let columnsMap = _dafny.Map.Empty;
-    let wipMap = _dafny.Map.Empty;
-    let cardsMap = _dafny.Map.Empty;
+    const cols = _dafny.Seq.of(...(model.cols || []).map(c => _dafny.Seq.UnicodeFromString(c)));
 
-    for (const [colName, cardIds] of Object.entries(model.columns || {})) {
+    let lanesMap = _dafny.Map.Empty;
+    for (const [colName, cardIds] of Object.entries(model.lanes || {})) {
       const key = _dafny.Seq.UnicodeFromString(colName);
       const value = _dafny.Seq.of(...cardIds.map(id => new BigNumber(id)));
-      columnsMap = columnsMap.update(key, value);
+      lanesMap = lanesMap.update(key, value);
     }
 
+    let wipMap = _dafny.Map.Empty;
     for (const [colName, limit] of Object.entries(model.wip || {})) {
       const key = _dafny.Seq.UnicodeFromString(colName);
       wipMap = wipMap.update(key, new BigNumber(limit));
     }
 
+    let cardsMap = _dafny.Map.Empty;
     for (const [cardId, card] of Object.entries(model.cards || {})) {
       const key = new BigNumber(cardId);
-      // Dafny optimizes Card datatype to just the title string
+      // Dafny optimizes Card datatype: store title directly (not wrapped in Card)
       const value = _dafny.Seq.UnicodeFromString(card.title);
       cardsMap = cardsMap.update(key, value);
     }
 
-    const dafnyModel = KanbanDomain.Model.create_Model(columnsMap, wipMap, cardsMap);
+    const dafnyModel = KanbanDomain.Model.create_Model(
+      cols,
+      lanesMap,
+      wipMap,
+      cardsMap,
+      new BigNumber(model.nextId || 0)
+    );
+
     return KanbanAppCore.ClientState.create_ClientState(
       new BigNumber(version),
       dafnyModel,
@@ -83,76 +91,85 @@ const App = {
     );
   },
 
-  // Action constructors (for client-side optimistic updates)
-  NoOp: () => KanbanAppCore.__default.NoOp(),
+  // --- Place constructors ---
+  AtEnd: () => KanbanDomain.Place.create_AtEnd(),
+  Before: (anchorId) => KanbanDomain.Place.create_Before(new BigNumber(anchorId)),
+  After: (anchorId) => KanbanDomain.Place.create_After(new BigNumber(anchorId)),
 
-  AddColumn: (col, limit) => KanbanAppCore.__default.AddColumn(
+  // --- Action constructors ---
+  NoOp: () => KanbanDomain.Action.create_NoOp(),
+
+  AddColumn: (col, limit) => KanbanDomain.Action.create_AddColumn(
     _dafny.Seq.UnicodeFromString(col),
     new BigNumber(limit)
   ),
 
-  DeleteColumn: (col) => KanbanAppCore.__default.DeleteColumn(
-    _dafny.Seq.UnicodeFromString(col)
-  ),
-
-  SetWip: (col, limit) => KanbanAppCore.__default.SetWip(
+  SetWip: (col, limit) => KanbanDomain.Action.create_SetWip(
     _dafny.Seq.UnicodeFromString(col),
     new BigNumber(limit)
   ),
 
-  AddCard: (col, id, pos, title) => KanbanAppCore.__default.AddCard(
+  // AddCard in v2: server allocates id, just specify col and title
+  AddCard: (col, title) => KanbanDomain.Action.create_AddCard(
     _dafny.Seq.UnicodeFromString(col),
-    new BigNumber(id),
-    new BigNumber(pos),
     _dafny.Seq.UnicodeFromString(title)
   ),
 
-  DeleteCard: (id) => KanbanAppCore.__default.DeleteCard(new BigNumber(id)),
-
-  MoveCard: (id, toCol, pos) => KanbanAppCore.__default.MoveCard(
+  // MoveCard in v2: uses Place (AtEnd, Before, After) instead of position
+  MoveCard: (id, toCol, place) => KanbanDomain.Action.create_MoveCard(
     new BigNumber(id),
     _dafny.Seq.UnicodeFromString(toCol),
-    new BigNumber(pos)
+    place  // Already a Dafny Place
   ),
 
-  EditTitle: (id, title) => KanbanAppCore.__default.EditTitle(
+  EditTitle: (id, title) => KanbanDomain.Action.create_EditTitle(
     new BigNumber(id),
     _dafny.Seq.UnicodeFromString(title)
   ),
 
   // Client-side local dispatch (optimistic update)
-  LocalDispatch: (client, action) => KanbanAppCore.__default.LocalDispatch(client, action),
+  LocalDispatch: (client, action) => KanbanAppCore.__default.ClientLocalDispatch(client, action),
 
   // Get pending actions count
-  GetPendingCount: (client) => toNumber(KanbanAppCore.__default.GetClientPendingLen(client)),
+  GetPendingCount: (client) => toNumber(KanbanAppCore.__default.PendingCount(client)),
 
   // Get client base version
-  GetBaseVersion: (client) => toNumber(KanbanAppCore.__default.GetClientBaseVersion(client)),
+  GetBaseVersion: (client) => toNumber(KanbanAppCore.__default.ClientVersion(client)),
 
   // Get client present model
-  GetPresent: (client) => client.dtor_present,
+  GetPresent: (client) => KanbanAppCore.__default.ClientModel(client),
 
-  // Model accessors
-  GetCols: (m) => {
-    const columnsMap = m.dtor_columns;
-    if (!columnsMap || !columnsMap.Keys) return [];
-    return Array.from(columnsMap.Keys.Elements).map(key => dafnyStringToJs(key));
-  },
+  // Model accessors (v2 structure)
+  GetCols: (m) => seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c)),
 
   GetLane: (m, col) => {
-    const lane = KanbanAppCore.__default.GetLane(m, _dafny.Seq.UnicodeFromString(col));
+    const lane = KanbanDomain.__default.Lane(m, _dafny.Seq.UnicodeFromString(col));
     return seqToArray(lane).map(id => toNumber(id));
   },
 
   GetWip: (m, col) => {
-    const wip = KanbanAppCore.__default.GetWip(m, _dafny.Seq.UnicodeFromString(col));
+    const wip = KanbanDomain.__default.Wip(m, _dafny.Seq.UnicodeFromString(col));
     return toNumber(wip);
   },
 
   GetCardTitle: (m, id) => {
-    const title = KanbanAppCore.__default.GetCardTitle(m, new BigNumber(id));
-    return dafnyStringToJs(title);
+    const cardsMap = m.dtor_cards;
+    const key = new BigNumber(id);
+    if (cardsMap.contains(key)) {
+      const card = cardsMap.get(key);
+      // Dafny optimizes Card datatype: may be unwrapped to just the title string
+      // Check if it's a Card object or directly the title
+      if (card && card.dtor_title !== undefined) {
+        return dafnyStringToJs(card.dtor_title);
+      } else {
+        // Unwrapped: card IS the title
+        return dafnyStringToJs(card);
+      }
+    }
+    return '';
   },
+
+  GetNextId: (m) => toNumber(m.dtor_nextId),
 
   // Convert action to JSON for API
   actionToJson: (action) => {
@@ -164,11 +181,6 @@ const App = {
         col: dafnyStringToJs(action.dtor_col),
         limit: toNumber(action.dtor_limit)
       };
-    } else if (action.is_DeleteColumn) {
-      return {
-        type: 'DeleteColumn',
-        col: dafnyStringToJs(action.dtor_col)
-      };
     } else if (action.is_SetWip) {
       return {
         type: 'SetWip',
@@ -179,21 +191,23 @@ const App = {
       return {
         type: 'AddCard',
         col: dafnyStringToJs(action.dtor_col),
-        id: toNumber(action.dtor_id),
-        pos: toNumber(action.dtor_pos),
         title: dafnyStringToJs(action.dtor_title)
       };
-    } else if (action.is_DeleteCard) {
-      return {
-        type: 'DeleteCard',
-        id: toNumber(action.dtor_id)
-      };
     } else if (action.is_MoveCard) {
+      const place = action.dtor_place;
+      let placeJson;
+      if (place.is_AtEnd) {
+        placeJson = { type: 'AtEnd' };
+      } else if (place.is_Before) {
+        placeJson = { type: 'Before', anchor: toNumber(place.dtor_anchor) };
+      } else if (place.is_After) {
+        placeJson = { type: 'After', anchor: toNumber(place.dtor_anchor) };
+      }
       return {
         type: 'MoveCard',
         id: toNumber(action.dtor_id),
         toCol: dafnyStringToJs(action.dtor_toCol),
-        pos: toNumber(action.dtor_pos)
+        place: placeJson
       };
     } else if (action.is_EditTitle) {
       return {
@@ -203,6 +217,18 @@ const App = {
       };
     }
     return { type: 'Unknown' };
+  },
+
+  // Convert JSON place to Dafny Place
+  placeFromJson: (placeJson) => {
+    if (!placeJson || placeJson.type === 'AtEnd') {
+      return KanbanDomain.Place.create_AtEnd();
+    } else if (placeJson.type === 'Before') {
+      return KanbanDomain.Place.create_Before(new BigNumber(placeJson.anchor));
+    } else if (placeJson.type === 'After') {
+      return KanbanDomain.Place.create_After(new BigNumber(placeJson.anchor));
+    }
+    return KanbanDomain.Place.create_AtEnd();
   },
 
   // Get pending actions as array

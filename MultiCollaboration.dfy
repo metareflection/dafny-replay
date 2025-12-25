@@ -1,58 +1,91 @@
 abstract module {:compile false} Domain {
-    type Model(==)
-    type Err
-    type Action(==)
 
-    datatype Result<T, E> =
+  // --------------------------
+  // Core types
+  // --------------------------
+  type Model(==)
+  type Action(==)
+  type Err
+
+  datatype Result<T, E> =
     | Ok(value: T)
     | Err(error: E)
 
-    // Distinguished no-op action used by OT reconciliation.
-    function NoOp(): Action
+  // --------------------------
+  // Distinguished error
+  // --------------------------
+  // Used by the kernel when *no candidate succeeds*.
+  // This is NOT a semantic error like MissingCard, etc.
+  function RejectErr(): Err
 
-    // Total OT transform: rewrite `local` assuming `remote` happened first.
-    function Transform(remote: Action, local: Action): Action
+  // --------------------------
+  // Semantics
+  // --------------------------
 
-    // Semantic step, may reject.
-    function TryStep(m: Model, a: Action): Result<Model, Err>
+  // Global invariant
+  ghost predicate Inv(m: Model)
 
-    // Global invariant.
-    predicate Inv(m: Model)
+  // Apply a concrete action; may reject with a domain error
+  function TryStep(m: Model, a: Action): Result<Model, Err>
 
-    // Domain obligation.
-    lemma StepPreservesInv(m: Model, a: Action, m2: Model)
-        requires Inv(m)
-        requires TryStep(m, a) == Ok(m2)
-        ensures  Inv(m2)
+  // Domain obligation: successful steps preserve invariant
+  lemma StepPreservesInv(m: Model, a: Action, m2: Model)
+    requires Inv(m)
+    requires TryStep(m, a) == Ok(m2)
+    ensures  Inv(m2)
+
+  // --------------------------
+  // Collaboration hooks
+  // --------------------------
+
+  // Intent-aware rebasing (total)
+  function Rebase(remote: Action, local: Action): Action
+
+  function RebaseThroughSuffix(suffix: seq<Action>, a: Action): Action
+    decreases |suffix|
+  {
+    if |suffix| == 0 then a
+    else
+      RebaseThroughSuffix(suffix[..|suffix|-1],
+                          Rebase(suffix[|suffix|-1], a))
+  }
+
+  // Finite set of admissible candidates the server will try
+  function Candidates(m: Model, a: Action): seq<Action>
+
+  // Meaning-preservation relation (ghost)
+  ghost predicate Explains(orig: Action, cand: Action)
+
+  // --------------------------
+  // Small reject surface obligation
+  // --------------------------
+  // If some admissible interpretation exists, it must appear in Candidates.
+  lemma CandidatesComplete(m: Model, orig: Action, aGood: Action, m2: Model)
+    requires Inv(m)
+    requires Explains(orig, aGood)
+    requires TryStep(m, aGood) == Ok(m2)
+    ensures  aGood in Candidates(m, orig)
 }
-
-// Generic authoritative collaboration kernel:
-// - appliedLog: replayable truth (accepted actions only)
-// - auditLog: records orig request + candidate + accept/reject
-// - OT via total Transform (may yield NoOp)
-// - No methods; Dispatch is a pure function
 
 abstract module {:compile false} MultiCollaboration {
   import D : Domain
 
-  // Minimal rejection taxonomy now; refine later.
   datatype RejectReason =
     | DomainInvalid
 
-  // Reply to a single dispatch.
   datatype Reply =
     | Accepted(newVersion: nat, newPresent: D.Model, applied: D.Action, noChange: bool)
-    | Rejected(reason: RejectReason, candidate: D.Action)
+    | Rejected(reason: RejectReason, rebased: D.Action)
 
-  // Audit outcome for a request.
   datatype RequestOutcome =
-    | AuditAccepted(applied: D.Action, suspiciousNoOp: bool, noChange: bool)
-    | AuditRejected(reason: RejectReason, candidate: D.Action)
+    | AuditAccepted(applied: D.Action, noChange: bool)
+    | AuditRejected(reason: RejectReason, rebased: D.Action)
 
   datatype RequestRecord = Req(
     baseVersion: nat,
     orig: D.Action,
-    candidate: D.Action,
+    rebased: D.Action,
+    chosen: D.Action,
     outcome: RequestOutcome
   )
 
@@ -64,21 +97,19 @@ abstract module {:compile false} MultiCollaboration {
 
   function Version(s: ServerState): nat { |s.appliedLog| }
 
-  function IsSuspiciousNoOp(orig: D.Action, cand: D.Action): bool
+  // Choose first candidate that succeeds. If none succeed, reject.
+  function ChooseCandidate(m: D.Model, cs: seq<D.Action>): D.Result<(D.Model, D.Action), D.Err>
+    decreases |cs|
+    ensures ChooseCandidate(m, cs).Ok? ==>
+            D.TryStep(m, ChooseCandidate(m, cs).value.1) == D.Ok(ChooseCandidate(m, cs).value.0)
   {
-    cand == D.NoOp() && orig != D.NoOp()
-  }
-
-  // Transform an action through a suffix of already-applied actions.
-  function TransformThroughSuffix(suffix: seq<D.Action>, a: D.Action): D.Action
-    decreases |suffix|
-  {
-    if |suffix| == 0 then a
+    if |cs| == 0 then D.Err(D.RejectErr()) // NOTE: never exposed; kernel maps this to Reject
     else
-      TransformThroughSuffix(suffix[..|suffix|-1], D.Transform(suffix[|suffix|-1], a))
+      match D.TryStep(m, cs[0])
+        case Ok(m2) => D.Ok((m2, cs[0]))
+        case Err(_) => ChooseCandidate(m, cs[1..])
   }
 
-  // Pure transition.
   function Dispatch(s: ServerState, baseVersion: nat, orig: D.Action): (ServerState, Reply)
     requires baseVersion <= Version(s)
     requires D.Inv(s.present)
@@ -87,82 +118,82 @@ abstract module {:compile false} MultiCollaboration {
              Version(Dispatch(s, baseVersion, orig).0) == Version(s) + 1
   {
     var suffix := s.appliedLog[baseVersion..];
-    var cand := TransformThroughSuffix(suffix, orig);
+    var rebased := D.RebaseThroughSuffix(suffix, orig);
 
-    match D.TryStep(s.present, cand)
-      case Ok(m2) =>
-        D.StepPreservesInv(s.present, cand, m2);
+    var cs := D.Candidates(s.present, rebased);
+
+    // Try candidates in order.
+    match ChooseCandidate(s.present, cs)
+      case Ok(pair) =>
+        var m2 := pair.0;
+        var chosen := pair.1;
+
+        D.StepPreservesInv(s.present, chosen, m2);
+
         var noChange := (m2 == s.present);
-        var newApplied := s.appliedLog + [cand];
-        var suspicious := IsSuspiciousNoOp(orig, cand);
-        var rec := Req(baseVersion, orig, cand, AuditAccepted(cand, suspicious, noChange));
+        var newApplied := s.appliedLog + [chosen];
+        var rec := Req(baseVersion, orig, rebased, chosen, AuditAccepted(chosen, noChange));
         var newAudit := s.auditLog + [rec];
+
         (ServerState(m2, newApplied, newAudit),
-         Accepted(|newApplied|, m2, cand, noChange))
+         Accepted(|newApplied|, m2, chosen, noChange))
 
       case Err(_) =>
-        var rec := Req(baseVersion, orig, cand, AuditRejected(DomainInvalid, cand));
+        // Rejected: no candidate succeeded.
+        var rec := Req(baseVersion, orig, rebased, rebased, AuditRejected(DomainInvalid, rebased));
         var newAudit := s.auditLog + [rec];
+
         (ServerState(s.present, s.appliedLog, newAudit),
-         Rejected(DomainInvalid, cand))
+         Rejected(DomainInvalid, rebased))
   }
 
-  // Replay a sequence of actions from an initial model.
-  // Returns the final model if all actions succeed, or an error if any fails.
-  function Replay(m: D.Model, log: seq<D.Action>): D.Result<D.Model, D.Err>
-    decreases |log|
-  {
-    if |log| == 0 then D.Ok(m)
-    else
-      match D.TryStep(m, log[0])
-        case Ok(m2) => Replay(m2, log[1..])
-        case Err(e) => D.Err(e)
-  }
+  // ---- Kernel theorem stubs (statements only) ----
 
-  // A server state is reachable from init if replaying its applied log
-  // from init yields its present state.
-  predicate ReachableFrom(init: D.Model, s: ServerState)
-  {
-    Replay(init, s.appliedLog) == D.Ok(s.present)
-  }
-
-  // ---- Kernel theorems ----
-
-  // The core kernel safety statement: Dispatch preserves the domain invariant.
   lemma DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
     requires baseVersion <= Version(s)
     requires D.Inv(s.present)
     ensures  D.Inv(Dispatch(s, baseVersion, orig).0.present)
   {
-    // Follows directly from Dispatch's postcondition.
   }
 
-  // Event-sourcing: if replay succeeds, the result satisfies the invariant.
-  lemma ReplayPreservesInv(init: D.Model, log: seq<D.Action>, result: D.Model)
-    requires D.Inv(init)
-    requires Replay(init, log) == D.Ok(result)
-    ensures  D.Inv(result)
-    decreases |log|
+  // Minimal-reject property (relative to CandidatesComplete):
+  // If there exists an explainable action that succeeds, Dispatch must not reject.
+  // Contrapositive: if Dispatch rejects, no explainable action can succeed.
+  lemma DispatchRejectIsMinimal(s: ServerState, baseVersion: nat, orig: D.Action, aGood: D.Action, m2: D.Model)
+    requires baseVersion <= Version(s)
+    requires D.Inv(s.present)
+    requires D.Explains(D.RebaseThroughSuffix(s.appliedLog[baseVersion..], orig), aGood)
+    requires D.TryStep(s.present, aGood) == D.Ok(m2)
+    // If an explainable action succeeds, Dispatch cannot reject
+    ensures  !Dispatch(s, baseVersion, orig).1.Rejected?
   {
-    if |log| == 0 {
-      // Base case: result == init, and D.Inv(init) holds.
+    // Proof sketch:
+    // 1. By CandidatesComplete, aGood is in Candidates(s.present, rebased)
+    // 2. Since TryStep(s.present, aGood) == Ok(m2), ChooseCandidate will find it
+    // 3. Therefore Dispatch returns Accepted, not Rejected
+    var rebased := D.RebaseThroughSuffix(s.appliedLog[baseVersion..], orig);
+    D.CandidatesComplete(s.present, rebased, aGood, m2);
+    ChooseCandidateFindsGood(s.present, D.Candidates(s.present, rebased), aGood, m2);
+  }
+
+  // Helper: if aGood is in candidates and succeeds, ChooseCandidate returns Ok
+  lemma ChooseCandidateFindsGood(m: D.Model, cs: seq<D.Action>, aGood: D.Action, m2: D.Model)
+    requires aGood in cs
+    requires D.TryStep(m, aGood) == D.Ok(m2)
+    ensures  ChooseCandidate(m, cs).Ok?
+    decreases |cs|
+  {
+    if |cs| == 0 {
+      // Contradiction: aGood in [] is false
+    } else if cs[0] == aGood {
+      // First candidate is aGood, and it succeeds
     } else {
-      // Inductive case: first action succeeds, then recurse.
-      match D.TryStep(init, log[0])
-        case Ok(m2) =>
-          D.StepPreservesInv(init, log[0], m2);
-          ReplayPreservesInv(m2, log[1..], result);
+      match D.TryStep(m, cs[0])
+        case Ok(_) => // First succeeds, we're done
         case Err(_) =>
-          // Contradiction: Replay would have returned Err.
+          // Recurse: aGood must be in cs[1..]
+          assert aGood in cs[1..];
+          ChooseCandidateFindsGood(m, cs[1..], aGood, m2);
     }
-  }
-
-  // If a server state is reachable from a valid init, its present state is valid.
-  lemma PresentAgreesWithAppliedLog(init: D.Model, s: ServerState)
-    requires D.Inv(init)
-    requires ReachableFrom(init, s)
-    ensures  D.Inv(s.present)
-  {
-    ReplayPreservesInv(init, s.appliedLog, s.present);
   }
 }
