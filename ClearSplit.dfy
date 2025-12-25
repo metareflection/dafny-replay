@@ -820,38 +820,66 @@ module ClearSplit {
   }
 
   // Original lemma - now uses impl version + equivalence
-  lemma ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+  lemma ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, bKeys: seq<PersonId>)
     requires NoDuplicates(keys)
     requires forall k :: k in shares.Keys <==> k in keys
     requires |keys| == |shares|
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires forall k :: k in shares.Keys ==> k in b.Keys  // share owners in b
     ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
   {
-    // Use equivalence at the end
-    SumValuesSeqEquiv(shares, keys);
-    assume {:axiom} SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValues(shares);
+    // Use impl version
+    ApplySharesSeqSumChangeImpl(b, shares, keys, bKeys);
+    // Now: SumValuesSeq(ApplySharesSeq(b, shares, keys), bKeys) == SumValuesSeq(b, bKeys) - SumValuesSeq(shares, keys)
+
+    // Result has same keys as b (since share owners are in b)
+    ApplySharesSeqKeysUnchanged(b, shares, keys);
+
+    // Convert to SumValues using equivalence
+    SumValuesSeqEquiv(b, bKeys);
+    SumValuesSeqEquiv(ApplySharesSeq(b, shares, keys), bKeys);
+  }
+
+  // Helper: ApplySharesSeq doesn't change the key set when all share owners are already in b
+  lemma ApplySharesSeqKeysUnchanged(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+    requires forall k :: k in shares.Keys ==> k in b.Keys
+    ensures ApplySharesSeq(b, shares, keys).Keys == b.Keys
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var p := keys[0];
+      var rest := keys[1..];
+      if p in shares {
+        var b' := AddToMap(b, p, -shares[p]);
+        assert b'.Keys == b.Keys;
+        ApplySharesSeqKeysUnchanged(b', shares, rest);
+      } else {
+        ApplySharesSeqKeysUnchanged(b, shares, rest);
+      }
+    }
   }
 
   // Key lemma: applying an expense preserves sum (payer +amount, shares -amount)
-  lemma ApplyExpensePreservesSum(b: map<PersonId, Money>, e: Expense)
+  lemma ApplyExpensePreservesSum(b: map<PersonId, Money>, e: Expense, bKeys: seq<PersonId>)
     requires ShareKeysConsistent(e)
     requires SumValues(e.shares) == e.amount
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires e.paidBy in b  // payer is in balance map
+    requires forall k :: k in e.shares.Keys ==> k in b.Keys  // share owners in balance map
     ensures SumValues(ApplyExpenseToBalances(b, e)) == SumValues(b)
   {
-    // ApplyExpenseToBalances:
-    // 1. b' = AddToMap(b, paidBy, +amount)
-    // 2. result = ApplySharesSeq(b', shares, shareKeys)
     var b' := AddToMap(b, e.paidBy, e.amount);
     AddToMapSumChange(b, e.paidBy, e.amount);
-    assert SumValues(b') == SumValues(b) + e.amount;
+    assert b'.Keys == b.Keys;
 
-    ApplySharesSeqSumChange(b', e.shares, e.shareKeys);
-    // SumValues(result) == SumValues(b') - SumValuesSeq(shares, shareKeys)
+    ApplySharesSeqSumChange(b', e.shares, e.shareKeys, bKeys);
 
-    // Need: SumValuesSeq(shares, shareKeys) == SumValues(shares) == e.amount
     SumValuesSeqEquiv(e.shares, e.shareKeys);
-    assert SumValuesSeq(e.shares, e.shareKeys) == e.amount;
-
-    // Therefore: SumValues(result) == SumValues(b) + amount - amount == SumValues(b)
   }
 
   // Helper: AddToMap changes sum by delta
@@ -894,18 +922,39 @@ module ClearSplit {
   }
 
   // Expenses preserve sum
-  lemma ApplyExpensesPreservesSum(b: map<PersonId, Money>, expenses: seq<Expense>)
+  lemma ApplyExpensesPreservesSum(b: map<PersonId, Money>, expenses: seq<Expense>, bKeys: seq<PersonId>)
     requires forall i :: 0 <= i < |expenses| ==> ShareKeysConsistent(expenses[i])
     requires forall i :: 0 <= i < |expenses| ==> SumValues(expenses[i].shares) == expenses[i].amount
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires forall i :: 0 <= i < |expenses| ==> expenses[i].paidBy in b.Keys
+    requires forall i :: 0 <= i < |expenses| ==> forall k :: k in expenses[i].shares.Keys ==> k in b.Keys
     ensures SumValues(ApplyExpensesSeq(b, expenses)) == SumValues(b)
     decreases |expenses|
   {
     if |expenses| == 0 {
     } else {
-      var b' := ApplyExpenseToBalances(b, expenses[0]);
-      ApplyExpensePreservesSum(b, expenses[0]);
-      ApplyExpensesPreservesSum(b', expenses[1..]);
+      var e := expenses[0];
+      var b' := ApplyExpenseToBalances(b, e);
+      ApplyExpensePreservesSum(b, e, bKeys);
+
+      // b' has same keys as b
+      ApplyExpenseKeysUnchanged(b, e);
+
+      ApplyExpensesPreservesSum(b', expenses[1..], bKeys);
     }
+  }
+
+  // Helper: ApplyExpenseToBalances doesn't change key set when payer and share owners are in b
+  lemma ApplyExpenseKeysUnchanged(b: map<PersonId, Money>, e: Expense)
+    requires e.paidBy in b.Keys
+    requires forall k :: k in e.shares.Keys ==> k in b.Keys
+    ensures ApplyExpenseToBalances(b, e).Keys == b.Keys
+  {
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    assert b'.Keys == b.Keys;
+    ApplySharesSeqKeysUnchanged(b', e.shares, e.shareKeys);
   }
 
   // Settlements preserve sum
@@ -932,17 +981,23 @@ module ClearSplit {
     // ZeroBalances has sum 0
     var b0 := ZeroBalances(model.members);
     assert SumValues(b0) == 0;
+    assert b0.Keys == model.members;
+
+    // memberList covers members
+    var bKeys := model.memberList;
 
     // Expenses preserve sum
     assert forall i :: 0 <= i < |model.expenses| ==> WellFormedExpense(model.members, model.expenses[i]);
     forall i | 0 <= i < |model.expenses|
       ensures ShareKeysConsistent(model.expenses[i])
       ensures SumValues(model.expenses[i].shares) == model.expenses[i].amount
+      ensures model.expenses[i].paidBy in b0.Keys
+      ensures forall k :: k in model.expenses[i].shares.Keys ==> k in b0.Keys
     {
       assert WellFormedExpense(model.members, model.expenses[i]);
     }
     var b1 := ApplyExpensesSeq(b0, model.expenses);
-    ApplyExpensesPreservesSum(b0, model.expenses);
+    ApplyExpensesPreservesSum(b0, model.expenses, bKeys);
     assert SumValues(b1) == 0;
 
     // Settlements preserve sum
