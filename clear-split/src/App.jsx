@@ -257,7 +257,7 @@ function ClearSplit() {
               <label className="form-label">Amount</label>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 className="form-input"
                 placeholder="0.00"
                 value={expenseAmount}
@@ -316,7 +316,7 @@ function ClearSplit() {
               <label className="form-label">Amount</label>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 className="form-input"
                 placeholder="0.00"
                 value={settlementAmount}
