@@ -362,6 +362,14 @@
   margin: 0.5rem 0;
 }
 
+/* Status */
+.status-msg {
+  font-size: 0.8rem;
+  color: #22c55e;
+  margin: 0.5rem 0;
+  font-family: monospace;
+}
+
 /* Footer */
 .footer {
   margin-top: 2rem;

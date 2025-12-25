@@ -29,6 +29,12 @@ function ClearSplit() {
   const [settlementAmount, setSettlementAmount] = useState('');
 
   const [activeTab, setActiveTab] = useState('balances');
+  const [status, setStatus] = useState(null);
+
+  const showStatus = (msg) => {
+    setStatus(msg);
+    setTimeout(() => setStatus(null), 2000);
+  };
 
   const addMember = () => {
     const name = memberInput.trim();
@@ -92,6 +98,7 @@ function ClearSplit() {
       setModel(result.model);
       setExpenseAmount('');
       setError(null);
+      showStatus('Expense recorded');
     } else {
       setError('Failed to add expense');
     }
@@ -116,6 +123,7 @@ function ClearSplit() {
       setModel(result.model);
       setSettlementAmount('');
       setError(null);
+      showStatus('Payment recorded');
     } else {
       setError('Failed to add settlement');
     }
@@ -277,6 +285,7 @@ function ClearSplit() {
           <button className="btn btn-primary" onClick={addExpense}>
             Add Expense
           </button>
+          {status && <p className="status-msg">{status}</p>}
         </div>
       )}
 
@@ -319,6 +328,7 @@ function ClearSplit() {
           <button className="btn btn-primary" onClick={addSettlement}>
             Record Payment
           </button>
+          {status && <p className="status-msg">{status}</p>}
         </div>
       )}
 
