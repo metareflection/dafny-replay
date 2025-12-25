@@ -406,6 +406,8 @@ module ClearSplit refines ClearSplitSpec {
     ensures SumValues(m) == m[p] + SumValues(m - {p})
   {
     if |m| == 1 {
+      assert |m.Keys| == 1;
+      assert p in m.Keys;
       assert m.Keys == {p};
     } else {
       assert |m| > 0;
