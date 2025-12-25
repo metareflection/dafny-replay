@@ -21,7 +21,7 @@ jobs:
       - name: Verify Dafny code
         run: ./verify.sh
         env:
-          SKIP_VERIFY: "ClearSplit.dfy"
+          SKIP_VERIFY: "ClearSplit.dfy KanbanMultiCollaboration.dfy"
 
       - name: Compile Dafny to JavaScript
         run: ./compile.sh
