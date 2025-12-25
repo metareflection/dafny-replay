@@ -410,8 +410,11 @@ module ClearSplit refines ClearSplitSpec {
       var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
       // k is the unique element, must equal p
       if k != p {
-        assert k in m && p in m && k != p;
-        assert |m.Keys| >= 2;
+        assert k in m.Keys;
+        assert p in m.Keys;
+        assert {k, p} <= m.Keys;
+        assert |{k, p}| == 2;
+        assert |m.Keys| >= |{k, p}|;
         assert false;
       }
       assert k == p;
