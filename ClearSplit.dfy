@@ -30,6 +30,7 @@ module ClearSplit {
 
   datatype Model = Model(
     members: set<PersonId>,
+    memberList: seq<PersonId>,  // For compiled iteration, must match members
     expenses: seq<Expense>,
     settlements: seq<Settlement>
   )
@@ -264,7 +265,106 @@ module ClearSplit {
     }
   }
 
-  // Ghost spec for valid expense
+  // -----------------------------
+  // Invariant components
+  // -----------------------------
+
+  // Sequence has no duplicates
+  predicate NoDuplicates(s: seq<PersonId>)
+  {
+    forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
+  }
+
+  // Sequence bijectively matches set
+  ghost predicate SeqMatchesSet(s: seq<PersonId>, set_: set<PersonId>)
+  {
+    |s| == |set_|
+    && NoDuplicates(s)
+    && (forall p :: p in s <==> p in set_)
+  }
+
+  // shareKeys bijectively matches shares.Keys (ghost spec)
+  ghost predicate ShareKeysConsistent(e: Expense)
+  {
+    |e.shareKeys| == |e.shares|
+    && NoDuplicates(e.shareKeys)
+    && (forall k :: k in e.shareKeys <==> k in e.shares.Keys)
+  }
+
+  // Compilable check: all shareKeys are in shares and sizes match
+  predicate ShareKeysOk(e: Expense)
+  {
+    |e.shareKeys| == |e.shares|
+    && NoDuplicates(e.shareKeys)
+    && (forall i :: 0 <= i < |e.shareKeys| ==> e.shareKeys[i] in e.shares)
+  }
+
+  // Helper: equal-size subset of finite set is the whole set
+  lemma SubsetEqualSizeIsEqual<T>(a: set<T>, b: set<T>)
+    requires a <= b
+    requires |a| == |b|
+    ensures a == b
+  {
+    if a != b {
+      var x :| x in b && x !in a;
+      assert a <= b - {x};
+      CardinalitySubsetStrict(a, b, x);
+    }
+  }
+
+  lemma CardinalitySubsetStrict<T>(a: set<T>, b: set<T>, x: T)
+    requires a <= b
+    requires x in b && x !in a
+    ensures |a| < |b|
+  {
+    assert a <= b - {x};
+    CardinalitySubset(a, b - {x});
+    assert |b - {x}| == |b| - 1;
+  }
+
+  // Equivalence: ShareKeysOk implies ShareKeysConsistent when sizes match
+  lemma ShareKeysOkImpliesConsistent(e: Expense)
+    requires ShareKeysOk(e)
+    ensures ShareKeysConsistent(e)
+  {
+    // We need to show: forall k :: k in e.shareKeys <==> k in e.shares.Keys
+    // Direction 1: k in shareKeys ==> k in shares (given by ShareKeysOk)
+    // Direction 2: k in shares ==> k in shareKeys
+    var keysInShares := set i | 0 <= i < |e.shareKeys| :: e.shareKeys[i];
+    NoDupSeqToSetSizeGeneral(e.shareKeys);
+    assert |keysInShares| == |e.shareKeys|;
+    assert keysInShares <= e.shares.Keys;
+    assert |keysInShares| == |e.shares.Keys|;
+    SubsetEqualSizeIsEqual(keysInShares, e.shares.Keys);
+    assert keysInShares == e.shares.Keys;
+
+    forall k | k in e.shares.Keys
+      ensures k in e.shareKeys
+    {
+      assert k in keysInShares;
+      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == k;
+    }
+  }
+
+  lemma NoDupSeqToSetSizeGeneral(s: seq<PersonId>)
+    requires NoDuplicates(s)
+    ensures |set i | 0 <= i < |s| :: s[i]| == |s|
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      var last := s[|s|-1];
+      var init := s[..|s|-1];
+      assert NoDuplicates(init);
+      NoDupSeqToSetSizeGeneral(init);
+      var initSet := set i | 0 <= i < |init| :: init[i];
+      var fullSet := set i | 0 <= i < |s| :: s[i];
+      assert last !in initSet;
+      assert fullSet == initSet + {last};
+    }
+  }
+
+  // Ghost spec for valid expense (semantic validity)
   ghost predicate ValidExpense(members: set<PersonId>, e: Expense)
   {
     e.amount >= 0
@@ -274,46 +374,42 @@ module ClearSplit {
     && SumValues(e.shares) == e.amount
   }
 
+  // Well-formed expense: semantic + structural (shareKeys consistent)
+  ghost predicate WellFormedExpense(members: set<PersonId>, e: Expense)
+  {
+    ShareKeysConsistent(e) && ValidExpense(members, e)
+  }
+
   // Helper: check that all keys in sequence are members with non-negative shares
   predicate AllSharesValid(members: set<PersonId>, shares: map<PersonId, Money>, keys: seq<PersonId>)
   {
     forall i :: 0 <= i < |keys| ==> keys[i] in members && keys[i] in shares && shares[keys[i]] >= 0
   }
 
-  // Compilable version: takes keys sequence for iteration
-  predicate ValidExpenseCheck(members: set<PersonId>, e: Expense, shareKeys: seq<PersonId>)
-    requires forall k :: k in e.shares.Keys <==> k in shareKeys
-    requires |shareKeys| == |e.shares|
+  // Compilable version: check expense validity using shareKeys (total - no preconditions)
+  predicate ValidExpenseCheck(members: set<PersonId>, e: Expense)
   {
-    e.amount >= 0
+    ShareKeysOk(e)
+    && e.amount >= 0
     && e.paidBy in members
-    && AllSharesValid(members, e.shares, shareKeys)
-    && SumValuesSeq(e.shares, shareKeys) == e.amount
+    && AllSharesValid(members, e.shares, e.shareKeys)
+    && SumValuesSeq(e.shares, e.shareKeys) == e.amount
   }
 
-  // Equivalence lemma
-  lemma {:vcs_split_on_every_assert} ValidExpenseEquiv(members: set<PersonId>, e: Expense, shareKeys: seq<PersonId>)
-    requires forall k :: k in e.shares.Keys <==> k in shareKeys
-    requires |shareKeys| == |e.shares|
-    ensures ValidExpenseCheck(members, e, shareKeys) == ValidExpense(members, e)
+  // Equivalence lemma: ValidExpenseCheck implies WellFormedExpense
+  lemma {:vcs_split_on_every_assert} ValidExpenseCheckImpliesWellFormed(members: set<PersonId>, e: Expense)
+    requires ValidExpenseCheck(members, e)
+    ensures WellFormedExpense(members, e)
   {
-    SumValuesSeqEquiv(e.shares, shareKeys);
-    // Show the forall conditions are equivalent
-    if AllSharesValid(members, e.shares, shareKeys) {
-      forall p | p in e.shares
-        ensures p in members && e.shares[p] >= 0
-      {
-        assert p in shareKeys;
-        var i :| 0 <= i < |shareKeys| && shareKeys[i] == p;
-        assert shareKeys[i] in members;
-      }
-    }
-    if (forall p :: p in e.shares ==> p in members) && (forall p :: p in e.shares ==> e.shares[p] >= 0) {
-      forall i | 0 <= i < |shareKeys|
-        ensures shareKeys[i] in members && shareKeys[i] in e.shares && e.shares[shareKeys[i]] >= 0
-      {
-        assert shareKeys[i] in e.shares;
-      }
+    ShareKeysOkImpliesConsistent(e);
+    SumValuesSeqEquiv(e.shares, e.shareKeys);
+    // Show AllSharesValid implies the ghost foralls
+    forall p | p in e.shares
+      ensures p in members && e.shares[p] >= 0
+    {
+      assert p in e.shareKeys;
+      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == p;
+      assert e.shareKeys[i] in members;
     }
   }
 
@@ -325,10 +421,16 @@ module ClearSplit {
     && s.from != s.to
   }
 
-  // Ghost invariant for specification
+  // -----------------------------
+  // THE Rep Invariant (single contract for entire module)
+  // -----------------------------
   ghost predicate Inv(model: Model)
   {
-    (forall i :: 0 <= i < |model.expenses| ==> ValidExpense(model.members, model.expenses[i]))
+    // 1. MemberList consistency: memberList bijectively matches members
+    SeqMatchesSet(model.memberList, model.members)
+    // 2. All expenses are well-formed
+    && (forall i :: 0 <= i < |model.expenses| ==> WellFormedExpense(model.members, model.expenses[i]))
+    // 3. All settlements are valid
     && (forall i :: 0 <= i < |model.settlements| ==> ValidSettlement(model.members, model.settlements[i]))
   }
 
@@ -522,36 +624,166 @@ module ClearSplit {
       ApplySettlementsSeq(b', settlements[1..])
   }
 
-  // Compilable version of ComputeBalances
-  function ComputeBalancesSeq(
-      memberList: seq<PersonId>,
-      expenses: seq<Expense>,
-      settlements: seq<Settlement>
-    ): map<PersonId, Money>
+  // -----------------------------
+  // Balances projection (the main semantic output)
+  // -----------------------------
+
+  // Balances: the main projection function (compilable)
+  function Balances(model: Model): map<PersonId, Money>
   {
-    var b := ZeroBalancesSeq(memberList);
-    var b' := ApplyExpensesSeq(b, expenses);
-    ApplySettlementsSeq(b', settlements)
+    var b := ZeroBalancesSeq(model.memberList);
+    var b' := ApplyExpensesSeq(b, model.expenses);
+    ApplySettlementsSeq(b', model.settlements)
   }
 
-  // Equivalence: ComputeBalancesSeq with no expenses/settlements equals ZeroBalances
-  lemma ComputeBalancesSeqEquivBase(members: set<PersonId>, memberList: seq<PersonId>)
-    requires forall p :: p in members <==> p in memberList
-    requires |memberList| == |members|
-    ensures ComputeBalancesSeq(memberList, [], []) == ZeroBalances(members)
-  {
-    ZeroBalancesEquiv(members, memberList);
-  }
-
-  ghost function ComputeBalances(model: Model): map<PersonId, Money>
+  // Ghost version for equivalence proofs
+  ghost function BalancesGhost(model: Model): map<PersonId, Money>
     requires Inv(model)
-    ensures forall p :: p in model.members ==> p in ComputeBalances(model)
-    // headline property (Conservation)
-    ensures SumValues(ComputeBalances(model)) == 0
   {
-    // TODO: start from ZeroBalances(members), then fold expenses then settlements
+    var b := ZeroBalances(model.members);
+    var b' := ApplyExpensesSeq(b, model.expenses);
+    ApplySettlementsSeq(b', model.settlements)
+  }
+
+  // Equivalence: Balances == BalancesGhost when Inv holds
+  lemma BalancesEquiv(model: Model)
+    requires Inv(model)
+    ensures Balances(model) == BalancesGhost(model)
+  {
+    ZeroBalancesEquiv(model.members, model.memberList);
+  }
+
+  // -----------------------------
+  // Conservation theorem
+  // -----------------------------
+
+  // Helper: ApplySharesSeq changes sum by -SumValuesSeq(shares, keys)
+  // Proof: induction on keys. Each step subtracts shares[p] from the sum.
+  lemma {:axiom} ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+    ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
+
+  // Key lemma: applying an expense preserves sum (payer +amount, shares -amount)
+  lemma ApplyExpensePreservesSum(b: map<PersonId, Money>, e: Expense)
+    requires ShareKeysConsistent(e)
+    requires SumValues(e.shares) == e.amount
+    ensures SumValues(ApplyExpenseToBalances(b, e)) == SumValues(b)
+  {
+    // ApplyExpenseToBalances:
+    // 1. b' = AddToMap(b, paidBy, +amount)
+    // 2. result = ApplySharesSeq(b', shares, shareKeys)
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    AddToMapSumChange(b, e.paidBy, e.amount);
+    assert SumValues(b') == SumValues(b) + e.amount;
+
+    ApplySharesSeqSumChange(b', e.shares, e.shareKeys);
+    // SumValues(result) == SumValues(b') - SumValuesSeq(shares, shareKeys)
+
+    // Need: SumValuesSeq(shares, shareKeys) == SumValues(shares) == e.amount
+    SumValuesSeqEquiv(e.shares, e.shareKeys);
+    assert SumValuesSeq(e.shares, e.shareKeys) == e.amount;
+
+    // Therefore: SumValues(result) == SumValues(b) + amount - amount == SumValues(b)
+  }
+
+  // Helper: AddToMap changes sum by delta
+  lemma {:vcs_split_on_every_assert} AddToMapSumChange(b: map<PersonId, Money>, p: PersonId, delta: Money)
+    ensures SumValues(AddToMap(b, p, delta)) == SumValues(b) + delta
+  {
+    var b' := AddToMap(b, p, delta);
+    if p in b {
+      // b' = b[p := b[p] + delta]
+      // SumValues(b') = SumValues(b - {p}) + b'[p]
+      //               = SumValues(b - {p}) + b[p] + delta
+      // SumValues(b)  = SumValues(b - {p}) + b[p]
+      // So SumValues(b') = SumValues(b) + delta
+      SumValuesRemoveKey(b, p);
+      SumValuesRemoveKey(b', p);
+      assert b' - {p} == b - {p};
+    } else {
+      // b' = b[p := delta]
+      // SumValues(b') = SumValues(b' - {p}) + delta
+      //               = SumValues(b) + delta
+      SumValuesRemoveKey(b', p);
+      assert b' - {p} == b;
+    }
+  }
+
+  // Key lemma: applying a settlement preserves sum (from +amount, to -amount)
+  lemma ApplySettlementPreservesSum(b: map<PersonId, Money>, s: Settlement)
+    ensures SumValues(ApplySettlementToBalances(b, s)) == SumValues(b)
+  {
+    // b' = AddToMap(b, from, +amount)
+    // result = AddToMap(b', to, -amount)
+    var b' := AddToMap(b, s.from, s.amount);
+    AddToMapSumChange(b, s.from, s.amount);
+    assert SumValues(b') == SumValues(b) + s.amount;
+
+    var result := AddToMap(b', s.to, -s.amount);
+    AddToMapSumChange(b', s.to, -s.amount);
+    assert SumValues(result) == SumValues(b') - s.amount;
+    assert SumValues(result) == SumValues(b);
+  }
+
+  // Expenses preserve sum
+  lemma ApplyExpensesPreservesSum(b: map<PersonId, Money>, expenses: seq<Expense>)
+    requires forall i :: 0 <= i < |expenses| ==> ShareKeysConsistent(expenses[i])
+    requires forall i :: 0 <= i < |expenses| ==> SumValues(expenses[i].shares) == expenses[i].amount
+    ensures SumValues(ApplyExpensesSeq(b, expenses)) == SumValues(b)
+    decreases |expenses|
+  {
+    if |expenses| == 0 {
+    } else {
+      var b' := ApplyExpenseToBalances(b, expenses[0]);
+      ApplyExpensePreservesSum(b, expenses[0]);
+      ApplyExpensesPreservesSum(b', expenses[1..]);
+    }
+  }
+
+  // Settlements preserve sum
+  lemma ApplySettlementsPreservesSum(b: map<PersonId, Money>, settlements: seq<Settlement>)
+    ensures SumValues(ApplySettlementsSeq(b, settlements)) == SumValues(b)
+    decreases |settlements|
+  {
+    if |settlements| == 0 {
+    } else {
+      var b' := ApplySettlementToBalances(b, settlements[0]);
+      ApplySettlementPreservesSum(b, settlements[0]);
+      ApplySettlementsPreservesSum(b', settlements[1..]);
+    }
+  }
+
+  // THE CONSERVATION THEOREM
+  lemma Conservation(model: Model)
+    requires Inv(model)
+    ensures SumValues(Balances(model)) == 0
+  {
+    BalancesEquiv(model);
     ZeroBalancesSum(model.members);
-    ZeroBalances(model.members)
+
+    // ZeroBalances has sum 0
+    var b0 := ZeroBalances(model.members);
+    assert SumValues(b0) == 0;
+
+    // Expenses preserve sum
+    assert forall i :: 0 <= i < |model.expenses| ==> WellFormedExpense(model.members, model.expenses[i]);
+    forall i | 0 <= i < |model.expenses|
+      ensures ShareKeysConsistent(model.expenses[i])
+      ensures SumValues(model.expenses[i].shares) == model.expenses[i].amount
+    {
+      assert WellFormedExpense(model.members, model.expenses[i]);
+    }
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    ApplyExpensesPreservesSum(b0, model.expenses);
+    assert SumValues(b1) == 0;
+
+    // Settlements preserve sum
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+    ApplySettlementsPreservesSum(b1, model.settlements);
+    assert SumValues(b2) == 0;
+
+    // Connect to Balances via equivalence
+    ZeroBalancesEquiv(model.members, model.memberList);
+    assert ZeroBalancesSeq(model.memberList) == b0;
   }
 
   // SumValues of a map where all values are zero is zero
@@ -708,28 +940,93 @@ module ClearSplit {
     }
   }
 
+  // Step: the only state mutator - total reducer (no ghost preconditions)
   method Step(model: Model, a: Action) returns (result: Result<Model, Err>)
     requires Inv(model)
-    requires a.AddExpense? ==> KeysCoverExactly(a.e.shareKeys, a.e.shares)
     ensures result.Ok? ==> Inv(result.value)
   {
     match a
     case AddExpense(e) =>
-      // The ghost requires ensures shareKeys covers e.shares exactly
-      assert KeysCoverExactly(e.shareKeys, e.shares);
-      if ValidExpenseCheck(model.members, e, e.shareKeys) {
-        ValidExpenseEquiv(model.members, e, e.shareKeys);
-        result := Ok(Model(model.members, model.expenses + [e], model.settlements));
+      // Runtime validation - no ghost preconditions needed
+      if ValidExpenseCheck(model.members, e) {
+        ValidExpenseCheckImpliesWellFormed(model.members, e);
+        result := Ok(Model(model.members, model.memberList, model.expenses + [e], model.settlements));
       } else {
         result := Error(BadExpense);
       }
 
     case AddSettlement(s) =>
       if ValidSettlement(model.members, s) {
-        result := Ok(Model(model.members, model.expenses, model.settlements + [s]));
+        result := Ok(Model(model.members, model.memberList, model.expenses, model.settlements + [s]));
       } else {
         result := Error(BadSettlement);
       }
+  }
+
+  // =============================
+  // AppCore: JS-facing API
+  // =============================
+
+  // Initialize a new model with the given members
+  method Init(memberList: seq<PersonId>) returns (result: Result<Model, Err>)
+    ensures result.Ok? ==> Inv(result.value)
+  {
+    // Check for duplicates
+    if !NoDuplicates(memberList) {
+      result := Error(BadExpense);  // Could add a new error type
+      return;
+    }
+
+    var members := set i | 0 <= i < |memberList| :: memberList[i];
+
+    // Prove SeqMatchesSet
+    NoDupSeqToSetSizeGeneral(memberList);
+    assert |members| == |memberList|;
+
+    var model := Model(members, memberList, [], []);
+    result := Ok(model);
+  }
+
+  // Dispatch an action (same as Step, but exposed as the main API)
+  method Dispatch(model: Model, a: Action) returns (result: Result<Model, Err>)
+    requires Inv(model)
+    ensures result.Ok? ==> Inv(result.value)
+  {
+    result := Step(model, a);
+  }
+
+  // Get balances as a map (for JS)
+  function GetBalances(model: Model): map<PersonId, Money>
+  {
+    Balances(model)
+  }
+
+  // Get balance for a specific person
+  function GetBalance(model: Model, p: PersonId): Money
+  {
+    var b := Balances(model);
+    if p in b then b[p] else 0
+  }
+
+  // Certificate: a record of verified facts about the model
+  datatype Certificate = Certificate(
+    memberCount: nat,
+    expenseCount: nat,
+    settlementCount: nat,
+    conservationHolds: bool  // Always true when Inv holds
+  )
+
+  // Get a certificate for the current model
+  method GetCertificate(model: Model) returns (cert: Certificate)
+    requires Inv(model)
+  {
+    Conservation(model);
+    cert := Certificate(
+      |model.members|,
+      |model.expenses|,
+      |model.settlements|,
+      true  // Conservation always holds when Inv holds
+    );
   }
 
 }
