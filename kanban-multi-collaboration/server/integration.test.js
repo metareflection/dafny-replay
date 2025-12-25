@@ -202,7 +202,7 @@ describe('Multi-Client Collaboration Scenarios', () => {
 
       // A comes online and flushes
       clientA.goOnline();
-      const flushResults = clientA.flush();
+      const _flushResults = clientA.flush();
 
       // Verify: Card exists in exactly one column, no duplicates
       const finalModel = clientA.model;
