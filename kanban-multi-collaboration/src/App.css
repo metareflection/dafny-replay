@@ -165,6 +165,22 @@
 
 .card-title {
   font-size: 0.95rem;
+  cursor: text;
+}
+
+.card-edit-form {
+  margin: 0;
+}
+
+.card-edit-form input {
+  width: 100%;
+  font-size: 0.95rem;
+  padding: 0.25rem;
+  border: 1px solid #646cff;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  box-sizing: border-box;
 }
 
 .add-card-form {

@@ -248,9 +248,8 @@ module KanbanDomain refines Domain {
         // Remote moved anchor card: degrade local's placement
         else MoveCard(lid, ltoCol, DegradeIfAnchorMoved(rid, lplace))
 
-      // Same card edit: keep local (LWW).
-      case (EditTitle(rid, _), EditTitle(lid, _)) =>
-        if rid == lid then local else local
+      // Edits: keep local (LWW).
+      case (EditTitle(_, _), EditTitle(_, _)) => local
 
       // Remote move might affect local move's anchor
       case (MoveCard(rid, _, _), _) => local

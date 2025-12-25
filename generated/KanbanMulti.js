@@ -1514,22 +1514,16 @@ let KanbanDomain = (function() {
       {
         let _02 = (_source0)[0];
         if (_02.is_EditTitle) {
-          let _4_rid = (_02).id;
           let _12 = (_source0)[1];
           if (_12.is_EditTitle) {
-            let _5_lid = (_12).id;
-            if ((_4_rid).isEqualTo(_5_lid)) {
-              return local;
-            } else {
-              return local;
-            }
+            return local;
           }
         }
       }
       {
         let _03 = (_source0)[0];
         if (_03.is_MoveCard) {
-          let _6_rid = (_03).id;
+          let _4_rid = (_03).id;
           return local;
         }
       }
