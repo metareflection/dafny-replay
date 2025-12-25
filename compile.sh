@@ -33,4 +33,10 @@ echo "Copying to kanban-multi-collaboration project..."
 cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
 cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
 
+echo "Compiling ClearSplit to JavaScript..."
+dafny translate js --no-verify -o generated/ClearSplit --include-runtime ClearSplit.dfy
+
+echo "Copying to clear-split project..."
+cp generated/ClearSplit.js clear-split/src/dafny/ClearSplit.cjs
+
 echo "Done."
