@@ -34,6 +34,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 | App         | Domain                    | Key Guarantees |
 |-------------|---------------------------|----------------|
+| Kanban      | Task board                | Exact card partition (no duplication/loss), WIP limits respected |
 | ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
 
 ---
