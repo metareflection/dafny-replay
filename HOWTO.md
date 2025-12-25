@@ -233,7 +233,7 @@ export default MyApp
 
 ## Step 9: Add Styling (Optional)
 
-Edit `my-app/src/App.css` as you see fit.
+Edit `my-app/src/App.css` as you see fit ([example](counter/src/App.css)).
 
 ## Step 10: Run the App
 
