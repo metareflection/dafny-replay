@@ -6,86 +6,18 @@
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import BigNumber from 'bignumber.js';
-
-// Configure BigNumber as Dafny expects
-BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
-
-// Load Dafny-generated code
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const kanbanCode = readFileSync(join(__dirname, 'KanbanMulti.cjs'), 'utf-8');
-
-const require = (mod) => {
-  if (mod === 'bignumber.js') return BigNumber;
-  throw new Error(`Unknown module: ${mod}`);
-};
-
-const initDafny = new Function('require', `
-  ${kanbanCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
-`);
-
-const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require);
+import {
+  KanbanMultiCollaboration,
+  KanbanAppCore,
+  modelToJs,
+  actionFromJson,
+  createInitialModel,
+  toNumber,
+  BigNumber
+} from './kanban-core.js';
 
 // ============================================================
-// Test Helpers - Mirror the server's conversion functions
-// ============================================================
-
-const toNumber = (bn) => {
-  if (bn && typeof bn.toNumber === 'function') return bn.toNumber();
-  return bn;
-};
-
-const dafnyStringToJs = (seq) => {
-  if (typeof seq === 'string') return seq;
-  if (seq.toVerbatimString) return seq.toVerbatimString(false);
-  return Array.from(seq).join('');
-};
-
-const seqToArray = (seq) => {
-  const arr = [];
-  for (let i = 0; i < seq.length; i++) arr.push(seq[i]);
-  return arr;
-};
-
-const modelToJs = (m) => {
-  const cols = seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c));
-  const lanesMap = m.dtor_lanes;
-  const wipMap = m.dtor_wip;
-  const cardsMap = m.dtor_cards;
-  const nextId = toNumber(m.dtor_nextId);
-
-  const lanes = {};
-  const wip = {};
-  const cards = {};
-
-  if (lanesMap && lanesMap.Keys) {
-    for (const key of lanesMap.Keys.Elements) {
-      const colName = dafnyStringToJs(key);
-      lanes[colName] = seqToArray(lanesMap.get(key)).map(id => toNumber(id));
-    }
-  }
-  if (wipMap && wipMap.Keys) {
-    for (const key of wipMap.Keys.Elements) {
-      wip[dafnyStringToJs(key)] = toNumber(wipMap.get(key));
-    }
-  }
-  if (cardsMap && cardsMap.Keys) {
-    for (const key of cardsMap.Keys.Elements) {
-      const card = cardsMap.get(key);
-      const title = card.dtor_title !== undefined ? card.dtor_title : card;
-      cards[toNumber(key)] = { title: dafnyStringToJs(title) };
-    }
-  }
-  return { cols, lanes, wip, cards, nextId };
-};
-
-// ============================================================
-// Server Simulation - Direct calls to Dafny kernel
+// Server Simulation - Uses the same code as the real server
 // ============================================================
 
 class TestServer {
@@ -94,14 +26,7 @@ class TestServer {
   }
 
   reset() {
-    const initialModel = KanbanDomain.Model.create_Model(
-      _dafny.Seq.of(),
-      _dafny.Map.Empty,
-      _dafny.Map.Empty,
-      _dafny.Map.Empty,
-      _dafny.ZERO
-    );
-    this.state = KanbanAppCore.__default.InitServer(initialModel);
+    this.state = KanbanAppCore.__default.InitServer(createInitialModel());
   }
 
   sync() {
@@ -112,7 +37,7 @@ class TestServer {
 
   dispatch(baseVersion, action) {
     const baseVersionBN = new BigNumber(baseVersion);
-    const dafnyAction = this._parseAction(action);
+    const dafnyAction = actionFromJson(action);
 
     const result = KanbanMultiCollaboration.__default.Dispatch(
       this.state, baseVersionBN, dafnyAction
@@ -129,47 +54,6 @@ class TestServer {
     } else {
       return { status: 'rejected', reason: 'DomainInvalid' };
     }
-  }
-
-  _parseAction(action) {
-    switch (action.type) {
-      case 'NoOp':
-        return KanbanDomain.Action.create_NoOp();
-      case 'AddColumn':
-        return KanbanDomain.Action.create_AddColumn(
-          _dafny.Seq.UnicodeFromString(action.col),
-          new BigNumber(action.limit)
-        );
-      case 'AddCard':
-        return KanbanDomain.Action.create_AddCard(
-          _dafny.Seq.UnicodeFromString(action.col),
-          _dafny.Seq.UnicodeFromString(action.title)
-        );
-      case 'MoveCard':
-        return KanbanDomain.Action.create_MoveCard(
-          new BigNumber(action.id),
-          _dafny.Seq.UnicodeFromString(action.toCol),
-          this._parsePlace(action.place)
-        );
-      case 'EditTitle':
-        return KanbanDomain.Action.create_EditTitle(
-          new BigNumber(action.id),
-          _dafny.Seq.UnicodeFromString(action.title)
-        );
-      default:
-        throw new Error(`Unknown action type: ${action.type}`);
-    }
-  }
-
-  _parsePlace(place) {
-    if (!place || place.type === 'AtEnd') {
-      return KanbanDomain.Place.create_AtEnd();
-    } else if (place.type === 'Before') {
-      return KanbanDomain.Place.create_Before(new BigNumber(place.anchor));
-    } else if (place.type === 'After') {
-      return KanbanDomain.Place.create_After(new BigNumber(place.anchor));
-    }
-    return KanbanDomain.Place.create_AtEnd();
   }
 }
 
