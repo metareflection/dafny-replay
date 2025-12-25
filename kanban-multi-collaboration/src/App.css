@@ -57,6 +57,33 @@
   color: #ff6b6b;
 }
 
+.status-bar .status.offline {
+  color: #ff9800;
+}
+
+.version-stale {
+  color: #ff9800;
+  font-weight: bold;
+}
+
+.offline-btn {
+  background: #ff9800 !important;
+  border-color: #ff9800 !important;
+}
+
+.offline-btn:hover {
+  background: #f57c00 !important;
+}
+
+.online-btn {
+  background: #4caf50 !important;
+  border-color: #4caf50 !important;
+}
+
+.online-btn:hover {
+  background: #388e3c !important;
+}
+
 .pending-badge {
   background: #ff9800;
   color: #000;
