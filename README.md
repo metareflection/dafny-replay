@@ -307,6 +307,9 @@ npm run dev
 
 ---
 
+See [HOWTO.md](HOWTO) for a walkthrough of how to build a Dafny-verified React app.
+
+---
 
 ## What this is not
 
