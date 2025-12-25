@@ -9,7 +9,8 @@
     "client": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test server/integration.test.js"
   },
   "dependencies": {
     "bignumber.js": "^9.3.1",
