@@ -307,9 +307,9 @@ npm run dev
 
 ---
 
-See [HOWTO.md](HOWTO) for a walkthrough of how to build a Dafny-verified React app.
+See [HOWTO.md](HOWTO.md) for a walkthrough of how to build a Dafny-verified React app.
 
-See [INTEGRATION.md](INTEGRATION) for notes on integrating Dafny-compiled JavaScript into a JavaScript codebase.
+See [INTEGRATION.md](INTEGRATION.md) for notes on integrating Dafny-compiled JavaScript into a JavaScript codebase.
 
 ---
 
