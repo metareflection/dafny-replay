@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dafny
+        uses: dafny-lang/setup-dafny-action@v1
+        with:
+          dafny-version: '4.11.0'
+
+      - name: Verify Dafny code
+        run: ./verify.sh
+
+      - name: Compile Dafny to JavaScript
+        run: ./compile.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: kanban-multi-collaboration
+        run: npm ci
+
+      - name: Run integration tests
+        working-directory: kanban-multi-collaboration
+        run: npm test
