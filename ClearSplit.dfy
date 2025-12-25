@@ -1369,8 +1369,67 @@ module ClearSplit {
     Conservation(model');
   }
 
+  // Helper: ApplySettlementsSeq distributes over concatenation
+  lemma ApplySettlementsSeqConcat(b: map<PersonId, Money>, settlements1: seq<Settlement>, settlements2: seq<Settlement>)
+    ensures ApplySettlementsSeq(b, settlements1 + settlements2) == ApplySettlementsSeq(ApplySettlementsSeq(b, settlements1), settlements2)
+    decreases |settlements1|
+  {
+    if |settlements1| == 0 {
+      assert settlements1 + settlements2 == settlements2;
+    } else {
+      var b' := ApplySettlementToBalances(b, settlements1[0]);
+      assert (settlements1 + settlements2)[0] == settlements1[0];
+      assert (settlements1 + settlements2)[1..] == settlements1[1..] + settlements2;
+      ApplySettlementsSeqConcat(b', settlements1[1..], settlements2);
+    }
+  }
+
+  // Helper: Balance relation when adding one settlement
+  lemma AddSettlementBalanceRelation(model: Model, s: Settlement, model': Model)
+    requires Inv(model)
+    requires ValidSettlement(model.members, s)
+    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
+    // From gains amount (owes less)
+    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
+    // To loses amount (is owed less)
+    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
+    // Others unchanged
+    ensures forall p :: p != s.from && p != s.to ==>
+      GetBalance(model', p) == GetBalance(model, p)
+  {
+    // Balances computation
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+    var b2' := ApplySettlementsSeq(b1, model.settlements + [s]);
+
+    // Key: b2' = ApplySettlementToBalances(b2, s)
+    ApplySettlementsSeqConcat(b1, model.settlements, [s]);
+    assert ApplySettlementsSeq(b2, [s]) == ApplySettlementToBalances(b2, s);
+    assert b2' == ApplySettlementToBalances(b2, s);
+
+    // Connect to Balances
+    assert Balances(model) == b2;
+    assert Balances(model') == b2';
+
+    // For each person p, track how their balance changes
+    forall p
+      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + SettlementDeltaForPerson(s, p)
+    {
+      ApplySettlementDeltaForPerson(b2, s, p);
+    }
+
+    // Connect GetFromMap to GetBalance
+    forall p
+      ensures GetBalance(model', p) == GetBalance(model, p) + SettlementDeltaForPerson(s, p)
+    {
+      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
+      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
+    }
+  }
+
   // AddSettlement delta law: from gains, to loses
-  lemma {:axiom} AddSettlementDelta(model: Model, s: Settlement, model': Model)
+  lemma AddSettlementDelta(model: Model, s: Settlement, model': Model)
     requires Inv(model)
     requires ValidSettlement(model.members, s)
     requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
@@ -1384,6 +1443,13 @@ module ClearSplit {
       GetBalance(model', p) == GetBalance(model, p)
     // Conservation preserved
     ensures SumValues(Balances(model')) == 0
+  {
+    // Use helper to establish balance changes
+    AddSettlementBalanceRelation(model, s, model');
+
+    // Conservation follows from the main Conservation theorem
+    Conservation(model');
+  }
 
   // =============================
   // History filter per person
