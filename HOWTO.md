@@ -1,6 +1,6 @@
-# HOWTO: Build a Dafny-Verified Counter App
+# HOWTO: Build a Dafny-Verified React App
 
-This guide walks through creating a counter app with a Dafny-verified state machine and React frontend, step by step.
+This guide walks through creating a React app with a Dafny-verified state machine, step by step. We'll build a simple increment/decrement app as an example.
 
 ## Prerequisites
 
@@ -187,7 +187,7 @@ import { useState } from 'react'
 import App from './dafny/app.js'
 import './App.css'
 
-function Counter() {
+function MyApp() {
   // Store the Dafny History in React state
   const [h, setH] = useState(() => App.Init())
 
@@ -198,7 +198,7 @@ function Counter() {
 
   return (
     <>
-      <h1>My Dafny Counter</h1>
+      <h1>My Dafny App</h1>
       <p className="subtitle">Verified, replayable reducer kernel</p>
 
       <div className="card">
@@ -228,7 +228,7 @@ function Counter() {
   )
 }
 
-export default Counter
+export default MyApp
 ```
 
 ## Step 9: Add Styling
