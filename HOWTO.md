@@ -242,7 +242,7 @@ cd my-app
 npm run dev
 ```
 
-Open http://localhost:5173 in your browser. Press `Ctrl+C` to stop the server.
+Open http://localhost:5173 in your browser.
 
 ## Summary
 
