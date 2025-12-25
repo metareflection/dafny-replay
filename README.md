@@ -1,5 +1,7 @@
 # dafny-replay
 
+[![CI](https://github.com/metareflection/dafny-replay/actions/workflows/ci.yml/badge.svg)](https://github.com/metareflection/dafny-replay/actions/workflows/ci.yml)
+
 **Verified kernels, written in Dafny and compiled to JavaScript, for correct-by-construction state in interactive web applications.**
 
 This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.

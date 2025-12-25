@@ -408,6 +408,7 @@ module ClearSplit refines ClearSplitSpec {
     if |m| == 1 {
       assert |m.Keys| == 1;
       assert p in m.Keys;
+      assert forall x :: x in m.Keys <==> x == p;
       assert m.Keys == {p};
     } else {
       assert |m| > 0;
