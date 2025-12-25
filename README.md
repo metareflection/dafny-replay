@@ -28,8 +28,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 |------------------------|--------------------------------|------------|
 | Replay                 | Local UI state                 | Undo/redo preserves global invariants |
 | Authority              | Client–server                  | Server state always satisfies invariants |
-| Multi-Collaboration v1 | Client–server, offline clients | Accepted server states satisfy invariants |
-| Multi-Collaboration v2 | Client–server, offline clients | Anchor-based moves, candidate fallback, minimal rejection |
+| Multi-Collaboration    | Client–server, offline clients | Anchor-based moves, candidate fallback, minimal rejection |
 
 ---
 
@@ -185,25 +184,19 @@ Clients may submit actions based on stale versions. The server reconciles each a
 
 All accepted states are proved to satisfy the domain invariant.
 
-### v1: Position-based
-
-The original kernel uses positional indices for card placement. Actions specify exact positions, and rebasing transforms stale actions against the intervening history.
-
-### v2: Anchor-based with candidate fallback
-
-The v2 kernel (`MultiCollaboration2.dfy`) introduces several improvements:
+The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 
 * **Anchor-based placement**: Instead of positional indices, moves use `Place` (AtEnd, Before, After) to express intent relative to other cards. This is more robust to concurrent edits.
 
 * **Candidate fallback**: When an anchor is missing (e.g., moved or deleted by another client), the server tries a list of fallback candidates (e.g., AtEnd) before rejecting.
 
-* **Minimal rejection**: The server rejects a request only if no interpretation within the domain’s declared intent envelope would succeed. For MoveCard, the server tries three candidates: original placement, AtEnd, and Before(first). Lemma `BeforeFirstImpliesAtEnd` proves Before(first) is redundant—if it succeeds, AtEnd also succeeds. This justifies defining `Explains` to cover only origPlace and AtEnd, and the kernel proves dispatch rejects only when both would fail.
+* **Minimal rejection**: The server rejects a request only if no interpretation within the domain's declared intent envelope would succeed. For MoveCard, the server tries three candidates: original placement, AtEnd, and Before(first). Lemma `BeforeFirstImpliesAtEnd` proves Before(first) is redundant—if it succeeds, AtEnd also succeeds. This justifies defining `Explains` to cover only origPlace and AtEnd, and the kernel proves dispatch rejects only when both would fail.
 
 * **Server-allocated IDs**: Card IDs are allocated by the server (via `nextId`), eliminating client-side ID conflicts.
 
 * **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
 
-The v2 kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
+The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
 ---
 
@@ -259,12 +252,11 @@ This produces JavaScript artifacts consumed by the demo.
 ### 3. Run the React demos
 
 ```bash
-cd demo           # counter demo
-cd kanban         # kanban board
-cd delegation-auth # capability delegation
-cd demo-authority # counter demo with client-server protocol
-cd kanban-multi-collaboration  # kanban with multi-collaboration v1 (position-based)
-cd kanban-multi-collaboration2 # kanban with multi-collaboration v2 (anchor-based)
+cd counter           # counter
+cd kanban            # kanban board
+cd delegation-auth   # capability delegation
+cd counter-authority # counter with client-server protocol
+cd kanban-multi-collaboration  # kanban with multi-collaboration
 npm install
 npm run dev
 ```

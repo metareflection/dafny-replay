@@ -7,7 +7,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import replayCode from './Replay.cjs?raw';
+import counterCode from './Counter.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -18,8 +18,8 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 // Note: Don't pass BigNumber as param - the code declares it via require()
 const initDafny = new Function('require', `
-  ${replayCode}
-  return { _dafny, ConcreteDomain, ConcreteKernel, AppCore };
+  ${counterCode}
+  return { _dafny, CounterDomain, CounterKernel, AppCore };
 `);
 
 const { AppCore } = initDafny(require);

@@ -1,6 +1,6 @@
 include "Replay.dfy"
 
-module ConcreteDomain refines Domain {
+module CounterDomain refines Domain {
   type Model = int
 
   datatype Action = Inc | Dec
@@ -25,13 +25,13 @@ module ConcreteDomain refines Domain {
   }
 }
 
-module ConcreteKernel refines Kernel {
-  import D = ConcreteDomain
+module CounterKernel refines Kernel {
+  import D = CounterDomain
 }
 
 module AppCore {
-  import K = ConcreteKernel
-  import D = ConcreteDomain
+  import K = CounterKernel
+  import D = CounterDomain
 
   function Init(): K.History { K.History([], 0, []) }
 
@@ -49,7 +49,7 @@ module AppCore {
 
 module AppCoreTest {
   import A = AppCore
-  import D = ConcreteDomain
+  import D = CounterDomain
 
   method Test() {
     var h := A.Init();

@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "Compiling ConcreteDomain to JavaScript..."
-dafny translate js --no-verify -o generated/Replay --include-runtime ConcreteDomain.dfy
+echo "Compiling CounterDomain to JavaScript..."
+dafny translate js --no-verify -o generated/Counter --include-runtime CounterDomain.dfy
 
-echo "Copying to demo project..."
-cp generated/Replay.js demo/src/dafny/Replay.cjs
+echo "Copying to counter project..."
+cp generated/Counter.js counter/src/dafny/Counter.cjs
 
 echo "Compiling KanbanDomain to JavaScript..."
 dafny translate js --no-verify -o generated/Kanban --include-runtime KanbanDomain.dfy
@@ -19,12 +19,12 @@ dafny translate js --no-verify -o generated/DelegationAuth --include-runtime Del
 echo "Copying to delegation-auth project..."
 cp generated/DelegationAuth.js delegation-auth/src/dafny/DelegationAuth.cjs
 
-echo "Compiling ConcreteAuthority to JavaScript..."
-dafny translate js --no-verify -o generated/Authority --include-runtime ConcreteAuthority.dfy
+echo "Compiling CounterAuthority to JavaScript..."
+dafny translate js --no-verify -o generated/CounterAuthority --include-runtime CounterAuthority.dfy
 
-echo "Copying to demo-authority project..."
-cp generated/Authority.js demo-authority/server/Authority.cjs
-cp generated/Authority.js demo-authority/src/dafny/Authority.cjs
+echo "Copying to counter-authority project..."
+cp generated/CounterAuthority.js counter-authority/server/CounterAuthority.cjs
+cp generated/CounterAuthority.js counter-authority/src/dafny/CounterAuthority.cjs
 
 echo "Compiling KanbanMultiCollaboration to JavaScript..."
 dafny translate js --no-verify -o generated/KanbanMulti --include-runtime KanbanMultiCollaboration.dfy
@@ -32,12 +32,5 @@ dafny translate js --no-verify -o generated/KanbanMulti --include-runtime Kanban
 echo "Copying to kanban-multi-collaboration project..."
 cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
 cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
-
-echo "Compiling KanbanMultiCollaboration2 to JavaScript..."
-dafny translate js --no-verify -o generated/KanbanMulti2 --include-runtime KanbanMultiCollaboration2.dfy
-
-echo "Copying to kanban-multi-collaboration2 project..."
-cp generated/KanbanMulti2.js kanban-multi-collaboration2/server/KanbanMulti2.cjs
-cp generated/KanbanMulti2.js kanban-multi-collaboration2/src/dafny/KanbanMulti2.cjs
 
 echo "Done."
