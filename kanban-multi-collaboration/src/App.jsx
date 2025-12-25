@@ -144,6 +144,8 @@ function KanbanBoard() {
   const [newColName, setNewColName] = useState('')
   const [newColLimit, setNewColLimit] = useState(5)
   const [toast, setToast] = useState(null)
+  const [isOffline, setIsOffline] = useState(false)
+  const [isFlushing, setIsFlushing] = useState(false)
 
   // Sync with server
   const sync = useCallback(async () => {
@@ -171,9 +173,16 @@ function KanbanBoard() {
   const dispatch = async (action) => {
     if (!client) return
 
-    // Optimistic local update
+    // Optimistic local update (queues action in pending)
     const newClient = App.LocalDispatch(client, action)
     setClient(newClient)
+
+    // If offline, just keep the optimistic update
+    if (isOffline) {
+      setStatus('offline')
+      return
+    }
+
     setStatus('pending...')
 
     // Send to server
@@ -209,6 +218,76 @@ function KanbanBoard() {
       setError('Failed to dispatch action')
       // Re-sync to recover
       await sync()
+    }
+  }
+
+  // Flush pending actions to server (when going back online)
+  const flush = async () => {
+    if (!client) return
+
+    const pendingActions = App.GetPendingActions(client)
+    if (pendingActions.length === 0) {
+      setStatus('synced')
+      return
+    }
+
+    setIsFlushing(true)
+    setStatus('flushing...')
+
+    let currentClient = client
+    let acceptedCount = 0
+    let rejectedCount = 0
+
+    for (const action of pendingActions) {
+      try {
+        const baseVersion = App.GetBaseVersion(currentClient)
+        const res = await fetch(`${API_BASE}/dispatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            baseVersion,
+            action: App.actionToJson(action)
+          })
+        })
+        const data = await res.json()
+
+        if (data.status === 'accepted') {
+          setServerVersion(data.version)
+          // Update client to new server state, with remaining pending actions
+          // We rebuild with empty pending since we're processing them sequentially
+          currentClient = App.InitClient(data.version, data.model)
+          acceptedCount++
+        } else {
+          // Action rejected - sync to server state and continue with remaining
+          rejectedCount++
+          const actionJson = App.actionToJson(action)
+          setToast(`Action rejected: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
+        }
+      } catch (e) {
+        setError('Failed to flush action')
+        break
+      }
+    }
+
+    // Final sync to get clean state
+    await sync()
+    setIsFlushing(false)
+
+    if (rejectedCount > 0) {
+      setToast(`Flushed: ${acceptedCount} accepted, ${rejectedCount} rejected`)
+    }
+  }
+
+  // Toggle offline mode
+  const toggleOffline = async () => {
+    if (isOffline) {
+      // Going online - flush pending actions
+      setIsOffline(false)
+      await flush()
+    } else {
+      // Going offline
+      setIsOffline(true)
+      setStatus('offline')
     }
   }
 
@@ -249,7 +328,6 @@ function KanbanBoard() {
   const model = App.GetPresent(client)
   const cols = App.GetCols(model)
   const pendingCount = App.GetPendingCount(client)
-  const clientVersion = App.GetBaseVersion(client)
 
   return (
     <>
@@ -259,14 +337,20 @@ function KanbanBoard() {
           <p className="subtitle">Anchor-based moves, server-allocated IDs, candidate fallback</p>
         </div>
         <div className="controls">
-          <button onClick={sync}>Sync</button>
+          <button
+            onClick={toggleOffline}
+            disabled={isFlushing}
+            className={isOffline ? 'offline-btn' : 'online-btn'}
+          >
+            {isFlushing ? 'Flushing...' : isOffline ? 'Go Online' : 'Go Offline'}
+          </button>
+          <button onClick={sync} disabled={isOffline || isFlushing}>Sync</button>
         </div>
       </div>
 
       <div className="status-bar">
-        <span>Server v{serverVersion}</span>
-        <span>Client v{clientVersion}</span>
-        <span className={`status ${error ? 'error' : ''}`}>
+        <span>v{serverVersion}</span>
+        <span className={`status ${error ? 'error' : ''} ${isOffline ? 'offline' : ''}`}>
           {status}
         </span>
         {pendingCount > 0 && (
