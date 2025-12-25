@@ -4,21 +4,56 @@ import './App.css'
 
 const API_BASE = '/api'
 
-function Card({ id, title, onDragStart, onDragEnd }) {
+function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState(title)
+
+  const handleDoubleClick = () => {
+    setEditValue(title)
+    setEditing(true)
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (editValue.trim() && editValue.trim() !== title) {
+      onEditTitle(id, editValue.trim())
+    }
+    setEditing(false)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setEditing(false)
+    }
+  }
+
   return (
     <div
       className="card"
-      draggable
+      draggable={!editing}
       onDragStart={(e) => onDragStart(e, id)}
       onDragEnd={onDragEnd}
     >
       <div className="card-id">#{id}</div>
-      <div className="card-title">{title}</div>
+      {editing ? (
+        <form onSubmit={handleSubmit} className="card-edit-form">
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleSubmit}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+        </form>
+      ) : (
+        <div className="card-title" onDoubleClick={handleDoubleClick}>{title}</div>
+      )}
     </div>
   )
 }
 
-function Column({ name, cards, wip, model, onAddCard, onMoveCard }) {
+function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle }) {
   const [newCardTitle, setNewCardTitle] = useState('')
   const count = cards.length
   const atLimit = wip > 0 && count >= wip
@@ -67,6 +102,7 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard }) {
             onDragEnd={(e) => {
               e.target.classList.remove('dragging')
             }}
+            onEditTitle={onEditTitle}
           />
         ))}
       </div>
@@ -196,6 +232,11 @@ function KanbanBoard() {
     dispatch(App.MoveCard(cardId, toCol, place))
   }
 
+  // Edit card title
+  const handleEditTitle = (cardId, title) => {
+    dispatch(App.EditTitle(cardId, title))
+  }
+
   if (!client) {
     return (
       <div className="loading">
@@ -271,6 +312,7 @@ function KanbanBoard() {
               model={model}
               onAddCard={handleAddCard}
               onMoveCard={handleMoveCard}
+              onEditTitle={handleEditTitle}
             />
           ))}
         </div>
