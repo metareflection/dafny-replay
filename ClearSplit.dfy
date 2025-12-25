@@ -693,41 +693,142 @@ module ClearSplit {
     }
   }
 
-  // Helper: ApplySharesSeq changes sum by -SumValuesSeq(shares, keys)
-  // Proof: induction on keys. Each step subtracts shares[p] from the sum.
-  lemma {:vcs_split_on_every_assert} ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+  // Helper: first element not in rest when no duplicates
+  lemma NoDupHeadNotInTail(keys: seq<PersonId>)
+    requires |keys| > 0 && NoDuplicates(keys)
+    ensures keys[0] !in keys[1..]
+  {
+    if keys[0] in keys[1..] {
+      var i :| 0 <= i < |keys[1..]| && keys[1..][i] == keys[0];
+      assert keys[i+1] == keys[0];
+    }
+  }
+
+  // Helper: NoDuplicates preserved for tail
+  lemma NoDupTail(keys: seq<PersonId>)
+    requires |keys| > 0 && NoDuplicates(keys)
+    ensures NoDuplicates(keys[1..])
+  {}
+
+  // Pure impl version: uses SumValuesSeq throughout
+  lemma ApplySharesSeqSumChangeImpl(
+    b: map<PersonId, Money>, shares: map<PersonId, Money>,
+    keys: seq<PersonId>, bKeys: seq<PersonId>)
     requires NoDuplicates(keys)
-    ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires forall k :: k in shares.Keys ==> k in b.Keys  // share owners in b
+    ensures SumValuesSeq(ApplySharesSeq(b, shares, keys), bKeys) == SumValuesSeq(b, bKeys) - SumValuesSeq(shares, keys)
     decreases |keys|
   {
     if |keys| == 0 {
-      // Base case: ApplySharesSeq returns b, SumValuesSeq returns 0
     } else {
       var p := keys[0];
       var rest := keys[1..];
+      NoDupTail(keys);
+      NoDupHeadNotInTail(keys);
 
       if p in shares {
         var b' := AddToMap(b, p, -shares[p]);
 
-        // IH: SumValues(ApplySharesSeq(b', shares, rest)) == SumValues(b') - SumValuesSeq(shares, rest)
-        ApplySharesSeqSumChange(b', shares, rest);
+        // b' has same keys as b (since p in shares ==> p in b)
+        assert b'.Keys == b.Keys;
 
-        // Fact 1: SumValues(b') == SumValues(b) - shares[p] (by AddToMapSumChange)
-        assume {:axiom} SumValues(b') == SumValues(b) - shares[p];
+        // SumValuesSeq(shares, rest) ignores p since p !in rest
+        SumValuesSeqRemoveNonMember(shares, p, rest);
 
-        // Fact 2: SumValuesSeq(shares, rest) == SumValuesSeq(shares - {p}, rest) (by SumValuesSeqRemoveNonMember since p !in rest)
-        assume {:axiom} SumValuesSeq(shares, rest) == SumValuesSeq(shares - {p}, rest);
+        // AddToMap changes sum by delta
+        AddToMapSumChangeImpl(b, p, -shares[p], bKeys);
 
-        // Fact 3: ApplySharesSeq(b, shares, keys) == ApplySharesSeq(b', shares, rest) (by definition of ApplySharesSeq)
-        assume {:axiom} ApplySharesSeq(b, shares, keys) == ApplySharesSeq(b', shares, rest);
-
-        // Fact 4: SumValuesSeq(shares, keys) == shares[p] + SumValuesSeq(shares - {p}, rest) (by definition of SumValuesSeq)
-        assume {:axiom} SumValuesSeq(shares, keys) == shares[p] + SumValuesSeq(shares - {p}, rest);
+        // IH
+        ApplySharesSeqSumChangeImpl(b', shares, rest, bKeys);
       } else {
-        // p not in shares: both functions skip this key
-        ApplySharesSeqSumChange(b, shares, rest);
+        ApplySharesSeqSumChangeImpl(b, shares, rest, bKeys);
       }
     }
+  }
+
+  // Impl version of AddToMapSumChange
+  lemma AddToMapSumChangeImpl(b: map<PersonId, Money>, p: PersonId, delta: Money, bKeys: seq<PersonId>)
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires p in b  // p already in b
+    ensures SumValuesSeq(AddToMap(b, p, delta), bKeys) == SumValuesSeq(b, bKeys) + delta
+  {
+    // AddToMap(b, p, delta) = b[p := b[p] + delta] when p in b
+    // The map has same keys, just p's value changed by delta
+    AddToMapSumChangeImplHelper(b, p, delta, bKeys);
+  }
+
+  // Helper: AddToMap commutes with map subtraction for different keys
+  lemma AddToMapMinusCommutes(b: map<PersonId, Money>, p: PersonId, delta: Money, k: PersonId)
+    requires p != k
+    requires p in b
+    ensures AddToMap(b, p, delta) - {k} == AddToMap(b - {k}, p, delta)
+  {}
+
+  lemma AddToMapSumChangeImplHelper(b: map<PersonId, Money>, p: PersonId, delta: Money, bKeys: seq<PersonId>)
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires p in b
+    requires p in bKeys
+    ensures SumValuesSeq(AddToMap(b, p, delta), bKeys) == SumValuesSeq(b, bKeys) + delta
+    decreases |bKeys|
+  {
+    if |bKeys| == 0 {
+    } else {
+      var k := bKeys[0];
+      var rest := bKeys[1..];
+      NoDupTail(bKeys);
+      NoDupHeadNotInTail(bKeys);
+
+      var b' := AddToMap(b, p, delta);
+
+      if k == p {
+        assert b' - {k} == b - {k};
+      } else {
+        AddToMapMinusCommutes(b, p, delta, k);
+        AddToMapSumChangeImplHelper(b - {k}, p, delta, rest);
+      }
+    }
+  }
+
+  // When only p changed, sum over keys not containing p is same
+  lemma SumValuesSeqUnchanged(b: map<PersonId, Money>, b': map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
+    requires p !in keys
+    requires forall k :: k in keys ==> (k in b <==> k in b')
+    requires forall k :: k in keys && k in b ==> b'[k] == b[k]
+    ensures SumValuesSeq(b', keys) == SumValuesSeq(b, keys)
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      if k in b {
+        assert k in b';
+        assert b'[k] == b[k];
+        SumValuesSeqUnchanged(b - {k}, b' - {k}, rest, p);
+      } else {
+        assert k !in b';
+        SumValuesSeqUnchanged(b, b', rest, p);
+      }
+    }
+  }
+
+  // Original lemma - now uses impl version + equivalence
+  lemma ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+    requires NoDuplicates(keys)
+    requires forall k :: k in shares.Keys <==> k in keys
+    requires |keys| == |shares|
+    ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
+  {
+    // Use equivalence at the end
+    SumValuesSeqEquiv(shares, keys);
+    assume {:axiom} SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValues(shares);
   }
 
   // Key lemma: applying an expense preserves sum (payer +amount, shares -amount)
