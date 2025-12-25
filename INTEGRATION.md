@@ -158,13 +158,21 @@ if (result.is_Ok) {
 
 ### Response Discriminators
 
-If your server API defines response types with discriminator functions:
+Instead of using `is_` checks directly in JS, you can define helper functions in Dafny:
+
+```dafny
+datatype Reply = Accepted(...) | Rejected(...)
+
+function IsAccepted(reply: Reply): bool { reply.Accepted? }
+```
+
+Then call from JS:
 
 ```js
 if (AppCore.__default.IsAccepted(reply)) { ... }
-if (AppCore.__default.IsSuccess(response)) { ... }
-if (AppCore.__default.IsStale(response)) { ... }
 ```
+
+This keeps the variant logic in Dafny and simplifies the JS wrapper.
 
 ### Server State
 
