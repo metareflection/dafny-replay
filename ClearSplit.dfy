@@ -1,5 +1,13 @@
 // ClearSplit.dfy
-module ClearSplit {
+// Expense splitting with verified conservation of money
+
+// =============================
+// Abstract Specification Module
+// =============================
+// This module defines the user-facing API and guarantees.
+// All types, predicates, functions, and key lemma signatures are here.
+
+abstract module ClearSplitSpec {
 
   // -----------------------------
   // Money + identifiers
@@ -10,7 +18,7 @@ module ClearSplit {
   type PersonId = string
 
   // -----------------------------
-  // Core data
+  // Core data types
   // -----------------------------
   datatype Expense = Expense(
     paidBy: PersonId,
@@ -35,63 +43,38 @@ module ClearSplit {
     settlements: seq<Settlement>
   )
 
+  datatype Result<T, E> = Ok(value: T) | Error(error: E)
+
+  datatype Err =
+    | NotMember(p: PersonId)
+    | BadExpense
+    | BadSettlement
+
+  datatype Action =
+    | AddExpense(e: Expense)
+    | AddSettlement(s: Settlement)
+
+  datatype Certificate = Certificate(
+    memberCount: nat,
+    expenseCount: nat,
+    settlementCount: nat,
+    conservationHolds: bool  // Always true when Inv holds
+  )
+
   // -----------------------------
-  // Invariants
+  // Core predicates
   // -----------------------------
-  // Ghost spec: non-deterministic iteration over map
-  // The ensures clause establishes that any decomposition gives the same result
+
+  // Sequence has no duplicates
+  predicate NoDuplicates(s: seq<PersonId>)
+  {
+    forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
+  }
+
+  // Ghost spec: non-deterministic sum over map values
   ghost function SumValues(m: map<PersonId, Money>): Money
     decreases |m|
     ensures |m| > 0 ==> exists k :: k in m && SumValues(m) == m[k] + SumValues(m - {k})
-  {
-    if |m| == 0 then 0
-    else
-      var k :| k in m;
-      m[k] + SumValues(m - {k})
-  }
-
-  // Key lemma: SumValues(m) can be computed by removing any key p first
-  // The proof relies on the commutativity of addition.
-  lemma SumValuesRemoveKey(m: map<PersonId, Money>, p: PersonId)
-    requires p in m
-    decreases |m|, 1
-    ensures SumValues(m) == m[p] + SumValues(m - {p})
-  {
-    if |m| == 1 {
-      assert m.Keys == {p};
-    } else {
-      // m has at least 2 keys. Use the ensures clause to get a witness k
-      assert |m| > 0;
-      var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
-      if k == p {
-        // Direct match - done
-      } else {
-        // Different key - use commutativity
-        SumValuesAnyKey(m, p, k);
-      }
-    }
-  }
-
-  // Commutativity: any two decompositions give the same result
-  lemma SumValuesAnyKey(m: map<PersonId, Money>, p: PersonId, q: PersonId)
-    requires p in m
-    requires q in m
-    requires p != q
-    decreases |m|, 0
-    ensures m[p] + SumValues(m - {p}) == m[q] + SumValues(m - {q})
-  {
-    var mp := m - {p};
-    var mq := m - {q};
-    var mpq := m - {p} - {q};
-
-    assert q in mp;
-    assert p in mq;
-    assert mp - {q} == mpq;
-    assert mq - {p} == mpq;
-
-    SumValuesRemoveKey(mp, q);
-    SumValuesRemoveKey(mq, p);
-  }
 
   // Compilable version: iterate over a sequence of keys
   function SumValuesSeq(m: map<PersonId, Money>, keys: seq<PersonId>): Money
@@ -103,176 +86,6 @@ module ClearSplit {
       var rest := keys[1..];
       if k in m then m[k] + SumValuesSeq(m - {k}, rest)
       else SumValuesSeq(m, rest)
-  }
-
-  // A sequence that bijects with a map has no duplicates
-  lemma SeqNoDuplicates(keys: seq<PersonId>, m: map<PersonId, Money>)
-    requires forall k :: k in m.Keys <==> k in keys
-    requires |keys| == |m|
-    ensures forall i, j :: 0 <= i < j < |keys| ==> keys[i] != keys[j]
-  {
-    // Proof by contradiction using cardinality
-    // The set of elements in keys equals m.Keys
-    // If there were duplicates, |set of keys elements| < |keys| = |m| = |m.Keys|
-    // But the set of keys elements == m.Keys, contradiction
-    var keySet := set i | 0 <= i < |keys| :: keys[i];
-
-    // keySet == m.Keys because of the bijection
-    forall k | k in keySet
-      ensures k in m.Keys
-    {
-      var i :| 0 <= i < |keys| && keys[i] == k;
-      assert k in keys;
-    }
-    forall k | k in m.Keys
-      ensures k in keySet
-    {
-      assert k in keys;
-      var i :| 0 <= i < |keys| && keys[i] == k;
-      assert k in keySet;
-    }
-    assert keySet == m.Keys;
-
-    // Now prove no duplicates
-    if exists i, j :: 0 <= i < j < |keys| && keys[i] == keys[j] {
-      var i, j :| 0 <= i < j < |keys| && keys[i] == keys[j];
-      // Show this leads to |keySet| < |keys|
-      SeqToSetSizeBound(keys);
-      assert |keySet| <= |keys|;
-      SeqWithDupSmallerSet(keys, i, j);
-      assert |keySet| < |keys|;
-      assert |keySet| < |m.Keys|;
-      assert false;  // contradiction: keySet == m.Keys but |keySet| < |m.Keys|
-    }
-  }
-
-  // Helper: set of sequence elements has size <= sequence length
-  lemma SeqToSetSizeBound(s: seq<PersonId>)
-    ensures |set i | 0 <= i < |s| :: s[i]| <= |s|
-    decreases |s|
-  {
-    if |s| == 0 {
-    } else {
-      var init := s[..|s|-1];
-      SeqToSetSizeBound(init);
-      var initSet := set i | 0 <= i < |init| :: init[i];
-      var fullSet := set i | 0 <= i < |s| :: s[i];
-      assert fullSet == initSet + {s[|s|-1]};
-    }
-  }
-
-  // Helper: if sequence has duplicate, set is strictly smaller
-  lemma SeqWithDupSmallerSet(s: seq<PersonId>, i: int, j: int)
-    requires 0 <= i < j < |s|
-    requires s[i] == s[j]
-    ensures |set k | 0 <= k < |s| :: s[k]| < |s|
-    decreases |s|
-  {
-    var sSet := set k | 0 <= k < |s| :: s[k];
-    // The element s[i] = s[j] is counted once in the set but twice in the sequence
-    // So |sSet| < |s|
-    SeqToSetSizeBound(s);
-    // We need to show strict inequality
-    // Remove s[j] from the sequence, the set stays the same
-    var s' := s[..j] + s[j+1..];
-    var s'Set := set k | 0 <= k < |s'| :: s'[k];
-
-    // s'Set == sSet because s[j] = s[i] is still in s'
-    assert s[i] in s';
-    forall k | k in sSet
-      ensures k in s'Set
-    {
-      var idx :| 0 <= idx < |s| && s[idx] == k;
-      if idx < j {
-        assert s'[idx] == k;
-      } else if idx > j {
-        assert s'[idx-1] == k;
-      } else {
-        // idx == j, but s[i] == s[j] == k and i < j
-        assert s'[i] == k;
-      }
-    }
-    forall k | k in s'Set
-      ensures k in sSet
-    {
-      var idx :| 0 <= idx < |s'| && s'[idx] == k;
-      if idx < j {
-        assert s[idx] == k;
-      } else {
-        assert s[idx+1] == k;
-      }
-    }
-    assert s'Set == sSet;
-
-    SeqToSetSizeBound(s');
-    assert |sSet| == |s'Set| <= |s'| == |s| - 1 < |s|;
-  }
-
-  // Equivalence lemma: if keys covers all map keys exactly once, results match
-  lemma {:vcs_split_on_every_assert} SumValuesSeqEquiv(m: map<PersonId, Money>, keys: seq<PersonId>)
-    requires forall k :: k in m.Keys <==> k in keys
-    requires |keys| == |m|  // no duplicates, covers exactly
-    decreases |keys|
-    ensures SumValuesSeq(m, keys) == SumValues(m)
-  {
-    if |keys| == 0 {
-    } else {
-      var k := keys[0];
-      var rest := keys[1..];
-      var m' := m - {k};
-
-      SeqNoDuplicates(keys, m);
-      SumValuesRemoveKey(m, k);
-
-      // Establish rest covers m' exactly
-      RestCoversMapMinus(keys, m, k);
-
-      SumValuesSeqEquiv(m', rest);
-    }
-  }
-
-  // Helper lemma to avoid timeout
-  lemma RestCoversMapMinus(keys: seq<PersonId>, m: map<PersonId, Money>, k: PersonId)
-    requires |keys| > 0
-    requires k == keys[0]
-    requires k in m
-    requires forall x :: x in m.Keys <==> x in keys
-    requires |keys| == |m|
-    ensures forall x :: x in (m - {k}).Keys <==> x in keys[1..]
-    ensures |keys[1..]| == |m - {k}|
-  {
-    var rest := keys[1..];
-    var m' := m - {k};
-    SeqNoDuplicates(keys, m);
-
-    forall x | x in m'.Keys
-      ensures x in rest
-    {
-      assert x in m.Keys && x != k;
-      assert x in keys;
-      var i :| 0 <= i < |keys| && keys[i] == x;
-      assert i != 0;  // because keys[0] == k and x != k
-    }
-
-    forall x | x in rest
-      ensures x in m'.Keys
-    {
-      var i :| 0 <= i < |rest| && rest[i] == x;
-      assert keys[i+1] == x;
-      assert x in keys;
-      assert x in m.Keys;
-      assert x != k;  // because no duplicates and i+1 != 0
-    }
-  }
-
-  // -----------------------------
-  // Invariant components
-  // -----------------------------
-
-  // Sequence has no duplicates
-  predicate NoDuplicates(s: seq<PersonId>)
-  {
-    forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
   }
 
   // Sequence bijectively matches set
@@ -299,69 +112,28 @@ module ClearSplit {
     && (forall i :: 0 <= i < |e.shareKeys| ==> e.shareKeys[i] in e.shares)
   }
 
-  // Helper: equal-size subset of finite set is the whole set
-  lemma SubsetEqualSizeIsEqual<T>(a: set<T>, b: set<T>)
-    requires a <= b
-    requires |a| == |b|
-    ensures a == b
+  // Helper: check that all keys in sequence are members with non-negative shares
+  predicate AllSharesValid(members: set<PersonId>, shares: map<PersonId, Money>, keys: seq<PersonId>)
   {
-    if a != b {
-      var x :| x in b && x !in a;
-      assert a <= b - {x};
-      CardinalitySubsetStrict(a, b, x);
-    }
+    forall i :: 0 <= i < |keys| ==> keys[i] in members && keys[i] in shares && shares[keys[i]] >= 0
   }
 
-  lemma CardinalitySubsetStrict<T>(a: set<T>, b: set<T>, x: T)
-    requires a <= b
-    requires x in b && x !in a
-    ensures |a| < |b|
+  // Compilable version: check expense validity using shareKeys
+  predicate ValidExpenseCheck(members: set<PersonId>, e: Expense)
   {
-    assert a <= b - {x};
-    CardinalitySubset(a, b - {x});
-    assert |b - {x}| == |b| - 1;
+    ShareKeysOk(e)
+    && e.amount >= 0
+    && e.paidBy in members
+    && AllSharesValid(members, e.shares, e.shareKeys)
+    && SumValuesSeq(e.shares, e.shareKeys) == e.amount
   }
 
-  // Equivalence: ShareKeysOk implies ShareKeysConsistent when sizes match
-  lemma ShareKeysOkImpliesConsistent(e: Expense)
-    requires ShareKeysOk(e)
-    ensures ShareKeysConsistent(e)
+  predicate ValidSettlement(members: set<PersonId>, s: Settlement)
   {
-    // We need to show: forall k :: k in e.shareKeys <==> k in e.shares.Keys
-    // Direction 1: k in shareKeys ==> k in shares (given by ShareKeysOk)
-    // Direction 2: k in shares ==> k in shareKeys
-    var keysInShares := set i | 0 <= i < |e.shareKeys| :: e.shareKeys[i];
-    NoDupSeqToSetSizeGeneral(e.shareKeys);
-    assert |keysInShares| == |e.shareKeys|;
-    assert keysInShares <= e.shares.Keys;
-    assert |keysInShares| == |e.shares.Keys|;
-    SubsetEqualSizeIsEqual(keysInShares, e.shares.Keys);
-    assert keysInShares == e.shares.Keys;
-
-    forall k | k in e.shares.Keys
-      ensures k in e.shareKeys
-    {
-      assert k in keysInShares;
-      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == k;
-    }
-  }
-
-  lemma NoDupSeqToSetSizeGeneral(s: seq<PersonId>)
-    requires NoDuplicates(s)
-    ensures |set i | 0 <= i < |s| :: s[i]| == |s|
-    decreases |s|
-  {
-    if |s| == 0 {
-    } else {
-      var last := s[|s|-1];
-      var init := s[..|s|-1];
-      assert NoDuplicates(init);
-      NoDupSeqToSetSizeGeneral(init);
-      var initSet := set i | 0 <= i < |init| :: init[i];
-      var fullSet := set i | 0 <= i < |s| :: s[i];
-      assert last !in initSet;
-      assert fullSet == initSet + {last};
-    }
+    s.amount >= 0
+    && s.from in members
+    && s.to in members
+    && s.from != s.to
   }
 
   // Ghost spec for valid expense (semantic validity)
@@ -380,49 +152,8 @@ module ClearSplit {
     ShareKeysConsistent(e) && ValidExpense(members, e)
   }
 
-  // Helper: check that all keys in sequence are members with non-negative shares
-  predicate AllSharesValid(members: set<PersonId>, shares: map<PersonId, Money>, keys: seq<PersonId>)
-  {
-    forall i :: 0 <= i < |keys| ==> keys[i] in members && keys[i] in shares && shares[keys[i]] >= 0
-  }
-
-  // Compilable version: check expense validity using shareKeys (total - no preconditions)
-  predicate ValidExpenseCheck(members: set<PersonId>, e: Expense)
-  {
-    ShareKeysOk(e)
-    && e.amount >= 0
-    && e.paidBy in members
-    && AllSharesValid(members, e.shares, e.shareKeys)
-    && SumValuesSeq(e.shares, e.shareKeys) == e.amount
-  }
-
-  // Equivalence lemma: ValidExpenseCheck implies WellFormedExpense
-  lemma {:vcs_split_on_every_assert} ValidExpenseCheckImpliesWellFormed(members: set<PersonId>, e: Expense)
-    requires ValidExpenseCheck(members, e)
-    ensures WellFormedExpense(members, e)
-  {
-    ShareKeysOkImpliesConsistent(e);
-    SumValuesSeqEquiv(e.shares, e.shareKeys);
-    // Show AllSharesValid implies the ghost foralls
-    forall p | p in e.shares
-      ensures p in members && e.shares[p] >= 0
-    {
-      assert p in e.shareKeys;
-      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == p;
-      assert e.shareKeys[i] in members;
-    }
-  }
-
-  predicate ValidSettlement(members: set<PersonId>, s: Settlement)
-  {
-    s.amount >= 0
-    && s.from in members
-    && s.to in members
-    && s.from != s.to
-  }
-
   // -----------------------------
-  // THE Rep Invariant (single contract for entire module)
+  // THE Rep Invariant
   // -----------------------------
   ghost predicate Inv(model: Model)
   {
@@ -435,35 +166,12 @@ module ClearSplit {
   }
 
   // -----------------------------
-  // “Math core”: balances
-  // Convention:
-  //   balance[p] > 0  => p is owed money
-  //   balance[p] < 0  => p owes money
-  //
-  // For an expense:
-  //   payer gains +amount
-  //   each participant loses -share
-  //
-  // For a settlement:
-  //   from increases by +amount (they owe less)
-  //   to decreases by -amount  (they are owed less)
+  // Balance computation
   // -----------------------------
+
   function AddToMap(b: map<PersonId, Money>, p: PersonId, delta: Money): map<PersonId, Money>
   {
     if p in b then b[p := b[p] + delta] else b[p := delta]
-  }
-
-  // Ghost spec: non-deterministic iteration over set
-  ghost function ZeroBalances(members: set<PersonId>): map<PersonId, Money>
-    decreases |members|
-    ensures forall p :: p in members ==> p in ZeroBalances(members)
-    ensures forall p :: p in ZeroBalances(members) ==> p in members  // domain equals members
-    ensures forall p :: p in ZeroBalances(members) ==> ZeroBalances(members)[p] == 0
-  {
-    if |members| == 0 then map[]
-    else
-      var p :| p in members;
-      ZeroBalances(members - {p})[p := 0]
   }
 
   // Compilable version: iterate over a sequence
@@ -476,86 +184,6 @@ module ClearSplit {
     else
       var p := memberList[0];
       ZeroBalancesSeq(memberList[1..])[p := 0]
-  }
-
-  // Same as SeqNoDuplicates but for sets
-  lemma MemberListNoDuplicates(memberList: seq<PersonId>, members: set<PersonId>)
-    requires forall p :: p in members <==> p in memberList
-    requires |memberList| == |members|
-    ensures forall i, j :: 0 <= i < j < |memberList| ==> memberList[i] != memberList[j]
-  {
-    // Similar proof to SeqNoDuplicates
-    var elemSet := set i | 0 <= i < |memberList| :: memberList[i];
-
-    // elemSet == members
-    forall k | k in elemSet
-      ensures k in members
-    {
-      var i :| 0 <= i < |memberList| && memberList[i] == k;
-      assert k in memberList;
-    }
-    forall k | k in members
-      ensures k in elemSet
-    {
-      assert k in memberList;
-      var i :| 0 <= i < |memberList| && memberList[i] == k;
-    }
-    assert elemSet == members;
-
-    // Prove no duplicates by contradiction
-    if exists i, j :: 0 <= i < j < |memberList| && memberList[i] == memberList[j] {
-      var i, j :| 0 <= i < j < |memberList| && memberList[i] == memberList[j];
-      SeqWithDupSmallerSet(memberList, i, j);
-      assert |elemSet| < |memberList|;
-      assert |elemSet| < |members|;
-      assert false;
-    }
-  }
-
-  // Equivalence lemma
-  lemma ZeroBalancesEquiv(members: set<PersonId>, memberList: seq<PersonId>)
-    requires forall p :: p in members <==> p in memberList
-    requires |memberList| == |members|  // no duplicates
-    ensures ZeroBalancesSeq(memberList) == ZeroBalances(members)
-  {
-    MemberListNoDuplicates(memberList, members);
-
-    if |memberList| == 0 {
-      assert |members| == 0;
-    } else {
-      var p := memberList[0];
-      var rest := memberList[1..];
-      var members' := members - {p};
-
-      // rest has no duplicates (inherited from memberList)
-      // |rest| == |members'|
-      assert |rest| == |memberList| - 1;
-      assert |members'| == |members| - 1;
-
-      forall q | q in members'
-        ensures q in rest
-      {
-        assert q in members;
-        assert q in memberList;
-        assert q != p;
-        var i :| 0 <= i < |memberList| && memberList[i] == q;
-        assert i > 0;  // because memberList[0] = p and q != p
-        assert memberList[i] == rest[i-1];
-      }
-
-      forall q | q in rest
-        ensures q in members'
-      {
-        var i :| 0 <= i < |rest| && rest[i] == q;
-        assert memberList[i+1] == q;
-        assert q in memberList;
-        assert q in members;
-        // q != p because memberList has no duplicates
-        assert q != p;
-      }
-
-      ZeroBalancesEquiv(members', rest);
-    }
   }
 
   // Helper: apply shares to balances using a sequence of keys
@@ -581,8 +209,6 @@ module ClearSplit {
       e: Expense
     ): map<PersonId, Money>
   {
-    // 1) payer +amount
-    // 2) for each (p -> share) in e.shares: p -= share
     var b' := AddToMap(b, e.paidBy, e.amount);
     ApplySharesSeq(b', e.shares, e.shareKeys)
   }
@@ -592,8 +218,6 @@ module ClearSplit {
       s: Settlement
     ): map<PersonId, Money>
   {
-    //   from += amount (payer owes less)
-    //   to   -= amount (payee is owed less)
     var b' := AddToMap(b, s.from, s.amount);
     AddToMap(b', s.to, -s.amount)
   }
@@ -624,16 +248,597 @@ module ClearSplit {
       ApplySettlementsSeq(b', settlements[1..])
   }
 
-  // -----------------------------
-  // Balances projection (the main semantic output)
-  // -----------------------------
-
   // Balances: the main projection function (compilable)
   function Balances(model: Model): map<PersonId, Money>
   {
     var b := ZeroBalancesSeq(model.memberList);
     var b' := ApplyExpensesSeq(b, model.expenses);
     ApplySettlementsSeq(b', model.settlements)
+  }
+
+  // Get balance for a specific person
+  function GetBalance(model: Model, p: PersonId): Money
+  {
+    var b := Balances(model);
+    if p in b then b[p] else 0
+  }
+
+  // -----------------------------
+  // History explanation functions
+  // -----------------------------
+
+  function SumSeq(s: seq<Money>): Money
+    decreases |s|
+  {
+    if |s| == 0 then 0
+    else s[0] + SumSeq(s[1..])
+  }
+
+  function ExpenseDeltaForPerson(e: Expense, p: PersonId): Money
+  {
+    var payerDelta := if p == e.paidBy then e.amount else 0;
+    var shareDelta := if p in e.shares then -e.shares[p] else 0;
+    payerDelta + shareDelta
+  }
+
+  function ExpenseDeltas(expenses: seq<Expense>, p: PersonId): seq<Money>
+    decreases |expenses|
+  {
+    if |expenses| == 0 then []
+    else [ExpenseDeltaForPerson(expenses[0], p)] + ExpenseDeltas(expenses[1..], p)
+  }
+
+  function SettlementDeltaForPerson(s: Settlement, p: PersonId): Money
+  {
+    var fromDelta := if p == s.from then s.amount else 0;
+    var toDelta := if p == s.to then -s.amount else 0;
+    fromDelta + toDelta
+  }
+
+  function SettlementDeltas(settlements: seq<Settlement>, p: PersonId): seq<Money>
+    decreases |settlements|
+  {
+    if |settlements| == 0 then []
+    else [SettlementDeltaForPerson(settlements[0], p)] + SettlementDeltas(settlements[1..], p)
+  }
+
+  function ExplainExpenses(model: Model, p: PersonId): seq<Money>
+  {
+    ExpenseDeltas(model.expenses, p) + SettlementDeltas(model.settlements, p)
+  }
+
+  // =============================
+  // USER-FACING GUARANTEES
+  // =============================
+
+  // THE CONSERVATION THEOREM: Sum of all balances is always zero
+  lemma Conservation(model: Model)
+    requires Inv(model)
+    ensures SumValues(Balances(model)) == 0
+
+  // AddExpense delta law: how adding an expense affects balances
+  lemma AddExpenseDelta(model: Model, e: Expense, model': Model)
+    requires Inv(model)
+    requires ValidExpenseCheck(model.members, e)
+    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
+    ensures Inv(model')
+    // Payer gains amount (when not a share owner)
+    ensures e.paidBy !in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount
+    // Share owners (not payer) lose their share
+    ensures forall p :: p in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
+    // Payer who is also a share owner: net change is amount - share
+    ensures e.paidBy in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
+    // Others unchanged
+    ensures forall p :: p !in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p)
+    // Conservation preserved
+    ensures SumValues(Balances(model')) == 0
+
+  // AddSettlement delta law: how adding a settlement affects balances
+  lemma AddSettlementDelta(model: Model, s: Settlement, model': Model)
+    requires Inv(model)
+    requires ValidSettlement(model.members, s)
+    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
+    ensures Inv(model')
+    // From gains amount (owes less)
+    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
+    // To loses amount (is owed less)
+    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
+    // Others unchanged
+    ensures forall p :: p != s.from && p != s.to ==>
+      GetBalance(model', p) == GetBalance(model, p)
+    // Conservation preserved
+    ensures SumValues(Balances(model')) == 0
+
+  // ExplainSumsToBalance: the sum of all deltas for a person equals their balance
+  lemma ExplainSumsToBalance(model: Model, p: PersonId)
+    requires Inv(model)
+    requires p in model.members
+    ensures SumSeq(ExplainExpenses(model, p)) == GetBalance(model, p)
+
+  // -----------------------------
+  // State transition methods
+  // -----------------------------
+
+  // Step: the only state mutator - total reducer (no ghost preconditions)
+  method Step(model: Model, a: Action) returns (result: Result<Model, Err>)
+    requires Inv(model)
+    ensures result.Ok? ==> Inv(result.value)
+
+  // Initialize a new model with the given members
+  method Init(memberList: seq<PersonId>) returns (result: Result<Model, Err>)
+    ensures result.Ok? ==> Inv(result.value)
+
+  // Get a certificate for the current model
+  method GetCertificate(model: Model) returns (cert: Certificate)
+    requires Inv(model)
+}
+
+
+// =============================
+// Implementation Module
+// =============================
+// This module provides proofs of all the guarantees.
+
+module ClearSplit refines ClearSplitSpec {
+
+  // -----------------------------
+  // SumValues implementation
+  // -----------------------------
+  ghost function SumValues(m: map<PersonId, Money>): Money
+  {
+    if |m| == 0 then 0
+    else
+      var k :| k in m;
+      m[k] + SumValues(m - {k})
+  }
+
+  // -----------------------------
+  // Helper lemmas for SumValues
+  // -----------------------------
+
+  // Key lemma: SumValues(m) can be computed by removing any key p first
+  lemma SumValuesRemoveKey(m: map<PersonId, Money>, p: PersonId)
+    requires p in m
+    decreases |m|, 1
+    ensures SumValues(m) == m[p] + SumValues(m - {p})
+  {
+    if |m| == 1 {
+      assert m.Keys == {p};
+    } else {
+      assert |m| > 0;
+      var k :| k in m && SumValues(m) == m[k] + SumValues(m - {k});
+      if k == p {
+      } else {
+        SumValuesAnyKey(m, p, k);
+      }
+    }
+  }
+
+  // Commutativity: any two decompositions give the same result
+  lemma SumValuesAnyKey(m: map<PersonId, Money>, p: PersonId, q: PersonId)
+    requires p in m
+    requires q in m
+    requires p != q
+    decreases |m|, 0
+    ensures m[p] + SumValues(m - {p}) == m[q] + SumValues(m - {q})
+  {
+    var mp := m - {p};
+    var mq := m - {q};
+    var mpq := m - {p} - {q};
+
+    assert q in mp;
+    assert p in mq;
+    assert mp - {q} == mpq;
+    assert mq - {p} == mpq;
+
+    SumValuesRemoveKey(mp, q);
+    SumValuesRemoveKey(mq, p);
+  }
+
+  // SumValues of a map where all values are zero is zero
+  lemma SumValuesAllZero(m: map<PersonId, Money>)
+    requires forall p :: p in m ==> m[p] == 0
+    ensures SumValues(m) == 0
+    decreases |m|
+  {
+    if |m| == 0 {
+    } else {
+      var p :| p in m;
+      var m' := m - {p};
+      forall q | q in m'
+        ensures m'[q] == 0
+      {
+        assert m'[q] == m[q];
+      }
+      SumValuesAllZero(m');
+    }
+  }
+
+  // Helper: AddToMap changes sum by delta
+  lemma {:vcs_split_on_every_assert} AddToMapSumChange(b: map<PersonId, Money>, p: PersonId, delta: Money)
+    ensures SumValues(AddToMap(b, p, delta)) == SumValues(b) + delta
+  {
+    var b' := AddToMap(b, p, delta);
+    if p in b {
+      SumValuesRemoveKey(b, p);
+      SumValuesRemoveKey(b', p);
+      assert b' - {p} == b - {p};
+    } else {
+      SumValuesRemoveKey(b', p);
+      assert b' - {p} == b;
+    }
+  }
+
+  // -----------------------------
+  // Sequence/set helpers
+  // -----------------------------
+
+  lemma SeqToSetSizeBound(s: seq<PersonId>)
+    ensures |set i | 0 <= i < |s| :: s[i]| <= |s|
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      var init := s[..|s|-1];
+      SeqToSetSizeBound(init);
+      var initSet := set i | 0 <= i < |init| :: init[i];
+      var fullSet := set i | 0 <= i < |s| :: s[i];
+      assert fullSet == initSet + {s[|s|-1]};
+    }
+  }
+
+  lemma SeqWithDupSmallerSet(s: seq<PersonId>, i: int, j: int)
+    requires 0 <= i < j < |s|
+    requires s[i] == s[j]
+    ensures |set k | 0 <= k < |s| :: s[k]| < |s|
+    decreases |s|
+  {
+    var sSet := set k | 0 <= k < |s| :: s[k];
+    SeqToSetSizeBound(s);
+    var s' := s[..j] + s[j+1..];
+    var s'Set := set k | 0 <= k < |s'| :: s'[k];
+
+    assert s[i] in s';
+    forall k | k in sSet
+      ensures k in s'Set
+    {
+      var idx :| 0 <= idx < |s| && s[idx] == k;
+      if idx < j {
+        assert s'[idx] == k;
+      } else if idx > j {
+        assert s'[idx-1] == k;
+      } else {
+        assert s'[i] == k;
+      }
+    }
+    forall k | k in s'Set
+      ensures k in sSet
+    {
+      var idx :| 0 <= idx < |s'| && s'[idx] == k;
+      if idx < j {
+        assert s[idx] == k;
+      } else {
+        assert s[idx+1] == k;
+      }
+    }
+    assert s'Set == sSet;
+
+    SeqToSetSizeBound(s');
+    assert |sSet| == |s'Set| <= |s'| == |s| - 1 < |s|;
+  }
+
+  lemma SeqNoDuplicates(keys: seq<PersonId>, m: map<PersonId, Money>)
+    requires forall k :: k in m.Keys <==> k in keys
+    requires |keys| == |m|
+    ensures forall i, j :: 0 <= i < j < |keys| ==> keys[i] != keys[j]
+  {
+    var keySet := set i | 0 <= i < |keys| :: keys[i];
+
+    forall k | k in keySet
+      ensures k in m.Keys
+    {
+      var i :| 0 <= i < |keys| && keys[i] == k;
+      assert k in keys;
+    }
+    forall k | k in m.Keys
+      ensures k in keySet
+    {
+      assert k in keys;
+      var i :| 0 <= i < |keys| && keys[i] == k;
+      assert k in keySet;
+    }
+    assert keySet == m.Keys;
+
+    if exists i, j :: 0 <= i < j < |keys| && keys[i] == keys[j] {
+      var i, j :| 0 <= i < j < |keys| && keys[i] == keys[j];
+      SeqToSetSizeBound(keys);
+      assert |keySet| <= |keys|;
+      SeqWithDupSmallerSet(keys, i, j);
+      assert |keySet| < |keys|;
+      assert |keySet| < |m.Keys|;
+      assert false;
+    }
+  }
+
+  lemma NoDupSeqToSetSizeGeneral(s: seq<PersonId>)
+    requires NoDuplicates(s)
+    ensures |set i | 0 <= i < |s| :: s[i]| == |s|
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      var last := s[|s|-1];
+      var init := s[..|s|-1];
+      assert NoDuplicates(init);
+      NoDupSeqToSetSizeGeneral(init);
+      var initSet := set i | 0 <= i < |init| :: init[i];
+      var fullSet := set i | 0 <= i < |s| :: s[i];
+      assert last !in initSet;
+      assert fullSet == initSet + {last};
+    }
+  }
+
+  lemma NoDupSeqToSetSize(s: seq<PersonId>)
+    requires forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
+    ensures |set i | 0 <= i < |s| :: s[i]| == |s|
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      var last := s[|s|-1];
+      var init := s[..|s|-1];
+      NoDupSeqToSetSize(init);
+      var initSet := set i | 0 <= i < |init| :: init[i];
+      var fullSet := set i | 0 <= i < |s| :: s[i];
+      assert last !in initSet;
+      assert fullSet == initSet + {last};
+    }
+  }
+
+  // Helper: equal-size subset of finite set is the whole set
+  lemma SubsetEqualSizeIsEqual<T>(a: set<T>, b: set<T>)
+    requires a <= b
+    requires |a| == |b|
+    ensures a == b
+  {
+    if a != b {
+      var x :| x in b && x !in a;
+      assert a <= b - {x};
+      CardinalitySubsetStrict(a, b, x);
+    }
+  }
+
+  lemma CardinalitySubsetStrict<T>(a: set<T>, b: set<T>, x: T)
+    requires a <= b
+    requires x in b && x !in a
+    ensures |a| < |b|
+  {
+    assert a <= b - {x};
+    CardinalitySubset(a, b - {x});
+    assert |b - {x}| == |b| - 1;
+  }
+
+  lemma CardinalitySubset<T>(a: set<T>, b: set<T>)
+    requires a <= b
+    ensures |a| <= |b|
+    decreases |b|
+  {
+    if |b| == 0 {
+      assert a == {};
+    } else {
+      var x :| x in b;
+      if x in a {
+        CardinalitySubset(a - {x}, b - {x});
+      } else {
+        CardinalitySubset(a, b - {x});
+      }
+    }
+  }
+
+  lemma SubsetEqualSize<T>(a: set<T>, b: set<T>)
+    requires a <= b
+    requires |a| == |b|
+    ensures a == b
+  {
+    forall x | x in b
+      ensures x in a
+    {
+      if x !in a {
+        assert a <= b - {x};
+        CardinalitySubset(a, b - {x});
+      }
+    }
+  }
+
+  // Equivalence: ShareKeysOk implies ShareKeysConsistent
+  lemma ShareKeysOkImpliesConsistent(e: Expense)
+    requires ShareKeysOk(e)
+    ensures ShareKeysConsistent(e)
+  {
+    var keysInShares := set i | 0 <= i < |e.shareKeys| :: e.shareKeys[i];
+    NoDupSeqToSetSizeGeneral(e.shareKeys);
+    assert |keysInShares| == |e.shareKeys|;
+    assert keysInShares <= e.shares.Keys;
+    assert |keysInShares| == |e.shares.Keys|;
+    SubsetEqualSizeIsEqual(keysInShares, e.shares.Keys);
+    assert keysInShares == e.shares.Keys;
+
+    forall k | k in e.shares.Keys
+      ensures k in e.shareKeys
+    {
+      assert k in keysInShares;
+      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == k;
+    }
+  }
+
+  // Equivalence lemma: ValidExpenseCheck implies WellFormedExpense
+  lemma {:vcs_split_on_every_assert} ValidExpenseCheckImpliesWellFormed(members: set<PersonId>, e: Expense)
+    requires ValidExpenseCheck(members, e)
+    ensures WellFormedExpense(members, e)
+  {
+    ShareKeysOkImpliesConsistent(e);
+    SumValuesSeqEquiv(e.shares, e.shareKeys);
+    forall p | p in e.shares
+      ensures p in members && e.shares[p] >= 0
+    {
+      assert p in e.shareKeys;
+      var i :| 0 <= i < |e.shareKeys| && e.shareKeys[i] == p;
+      assert e.shareKeys[i] in members;
+    }
+  }
+
+  // -----------------------------
+  // SumValuesSeq equivalence
+  // -----------------------------
+
+  lemma {:vcs_split_on_every_assert} SumValuesSeqEquiv(m: map<PersonId, Money>, keys: seq<PersonId>)
+    requires forall k :: k in m.Keys <==> k in keys
+    requires |keys| == |m|
+    decreases |keys|
+    ensures SumValuesSeq(m, keys) == SumValues(m)
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      var m' := m - {k};
+
+      SeqNoDuplicates(keys, m);
+      SumValuesRemoveKey(m, k);
+      RestCoversMapMinus(keys, m, k);
+      SumValuesSeqEquiv(m', rest);
+    }
+  }
+
+  lemma RestCoversMapMinus(keys: seq<PersonId>, m: map<PersonId, Money>, k: PersonId)
+    requires |keys| > 0
+    requires k == keys[0]
+    requires k in m
+    requires forall x :: x in m.Keys <==> x in keys
+    requires |keys| == |m|
+    ensures forall x :: x in (m - {k}).Keys <==> x in keys[1..]
+    ensures |keys[1..]| == |m - {k}|
+  {
+    var rest := keys[1..];
+    var m' := m - {k};
+    SeqNoDuplicates(keys, m);
+
+    forall x | x in m'.Keys
+      ensures x in rest
+    {
+      assert x in m.Keys && x != k;
+      assert x in keys;
+      var i :| 0 <= i < |keys| && keys[i] == x;
+      assert i != 0;
+    }
+
+    forall x | x in rest
+      ensures x in m'.Keys
+    {
+      var i :| 0 <= i < |rest| && rest[i] == x;
+      assert keys[i+1] == x;
+      assert x in keys;
+      assert x in m.Keys;
+      assert x != k;
+    }
+  }
+
+  // -----------------------------
+  // ZeroBalances equivalence
+  // -----------------------------
+
+  ghost function ZeroBalances(members: set<PersonId>): map<PersonId, Money>
+    decreases |members|
+    ensures forall p :: p in members ==> p in ZeroBalances(members)
+    ensures forall p :: p in ZeroBalances(members) ==> p in members
+    ensures forall p :: p in ZeroBalances(members) ==> ZeroBalances(members)[p] == 0
+  {
+    if |members| == 0 then map[]
+    else
+      var p :| p in members;
+      ZeroBalances(members - {p})[p := 0]
+  }
+
+  lemma MemberListNoDuplicates(memberList: seq<PersonId>, members: set<PersonId>)
+    requires forall p :: p in members <==> p in memberList
+    requires |memberList| == |members|
+    ensures forall i, j :: 0 <= i < j < |memberList| ==> memberList[i] != memberList[j]
+  {
+    var elemSet := set i | 0 <= i < |memberList| :: memberList[i];
+
+    forall k | k in elemSet
+      ensures k in members
+    {
+      var i :| 0 <= i < |memberList| && memberList[i] == k;
+      assert k in memberList;
+    }
+    forall k | k in members
+      ensures k in elemSet
+    {
+      assert k in memberList;
+      var i :| 0 <= i < |memberList| && memberList[i] == k;
+    }
+    assert elemSet == members;
+
+    if exists i, j :: 0 <= i < j < |memberList| && memberList[i] == memberList[j] {
+      var i, j :| 0 <= i < j < |memberList| && memberList[i] == memberList[j];
+      SeqWithDupSmallerSet(memberList, i, j);
+      assert |elemSet| < |memberList|;
+      assert |elemSet| < |members|;
+      assert false;
+    }
+  }
+
+  lemma ZeroBalancesEquiv(members: set<PersonId>, memberList: seq<PersonId>)
+    requires forall p :: p in members <==> p in memberList
+    requires |memberList| == |members|
+    ensures ZeroBalancesSeq(memberList) == ZeroBalances(members)
+  {
+    MemberListNoDuplicates(memberList, members);
+
+    if |memberList| == 0 {
+      assert |members| == 0;
+    } else {
+      var p := memberList[0];
+      var rest := memberList[1..];
+      var members' := members - {p};
+
+      assert |rest| == |memberList| - 1;
+      assert |members'| == |members| - 1;
+
+      forall q | q in members'
+        ensures q in rest
+      {
+        assert q in members;
+        assert q in memberList;
+        assert q != p;
+        var i :| 0 <= i < |memberList| && memberList[i] == q;
+        assert i > 0;
+        assert memberList[i] == rest[i-1];
+      }
+
+      forall q | q in rest
+        ensures q in members'
+      {
+        var i :| 0 <= i < |rest| && rest[i] == q;
+        assert memberList[i+1] == q;
+        assert q in memberList;
+        assert q in members;
+        assert q != p;
+      }
+
+      ZeroBalancesEquiv(members', rest);
+    }
+  }
+
+  lemma ZeroBalancesSum(members: set<PersonId>)
+    ensures SumValues(ZeroBalances(members)) == 0
+  {
+    SumValuesAllZero(ZeroBalances(members));
   }
 
   // Ghost version for equivalence proofs
@@ -645,7 +850,6 @@ module ClearSplit {
     ApplySettlementsSeq(b', model.settlements)
   }
 
-  // Equivalence: Balances == BalancesGhost when Inv holds
   lemma BalancesEquiv(model: Model)
     requires Inv(model)
     ensures Balances(model) == BalancesGhost(model)
@@ -654,46 +858,9 @@ module ClearSplit {
   }
 
   // -----------------------------
-  // Conservation theorem
+  // Sum preservation helpers
   // -----------------------------
 
-  // Helper: removing a key not in the sequence doesn't affect SumValuesSeq
-  lemma SumValuesSeqRemoveNonMember(m: map<PersonId, Money>, p: PersonId, keys: seq<PersonId>)
-    requires p !in keys
-    ensures SumValuesSeq(m, keys) == SumValuesSeq(m - {p}, keys)
-    decreases |keys|
-  {
-    if |keys| == 0 {
-      // Base case: both are 0
-    } else {
-      var k := keys[0];
-      var rest := keys[1..];
-      assert p !in rest;
-      if k in m {
-        if k in (m - {p}) {
-          // k != p, so k is in both m and m - {p}
-          assert m[k] == (m - {p})[k];
-          SumValuesSeqRemoveNonMember(m - {k}, p, rest);
-          assert (m - {k}) - {p} == (m - {p}) - {k};
-        } else {
-          // k in m but k not in m - {p} means k == p
-          assert k == p;
-          assert false; // contradiction: p !in keys but k = keys[0]
-        }
-      } else {
-        // k not in m
-        if k in (m - {p}) {
-          // k in m - {p} but k not in m, impossible
-          assert false;
-        } else {
-          // k not in either
-          SumValuesSeqRemoveNonMember(m, p, rest);
-        }
-      }
-    }
-  }
-
-  // Helper: first element not in rest when no duplicates
   lemma NoDupHeadNotInTail(keys: seq<PersonId>)
     requires |keys| > 0 && NoDuplicates(keys)
     ensures keys[0] !in keys[1..]
@@ -704,65 +871,59 @@ module ClearSplit {
     }
   }
 
-  // Helper: NoDuplicates preserved for tail
   lemma NoDupTail(keys: seq<PersonId>)
     requires |keys| > 0 && NoDuplicates(keys)
     ensures NoDuplicates(keys[1..])
   {}
 
-  // Pure impl version: uses SumValuesSeq throughout
-  lemma ApplySharesSeqSumChangeImpl(
-    b: map<PersonId, Money>, shares: map<PersonId, Money>,
-    keys: seq<PersonId>, bKeys: seq<PersonId>)
-    requires NoDuplicates(keys)
-    requires NoDuplicates(bKeys)
-    requires forall k :: k in b.Keys <==> k in bKeys
-    requires |bKeys| == |b|
-    requires forall k :: k in shares.Keys ==> k in b.Keys  // share owners in b
-    ensures SumValuesSeq(ApplySharesSeq(b, shares, keys), bKeys) == SumValuesSeq(b, bKeys) - SumValuesSeq(shares, keys)
+  lemma SumValuesSeqRemoveNonMember(m: map<PersonId, Money>, p: PersonId, keys: seq<PersonId>)
+    requires p !in keys
+    ensures SumValuesSeq(m, keys) == SumValuesSeq(m - {p}, keys)
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      assert p !in rest;
+      if k in m {
+        if k in (m - {p}) {
+          assert m[k] == (m - {p})[k];
+          SumValuesSeqRemoveNonMember(m - {k}, p, rest);
+          assert (m - {k}) - {p} == (m - {p}) - {k};
+        } else {
+          assert k == p;
+          assert false;
+        }
+      } else {
+        if k in (m - {p}) {
+          assert false;
+        } else {
+          SumValuesSeqRemoveNonMember(m, p, rest);
+        }
+      }
+    }
+  }
+
+  lemma ApplySharesSeqKeysUnchanged(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
+    requires forall k :: k in shares.Keys ==> k in b.Keys
+    ensures ApplySharesSeq(b, shares, keys).Keys == b.Keys
     decreases |keys|
   {
     if |keys| == 0 {
     } else {
       var p := keys[0];
       var rest := keys[1..];
-      NoDupTail(keys);
-      NoDupHeadNotInTail(keys);
-
       if p in shares {
         var b' := AddToMap(b, p, -shares[p]);
-
-        // b' has same keys as b (since p in shares ==> p in b)
         assert b'.Keys == b.Keys;
-
-        // SumValuesSeq(shares, rest) ignores p since p !in rest
-        SumValuesSeqRemoveNonMember(shares, p, rest);
-
-        // AddToMap changes sum by delta
-        AddToMapSumChangeImpl(b, p, -shares[p], bKeys);
-
-        // IH
-        ApplySharesSeqSumChangeImpl(b', shares, rest, bKeys);
+        ApplySharesSeqKeysUnchanged(b', shares, rest);
       } else {
-        ApplySharesSeqSumChangeImpl(b, shares, rest, bKeys);
+        ApplySharesSeqKeysUnchanged(b, shares, rest);
       }
     }
   }
 
-  // Impl version of AddToMapSumChange
-  lemma AddToMapSumChangeImpl(b: map<PersonId, Money>, p: PersonId, delta: Money, bKeys: seq<PersonId>)
-    requires NoDuplicates(bKeys)
-    requires forall k :: k in b.Keys <==> k in bKeys
-    requires |bKeys| == |b|
-    requires p in b  // p already in b
-    ensures SumValuesSeq(AddToMap(b, p, delta), bKeys) == SumValuesSeq(b, bKeys) + delta
-  {
-    // AddToMap(b, p, delta) = b[p := b[p] + delta] when p in b
-    // The map has same keys, just p's value changed by delta
-    AddToMapSumChangeImplHelper(b, p, delta, bKeys);
-  }
-
-  // Helper: AddToMap commutes with map subtraction for different keys
   lemma AddToMapMinusCommutes(b: map<PersonId, Money>, p: PersonId, delta: Money, k: PersonId)
     requires p != k
     requires p in b
@@ -796,30 +957,46 @@ module ClearSplit {
     }
   }
 
-  // When only p changed, sum over keys not containing p is same
-  lemma SumValuesSeqUnchanged(b: map<PersonId, Money>, b': map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
-    requires p !in keys
-    requires forall k :: k in keys ==> (k in b <==> k in b')
-    requires forall k :: k in keys && k in b ==> b'[k] == b[k]
-    ensures SumValuesSeq(b', keys) == SumValuesSeq(b, keys)
+  lemma AddToMapSumChangeImpl(b: map<PersonId, Money>, p: PersonId, delta: Money, bKeys: seq<PersonId>)
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires p in b
+    ensures SumValuesSeq(AddToMap(b, p, delta), bKeys) == SumValuesSeq(b, bKeys) + delta
+  {
+    AddToMapSumChangeImplHelper(b, p, delta, bKeys);
+  }
+
+  lemma ApplySharesSeqSumChangeImpl(
+    b: map<PersonId, Money>, shares: map<PersonId, Money>,
+    keys: seq<PersonId>, bKeys: seq<PersonId>)
+    requires NoDuplicates(keys)
+    requires NoDuplicates(bKeys)
+    requires forall k :: k in b.Keys <==> k in bKeys
+    requires |bKeys| == |b|
+    requires forall k :: k in shares.Keys ==> k in b.Keys
+    ensures SumValuesSeq(ApplySharesSeq(b, shares, keys), bKeys) == SumValuesSeq(b, bKeys) - SumValuesSeq(shares, keys)
     decreases |keys|
   {
     if |keys| == 0 {
     } else {
-      var k := keys[0];
+      var p := keys[0];
       var rest := keys[1..];
-      if k in b {
-        assert k in b';
-        assert b'[k] == b[k];
-        SumValuesSeqUnchanged(b - {k}, b' - {k}, rest, p);
+      NoDupTail(keys);
+      NoDupHeadNotInTail(keys);
+
+      if p in shares {
+        var b' := AddToMap(b, p, -shares[p]);
+        assert b'.Keys == b.Keys;
+        SumValuesSeqRemoveNonMember(shares, p, rest);
+        AddToMapSumChangeImpl(b, p, -shares[p], bKeys);
+        ApplySharesSeqSumChangeImpl(b', shares, rest, bKeys);
       } else {
-        assert k !in b';
-        SumValuesSeqUnchanged(b, b', rest, p);
+        ApplySharesSeqSumChangeImpl(b, shares, rest, bKeys);
       }
     }
   }
 
-  // Original lemma - now uses impl version + equivalence
   lemma ApplySharesSeqSumChange(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, bKeys: seq<PersonId>)
     requires NoDuplicates(keys)
     requires forall k :: k in shares.Keys <==> k in keys
@@ -827,50 +1004,23 @@ module ClearSplit {
     requires NoDuplicates(bKeys)
     requires forall k :: k in b.Keys <==> k in bKeys
     requires |bKeys| == |b|
-    requires forall k :: k in shares.Keys ==> k in b.Keys  // share owners in b
+    requires forall k :: k in shares.Keys ==> k in b.Keys
     ensures SumValues(ApplySharesSeq(b, shares, keys)) == SumValues(b) - SumValuesSeq(shares, keys)
   {
-    // Use impl version
     ApplySharesSeqSumChangeImpl(b, shares, keys, bKeys);
-    // Now: SumValuesSeq(ApplySharesSeq(b, shares, keys), bKeys) == SumValuesSeq(b, bKeys) - SumValuesSeq(shares, keys)
-
-    // Result has same keys as b (since share owners are in b)
     ApplySharesSeqKeysUnchanged(b, shares, keys);
-
-    // Convert to SumValues using equivalence
     SumValuesSeqEquiv(b, bKeys);
     SumValuesSeqEquiv(ApplySharesSeq(b, shares, keys), bKeys);
   }
 
-  // Helper: ApplySharesSeq doesn't change the key set when all share owners are already in b
-  lemma ApplySharesSeqKeysUnchanged(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>)
-    requires forall k :: k in shares.Keys ==> k in b.Keys
-    ensures ApplySharesSeq(b, shares, keys).Keys == b.Keys
-    decreases |keys|
-  {
-    if |keys| == 0 {
-    } else {
-      var p := keys[0];
-      var rest := keys[1..];
-      if p in shares {
-        var b' := AddToMap(b, p, -shares[p]);
-        assert b'.Keys == b.Keys;
-        ApplySharesSeqKeysUnchanged(b', shares, rest);
-      } else {
-        ApplySharesSeqKeysUnchanged(b, shares, rest);
-      }
-    }
-  }
-
-  // Key lemma: applying an expense preserves sum (payer +amount, shares -amount)
   lemma ApplyExpensePreservesSum(b: map<PersonId, Money>, e: Expense, bKeys: seq<PersonId>)
     requires ShareKeysConsistent(e)
     requires SumValues(e.shares) == e.amount
     requires NoDuplicates(bKeys)
     requires forall k :: k in b.Keys <==> k in bKeys
     requires |bKeys| == |b|
-    requires e.paidBy in b  // payer is in balance map
-    requires forall k :: k in e.shares.Keys ==> k in b.Keys  // share owners in balance map
+    requires e.paidBy in b
+    requires forall k :: k in e.shares.Keys ==> k in b.Keys
     ensures SumValues(ApplyExpenseToBalances(b, e)) == SumValues(b)
   {
     var b' := AddToMap(b, e.paidBy, e.amount);
@@ -878,39 +1028,12 @@ module ClearSplit {
     assert b'.Keys == b.Keys;
 
     ApplySharesSeqSumChange(b', e.shares, e.shareKeys, bKeys);
-
     SumValuesSeqEquiv(e.shares, e.shareKeys);
   }
 
-  // Helper: AddToMap changes sum by delta
-  lemma {:vcs_split_on_every_assert} AddToMapSumChange(b: map<PersonId, Money>, p: PersonId, delta: Money)
-    ensures SumValues(AddToMap(b, p, delta)) == SumValues(b) + delta
-  {
-    var b' := AddToMap(b, p, delta);
-    if p in b {
-      // b' = b[p := b[p] + delta]
-      // SumValues(b') = SumValues(b - {p}) + b'[p]
-      //               = SumValues(b - {p}) + b[p] + delta
-      // SumValues(b)  = SumValues(b - {p}) + b[p]
-      // So SumValues(b') = SumValues(b) + delta
-      SumValuesRemoveKey(b, p);
-      SumValuesRemoveKey(b', p);
-      assert b' - {p} == b - {p};
-    } else {
-      // b' = b[p := delta]
-      // SumValues(b') = SumValues(b' - {p}) + delta
-      //               = SumValues(b) + delta
-      SumValuesRemoveKey(b', p);
-      assert b' - {p} == b;
-    }
-  }
-
-  // Key lemma: applying a settlement preserves sum (from +amount, to -amount)
   lemma ApplySettlementPreservesSum(b: map<PersonId, Money>, s: Settlement)
     ensures SumValues(ApplySettlementToBalances(b, s)) == SumValues(b)
   {
-    // b' = AddToMap(b, from, +amount)
-    // result = AddToMap(b', to, -amount)
     var b' := AddToMap(b, s.from, s.amount);
     AddToMapSumChange(b, s.from, s.amount);
     assert SumValues(b') == SumValues(b) + s.amount;
@@ -921,7 +1044,16 @@ module ClearSplit {
     assert SumValues(result) == SumValues(b);
   }
 
-  // Expenses preserve sum
+  lemma ApplyExpenseKeysUnchanged(b: map<PersonId, Money>, e: Expense)
+    requires e.paidBy in b.Keys
+    requires forall k :: k in e.shares.Keys ==> k in b.Keys
+    ensures ApplyExpenseToBalances(b, e).Keys == b.Keys
+  {
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    assert b'.Keys == b.Keys;
+    ApplySharesSeqKeysUnchanged(b', e.shares, e.shareKeys);
+  }
+
   lemma ApplyExpensesPreservesSum(b: map<PersonId, Money>, expenses: seq<Expense>, bKeys: seq<PersonId>)
     requires forall i :: 0 <= i < |expenses| ==> ShareKeysConsistent(expenses[i])
     requires forall i :: 0 <= i < |expenses| ==> SumValues(expenses[i].shares) == expenses[i].amount
@@ -938,26 +1070,11 @@ module ClearSplit {
       var e := expenses[0];
       var b' := ApplyExpenseToBalances(b, e);
       ApplyExpensePreservesSum(b, e, bKeys);
-
-      // b' has same keys as b
       ApplyExpenseKeysUnchanged(b, e);
-
       ApplyExpensesPreservesSum(b', expenses[1..], bKeys);
     }
   }
 
-  // Helper: ApplyExpenseToBalances doesn't change key set when payer and share owners are in b
-  lemma ApplyExpenseKeysUnchanged(b: map<PersonId, Money>, e: Expense)
-    requires e.paidBy in b.Keys
-    requires forall k :: k in e.shares.Keys ==> k in b.Keys
-    ensures ApplyExpenseToBalances(b, e).Keys == b.Keys
-  {
-    var b' := AddToMap(b, e.paidBy, e.amount);
-    assert b'.Keys == b.Keys;
-    ApplySharesSeqKeysUnchanged(b', e.shares, e.shareKeys);
-  }
-
-  // Settlements preserve sum
   lemma ApplySettlementsPreservesSum(b: map<PersonId, Money>, settlements: seq<Settlement>)
     ensures SumValues(ApplySettlementsSeq(b, settlements)) == SumValues(b)
     decreases |settlements|
@@ -970,23 +1087,20 @@ module ClearSplit {
     }
   }
 
-  // THE CONSERVATION THEOREM
+  // -----------------------------
+  // CONSERVATION THEOREM PROOF
+  // -----------------------------
   lemma Conservation(model: Model)
-    requires Inv(model)
-    ensures SumValues(Balances(model)) == 0
   {
     BalancesEquiv(model);
     ZeroBalancesSum(model.members);
 
-    // ZeroBalances has sum 0
     var b0 := ZeroBalances(model.members);
     assert SumValues(b0) == 0;
     assert b0.Keys == model.members;
 
-    // memberList covers members
     var bKeys := model.memberList;
 
-    // Expenses preserve sum
     assert forall i :: 0 <= i < |model.expenses| ==> WellFormedExpense(model.members, model.expenses[i]);
     forall i | 0 <= i < |model.expenses|
       ensures ShareKeysConsistent(model.expenses[i])
@@ -1000,583 +1114,27 @@ module ClearSplit {
     ApplyExpensesPreservesSum(b0, model.expenses, bKeys);
     assert SumValues(b1) == 0;
 
-    // Settlements preserve sum
     var b2 := ApplySettlementsSeq(b1, model.settlements);
     ApplySettlementsPreservesSum(b1, model.settlements);
     assert SumValues(b2) == 0;
 
-    // Connect to Balances via equivalence
     ZeroBalancesEquiv(model.members, model.memberList);
     assert ZeroBalancesSeq(model.memberList) == b0;
   }
 
-  // SumValues of a map where all values are zero is zero
-  lemma SumValuesAllZero(m: map<PersonId, Money>)
-    requires forall p :: p in m ==> m[p] == 0
-    ensures SumValues(m) == 0
-    decreases |m|
-  {
-    if |m| == 0 {
-      // Base case: empty map has sum 0
-    } else {
-      // Pick any key p
-      var p :| p in m;
-      // SumValues(m) == m[p] + SumValues(m - {p}) by the ensures of SumValues
-      // m[p] == 0 by precondition
-      // m - {p} also has all zeros
-      var m' := m - {p};
-      forall q | q in m'
-        ensures m'[q] == 0
-      {
-        assert m'[q] == m[q];
-      }
-      SumValuesAllZero(m');
-      // SumValues(m) == 0 + 0 == 0
-    }
-  }
-
-  lemma ZeroBalancesSum(members: set<PersonId>)
-    ensures SumValues(ZeroBalances(members)) == 0
-  {
-    // ZeroBalances maps all members to 0
-    SumValuesAllZero(ZeroBalances(members));
-  }
-
   // -----------------------------
-  // Actions (state transitions)
+  // Delta law helpers
   // -----------------------------
-  datatype Result<T, E> = Ok(value: T) | Error(error: E)
 
-  datatype Err =
-    | NotMember(p: PersonId)
-    | BadExpense
-    | BadSettlement
-
-  datatype Action =
-    | AddExpense(e: Expense)
-    | AddSettlement(s: Settlement)
-
-  // Helper: check all sequence elements are in the map
-  predicate SeqCoversMap(keys: seq<PersonId>, m: map<PersonId, Money>)
-  {
-    (forall i :: 0 <= i < |keys| ==> keys[i] in m)
-    && |keys| == |m|
-  }
-
-  // Ghost predicate to express the full coverage property
-  ghost predicate KeysCoverExactly(keys: seq<PersonId>, m: map<PersonId, Money>)
-  {
-    |keys| == |m| && (forall k :: k in m.Keys <==> k in keys)
-  }
-
-  // Lemma: SeqCoversMap implies the ghost property (with no duplicates)
-  lemma SeqCoversMapImpliesExact(keys: seq<PersonId>, m: map<PersonId, Money>)
-    requires SeqCoversMap(keys, m)
-    requires forall i, j :: 0 <= i < j < |keys| ==> keys[i] != keys[j]  // no duplicates
-    ensures KeysCoverExactly(keys, m)
-  {
-    // Direction 1: k in keys ==> k in m (follows from SeqCoversMap)
-    forall k | k in keys
-      ensures k in m.Keys
-    {
-      var i :| 0 <= i < |keys| && keys[i] == k;
-      assert keys[i] in m;
-    }
-    // Direction 2: k in m ==> k in keys
-    // By contradiction: if some k in m is not in keys, then
-    // the set of keys in the sequence has fewer than |m| elements,
-    // contradicting |keys| == |m| with no duplicates
-    forall k | k in m.Keys
-      ensures k in keys
-    {
-      SeqKeysSubsetSize(keys, m);
-    }
-  }
-
-  // Helper: sequence with no dups covering subset of m, with same size, must cover all of m
-  lemma SeqKeysSubsetSize(keys: seq<PersonId>, m: map<PersonId, Money>)
-    requires forall i :: 0 <= i < |keys| ==> keys[i] in m
-    requires forall i, j :: 0 <= i < j < |keys| ==> keys[i] != keys[j]
-    requires |keys| == |m|
-    ensures forall k :: k in m.Keys ==> k in keys
-  {
-    // The set of elements in keys has size |keys| (no duplicates)
-    // This set is a subset of m.Keys which has size |m|
-    // Since |keys| == |m|, the sets are equal
-    var keySet := set i | 0 <= i < |keys| :: keys[i];
-    NoDupSeqToSetSize(keys);
-    assert |keySet| == |keys|;
-    assert keySet <= m.Keys;
-    assert |keySet| == |m.Keys|;
-    // Equal size subsets of finite sets are equal
-    SubsetEqualSize(keySet, m.Keys);
-  }
-
-  lemma SubsetEqualSize<T>(a: set<T>, b: set<T>)
-    requires a <= b
-    requires |a| == |b|
-    ensures a == b
-  {
-    // Proof by showing both directions of subset
-    forall x | x in b
-      ensures x in a
-    {
-      if x !in a {
-        // a is a subset of b - {x}
-        assert a <= b - {x};
-        // Use cardinality argument
-        CardinalitySubset(a, b - {x});
-      }
-    }
-  }
-
-  lemma CardinalitySubset<T>(a: set<T>, b: set<T>)
-    requires a <= b
-    ensures |a| <= |b|
-    decreases |b|
-  {
-    if |b| == 0 {
-      assert a == {};
-    } else {
-      var x :| x in b;
-      if x in a {
-        CardinalitySubset(a - {x}, b - {x});
-      } else {
-        CardinalitySubset(a, b - {x});
-      }
-    }
-  }
-
-  lemma NoDupSeqToSetSize(s: seq<PersonId>)
-    requires forall i, j :: 0 <= i < j < |s| ==> s[i] != s[j]
-    ensures |set i | 0 <= i < |s| :: s[i]| == |s|
-    decreases |s|
-  {
-    if |s| == 0 {
-    } else {
-      var last := s[|s|-1];
-      var init := s[..|s|-1];
-      NoDupSeqToSetSize(init);
-      var initSet := set i | 0 <= i < |init| :: init[i];
-      var fullSet := set i | 0 <= i < |s| :: s[i];
-      assert last !in initSet;
-      assert fullSet == initSet + {last};
-    }
-  }
-
-  // Step: the only state mutator - total reducer (no ghost preconditions)
-  method Step(model: Model, a: Action) returns (result: Result<Model, Err>)
-    requires Inv(model)
-    ensures result.Ok? ==> Inv(result.value)
-  {
-    match a
-    case AddExpense(e) =>
-      // Runtime validation - no ghost preconditions needed
-      if ValidExpenseCheck(model.members, e) {
-        ValidExpenseCheckImpliesWellFormed(model.members, e);
-        result := Ok(Model(model.members, model.memberList, model.expenses + [e], model.settlements));
-      } else {
-        result := Error(BadExpense);
-      }
-
-    case AddSettlement(s) =>
-      if ValidSettlement(model.members, s) {
-        result := Ok(Model(model.members, model.memberList, model.expenses, model.settlements + [s]));
-      } else {
-        result := Error(BadSettlement);
-      }
-  }
-
-  // Get balance for a specific person
-  function GetBalance(model: Model, p: PersonId): Money
-  {
-    var b := Balances(model);
-    if p in b then b[p] else 0
-  }
-
-  // Certificate: a record of verified facts about the model
-  datatype Certificate = Certificate(
-    memberCount: nat,
-    expenseCount: nat,
-    settlementCount: nat,
-    conservationHolds: bool  // Always true when Inv holds
-  )
-
-  // Get a certificate for the current model
-  method GetCertificate(model: Model) returns (cert: Certificate)
-    requires Inv(model)
-  {
-    Conservation(model);
-    cert := Certificate(
-      |model.members|,
-      |model.expenses|,
-      |model.settlements|,
-      true
-    );
-  }
-
-  // Initialize a new model with the given members
-  method Init(memberList: seq<PersonId>) returns (result: Result<Model, Err>)
-    ensures result.Ok? ==> Inv(result.value)
-  {
-    if !NoDuplicates(memberList) {
-      result := Error(BadExpense);
-      return;
-    }
-    var members := set i | 0 <= i < |memberList| :: memberList[i];
-    NoDupSeqToSetSizeGeneral(memberList);
-    result := Ok(Model(members, memberList, [], []));
-  }
-
-  // =============================
-  // Delta Laws: How Step affects Balances
-  // =============================
-
-  // Helper: ApplyExpensesSeq distributes over concatenation
-  lemma ApplyExpensesSeqConcat(b: map<PersonId, Money>, expenses1: seq<Expense>, expenses2: seq<Expense>)
-    ensures ApplyExpensesSeq(b, expenses1 + expenses2) == ApplyExpensesSeq(ApplyExpensesSeq(b, expenses1), expenses2)
-    decreases |expenses1|
-  {
-    if |expenses1| == 0 {
-      assert expenses1 + expenses2 == expenses2;
-    } else {
-      var b' := ApplyExpenseToBalances(b, expenses1[0]);
-      assert (expenses1 + expenses2)[0] == expenses1[0];
-      assert (expenses1 + expenses2)[1..] == expenses1[1..] + expenses2;
-      ApplyExpensesSeqConcat(b', expenses1[1..], expenses2);
-    }
-  }
-
-  // Helper: Balance relation when adding one expense
-  lemma AddExpenseBalanceRelation(model: Model, e: Expense, model': Model)
-    requires Inv(model)
-    requires ValidExpenseCheck(model.members, e)
-    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
-    // Payer gains amount (unless also a share owner)
-    ensures forall p :: p == e.paidBy && p !in e.shares ==>
-      GetBalance(model', p) == GetBalance(model, p) + e.amount
-    // Share owners (not payer) lose their share
-    ensures forall p :: p in e.shares && p != e.paidBy ==>
-      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
-    // Payer who is also a share owner: net change is amount - share
-    ensures e.paidBy in e.shares ==>
-      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
-    // Others unchanged
-    ensures forall p :: p !in e.shares && p != e.paidBy ==>
-      GetBalance(model', p) == GetBalance(model, p)
-  {
-    ValidExpenseCheckImpliesWellFormed(model.members, e);
-
-    // Balances(model') uses model.expenses + [e]
-    var b0 := ZeroBalancesSeq(model.memberList);
-    var b1 := ApplyExpensesSeq(b0, model.expenses);
-    var b1' := ApplyExpensesSeq(b0, model.expenses + [e]);
-    var b2 := ApplySettlementsSeq(b1, model.settlements);
-    var b2' := ApplySettlementsSeq(b1', model.settlements);
-
-    // Key: b1' = ApplyExpenseToBalances(b1, e)
-    ApplyExpensesSeqConcat(b0, model.expenses, [e]);
-    assert ApplyExpensesSeq(b1, [e]) == ApplyExpenseToBalances(b1, e);
-    assert b1' == ApplyExpenseToBalances(b1, e);
-
-    // Connect to Balances
-    assert Balances(model) == b2;
-    assert Balances(model') == b2';
-
-    // For each person p, track how their balance changes
-    forall p
-      ensures GetFromMap(b1', p) == GetFromMap(b1, p) + ExpenseDeltaForPerson(e, p)
-    {
-      ApplyExpenseDeltaForPerson(b1, e, p);
-    }
-
-    // Settlements don't change from model to model'
-    forall p
-      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + ExpenseDeltaForPerson(e, p)
-    {
-      SettlementsPreserveDelta(b1, b1', model.settlements, p, ExpenseDeltaForPerson(e, p));
-    }
-
-    // Connect GetFromMap to GetBalance
-    forall p
-      ensures GetBalance(model', p) == GetBalance(model, p) + ExpenseDeltaForPerson(e, p)
-    {
-      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
-      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
-    }
-  }
-
-  // Helper: If b1'[p] = b1[p] + delta, then after applying same settlements,
-  // b2'[p] = b2[p] + delta
-  lemma SettlementsPreserveDelta(
-    b1: map<PersonId, Money>,
-    b1': map<PersonId, Money>,
-    settlements: seq<Settlement>,
-    p: PersonId,
-    delta: Money
-  )
-    requires GetFromMap(b1', p) == GetFromMap(b1, p) + delta
-    ensures GetFromMap(ApplySettlementsSeq(b1', settlements), p) ==
-            GetFromMap(ApplySettlementsSeq(b1, settlements), p) + delta
-    decreases |settlements|
-  {
-    if |settlements| == 0 {
-    } else {
-      var s := settlements[0];
-      var b2 := ApplySettlementToBalances(b1, s);
-      var b2' := ApplySettlementToBalances(b1', s);
-
-      // Show b2'[p] = b2[p] + delta
-      ApplySettlementDeltaForPerson(b1, s, p);
-      ApplySettlementDeltaForPerson(b1', s, p);
-      // b2[p] = b1[p] + SettlementDeltaForPerson(s, p)
-      // b2'[p] = b1'[p] + SettlementDeltaForPerson(s, p)
-      //       = b1[p] + delta + SettlementDeltaForPerson(s, p)
-      //       = b2[p] + delta
-
-      SettlementsPreserveDelta(b2, b2', settlements[1..], p, delta);
-    }
-  }
-
-  // AddExpense delta law: payer gains amount, share owners lose their shares
-  lemma AddExpenseDelta(model: Model, e: Expense, model': Model)
-    requires Inv(model)
-    requires ValidExpenseCheck(model.members, e)
-    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
-    ensures Inv(model')
-    // Payer gains amount (when not a share owner)
-    ensures e.paidBy !in e.shares ==>
-      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount
-    // Share owners (not payer) lose their share
-    ensures forall p :: p in e.shares && p != e.paidBy ==>
-      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
-    // Payer who is also a share owner: net change is amount - share
-    ensures e.paidBy in e.shares ==>
-      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
-    // Others unchanged
-    ensures forall p :: p !in e.shares && p != e.paidBy ==>
-      GetBalance(model', p) == GetBalance(model, p)
-    // Conservation preserved
-    ensures SumValues(Balances(model')) == 0
-  {
-    // First establish Inv(model')
-    ValidExpenseCheckImpliesWellFormed(model.members, e);
-
-    // Need helper lemma to relate Balances(model') to Balances(model)
-    AddExpenseBalanceRelation(model, e, model');
-
-    // Conservation follows from the main Conservation theorem
-    Conservation(model');
-  }
-
-  // Helper: ApplySettlementsSeq distributes over concatenation
-  lemma ApplySettlementsSeqConcat(b: map<PersonId, Money>, settlements1: seq<Settlement>, settlements2: seq<Settlement>)
-    ensures ApplySettlementsSeq(b, settlements1 + settlements2) == ApplySettlementsSeq(ApplySettlementsSeq(b, settlements1), settlements2)
-    decreases |settlements1|
-  {
-    if |settlements1| == 0 {
-      assert settlements1 + settlements2 == settlements2;
-    } else {
-      var b' := ApplySettlementToBalances(b, settlements1[0]);
-      assert (settlements1 + settlements2)[0] == settlements1[0];
-      assert (settlements1 + settlements2)[1..] == settlements1[1..] + settlements2;
-      ApplySettlementsSeqConcat(b', settlements1[1..], settlements2);
-    }
-  }
-
-  // Helper: Balance relation when adding one settlement
-  lemma AddSettlementBalanceRelation(model: Model, s: Settlement, model': Model)
-    requires Inv(model)
-    requires ValidSettlement(model.members, s)
-    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
-    // From gains amount (owes less)
-    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
-    // To loses amount (is owed less)
-    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
-    // Others unchanged
-    ensures forall p :: p != s.from && p != s.to ==>
-      GetBalance(model', p) == GetBalance(model, p)
-  {
-    // Balances computation
-    var b0 := ZeroBalancesSeq(model.memberList);
-    var b1 := ApplyExpensesSeq(b0, model.expenses);
-    var b2 := ApplySettlementsSeq(b1, model.settlements);
-    var b2' := ApplySettlementsSeq(b1, model.settlements + [s]);
-
-    // Key: b2' = ApplySettlementToBalances(b2, s)
-    ApplySettlementsSeqConcat(b1, model.settlements, [s]);
-    assert ApplySettlementsSeq(b2, [s]) == ApplySettlementToBalances(b2, s);
-    assert b2' == ApplySettlementToBalances(b2, s);
-
-    // Connect to Balances
-    assert Balances(model) == b2;
-    assert Balances(model') == b2';
-
-    // For each person p, track how their balance changes
-    forall p
-      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + SettlementDeltaForPerson(s, p)
-    {
-      ApplySettlementDeltaForPerson(b2, s, p);
-    }
-
-    // Connect GetFromMap to GetBalance
-    forall p
-      ensures GetBalance(model', p) == GetBalance(model, p) + SettlementDeltaForPerson(s, p)
-    {
-      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
-      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
-    }
-  }
-
-  // AddSettlement delta law: from gains, to loses
-  lemma AddSettlementDelta(model: Model, s: Settlement, model': Model)
-    requires Inv(model)
-    requires ValidSettlement(model.members, s)
-    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
-    ensures Inv(model')
-    // From gains amount (owes less)
-    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
-    // To loses amount (is owed less)
-    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
-    // Others unchanged
-    ensures forall p :: p != s.from && p != s.to ==>
-      GetBalance(model', p) == GetBalance(model, p)
-    // Conservation preserved
-    ensures SumValues(Balances(model')) == 0
-  {
-    // Use helper to establish balance changes
-    AddSettlementBalanceRelation(model, s, model');
-
-    // Conservation follows from the main Conservation theorem
-    Conservation(model');
-  }
-
-  // =============================
-  // History filter per person
-  // =============================
-
-  // Sum a sequence of Money values
-  function SumSeq(s: seq<Money>): Money
-    decreases |s|
-  {
-    if |s| == 0 then 0
-    else s[0] + SumSeq(s[1..])
-  }
-
-  // Helper: Get the delta for a person from a single expense
-  // Payer gains +amount, share owners lose -share
-  function ExpenseDeltaForPerson(e: Expense, p: PersonId): Money
-  {
-    var payerDelta := if p == e.paidBy then e.amount else 0;
-    var shareDelta := if p in e.shares then -e.shares[p] else 0;
-    payerDelta + shareDelta
-  }
-
-  // Helper: Get all deltas from a sequence of expenses for a person
-  function ExpenseDeltas(expenses: seq<Expense>, p: PersonId): seq<Money>
-    decreases |expenses|
-  {
-    if |expenses| == 0 then []
-    else [ExpenseDeltaForPerson(expenses[0], p)] + ExpenseDeltas(expenses[1..], p)
-  }
-
-  // Helper: Get the delta for a person from a single settlement
-  // From gains +amount (owes less), To loses -amount (is owed less)
-  function SettlementDeltaForPerson(s: Settlement, p: PersonId): Money
-  {
-    var fromDelta := if p == s.from then s.amount else 0;
-    var toDelta := if p == s.to then -s.amount else 0;
-    fromDelta + toDelta
-  }
-
-  // Helper: Get all deltas from a sequence of settlements for a person
-  function SettlementDeltas(settlements: seq<Settlement>, p: PersonId): seq<Money>
-    decreases |settlements|
-  {
-    if |settlements| == 0 then []
-    else [SettlementDeltaForPerson(settlements[0], p)] + SettlementDeltas(settlements[1..], p)
-  }
-
-  // Returns all money deltas for a person from expenses and settlements
-  function ExplainExpenses(model: Model, p: PersonId): seq<Money>
-  {
-    ExpenseDeltas(model.expenses, p) + SettlementDeltas(model.settlements, p)
-  }
-
-  // Helper: SumSeq distributes over concatenation
-  lemma SumSeqConcat(a: seq<Money>, b: seq<Money>)
-    ensures SumSeq(a + b) == SumSeq(a) + SumSeq(b)
-    decreases |a|
-  {
-    if |a| == 0 {
-      assert a + b == b;
-    } else {
-      calc {
-        SumSeq(a + b);
-        == { assert (a + b)[0] == a[0]; assert (a + b)[1..] == a[1..] + b; }
-        a[0] + SumSeq(a[1..] + b);
-        == { SumSeqConcat(a[1..], b); }
-        a[0] + SumSeq(a[1..]) + SumSeq(b);
-        ==
-        SumSeq(a) + SumSeq(b);
-      }
-    }
-  }
-
-  // Helper: Get balance for p from a balance map, defaulting to 0
   function GetFromMap(b: map<PersonId, Money>, p: PersonId): Money
   {
     if p in b then b[p] else 0
   }
 
-  // Helper: Applying a single expense to balances changes p's balance by ExpenseDeltaForPerson
-  lemma ApplyExpenseDeltaForPerson(b: map<PersonId, Money>, e: Expense, p: PersonId)
-    requires NoDuplicates(e.shareKeys)
-    requires forall k :: k in e.shares <==> k in e.shareKeys
-    ensures GetFromMap(ApplyExpenseToBalances(b, e), p) == GetFromMap(b, p) + ExpenseDeltaForPerson(e, p)
-  {
-    var b' := AddToMap(b, e.paidBy, e.amount);
-    AddToMapDelta(b, e.paidBy, e.amount, p);
-    ApplySharesDelta(b', e.shares, e.shareKeys, p);
-  }
-
-  // Helper: AddToMap changes p's value correctly
   lemma AddToMapDelta(b: map<PersonId, Money>, q: PersonId, delta: Money, p: PersonId)
     ensures GetFromMap(AddToMap(b, q, delta), p) == GetFromMap(b, p) + (if p == q then delta else 0)
-  {
-    // Direct from definition of AddToMap and GetFromMap
-  }
+  {}
 
-  // Helper: ApplySharesSeq changes p's balance by the negative of their share
-  // Requires no duplicates in keys to ensure each person is processed at most once
-  lemma ApplySharesDelta(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
-    requires NoDuplicates(keys)
-    ensures GetFromMap(ApplySharesSeq(b, shares, keys), p) ==
-            GetFromMap(b, p) + (if p in shares && p in keys then -shares[p] else 0)
-    decreases |keys|
-  {
-    if |keys| == 0 {
-    } else {
-      var k := keys[0];
-      var rest := keys[1..];
-      NoDuplicatesRest(keys);
-      if k in shares {
-        var b' := AddToMap(b, k, -shares[k]);
-        AddToMapDelta(b, k, -shares[k], p);
-        if k == p {
-          // p is processed at index 0, and since no duplicates, p !in rest
-          NoDuplicatesFirstNotInRest(keys);
-          ApplySharesDeltaAfterProcessed(b', shares, rest, p);
-        } else {
-          ApplySharesDelta(b', shares, rest, p);
-        }
-      } else {
-        ApplySharesDelta(b, shares, rest, p);
-      }
-    }
-  }
-
-  // Helper: NoDuplicates is preserved for the rest of the sequence
   lemma NoDuplicatesRest(keys: seq<PersonId>)
     requires |keys| > 0
     requires NoDuplicates(keys)
@@ -1591,7 +1149,6 @@ module ClearSplit {
     }
   }
 
-  // Helper: First element of a no-duplicate sequence is not in the rest
   lemma NoDuplicatesFirstNotInRest(keys: seq<PersonId>)
     requires |keys| > 0
     requires NoDuplicates(keys)
@@ -1603,12 +1160,10 @@ module ClearSplit {
       var i :| 0 <= i < |rest| && rest[i] == first;
       assert keys[i+1] == first;
       assert keys[0] == first;
-      // But NoDuplicates says keys[0] != keys[i+1] since 0 < i+1
       assert false;
     }
   }
 
-  // Helper: Once p is processed (not in remaining keys), their balance doesn't change
   lemma ApplySharesDeltaAfterProcessed(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
     requires p !in keys
     ensures GetFromMap(ApplySharesSeq(b, shares, keys), p) == GetFromMap(b, p)
@@ -1630,7 +1185,227 @@ module ClearSplit {
     }
   }
 
-  // Helper: Applying all expenses changes p's balance by SumSeq of ExpenseDeltas
+  lemma ApplySharesDelta(b: map<PersonId, Money>, shares: map<PersonId, Money>, keys: seq<PersonId>, p: PersonId)
+    requires NoDuplicates(keys)
+    ensures GetFromMap(ApplySharesSeq(b, shares, keys), p) ==
+            GetFromMap(b, p) + (if p in shares && p in keys then -shares[p] else 0)
+    decreases |keys|
+  {
+    if |keys| == 0 {
+    } else {
+      var k := keys[0];
+      var rest := keys[1..];
+      NoDuplicatesRest(keys);
+      if k in shares {
+        var b' := AddToMap(b, k, -shares[k]);
+        AddToMapDelta(b, k, -shares[k], p);
+        if k == p {
+          NoDuplicatesFirstNotInRest(keys);
+          ApplySharesDeltaAfterProcessed(b', shares, rest, p);
+        } else {
+          ApplySharesDelta(b', shares, rest, p);
+        }
+      } else {
+        ApplySharesDelta(b, shares, rest, p);
+      }
+    }
+  }
+
+  lemma ApplyExpenseDeltaForPerson(b: map<PersonId, Money>, e: Expense, p: PersonId)
+    requires NoDuplicates(e.shareKeys)
+    requires forall k :: k in e.shares <==> k in e.shareKeys
+    ensures GetFromMap(ApplyExpenseToBalances(b, e), p) == GetFromMap(b, p) + ExpenseDeltaForPerson(e, p)
+  {
+    var b' := AddToMap(b, e.paidBy, e.amount);
+    AddToMapDelta(b, e.paidBy, e.amount, p);
+    ApplySharesDelta(b', e.shares, e.shareKeys, p);
+  }
+
+  lemma ApplySettlementDeltaForPerson(b: map<PersonId, Money>, s: Settlement, p: PersonId)
+    ensures GetFromMap(ApplySettlementToBalances(b, s), p) == GetFromMap(b, p) + SettlementDeltaForPerson(s, p)
+  {
+    var b' := AddToMap(b, s.from, s.amount);
+    AddToMapDelta(b, s.from, s.amount, p);
+    var result := AddToMap(b', s.to, -s.amount);
+    AddToMapDelta(b', s.to, -s.amount, p);
+  }
+
+  lemma ApplyExpensesSeqConcat(b: map<PersonId, Money>, expenses1: seq<Expense>, expenses2: seq<Expense>)
+    ensures ApplyExpensesSeq(b, expenses1 + expenses2) == ApplyExpensesSeq(ApplyExpensesSeq(b, expenses1), expenses2)
+    decreases |expenses1|
+  {
+    if |expenses1| == 0 {
+      assert expenses1 + expenses2 == expenses2;
+    } else {
+      var b' := ApplyExpenseToBalances(b, expenses1[0]);
+      assert (expenses1 + expenses2)[0] == expenses1[0];
+      assert (expenses1 + expenses2)[1..] == expenses1[1..] + expenses2;
+      ApplyExpensesSeqConcat(b', expenses1[1..], expenses2);
+    }
+  }
+
+  lemma ApplySettlementsSeqConcat(b: map<PersonId, Money>, settlements1: seq<Settlement>, settlements2: seq<Settlement>)
+    ensures ApplySettlementsSeq(b, settlements1 + settlements2) == ApplySettlementsSeq(ApplySettlementsSeq(b, settlements1), settlements2)
+    decreases |settlements1|
+  {
+    if |settlements1| == 0 {
+      assert settlements1 + settlements2 == settlements2;
+    } else {
+      var b' := ApplySettlementToBalances(b, settlements1[0]);
+      assert (settlements1 + settlements2)[0] == settlements1[0];
+      assert (settlements1 + settlements2)[1..] == settlements1[1..] + settlements2;
+      ApplySettlementsSeqConcat(b', settlements1[1..], settlements2);
+    }
+  }
+
+  lemma SettlementsPreserveDelta(
+    b1: map<PersonId, Money>,
+    b1': map<PersonId, Money>,
+    settlements: seq<Settlement>,
+    p: PersonId,
+    delta: Money
+  )
+    requires GetFromMap(b1', p) == GetFromMap(b1, p) + delta
+    ensures GetFromMap(ApplySettlementsSeq(b1', settlements), p) ==
+            GetFromMap(ApplySettlementsSeq(b1, settlements), p) + delta
+    decreases |settlements|
+  {
+    if |settlements| == 0 {
+    } else {
+      var s := settlements[0];
+      var b2 := ApplySettlementToBalances(b1, s);
+      var b2' := ApplySettlementToBalances(b1', s);
+
+      ApplySettlementDeltaForPerson(b1, s, p);
+      ApplySettlementDeltaForPerson(b1', s, p);
+
+      SettlementsPreserveDelta(b2, b2', settlements[1..], p, delta);
+    }
+  }
+
+  lemma AddExpenseBalanceRelation(model: Model, e: Expense, model': Model)
+    requires Inv(model)
+    requires ValidExpenseCheck(model.members, e)
+    requires model' == Model(model.members, model.memberList, model.expenses + [e], model.settlements)
+    ensures forall p :: p == e.paidBy && p !in e.shares ==>
+      GetBalance(model', p) == GetBalance(model, p) + e.amount
+    ensures forall p :: p in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p) - e.shares[p]
+    ensures e.paidBy in e.shares ==>
+      GetBalance(model', e.paidBy) == GetBalance(model, e.paidBy) + e.amount - e.shares[e.paidBy]
+    ensures forall p :: p !in e.shares && p != e.paidBy ==>
+      GetBalance(model', p) == GetBalance(model, p)
+  {
+    ValidExpenseCheckImpliesWellFormed(model.members, e);
+
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b1' := ApplyExpensesSeq(b0, model.expenses + [e]);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+    var b2' := ApplySettlementsSeq(b1', model.settlements);
+
+    ApplyExpensesSeqConcat(b0, model.expenses, [e]);
+    assert ApplyExpensesSeq(b1, [e]) == ApplyExpenseToBalances(b1, e);
+    assert b1' == ApplyExpenseToBalances(b1, e);
+
+    assert Balances(model) == b2;
+    assert Balances(model') == b2';
+
+    forall p
+      ensures GetFromMap(b1', p) == GetFromMap(b1, p) + ExpenseDeltaForPerson(e, p)
+    {
+      ApplyExpenseDeltaForPerson(b1, e, p);
+    }
+
+    forall p
+      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + ExpenseDeltaForPerson(e, p)
+    {
+      SettlementsPreserveDelta(b1, b1', model.settlements, p, ExpenseDeltaForPerson(e, p));
+    }
+
+    forall p
+      ensures GetBalance(model', p) == GetBalance(model, p) + ExpenseDeltaForPerson(e, p)
+    {
+      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
+      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
+    }
+  }
+
+  lemma AddSettlementBalanceRelation(model: Model, s: Settlement, model': Model)
+    requires Inv(model)
+    requires ValidSettlement(model.members, s)
+    requires model' == Model(model.members, model.memberList, model.expenses, model.settlements + [s])
+    ensures s.from != s.to ==> GetBalance(model', s.from) == GetBalance(model, s.from) + s.amount
+    ensures s.from != s.to ==> GetBalance(model', s.to) == GetBalance(model, s.to) - s.amount
+    ensures forall p :: p != s.from && p != s.to ==>
+      GetBalance(model', p) == GetBalance(model, p)
+  {
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+    var b2' := ApplySettlementsSeq(b1, model.settlements + [s]);
+
+    ApplySettlementsSeqConcat(b1, model.settlements, [s]);
+    assert ApplySettlementsSeq(b2, [s]) == ApplySettlementToBalances(b2, s);
+    assert b2' == ApplySettlementToBalances(b2, s);
+
+    assert Balances(model) == b2;
+    assert Balances(model') == b2';
+
+    forall p
+      ensures GetFromMap(b2', p) == GetFromMap(b2, p) + SettlementDeltaForPerson(s, p)
+    {
+      ApplySettlementDeltaForPerson(b2, s, p);
+    }
+
+    forall p
+      ensures GetBalance(model', p) == GetBalance(model, p) + SettlementDeltaForPerson(s, p)
+    {
+      assert GetBalance(model, p) == GetFromMap(Balances(model), p);
+      assert GetBalance(model', p) == GetFromMap(Balances(model'), p);
+    }
+  }
+
+  // -----------------------------
+  // DELTA LAW PROOFS
+  // -----------------------------
+
+  lemma AddExpenseDelta(model: Model, e: Expense, model': Model)
+  {
+    ValidExpenseCheckImpliesWellFormed(model.members, e);
+    AddExpenseBalanceRelation(model, e, model');
+    Conservation(model');
+  }
+
+  lemma AddSettlementDelta(model: Model, s: Settlement, model': Model)
+  {
+    AddSettlementBalanceRelation(model, s, model');
+    Conservation(model');
+  }
+
+  // -----------------------------
+  // EXPLAIN SUMS TO BALANCE PROOF
+  // -----------------------------
+
+  lemma SumSeqConcat(a: seq<Money>, b: seq<Money>)
+    ensures SumSeq(a + b) == SumSeq(a) + SumSeq(b)
+    decreases |a|
+  {
+    if |a| == 0 {
+      assert a + b == b;
+    } else {
+      calc {
+        SumSeq(a + b);
+        == { assert (a + b)[0] == a[0]; assert (a + b)[1..] == a[1..] + b; }
+        a[0] + SumSeq(a[1..] + b);
+        == { SumSeqConcat(a[1..], b); }
+        a[0] + SumSeq(a[1..]) + SumSeq(b);
+        ==
+        SumSeq(a) + SumSeq(b);
+      }
+    }
+  }
+
   lemma ApplyExpensesDeltaForPerson(b: map<PersonId, Money>, expenses: seq<Expense>, p: PersonId)
     requires forall i :: 0 <= i < |expenses| ==> ShareKeysConsistent(expenses[i])
     ensures GetFromMap(ApplyExpensesSeq(b, expenses), p) == GetFromMap(b, p) + SumSeq(ExpenseDeltas(expenses, p))
@@ -1645,17 +1420,6 @@ module ClearSplit {
     }
   }
 
-  // Helper: Applying a single settlement changes p's balance by SettlementDeltaForPerson
-  lemma ApplySettlementDeltaForPerson(b: map<PersonId, Money>, s: Settlement, p: PersonId)
-    ensures GetFromMap(ApplySettlementToBalances(b, s), p) == GetFromMap(b, p) + SettlementDeltaForPerson(s, p)
-  {
-    var b' := AddToMap(b, s.from, s.amount);
-    AddToMapDelta(b, s.from, s.amount, p);
-    var result := AddToMap(b', s.to, -s.amount);
-    AddToMapDelta(b', s.to, -s.amount, p);
-  }
-
-  // Helper: Applying all settlements changes p's balance by SumSeq of SettlementDeltas
   lemma ApplySettlementsDeltaForPerson(b: map<PersonId, Money>, settlements: seq<Settlement>, p: PersonId)
     ensures GetFromMap(ApplySettlementsSeq(b, settlements), p) == GetFromMap(b, p) + SumSeq(SettlementDeltas(settlements, p))
     decreases |settlements|
@@ -1669,36 +1433,6 @@ module ClearSplit {
     }
   }
 
-  lemma ExplainSumsToBalance(model: Model, p: PersonId)
-    requires Inv(model)
-    requires p in model.members
-    ensures SumSeq(ExplainExpenses(model, p)) == GetBalance(model, p)
-  {
-    // ExplainExpenses(model, p) = ExpenseDeltas(...) + SettlementDeltas(...)
-    var expDeltas := ExpenseDeltas(model.expenses, p);
-    var setDeltas := SettlementDeltas(model.settlements, p);
-    SumSeqConcat(expDeltas, setDeltas);
-    // SumSeq(ExplainExpenses) == SumSeq(expDeltas) + SumSeq(setDeltas)
-
-    // Balances(model) is computed as:
-    var b0 := ZeroBalancesSeq(model.memberList);
-    var b1 := ApplyExpensesSeq(b0, model.expenses);
-    var b2 := ApplySettlementsSeq(b1, model.settlements);
-
-    // GetBalance is GetFromMap(b2, p) where p in model.members
-    assert p in b0 by {
-      ZeroBalancesSeqContains(model.memberList, p);
-    }
-    assert GetFromMap(b0, p) == 0;
-
-    ApplyExpensesDeltaForPerson(b0, model.expenses, p);
-    // GetFromMap(b1, p) == 0 + SumSeq(expDeltas)
-
-    ApplySettlementsDeltaForPerson(b1, model.settlements, p);
-    // GetFromMap(b2, p) == SumSeq(expDeltas) + SumSeq(setDeltas)
-  }
-
-  // Helper: ZeroBalancesSeq contains all members from the list
   lemma ZeroBalancesSeqContains(memberList: seq<PersonId>, p: PersonId)
     requires p in memberList
     ensures p in ZeroBalancesSeq(memberList)
@@ -1706,12 +1440,76 @@ module ClearSplit {
   {
     if |memberList| == 0 {
     } else if memberList[0] == p {
-      // p is added at the end, so it's in the result
     } else {
       ZeroBalancesSeqContains(memberList[1..], p);
     }
   }
+
+  lemma ExplainSumsToBalance(model: Model, p: PersonId)
+  {
+    var expDeltas := ExpenseDeltas(model.expenses, p);
+    var setDeltas := SettlementDeltas(model.settlements, p);
+    SumSeqConcat(expDeltas, setDeltas);
+
+    var b0 := ZeroBalancesSeq(model.memberList);
+    var b1 := ApplyExpensesSeq(b0, model.expenses);
+    var b2 := ApplySettlementsSeq(b1, model.settlements);
+
+    assert p in b0 by {
+      ZeroBalancesSeqContains(model.memberList, p);
+    }
+    assert GetFromMap(b0, p) == 0;
+
+    ApplyExpensesDeltaForPerson(b0, model.expenses, p);
+    ApplySettlementsDeltaForPerson(b1, model.settlements, p);
+  }
+
+  // -----------------------------
+  // METHOD IMPLEMENTATIONS
+  // -----------------------------
+
+  method Step(model: Model, a: Action) returns (result: Result<Model, Err>)
+  {
+    match a
+    case AddExpense(e) =>
+      if ValidExpenseCheck(model.members, e) {
+        ValidExpenseCheckImpliesWellFormed(model.members, e);
+        result := Ok(Model(model.members, model.memberList, model.expenses + [e], model.settlements));
+      } else {
+        result := Error(BadExpense);
+      }
+
+    case AddSettlement(s) =>
+      if ValidSettlement(model.members, s) {
+        result := Ok(Model(model.members, model.memberList, model.expenses, model.settlements + [s]));
+      } else {
+        result := Error(BadSettlement);
+      }
+  }
+
+  method Init(memberList: seq<PersonId>) returns (result: Result<Model, Err>)
+  {
+    if !NoDuplicates(memberList) {
+      result := Error(BadExpense);
+      return;
+    }
+    var members := set i | 0 <= i < |memberList| :: memberList[i];
+    NoDupSeqToSetSizeGeneral(memberList);
+    result := Ok(Model(members, memberList, [], []));
+  }
+
+  method GetCertificate(model: Model) returns (cert: Certificate)
+  {
+    Conservation(model);
+    cert := Certificate(
+      |model.members|,
+      |model.expenses|,
+      |model.settlements|,
+      true
+    );
+  }
 }
+
 
 // =============================
 // AppCore: JS-facing API (delegation only)
