@@ -280,14 +280,6 @@ function App() {
             )}
           </section>
 
-          <section className="panel help">
-            <h3>Usage</h3>
-            <ul>
-              <li>Click to toggle select</li>
-              <li>Click background to clear</li>
-              <li>Drag to move</li>
-            </ul>
-          </section>
         </aside>
       </div>
     </div>
