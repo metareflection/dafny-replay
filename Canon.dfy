@@ -64,18 +64,25 @@ module Canon {
   // AppCore-like API
   // ----------------------------
 
-  function Empty(): Model {
+  function Empty(): (result: Model)
+    ensures Inv(result)
+  {
     Model(map[], [], 0)
   }
 
   // Build from a seq of nodes (last writer wins on duplicate ids).
-  function Init(ns: seq<Node>): Model {
+  function Init(ns: seq<Node>): (result: Model)
+    ensures Inv(result)
+  {
     Model(NodesFromSeq(ns), [], 0)
   }
 
   // UI passes selected ids (possibly with duplicates or missing).
   // Filter to present nodes to maintain Inv.
-  function AddAlign(m: Model, sel: seq<NodeId>): Model {
+  function AddAlign(m: Model, sel: seq<NodeId>): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 1 then m else
       var axis := InferAxis(m, targets);
@@ -84,7 +91,10 @@ module Canon {
       Model(m.nodes, m.constraints + [c], m.nextCid + 1)
   }
 
-  function AddEvenSpace(m: Model, sel: seq<NodeId>): Model {
+  function AddEvenSpace(m: Model, sel: seq<NodeId>): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 2 then m else
       var axis := InferAxis(m, targets);
@@ -93,12 +103,18 @@ module Canon {
   }
 
   // Delete constraint by cid (first-class constraints).
-  function DeleteConstraint(m: Model, cid: int): Model {
-    Model(m.nodes, FilterOutCid(m.constraints, cid), m.nextCid)
+  function DeleteConstraint(m: Model, cid: int): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
+    Model(m.nodes, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
   }
 
   // Canon = apply constraints sequentially, deterministic.
-  function Canon(m: Model): Model {
+  function Canon(m: Model): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
     ApplyAll(Model(m.nodes, m.constraints, m.nextCid), 0)
   }
 
@@ -106,14 +122,20 @@ module Canon {
   // Constraint application
   // ----------------------------
 
-  function ApplyAll(m: Model, i: nat): Model
+  function ApplyAll(m: Model, i: nat): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
     decreases |m.constraints| - i
   {
     if i >= |m.constraints| then m
     else ApplyAll(ApplyOne(m, m.constraints[i]), i + 1)
   }
 
-  function ApplyOne(m: Model, c: Constraint): Model {
+  function ApplyOne(m: Model, c: Constraint): (result: Model)
+    requires Inv(m)
+    requires ConstraintTargetsValid(c, m.nodes)
+    ensures Inv(result)
+  {
     match c
     case Align(_, targets, axis, anchor) =>
       Model(ApplyAlignNodes(m.nodes, targets, axis, anchor), m.constraints, m.nextCid)
@@ -122,11 +144,14 @@ module Canon {
   }
 
   // Align: set Coord to anchor for every target present in nodes.
-  function ApplyAlignNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int): map<NodeId, Node> {
+  function ApplyAlignNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int): (result: map<NodeId, Node>)
+    ensures result.Keys == nodes.Keys
+  {
     ApplyAlignNodesFrom(nodes, targets, axis, anchor, 0)
   }
 
-  function ApplyAlignNodesFrom(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int, i: nat): map<NodeId, Node>
+  function ApplyAlignNodesFrom(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int, i: nat): (result: map<NodeId, Node>)
+    ensures result.Keys == nodes.Keys
     decreases |targets| - i
   {
     if i >= |targets| then nodes
@@ -143,7 +168,9 @@ module Canon {
   // EvenSpace:
   // 1) compute order on the fly by sorting by Coord along axis
   // 2) evenly space between endpoints (integer step)
-  function ApplyEvenSpaceNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis): map<NodeId, Node> {
+  function ApplyEvenSpaceNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis): (result: map<NodeId, Node>)
+    ensures result.Keys == nodes.Keys
+  {
     var ordered := OrderTargets(nodes, targets, axis);
     if |ordered| <= 2 then nodes
     else
@@ -155,8 +182,9 @@ module Canon {
       ApplyEvenSpaceNodesFrom(nodes, ordered, axis, a, step, 0)
   }
 
-  function ApplyEvenSpaceNodesFrom(nodes: map<NodeId, Node>, ordered: seq<NodeId>, axis: Axis, a: int, step: int, i: nat): map<NodeId, Node>
+  function ApplyEvenSpaceNodesFrom(nodes: map<NodeId, Node>, ordered: seq<NodeId>, axis: Axis, a: int, step: int, i: nat): (result: map<NodeId, Node>)
     requires AllIn(ordered, nodes)
+    ensures result.Keys == nodes.Keys
     decreases |ordered| - i
   {
     if i >= |ordered| then nodes
@@ -313,20 +341,26 @@ module Canon {
   }
 
   // Filter out constraint id
-  function FilterOutCid(cs: seq<Constraint>, cid: int): seq<Constraint> {
-    FilterOutCidFrom(cs, cid, 0, [])
+  function FilterOutCid(cs: seq<Constraint>, cid: int, nodes: map<NodeId, Node>): (result: seq<Constraint>)
+    requires AllConstraintsValid(cs, nodes)
+    ensures AllConstraintsValid(result, nodes)
+  {
+    FilterOutCidFrom(cs, cid, 0, [], nodes)
   }
 
-  function FilterOutCidFrom(cs: seq<Constraint>, cid: int, i: nat, acc: seq<Constraint>): seq<Constraint>
+  function FilterOutCidFrom(cs: seq<Constraint>, cid: int, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
+    requires AllConstraintsValid(cs, nodes)
+    requires AllConstraintsValid(acc, nodes)
+    ensures AllConstraintsValid(result, nodes)
     decreases |cs| - i
   {
     if i >= |cs| then acc
     else
       var c := cs[i];
       if CidOf(c) == cid then
-        FilterOutCidFrom(cs, cid, i + 1, acc)
+        FilterOutCidFrom(cs, cid, i + 1, acc, nodes)
       else
-        FilterOutCidFrom(cs, cid, i + 1, acc + [c])
+        FilterOutCidFrom(cs, cid, i + 1, acc + [c], nodes)
   }
 
   function CidOf(c: Constraint): int {
