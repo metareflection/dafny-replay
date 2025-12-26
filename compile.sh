@@ -39,4 +39,10 @@ dafny translate js --no-verify -o generated/ClearSplit --include-runtime ClearSp
 echo "Copying to clear-split project..."
 cp generated/ClearSplit.js clear-split/src/dafny/ClearSplit.cjs
 
+echo "Compiling Canon to JavaScript..."
+dafny translate js --no-verify -o generated/Canon --include-runtime Canon.dfy
+
+echo "Copying to canon project..."
+cp generated/Canon.js canon/src/dafny/Canon.cjs
+
 echo "Done."
