@@ -30,6 +30,12 @@ const getHarmonyName = (harmony) => {
   return 'Custom';
 };
 
+// Helper to get adjustment mode name
+const getAdjustmentModeName = (mode) => {
+  if (!mode || mode.$tag === undefined) return 'Unknown';
+  return mode.$tag === 0 ? 'Linked' : 'Independent';
+};
+
 // Map mood tag to App.Mood object
 const getMoodByTag = (tag) => {
   switch (tag) {
@@ -103,6 +109,65 @@ function ColorWheel() {
     dispatch(App.GeneratePalette(newHue, mood, harmony));
   };
 
+  // Handle adjustment mode toggle
+  const handleAdjustmentModeChange = (mode) => {
+    const modeValue = mode === 'linked' ? App.AdjustmentMode.Linked : App.AdjustmentMode.Independent;
+    dispatch(App.SetAdjustmentMode(modeValue));
+  };
+
+  // Get current adjustment mode tag (0 = Linked, 1 = Independent)
+  const currentModeTag = model.adjustmentMode?.$tag ?? 1;
+
+  // Handle contrast pair selection
+  const handleContrastPairChange = (fg, bg) => {
+    dispatch(App.SelectContrastPair(fg, bg));
+  };
+
+  // Get current contrast pair
+  const [contrastFg, contrastBg] = model.contrastPair || [0, 1];
+
+  // State for color adjustment controls
+  const [adjustIndex, setAdjustIndex] = useState(0);
+  const [deltaH, setDeltaH] = useState(0);
+  const [deltaS, setDeltaS] = useState(0);
+  const [deltaL, setDeltaL] = useState(0);
+
+  // Handle color adjustment
+  const handleAdjustColor = () => {
+    if (deltaH !== 0 || deltaS !== 0 || deltaL !== 0) {
+      dispatch(App.AdjustColor(adjustIndex, deltaH, deltaS, deltaL));
+      // Reset sliders after applying
+      setDeltaH(0);
+      setDeltaS(0);
+      setDeltaL(0);
+    }
+  };
+
+  // State for direct color setting
+  const [directIndex, setDirectIndex] = useState(0);
+  const [directH, setDirectH] = useState(model.colors[0]?.h ?? 180);
+  const [directS, setDirectS] = useState(model.colors[0]?.s ?? 70);
+  const [directL, setDirectL] = useState(model.colors[0]?.l ?? 50);
+
+  // Handle direct color index change - sync sliders to current color
+  const handleDirectIndexChange = (i) => {
+    setDirectIndex(i);
+    setDirectH(model.colors[i].h);
+    setDirectS(model.colors[i].s);
+    setDirectL(model.colors[i].l);
+  };
+
+  // Handle set color direct
+  const handleSetColorDirect = () => {
+    dispatch(App.SetColorDirect(directIndex, directH, directS, directL));
+  };
+
+  // Check if direct color differs from current
+  const directColorChanged =
+    directH !== model.colors[directIndex]?.h ||
+    directS !== model.colors[directIndex]?.s ||
+    directL !== model.colors[directIndex]?.l;
+
   return (
     <div className="app">
       <header>
@@ -174,13 +239,36 @@ function ColorWheel() {
         <div className="current-settings">
           <span>Current: {getMoodName(model.mood)} + {getHarmonyName(model.harmony)}</span>
         </div>
+
+        <div className="control-group">
+          <label>Adjustment Mode</label>
+          <div className="mode-toggle">
+            <button
+              className={`mode-btn ${currentModeTag === 0 ? 'active' : ''}`}
+              onClick={() => handleAdjustmentModeChange('linked')}
+            >
+              Linked
+            </button>
+            <button
+              className={`mode-btn ${currentModeTag === 1 ? 'active' : ''}`}
+              onClick={() => handleAdjustmentModeChange('independent')}
+            >
+              Independent
+            </button>
+          </div>
+          <span className="mode-hint">
+            {currentModeTag === 0
+              ? 'All colors adjust together'
+              : 'Each color adjusts independently'}
+          </span>
+        </div>
       </div>
 
       <div className="palette">
         {model.colors.map((color, i) => (
           <div
             key={i}
-            className="color-swatch"
+            className={`color-swatch ${i === contrastFg ? 'selected-fg' : ''} ${i === contrastBg ? 'selected-bg' : ''}`}
             style={{ backgroundColor: hslToCSS(color.h, color.s, color.l) }}
           >
             <div className="color-info">
@@ -190,6 +278,217 @@ function ColorWheel() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="contrast-section">
+        <h3>Contrast Pair</h3>
+        <div className="contrast-controls">
+          <div className="contrast-picker">
+            <label>Foreground</label>
+            <div className="color-buttons">
+              {model.colors.map((color, i) => (
+                <button
+                  key={i}
+                  className={`color-pick-btn ${i === contrastFg ? 'active' : ''}`}
+                  style={{ backgroundColor: hslToCSS(color.h, color.s, color.l) }}
+                  onClick={() => handleContrastPairChange(i, contrastBg)}
+                  title={`Color ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="contrast-picker">
+            <label>Background</label>
+            <div className="color-buttons">
+              {model.colors.map((color, i) => (
+                <button
+                  key={i}
+                  className={`color-pick-btn ${i === contrastBg ? 'active' : ''}`}
+                  style={{ backgroundColor: hslToCSS(color.h, color.s, color.l) }}
+                  onClick={() => handleContrastPairChange(contrastFg, i)}
+                  title={`Color ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="contrast-preview">
+            <div
+              className="preview-box"
+              style={{
+                backgroundColor: hslToCSS(
+                  model.colors[contrastBg].h,
+                  model.colors[contrastBg].s,
+                  model.colors[contrastBg].l
+                ),
+                color: hslToCSS(
+                  model.colors[contrastFg].h,
+                  model.colors[contrastFg].s,
+                  model.colors[contrastFg].l
+                ),
+              }}
+            >
+              Sample Text
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="adjust-section">
+        <h3>Adjust Colors</h3>
+        <p className="adjust-mode-note">
+          Mode: <strong>{currentModeTag === 0 ? 'Linked' : 'Independent'}</strong>
+          {currentModeTag === 0
+            ? ' - adjustments apply to all colors'
+            : ' - adjustments apply to selected color only'}
+        </p>
+
+        {currentModeTag === 1 && (
+          <div className="adjust-color-select">
+            <label>Select Color to Adjust</label>
+            <div className="color-buttons">
+              {model.colors.map((color, i) => (
+                <button
+                  key={i}
+                  className={`color-pick-btn ${i === adjustIndex ? 'active' : ''}`}
+                  style={{ backgroundColor: hslToCSS(color.h, color.s, color.l) }}
+                  onClick={() => setAdjustIndex(i)}
+                  title={`Color ${i + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="adjust-sliders">
+          <div className="adjust-slider-group">
+            <label>
+              Hue: <span className={deltaH > 0 ? 'positive' : deltaH < 0 ? 'negative' : ''}>{deltaH > 0 ? '+' : ''}{deltaH}°</span>
+            </label>
+            <input
+              type="range"
+              min="-180"
+              max="180"
+              value={deltaH}
+              onChange={(e) => setDeltaH(Number(e.target.value))}
+              className="adjust-slider hue-adjust"
+            />
+          </div>
+
+          <div className="adjust-slider-group">
+            <label>
+              Saturation: <span className={deltaS > 0 ? 'positive' : deltaS < 0 ? 'negative' : ''}>{deltaS > 0 ? '+' : ''}{deltaS}%</span>
+            </label>
+            <input
+              type="range"
+              min="-50"
+              max="50"
+              value={deltaS}
+              onChange={(e) => setDeltaS(Number(e.target.value))}
+              className="adjust-slider sat-adjust"
+            />
+          </div>
+
+          <div className="adjust-slider-group">
+            <label>
+              Lightness: <span className={deltaL > 0 ? 'positive' : deltaL < 0 ? 'negative' : ''}>{deltaL > 0 ? '+' : ''}{deltaL}%</span>
+            </label>
+            <input
+              type="range"
+              min="-50"
+              max="50"
+              value={deltaL}
+              onChange={(e) => setDeltaL(Number(e.target.value))}
+              className="adjust-slider light-adjust"
+            />
+          </div>
+        </div>
+
+        <button
+          className="apply-adjust-btn"
+          onClick={handleAdjustColor}
+          disabled={deltaH === 0 && deltaS === 0 && deltaL === 0}
+        >
+          Apply Adjustment
+        </button>
+      </div>
+
+      <div className="direct-color-section">
+        <h3>Set Color Directly</h3>
+        <p className="direct-note">Pick a color and set exact HSL values</p>
+
+        <div className="direct-color-select">
+          <label>Select Color to Edit</label>
+          <div className="color-buttons">
+            {model.colors.map((color, i) => (
+              <button
+                key={i}
+                className={`color-pick-btn ${i === directIndex ? 'active' : ''}`}
+                style={{ backgroundColor: hslToCSS(color.h, color.s, color.l) }}
+                onClick={() => handleDirectIndexChange(i)}
+                title={`Color ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="direct-editor">
+          <div className="direct-preview-container">
+            <div className="direct-preview-label">Preview</div>
+            <div
+              className="direct-preview"
+              style={{ backgroundColor: hslToCSS(directH, directS, directL) }}
+            />
+            <div className="direct-preview-values">
+              H: {directH}° S: {directS}% L: {directL}%
+            </div>
+          </div>
+
+          <div className="direct-sliders">
+            <div className="direct-slider-group">
+              <label>Hue: {directH}°</label>
+              <input
+                type="range"
+                min="0"
+                max="359"
+                value={directH}
+                onChange={(e) => setDirectH(Number(e.target.value))}
+                className="direct-slider hue-direct"
+              />
+            </div>
+
+            <div className="direct-slider-group">
+              <label>Saturation: {directS}%</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={directS}
+                onChange={(e) => setDirectS(Number(e.target.value))}
+                className="direct-slider sat-direct"
+              />
+            </div>
+
+            <div className="direct-slider-group">
+              <label>Lightness: {directL}%</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={directL}
+                onChange={(e) => setDirectL(Number(e.target.value))}
+                className="direct-slider light-direct"
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          className="set-color-btn"
+          onClick={handleSetColorDirect}
+          disabled={!directColorChanged}
+        >
+          Set Color
+        </button>
       </div>
 
       <div className="history-controls">
