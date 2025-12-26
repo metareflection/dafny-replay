@@ -1392,6 +1392,12 @@ let ColorWheelSpec = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber(10)))) || (((_dafny.ZERO).isLessThanOrEqualTo((seeds)[_0_i])) && (((seeds)[_0_i]).isLessThanOrEqualTo(new BigNumber(100))));
       }));
     };
+    static AllColorsSatisfyMood(colors, mood) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), true, function (_forall_var_0) {
+        let _0_i = _forall_var_0;
+        return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ColorSatisfiesMood((colors)[_0_i], mood));
+      });
+    };
     static GenerateColorGolden(h, mood, colorIndex, seedS, seedL) {
       let _let_tmp_rhs0 = ColorWheelSpec.__default.GoldenSLForMood(mood, colorIndex, seedS, seedL);
       let _0_s = (_let_tmp_rhs0)[0];
@@ -1580,18 +1586,15 @@ let ColorWheelSpec = (function() {
       let _0_normalizedBaseHue = ColorWheelSpec.__default.NormalizeHue((m).dtor_baseHue);
       let _1_normalizedColors = (((new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5))) ? (_dafny.Seq.of(ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[_dafny.ZERO]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[_dafny.ONE]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(2)]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(3)]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(4)]))) : (_dafny.Seq.of(ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO))));
       let _2_normalizedContrastPair = (((((_dafny.ZERO).isLessThanOrEqualTo(((m).dtor_contrastPair)[0])) && ((((m).dtor_contrastPair)[0]).isLessThan(new BigNumber(5)))) && (((_dafny.ZERO).isLessThanOrEqualTo(((m).dtor_contrastPair)[1])) && ((((m).dtor_contrastPair)[1]).isLessThan(new BigNumber(5))))) ? ((m).dtor_contrastPair) : (_dafny.Tuple.of(_dafny.ZERO, _dafny.ONE)));
-      let _3_finalMood = ((_dafny.areEqual((m).dtor_mood, ColorWheelSpec.Mood.create_Custom())) ? (ColorWheelSpec.Mood.create_Custom()) : (((_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), true, function (_forall_var_0) {
-        let _4_i = _forall_var_0;
-        return !(((_dafny.ZERO).isLessThanOrEqualTo(_4_i)) && ((_4_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ColorSatisfiesMood((_1_normalizedColors)[_4_i], (m).dtor_mood));
-      })) ? ((m).dtor_mood) : (ColorWheelSpec.Mood.create_Custom()))));
-      let _5_finalHarmony = ((_dafny.areEqual((m).dtor_harmony, ColorWheelSpec.Harmony.create_Custom())) ? (ColorWheelSpec.Harmony.create_Custom()) : (((ColorWheelSpec.__default.HuesMatchHarmony(_1_normalizedColors, _0_normalizedBaseHue, (m).dtor_harmony)) ? ((m).dtor_harmony) : (ColorWheelSpec.Harmony.create_Custom()))));
-      let _6_dt__update__tmp_h0 = m;
-      let _7_dt__update_hharmony_h0 = _5_finalHarmony;
-      let _8_dt__update_hmood_h0 = _3_finalMood;
-      let _9_dt__update_hcontrastPair_h0 = _2_normalizedContrastPair;
-      let _10_dt__update_hcolors_h0 = _1_normalizedColors;
-      let _11_dt__update_hbaseHue_h0 = _0_normalizedBaseHue;
-      return ColorWheelSpec.Model.create_Model(_11_dt__update_hbaseHue_h0, _8_dt__update_hmood_h0, _7_dt__update_hharmony_h0, _10_dt__update_hcolors_h0, (_6_dt__update__tmp_h0).dtor_adjustmentMode, _9_dt__update_hcontrastPair_h0);
+      let _3_finalMood = ((_dafny.areEqual((m).dtor_mood, ColorWheelSpec.Mood.create_Custom())) ? (ColorWheelSpec.Mood.create_Custom()) : (((ColorWheelSpec.__default.AllColorsSatisfyMood(_1_normalizedColors, (m).dtor_mood)) ? ((m).dtor_mood) : (ColorWheelSpec.Mood.create_Custom()))));
+      let _4_finalHarmony = ((_dafny.areEqual((m).dtor_harmony, ColorWheelSpec.Harmony.create_Custom())) ? (ColorWheelSpec.Harmony.create_Custom()) : (((ColorWheelSpec.__default.HuesMatchHarmony(_1_normalizedColors, _0_normalizedBaseHue, (m).dtor_harmony)) ? ((m).dtor_harmony) : (ColorWheelSpec.Harmony.create_Custom()))));
+      let _5_dt__update__tmp_h0 = m;
+      let _6_dt__update_hharmony_h0 = _4_finalHarmony;
+      let _7_dt__update_hmood_h0 = _3_finalMood;
+      let _8_dt__update_hcontrastPair_h0 = _2_normalizedContrastPair;
+      let _9_dt__update_hcolors_h0 = _1_normalizedColors;
+      let _10_dt__update_hbaseHue_h0 = _0_normalizedBaseHue;
+      return ColorWheelSpec.Model.create_Model(_10_dt__update_hbaseHue_h0, _7_dt__update_hmood_h0, _6_dt__update_hharmony_h0, _9_dt__update_hcolors_h0, (_5_dt__update__tmp_h0).dtor_adjustmentMode, _8_dt__update_hcontrastPair_h0);
     };
     static get GoldenOffset() {
       return new BigNumber(62);
@@ -2078,6 +2081,21 @@ let ColorWheelSpec = (function() {
 let ColorWheelProof = (function() {
   let $module = {};
 
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "ColorWheelProof._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static NormalizedColors(m) {
+      if ((new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5))) {
+        return _dafny.Seq.of(ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[_dafny.ZERO]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[_dafny.ONE]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(2)]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(3)]), ColorWheelSpec.__default.ClampColor(((m).dtor_colors)[new BigNumber(4)]));
+      } else {
+        return _dafny.Seq.of(ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO), ColorWheelSpec.Color.create_Color(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO));
+      }
+    };
+  };
   return $module;
 })(); // end of module ColorWheelProof
 let ColorWheelDomain = (function() {
