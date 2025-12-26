@@ -1276,12 +1276,19 @@ let Canon = (function() {
         return Canon.Model.create_Model((m).dtor_nodes, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
       }
     };
+    static FlipAxis(a) {
+      if (_dafny.areEqual(a, Canon.Axis.create_X())) {
+        return Canon.Axis.create_Y();
+      } else {
+        return Canon.Axis.create_X();
+      }
+    };
     static AddEvenSpace(m, sel) {
       let _0_targets = Canon.__default.FilterPresent((m).dtor_nodes, Canon.__default.Dedup(sel));
       if ((new BigNumber((_0_targets).length)).isLessThanOrEqualTo(new BigNumber(2))) {
         return m;
       } else {
-        let _1_axis = Canon.__default.InferAxis(m, _0_targets);
+        let _1_axis = Canon.__default.FlipAxis(Canon.__default.InferAxis(m, _0_targets));
         let _2_c = Canon.Constraint.create_EvenSpace((m).dtor_nextCid, _0_targets, _1_axis);
         return Canon.Model.create_Model((m).dtor_nodes, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
       }

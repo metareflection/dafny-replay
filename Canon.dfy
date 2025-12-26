@@ -140,13 +140,19 @@ module Canon {
       Model(m.nodes, m.constraints + [c], m.nextCid + 1)
   }
 
+  function FlipAxis(a: Axis): Axis {
+    if a == X then Y else X
+  }
+
   function AddEvenSpace(m: Model, sel: seq<NodeId>): (result: Model)
     requires Inv(m)
     ensures Inv(result)
   {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 2 then m else
-      var axis := InferAxis(m, targets);
+      // InferAxis returns the perpendicular axis (for alignment),
+      // but EvenSpace needs the spread axis, so flip it.
+      var axis := FlipAxis(InferAxis(m, targets));
       var c := Constraint.EvenSpace(m.nextCid, targets, axis);
       Model(m.nodes, m.constraints + [c], m.nextCid + 1)
   }
