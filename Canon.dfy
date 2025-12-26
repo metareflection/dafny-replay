@@ -17,7 +17,7 @@ module Canon {
   datatype Axis = X | Y
 
   datatype Constraint =
-    | Align(cid: int, targets: seq<NodeId>, axis: Axis, anchor: int)
+    | Align(cid: int, targets: seq<NodeId>, axis: Axis)
     | EvenSpace(cid: int, targets: seq<NodeId>, axis: Axis)
 
   datatype Model = Model(
@@ -36,7 +36,7 @@ module Canon {
 
   predicate ConstraintTargetsValid(c: Constraint, nodes: map<NodeId, Node>) {
     match c
-    case Align(_, targets, _, _) => AllIn(targets, nodes)
+    case Align(_, targets, _) => AllIn(targets, nodes)
     case EvenSpace(_, targets, _) => AllIn(targets, nodes)
   }
 
@@ -54,7 +54,7 @@ module Canon {
 
   predicate Mentions(c: Constraint, x: NodeId) {
     match c
-    case Align(_, targets, _, _) => Contains(targets, x)
+    case Align(_, targets, _) => Contains(targets, x)
     case EvenSpace(_, targets, _) => Contains(targets, x)
   }
 
@@ -78,7 +78,7 @@ module Canon {
     ensures ConstraintTargetsValid(c, nodes - {x})
   {
     match c
-    case Align(_, targets, _, _) => AllInMinusLemma(targets, nodes, x);
+    case Align(_, targets, _) => AllInMinusLemma(targets, nodes, x);
     case EvenSpace(_, targets, _) => AllInMinusLemma(targets, nodes, x);
   }
 
@@ -136,8 +136,7 @@ module Canon {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 1 then m else
       var axis := InferAxis(m, targets);
-      var anchor := InferAnchor(m, targets, axis);
-      var c := Constraint.Align(m.nextCid, targets, axis, anchor);
+      var c := Constraint.Align(m.nextCid, targets, axis);
       Model(m.nodes, m.constraints + [c], m.nextCid + 1)
   }
 
@@ -160,17 +159,16 @@ module Canon {
     Model(m.nodes, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
   }
 
-  // Remove a node and all constraints that mention it.
+  // Remove a node and shrink constraints that mention it (drop degenerate ones).
   function RemoveNode(m: Model, x: NodeId): (result: Model)
     requires Inv(m)
     ensures Inv(result)
   {
     if x !in m.nodes then m
     else
+      var cs2 := ShrinkConstraints(m.constraints, x, 0, [], m.nodes);
+      // cs2 constraints are still valid wrt old nodes, and none mention x
       var nodes2 := m.nodes - {x};
-      // Constraints were valid wrt old nodes; remove any mentioning x
-      var cs2 := FilterOutMentioning(m.constraints, x, m.nodes);
-      // Now cs2 is valid wrt old nodes, and none mention x, so valid wrt nodes2 too
       AllConstraintsValidMinusLemma(cs2, m.nodes, x);
       Model(nodes2, cs2, m.nextCid)
   }
@@ -202,17 +200,21 @@ module Canon {
     ensures Inv(result)
   {
     match c
-    case Align(_, targets, axis, anchor) =>
-      Model(ApplyAlignNodes(m.nodes, targets, axis, anchor), m.constraints, m.nextCid)
+    case Align(_, targets, axis) =>
+      Model(ApplyAlignNodes(m.nodes, targets, axis), m.constraints, m.nextCid)
     case EvenSpace(_, targets, axis) =>
       Model(ApplyEvenSpaceNodes(m.nodes, targets, axis), m.constraints, m.nextCid)
   }
 
-  // Align: set Coord to anchor for every target present in nodes.
-  function ApplyAlignNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int): (result: map<NodeId, Node>)
+  // Align: set Coord to mean anchor for all targets.
+  function ApplyAlignNodes(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis): (result: map<NodeId, Node>)
+    requires AllIn(targets, nodes)
     ensures result.Keys == nodes.Keys
   {
-    ApplyAlignNodesFrom(nodes, targets, axis, anchor, 0)
+    if |targets| == 0 then nodes
+    else
+      var anchor := MeanAlong(nodes, targets, axis);
+      ApplyAlignNodesFrom(nodes, targets, axis, anchor, 0)
   }
 
   function ApplyAlignNodesFrom(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, anchor: int, i: nat): (result: map<NodeId, Node>)
@@ -273,23 +275,6 @@ module Canon {
     var rx := RangeAlong(m.nodes, targets, X);
     var ry := RangeAlong(m.nodes, targets, Y);
     if rx >= ry then Y else X
-  }
-
-  // Anchor for align (MVP): use the first selected node's coordinate (stable).
-  // You can later switch to median/mean if you prefer.
-  function InferAnchor(m: Model, targets: seq<NodeId>, axis: Axis): int {
-    // pick first target that exists in nodes; default 0 if none
-    InferAnchorFrom(m.nodes, targets, axis, 0)
-  }
-
-  function InferAnchorFrom(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis, i: nat): int
-    decreases |targets| - i
-  {
-    if i >= |targets| then 0
-    else
-      var id := targets[i];
-      if id in nodes then Coord(nodes[id], axis)
-      else InferAnchorFrom(nodes, targets, axis, i + 1)
   }
 
   // Range along axis for ids that exist in nodes; 0 if <2 present.
@@ -354,6 +339,29 @@ module Canon {
   // ----------------------------
   // Sequence utilities (executable-friendly)
   // ----------------------------
+
+  // Remove all occurrences of x from xs.
+  function RemoveFromSeq(xs: seq<NodeId>, x: NodeId, nodes: map<NodeId, Node>): (result: seq<NodeId>)
+    requires AllIn(xs, nodes)
+    ensures !Contains(result, x)
+    ensures AllIn(result, nodes)
+  {
+    RemoveFromSeqFrom(xs, x, 0, [], nodes)
+  }
+
+  function RemoveFromSeqFrom(xs: seq<NodeId>, x: NodeId, i: nat, acc: seq<NodeId>, nodes: map<NodeId, Node>): (result: seq<NodeId>)
+    requires AllIn(xs, nodes)
+    requires AllIn(acc, nodes)
+    requires !Contains(acc, x)
+    ensures !Contains(result, x)
+    ensures AllIn(result, nodes)
+    decreases |xs| - i
+  {
+    if i >= |xs| then acc
+    else if xs[i] == x
+         then RemoveFromSeqFrom(xs, x, i + 1, acc, nodes)
+         else RemoveFromSeqFrom(xs, x, i + 1, acc + [xs[i]], nodes)
+  }
 
   // Deduplicate while preserving first occurrence order.
   function Dedup(xs: seq<NodeId>): seq<NodeId> {
@@ -430,20 +438,29 @@ module Canon {
 
   function CidOf(c: Constraint): int {
     match c
-    case Align(cid, _, _, _) => cid
+    case Align(cid, _, _) => cid
     case EvenSpace(cid, _, _) => cid
   }
 
-  // Filter out constraints that mention a node
-  function FilterOutMentioning(cs: seq<Constraint>, x: NodeId, nodes: map<NodeId, Node>): (result: seq<Constraint>)
-    requires AllConstraintsValid(cs, nodes)
-    ensures AllConstraintsValid(result, nodes)
-    ensures NoneMatch(result, x)
+  // Shrink one constraint by removing x from targets; return (keep, shrunken)
+  // Drop if too small (Align needs >=2, EvenSpace needs >=3)
+  function ShrinkConstraint(c: Constraint, x: NodeId, nodes: map<NodeId, Node>): (result: (bool, Constraint))
+    requires ConstraintTargetsValid(c, nodes)
+    // If kept, doesn't mention x and is still valid
+    ensures result.0 ==> !Mentions(result.1, x)
+    ensures result.0 ==> ConstraintTargetsValid(result.1, nodes)
   {
-    FilterOutMentioningFrom(cs, x, 0, [], nodes)
+    match c
+    case Align(cid, targets, axis) =>
+      var t2 := RemoveFromSeq(targets, x, nodes);
+      if |t2| < 2 then (false, c) else (true, Align(cid, t2, axis))
+    case EvenSpace(cid, targets, axis) =>
+      var t2 := RemoveFromSeq(targets, x, nodes);
+      if |t2| < 3 then (false, c) else (true, EvenSpace(cid, t2, axis))
   }
 
-  function FilterOutMentioningFrom(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
+  // Shrink all constraints, dropping degenerate ones
+  function ShrinkConstraints(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
     requires AllConstraintsValid(cs, nodes)
     requires AllConstraintsValid(acc, nodes)
     requires NoneMatch(acc, x)
@@ -454,10 +471,11 @@ module Canon {
     if i >= |cs| then acc
     else
       var c := cs[i];
-      if Mentions(c, x) then
-        FilterOutMentioningFrom(cs, x, i + 1, acc, nodes)
-      else
-        FilterOutMentioningFrom(cs, x, i + 1, acc + [c], nodes)
+      var (keep, c2) := ShrinkConstraint(c, x, nodes);
+      // c2 targets are a subsequence of c targets, so still in nodes
+      if keep
+      then ShrinkConstraints(cs, x, i + 1, acc + [c2], nodes)
+      else ShrinkConstraints(cs, x, i + 1, acc, nodes)
   }
 
   // Min/Max along an axis for a non-empty seq of ids present in nodes.
@@ -494,5 +512,27 @@ module Canon {
     else
       var v := Coord(nodes[xs[i]], axis);
       MaxAlongFrom(nodes, xs, axis, i + 1, if v > cur then v else cur)
+  }
+
+  function SumAlong(nodes: map<NodeId, Node>, xs: seq<NodeId>, axis: Axis): int
+    requires |xs| > 0
+    requires AllIn(xs, nodes)
+  {
+    SumAlongFrom(nodes, xs, axis, 0, 0)
+  }
+
+  function SumAlongFrom(nodes: map<NodeId, Node>, xs: seq<NodeId>, axis: Axis, i: nat, acc: int): int
+    requires AllIn(xs, nodes)
+    decreases |xs| - i
+  {
+    if i >= |xs| then acc
+    else SumAlongFrom(nodes, xs, axis, i + 1, acc + Coord(nodes[xs[i]], axis))
+  }
+
+  function MeanAlong(nodes: map<NodeId, Node>, xs: seq<NodeId>, axis: Axis): int
+    requires |xs| > 0
+    requires AllIn(xs, nodes)
+  {
+    SumAlong(nodes, xs, axis) / |xs|
   }
 }
