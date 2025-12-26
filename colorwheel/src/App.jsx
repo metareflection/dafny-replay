@@ -79,10 +79,28 @@ function ColorWheel() {
   const undo = () => setH(App.Undo(h));
   const redo = () => setH(App.Redo(h));
 
-  const handleGenerate = () => {
+  // Check if selected settings match current model (for Generate vs Shift label)
+  const isShift =
+    selectedMoodTag === (model.mood?.$tag ?? -1) &&
+    selectedHarmonyTag === (model.harmony?.$tag ?? -1);
+
+  // Generate/Shift: regenerates S/L values with current base hue
+  const handleGenerateOrShift = () => {
     const mood = getMoodByTag(selectedMoodTag);
     const harmony = getHarmonyByTag(selectedHarmonyTag);
     dispatch(App.GeneratePalette(model.baseHue, mood, harmony));
+  };
+
+  // Re-generate: picks new random base hue for completely new palette
+  const handleRegenerate = () => {
+    dispatch(App.RandomizeBaseHue());
+  };
+
+  // Handle manual base hue change from slider
+  const handleHueChange = (newHue) => {
+    const mood = getMoodByTag(selectedMoodTag);
+    const harmony = getHarmonyByTag(selectedHarmonyTag);
+    dispatch(App.GeneratePalette(newHue, mood, harmony));
   };
 
   return (
@@ -125,14 +143,32 @@ function ColorWheel() {
             </select>
           </div>
 
-          <button className="generate-btn" onClick={handleGenerate}>
-            Generate
+          <button className="generate-btn" onClick={handleGenerateOrShift}>
+            {isShift ? 'Shift' : 'Generate'}
+          </button>
+
+          <button className="regenerate-btn" onClick={handleRegenerate}>
+            Re-generate
           </button>
         </div>
 
-        <div className="control-group">
-          <label>Base Hue: {model.baseHue}°</label>
-          <button onClick={() => dispatch(App.RandomizeBaseHue())}>Randomize Base Hue</button>
+        <div className="control-group hue-control">
+          <label htmlFor="hue-slider">Base Hue: {model.baseHue}°</label>
+          <div className="hue-slider-container">
+            <input
+              type="range"
+              id="hue-slider"
+              className="hue-slider"
+              min="0"
+              max="359"
+              value={model.baseHue}
+              onChange={(e) => handleHueChange(Number(e.target.value))}
+            />
+            <div
+              className="hue-indicator"
+              style={{ backgroundColor: `hsl(${model.baseHue}, 100%, 50%)` }}
+            />
+          </div>
         </div>
 
         <div className="current-settings">

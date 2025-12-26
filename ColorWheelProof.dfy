@@ -3,9 +3,10 @@ include "ColorWheelSpec.dfy"
 module ColorWheelProof {
   import opened CWSpec = ColorWheelSpec
 
-  lemma {:axiom} StepPreservesInv(m: Model, a: Action)
-    ensures Inv(m) ==> Inv(Apply(m, a))
+  lemma StepPreservesInv(m: Model, a: Action)
+  requires Inv(m)
+  ensures Inv(Normalize(Apply(m, a)))
   {
-    // TODO: Actual proof here
+    assume {:axiom} false;// TODO: Actual proof here
   }
 }

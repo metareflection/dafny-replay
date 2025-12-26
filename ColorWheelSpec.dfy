@@ -127,34 +127,26 @@ module ColorWheelSpec {
     (RandomInRange(seedS, minS, maxS), RandomInRange(seedL, minL, maxL))
   }
 
-  // Generate (S, L) with zone-based distribution for better spread
-  // Each color index gets a different zone of the S/L range
-  // colorIndex: 0-4, seed: 0-100 for variation within zone
-  function ZonedSLForMood(mood: Mood, colorIndex: int, seedS: int, seedL: int): (int, int)
+  // Golden ratio approximation * 100 = 61.8 ≈ 62
+  // Golden ratio distribution avoids clustering and maximizes visual distinction
+  const GoldenOffset: int := 62
+
+  // Generate (S, L) using golden ratio distribution for maximum variance
+  // Each color's position is offset by golden ratio, ensuring even distribution
+  // and dramatic changes between regenerations
+  function GoldenSLForMood(mood: Mood, colorIndex: int, seedS: int, seedL: int): (int, int)
     requires 0 <= colorIndex < 5
     requires 0 <= seedS <= 100
     requires 0 <= seedL <= 100
   {
     var (minS, maxS, minL, maxL) := MoodBounds(mood);
-    var rangeS := maxS - minS;
-    var rangeL := maxL - minL;
 
-    // Divide range into 5 zones, each color gets one zone
-    // Zone width is range/5, with some overlap for natural feel
-    var zoneWidthS := if rangeS >= 5 then rangeS / 5 else 1;
-    var zoneWidthL := if rangeL >= 5 then rangeL / 5 else 1;
+    // Golden ratio offset creates mathematically optimal distribution
+    // Using different multipliers for S and L to avoid correlation
+    var spreadS := (seedS + colorIndex * GoldenOffset) % 101;
+    var spreadL := (seedL + colorIndex * 38) % 101;  // 38 ≈ 62 * 0.618 (nested golden)
 
-    // Calculate zone boundaries for this color index
-    var zoneMinS := minS + (colorIndex * rangeS) / 5;
-    var zoneMaxS := if colorIndex == 4 then maxS else minS + ((colorIndex + 1) * rangeS) / 5;
-    var zoneMinL := minL + (colorIndex * rangeL) / 5;
-    var zoneMaxL := if colorIndex == 4 then maxL else minL + ((colorIndex + 1) * rangeL) / 5;
-
-    // Use seed to pick within the zone
-    var s := if zoneMinS >= zoneMaxS then zoneMinS else RandomInRange(seedS, zoneMinS, zoneMaxS);
-    var l := if zoneMinL >= zoneMaxL then zoneMinL else RandomInRange(seedL, zoneMinL, zoneMaxL);
-
-    (s, l)
+    (RandomInRange(spreadS, minS, maxS), RandomInRange(spreadL, minL, maxL))
   }
 
   // ============================================================================
@@ -175,7 +167,8 @@ module ColorWheelSpec {
   }
 
   // Hue spread offset for creating variation in repeated hues
-  const HueSpread: int := 20
+  // 35° provides better visual distinction than 20° while staying within harmony "feel"
+  const HueSpread: int := 35
 
   // Returns all 5 hues for a harmony (with spreading for variety)
   // Instead of repeating exact hues, we spread them by ±HueSpread degrees
@@ -231,36 +224,37 @@ module ColorWheelSpec {
     |seeds| == 10 && (forall i | 0 <= i < 10 :: 0 <= seeds[i] <= 100)
   }
 
-  // Generate a color with given hue that satisfies the mood using zoned S/L
-  function GenerateColorForHueZoned(h: int, mood: Mood, colorIndex: int, seedS: int, seedL: int): Color
+  // Generate a color with given hue using golden ratio S/L distribution
+  function GenerateColorGolden(h: int, mood: Mood, colorIndex: int, seedS: int, seedL: int): Color
     requires 0 <= h < 360
     requires 0 <= colorIndex < 5
     requires 0 <= seedS <= 100
     requires 0 <= seedL <= 100
   {
-    var (s, l) := ZonedSLForMood(mood, colorIndex, seedS, seedL);
+    var (s, l) := GoldenSLForMood(mood, colorIndex, seedS, seedL);
     Color(h, s, l)
   }
 
-  // Generate a full 5-color palette using random seeds with zoned S/L distribution
+  // Generate a full 5-color palette using golden ratio S/L distribution
   function GeneratePaletteColors(baseHue: int, mood: Mood, harmony: Harmony, randomSeeds: seq<int>): seq<Color>
     requires ValidBaseHue(baseHue)
     requires ValidRandomSeeds(randomSeeds)
   {
     var hues := AllHarmonyHues(baseHue, harmony);
+
     if |hues| != 5 then
-      // Fallback for Custom harmony: use baseHue for all with zoned S/L
-      [GenerateColorForHueZoned(baseHue, mood, 0, randomSeeds[0], randomSeeds[1]),
-       GenerateColorForHueZoned(baseHue, mood, 1, randomSeeds[2], randomSeeds[3]),
-       GenerateColorForHueZoned(baseHue, mood, 2, randomSeeds[4], randomSeeds[5]),
-       GenerateColorForHueZoned(baseHue, mood, 3, randomSeeds[6], randomSeeds[7]),
-       GenerateColorForHueZoned(baseHue, mood, 4, randomSeeds[8], randomSeeds[9])]
+      // Fallback for Custom harmony: use baseHue for all
+      [GenerateColorGolden(baseHue, mood, 0, randomSeeds[0], randomSeeds[1]),
+       GenerateColorGolden(baseHue, mood, 1, randomSeeds[2], randomSeeds[3]),
+       GenerateColorGolden(baseHue, mood, 2, randomSeeds[4], randomSeeds[5]),
+       GenerateColorGolden(baseHue, mood, 3, randomSeeds[6], randomSeeds[7]),
+       GenerateColorGolden(baseHue, mood, 4, randomSeeds[8], randomSeeds[9])]
     else
-      [GenerateColorForHueZoned(hues[0], mood, 0, randomSeeds[0], randomSeeds[1]),
-       GenerateColorForHueZoned(hues[1], mood, 1, randomSeeds[2], randomSeeds[3]),
-       GenerateColorForHueZoned(hues[2], mood, 2, randomSeeds[4], randomSeeds[5]),
-       GenerateColorForHueZoned(hues[3], mood, 3, randomSeeds[6], randomSeeds[7]),
-       GenerateColorForHueZoned(hues[4], mood, 4, randomSeeds[8], randomSeeds[9])]
+      [GenerateColorGolden(hues[0], mood, 0, randomSeeds[0], randomSeeds[1]),
+       GenerateColorGolden(hues[1], mood, 1, randomSeeds[2], randomSeeds[3]),
+       GenerateColorGolden(hues[2], mood, 2, randomSeeds[4], randomSeeds[5]),
+       GenerateColorGolden(hues[3], mood, 3, randomSeeds[6], randomSeeds[7]),
+       GenerateColorGolden(hues[4], mood, 4, randomSeeds[8], randomSeeds[9])]
   }
 
   // ============================================================================

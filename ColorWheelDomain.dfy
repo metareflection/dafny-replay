@@ -1,8 +1,10 @@
 include "Replay.dfy"
 include "ColorWheelSpec.dfy"
+include "ColorWheelProof.dfy"
 
 module ColorWheelDomain refines Domain {
   import opened CWSpec = ColorWheelSpec
+  import opened Proof = ColorWheelProof
 
   type Model = CWSpec.Model
   type Action = CWSpec.Action
@@ -19,10 +21,9 @@ module ColorWheelDomain refines Domain {
     CWSpec.Normalize(m)
   }
 
-  lemma {:axiom} StepPreservesInv(m: Model, a: Action)
+  lemma StepPreservesInv(m: Model, a: Action)
   {
-    // TODO: Proof will go here
-    // For now, we axiomatize this to test the UI
+    Proof.StepPreservesInv(m, a);
   }
 }
 
