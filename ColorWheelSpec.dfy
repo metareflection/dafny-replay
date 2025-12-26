@@ -1,7 +1,7 @@
 // ColorWheel Domain Specification
 // A verified color palette generator with mood + harmony constraints
 
-abstract module {:compile false} ColorWheelSpec {
+module ColorWheelSpec {
 
   // ============================================================================
   // Core Types
@@ -148,7 +148,7 @@ abstract module {:compile false} ColorWheelSpec {
   // Padding strategy: repeat base hues to fill to 5
   function AllHarmonyHues(baseHue: int, harmony: Harmony): seq<int> {
     var base := BaseHarmonyHues(baseHue, harmony);
-    if harmony == Custom then []
+    if harmony == Harmony.Custom then []
     else if |base| == 5 then base  // Analogous
     else if |base| == 4 then base + [base[0]]  // Square: add variation of first hue
     else if |base| == 3 then base + [base[0], base[1]]  // Triadic/Split: add 2 variations
@@ -158,7 +158,7 @@ abstract module {:compile false} ColorWheelSpec {
 
   // Check if a color palette's hues match the expected harmony pattern
   predicate HuesMatchHarmony(colors: seq<Color>, baseHue: int, harmony: Harmony) {
-    if harmony == Custom then true
+    if harmony == Harmony.Custom then true
     else
       var expectedHues := AllHarmonyHues(baseHue, harmony);
       |colors| == 5 && |expectedHues| == 5 &&
@@ -176,7 +176,7 @@ abstract module {:compile false} ColorWheelSpec {
     && 0 <= m.contrastPair.0 < 5
     && 0 <= m.contrastPair.1 < 5
     // Mood constraint: all colors satisfy mood (unless Custom)
-    && (m.mood != Custom ==>
+    && (m.mood != Mood.Custom ==>
           forall i | 0 <= i < 5 :: ColorSatisfiesMood(m.colors[i], m.mood))
     // Harmony constraint: hues follow harmony pattern (unless Custom)
     && HuesMatchHarmony(m.colors, m.baseHue, m.harmony)
@@ -234,9 +234,11 @@ abstract module {:compile false} ColorWheelSpec {
         m.(baseHue := baseHue, mood := mood, harmony := harmony, colors := colors)
 
     case AdjustColor(index, deltaH, deltaS, deltaL) =>
-      if index < 0 || index >= 5 then m
+      if index < 0 || index >= 5 || |m.colors| != 5 then m
       else if m.adjustmentMode == Linked then
-        ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
+        if forall i | 0 <= i < 5 :: ValidColor(m.colors[i]) then
+          ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
+        else m
       else
         ApplyIndependentAdjustment(m, index, deltaH, deltaS, deltaL)
 
@@ -249,18 +251,18 @@ abstract module {:compile false} ColorWheelSpec {
       else m
 
     case SetColorDirect(index, color) =>
-      if index < 0 || index >= 5 then m
+      if index < 0 || index >= 5 || |m.colors| != 5 then m
       else
         ApplySetColorDirect(m, index, color)
 
     case RegenerateMood(mood, randomSeeds) =>
-      if !ValidRandomSeeds(randomSeeds) then m
+      if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, mood, m.harmony, randomSeeds);
         m.(mood := mood, colors := colors)
 
     case RegenerateHarmony(harmony, randomSeeds) =>
-      if !ValidRandomSeeds(randomSeeds) then m
+      if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, m.mood, harmony, randomSeeds);
         m.(harmony := harmony, colors := colors)
@@ -278,6 +280,7 @@ abstract module {:compile false} ColorWheelSpec {
 
   function ApplyLinkedAdjustment(m: Model, deltaH: int, deltaS: int, deltaL: int): Model
     requires |m.colors| == 5
+    requires forall i | 0 <= i < 5 :: ValidColor(m.colors[i])
   {
     // Shift baseHue and regenerate harmony hues
     var newBaseHue := NormalizeHue(m.baseHue + deltaH);
@@ -291,19 +294,26 @@ abstract module {:compile false} ColorWheelSpec {
          AdjustColorSL(m.colors[2], newHues[2], deltaS, deltaL),
          AdjustColorSL(m.colors[3], newHues[3], deltaS, deltaL),
          AdjustColorSL(m.colors[4], newHues[4], deltaS, deltaL)]
-      else
+      else (
         // Custom harmony: keep existing hues, just adjust S/L
+        // Help Dafny see that hues are valid
+        assert ValidColor(m.colors[0]);
+        assert ValidColor(m.colors[1]);
+        assert ValidColor(m.colors[2]);
+        assert ValidColor(m.colors[3]);
+        assert ValidColor(m.colors[4]);
         [AdjustColorSL(m.colors[0], m.colors[0].h, deltaS, deltaL),
          AdjustColorSL(m.colors[1], m.colors[1].h, deltaS, deltaL),
          AdjustColorSL(m.colors[2], m.colors[2].h, deltaS, deltaL),
          AdjustColorSL(m.colors[3], m.colors[3].h, deltaS, deltaL),
-         AdjustColorSL(m.colors[4], m.colors[4].h, deltaS, deltaL)];
+         AdjustColorSL(m.colors[4], m.colors[4].h, deltaS, deltaL)]
+      );
 
     // Check if any color breaks mood bounds
-    var moodBroken := m.mood != Custom &&
+    var moodBroken := m.mood != Mood.Custom &&
                       exists i | 0 <= i < 5 :: !ColorSatisfiesMood(adjustedColors[i], m.mood);
 
-    var newMood := if moodBroken then Custom else m.mood;
+    var newMood := if moodBroken then Mood.Custom else m.mood;
 
     m.(baseHue := newBaseHue, colors := adjustedColors, mood := newMood)
   }
@@ -335,14 +345,14 @@ abstract module {:compile false} ColorWheelSpec {
     // Check if hue changed and no longer matches harmony
     var expectedHues := AllHarmonyHues(m.baseHue, m.harmony);
     var hueChanged := |expectedHues| == 5 && newColor.h != expectedHues[index];
-    var harmonyBroken := m.harmony != Custom && hueChanged;
+    var harmonyBroken := m.harmony != Harmony.Custom && hueChanged;
 
     // Check if mood bounds broken
-    var moodBroken := m.mood != Custom && !ColorSatisfiesMood(newColor, m.mood);
+    var moodBroken := m.mood != Mood.Custom && !ColorSatisfiesMood(newColor, m.mood);
 
     var newColors := m.colors[index := newColor];
-    var newHarmony := if harmonyBroken then Custom else m.harmony;
-    var newMood := if moodBroken then Custom else m.mood;
+    var newHarmony := if harmonyBroken then Harmony.Custom else m.harmony;
+    var newMood := if moodBroken then Mood.Custom else m.mood;
 
     m.(colors := newColors, harmony := newHarmony, mood := newMood)
   }
@@ -360,14 +370,14 @@ abstract module {:compile false} ColorWheelSpec {
     // Check if new color matches expected harmony hue
     var expectedHues := AllHarmonyHues(m.baseHue, m.harmony);
     var hueMatches := |expectedHues| == 5 && clampedColor.h == expectedHues[index];
-    var harmonyPreserved := m.harmony == Custom || hueMatches;
+    var harmonyPreserved := m.harmony == Harmony.Custom || hueMatches;
 
     // Check if new color satisfies current mood
-    var moodPreserved := m.mood == Custom || ColorSatisfiesMood(clampedColor, m.mood);
+    var moodPreserved := m.mood == Mood.Custom || ColorSatisfiesMood(clampedColor, m.mood);
 
     var newColors := m.colors[index := clampedColor];
-    var newHarmony := if harmonyPreserved then m.harmony else Custom;
-    var newMood := if moodPreserved then m.mood else Custom;
+    var newHarmony := if harmonyPreserved then m.harmony else Harmony.Custom;
+    var newMood := if moodPreserved then m.mood else Mood.Custom;
 
     m.(colors := newColors, harmony := newHarmony, mood := newMood)
   }
@@ -381,13 +391,22 @@ abstract module {:compile false} ColorWheelSpec {
     var normalizedBaseHue := NormalizeHue(m.baseHue);
 
     // Ensure all colors are valid (clamped)
-    var normalizedColors := [
-      ClampColor(m.colors[0]),
-      ClampColor(m.colors[1]),
-      ClampColor(m.colors[2]),
-      ClampColor(m.colors[3]),
-      ClampColor(m.colors[4])
-    ];
+    // If we don't have exactly 5 colors, create defaults
+    var normalizedColors :=
+      if |m.colors| == 5 then [
+        ClampColor(m.colors[0]),
+        ClampColor(m.colors[1]),
+        ClampColor(m.colors[2]),
+        ClampColor(m.colors[3]),
+        ClampColor(m.colors[4])
+      ]
+      else [
+        Color(0, 0, 0),
+        Color(0, 0, 0),
+        Color(0, 0, 0),
+        Color(0, 0, 0),
+        Color(0, 0, 0)
+      ];
 
     // Ensure contrast pair indices are valid
     var normalizedContrastPair :=
@@ -398,15 +417,15 @@ abstract module {:compile false} ColorWheelSpec {
 
     // If mood is not Custom, verify all colors satisfy it; otherwise switch to Custom
     var finalMood :=
-      if m.mood == Custom then Custom
+      if m.mood == Mood.Custom then Mood.Custom
       else if forall i | 0 <= i < 5 :: ColorSatisfiesMood(normalizedColors[i], m.mood) then m.mood
-      else Custom;
+      else Mood.Custom;
 
     // If harmony is not Custom, verify hues match; otherwise switch to Custom
     var finalHarmony :=
-      if m.harmony == Custom then Custom
+      if m.harmony == Harmony.Custom then Harmony.Custom
       else if HuesMatchHarmony(normalizedColors, normalizedBaseHue, m.harmony) then m.harmony
-      else Custom;
+      else Harmony.Custom;
 
     m.(
       baseHue := normalizedBaseHue,
