@@ -100,20 +100,12 @@ module ColorWheelProof {
     // Should follow directly from Normalize's definition
   }
 
-  // The forall check used in Normalize's mood computation
-  predicate MoodCheckPasses(colors: seq<Color>, mood: Mood)
-    requires |colors| == 5
-  {
-    forall i | 0 <= i < 5 :: ColorSatisfiesMood(colors[i], mood)
-  }
-
   // Key lemma: if Normalize(m).mood != Custom, then the check on colors passed
-  // This avoids trying to prove general equality and instead uses the contrapositive
   lemma NormalizeMoodImpliesCheck(m: Model)
   requires Normalize(m).mood != Mood.Custom
   ensures m.mood != Mood.Custom
   ensures Normalize(m).mood == m.mood
-  ensures MoodCheckPasses(NormalizedColors(m), m.mood)
+  ensures AllColorsSatisfyMood(NormalizedColors(m), m.mood)
   {
     // From Normalize's definition, mood can only be non-Custom if:
     // 1. m.mood != Custom (otherwise first branch gives Custom)
@@ -160,8 +152,8 @@ module ColorWheelProof {
     // The forall check Normalize uses internally
     var internalCheck := forall i | 0 <= i < 5 :: ColorSatisfiesMood(normalizedColors[i], m.mood);
 
-    // This is equivalent to our MoodCheckPasses since sequences are equal
-    assert internalCheck == MoodCheckPasses(nc, m.mood);
+    // This is equivalent to AllColorsSatisfyMood since sequences are equal
+    assert internalCheck == AllColorsSatisfyMood(nc, m.mood);
 
     // Normalize's mood result depends on this internal check
     // If m.mood != Custom and internalCheck is true, result is m.mood
@@ -190,21 +182,13 @@ module ColorWheelProof {
     assert Normalize(m).contrastPair == normalizedContrastPair;
     assert Normalize(m).harmony == finalHarmony;
 
-    // Now try to prove Normalize(m).mood == finalMood
-    // This assertion requires Dafny to see that the forall check inside Normalize
-    // produces the same boolean as our internalCheck. Both use equal sequences,
-    // but Dafny's SMT solver doesn't automatically connect them.
-    //
-    // The axiom states: Normalize(m).mood equals finalMood (which we computed
-    // identically to how Normalize computes it). This is semantically trivial
-    // but requires an axiom due to quantifier matching limitations.
-    assert Normalize(m).mood == finalMood by {
-      assume {:axiom} Normalize(m).mood == finalMood;
-    }
+    // Now Normalize uses AllColorsSatisfyMood which we can call directly
+    // Dafny can connect the predicate call in Normalize with ours
+    assert Normalize(m).mood == finalMood;
 
     // Since Normalize(m).mood != Custom (from requires) and m.mood != Custom,
     // finalMood must equal m.mood, which means internalCheck was true
-    assert MoodCheckPasses(nc, m.mood);
+    assert AllColorsSatisfyMood(nc, m.mood);
   }
 
   lemma NormalizeEnsuresMoodConstraint(m: Model)

@@ -224,6 +224,13 @@ module ColorWheelSpec {
     |seeds| == 10 && (forall i | 0 <= i < 10 :: 0 <= seeds[i] <= 100)
   }
 
+  // Check if all colors in a sequence satisfy a mood constraint
+  predicate AllColorsSatisfyMood(colors: seq<Color>, mood: Mood)
+    requires |colors| == 5
+  {
+    forall i | 0 <= i < 5 :: ColorSatisfiesMood(colors[i], mood)
+  }
+
   // Generate a color with given hue using golden ratio S/L distribution
   function GenerateColorGolden(h: int, mood: Mood, colorIndex: int, seedS: int, seedL: int): Color
     requires 0 <= h < 360
@@ -454,7 +461,7 @@ module ColorWheelSpec {
     // If mood is not Custom, verify all colors satisfy it; otherwise switch to Custom
     var finalMood :=
       if m.mood == Mood.Custom then Mood.Custom
-      else if forall i | 0 <= i < 5 :: ColorSatisfiesMood(normalizedColors[i], m.mood) then m.mood
+      else if AllColorsSatisfyMood(normalizedColors, m.mood) then m.mood
       else Mood.Custom;
 
     // If harmony is not Custom, verify hues match; otherwise switch to Custom
