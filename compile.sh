@@ -39,4 +39,10 @@ dafny translate js --no-verify -o generated/ClearSplit --include-runtime ClearSp
 echo "Copying to clear-split project..."
 cp generated/ClearSplit.js clear-split/src/dafny/ClearSplit.cjs
 
+echo "Compiling ColorWheelDomain to JavaScript..."
+dafny translate js --no-verify -o generated/ColorWheel --include-runtime ColorWheelDomain.dfy
+
+echo "Copying to colorwheel project..."
+cp generated/ColorWheel.js colorwheel/src/dafny/ColorWheel.cjs
+
 echo "Done."
