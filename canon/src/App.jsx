@@ -46,11 +46,14 @@ function exportTikzFromNodes(nodesArr, edgesArr = [], opts = {}) {
   const sorted = [...nodesArr].sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
   const lines = [];
+  lines.push("\\pgfdeclarelayer{edgelayer}");
+  lines.push("\\pgfsetlayers{edgelayer,main}");
   lines.push("\\begin{tikzpicture}[");
-  lines.push("  canon node/.style={draw, rounded corners, inner sep=2pt},");
+  lines.push("  canon node/.style={draw, fill=white, rounded corners, inner sep=2pt},");
   lines.push("  canon edge/.style={->, >=stealth}");
   lines.push("]");
 
+  // Define nodes on main layer
   for (const n of sorted) {
     const id = String(n.id);
     const name = tikzSanitizeNodeName(id);
@@ -62,11 +65,15 @@ function exportTikzFromNodes(nodesArr, edgesArr = [], opts = {}) {
     lines.push(`\\node[canon node] (${name}) at (${fmt2(xCm)}, ${fmt2(yCm)}) {${label}};`);
   }
 
-  // Export edges
-  for (const e of edgesArr) {
-    const fromName = tikzSanitizeNodeName(e.from);
-    const toName = tikzSanitizeNodeName(e.to);
-    lines.push(`\\draw[canon edge] (${fromName}) -- (${toName});`);
+  // Draw edges on background layer
+  if (edgesArr.length > 0) {
+    lines.push("\\begin{pgfonlayer}{edgelayer}");
+    for (const e of edgesArr) {
+      const fromName = tikzSanitizeNodeName(e.from);
+      const toName = tikzSanitizeNodeName(e.to);
+      lines.push(`\\draw[canon edge] (${fromName}) -- (${toName});`);
+    }
+    lines.push("\\end{pgfonlayer}");
   }
 
   lines.push("\\end{tikzpicture}");
