@@ -22,32 +22,31 @@ function App() {
   const nodes = Canon.GetNodes(model)
   const constraints = Canon.GetConstraints(model)
 
-  // Handle node click for selection
+  // Handle node click for selection toggle
+  const handleNodeClick = (e, nodeId) => {
+    e.stopPropagation()
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return next
+    })
+  }
+
+  // Handle node mousedown for drag
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation()
     const node = nodes.find(n => n.id === nodeId)
     if (!node) return
 
-    // Multi-select with shift/cmd
-    if (e.shiftKey || e.metaKey) {
-      setSelected(prev => {
-        const next = new Set(prev)
-        if (next.has(nodeId)) {
-          next.delete(nodeId)
-        } else {
-          next.add(nodeId)
-        }
-        return next
-      })
-    } else {
-      // Start drag
-      setSelected(new Set([nodeId]))
-      setDragging(nodeId)
-      setDragOffset({
-        x: e.clientX - node.x,
-        y: e.clientY - node.y,
-      })
-    }
+    setDragging(nodeId)
+    setDragOffset({
+      x: e.clientX - node.x,
+      y: e.clientY - node.y,
+    })
   }
 
   // Handle mouse move for dragging
@@ -214,6 +213,7 @@ function App() {
                 key={node.id}
                 transform={`translate(${node.x}, ${node.y})`}
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                onClick={(e) => handleNodeClick(e, node.id)}
                 className={`node ${selected.has(node.id) ? 'selected' : ''} ${dragging === node.id ? 'dragging' : ''}`}
               >
                 <rect
@@ -283,9 +283,9 @@ function App() {
           <section className="panel help">
             <h3>Usage</h3>
             <ul>
-              <li>Click sidebar to select</li>
-              <li>Drag canvas nodes to move</li>
-              <li>Constraints apply on drop</li>
+              <li>Click to toggle select</li>
+              <li>Click background to clear</li>
+              <li>Drag to move</li>
             </ul>
           </section>
         </aside>
