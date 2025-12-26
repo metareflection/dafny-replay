@@ -4,6 +4,9 @@
 
 **Verified kernels, written in Dafny and compiled to JavaScript, for correct-by-construction state in interactive web applications.**
 
+**Check out our blog post**:
+[_From Intent to Proof: Dafny Verification for Web Apps_](https://midspiral.com/blog/from-intent-to-proof-dafny-verification-for-web-apps/)
+
 This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.
 
 `dafny-replay` provides small, reusable **verified kernels for application state**—including replayable (undo/redo, time-travel) state and experimental client–server authority kernels—where **global invariants are proved once and preserved by construction**.
