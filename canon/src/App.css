@@ -160,6 +160,11 @@
   padding: 4px 0;
   font-size: 12px;
   border-bottom: 1px solid #222;
+  cursor: pointer;
+}
+
+.panel li:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .panel li:last-child {

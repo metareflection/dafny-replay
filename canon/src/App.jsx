@@ -234,12 +234,27 @@ function App() {
             <h3>Nodes</h3>
             <ul className="node-list">
               {nodes.map(node => (
-                <li key={node.id} className={selected.has(node.id) ? 'selected' : ''}>
+                <li
+                  key={node.id}
+                  className={selected.has(node.id) ? 'selected' : ''}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelected(prev => {
+                      const next = new Set(prev)
+                      if (next.has(node.id)) {
+                        next.delete(node.id)
+                      } else {
+                        next.add(node.id)
+                      }
+                      return next
+                    })
+                  }}
+                >
                   <span className="node-info">
                     <strong>{node.id}</strong>
-                    <span className="coords">({node.x}, {node.y})</span>
+                    <span className="coords">({Math.round(node.x)}, {Math.round(node.y)})</span>
                   </span>
-                  <button className="delete-btn" onClick={() => removeNode(node.id)}>x</button>
+                  <button className="delete-btn" onClick={(e) => { e.stopPropagation(); removeNode(node.id) }}>x</button>
                 </li>
               ))}
             </ul>
@@ -268,9 +283,8 @@ function App() {
           <section className="panel help">
             <h3>Usage</h3>
             <ul>
-              <li>Click node to select</li>
-              <li>Shift+click to multi-select</li>
-              <li>Drag to move</li>
+              <li>Click sidebar to select</li>
+              <li>Drag canvas nodes to move</li>
               <li>Constraints apply on drop</li>
             </ul>
           </section>
