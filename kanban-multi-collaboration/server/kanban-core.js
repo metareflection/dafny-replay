@@ -137,15 +137,4 @@ export const actionFromJson = (action) => {
   }
 };
 
-// Create initial empty model
-export const createInitialModel = () => {
-  return KanbanDomain.Model.create_Model(
-    _dafny.Seq.of(),
-    _dafny.Map.Empty,
-    _dafny.Map.Empty,
-    _dafny.Map.Empty,
-    _dafny.ZERO
-  );
-};
-
 export { BigNumber };

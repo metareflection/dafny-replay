@@ -1292,6 +1292,9 @@ let KanbanDomain = (function() {
         }));
       });
     };
+    static Init() {
+      return KanbanDomain.Model.create_Model(_dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO);
+    };
     static Normalize(m) {
       return m;
     };
@@ -1577,6 +1580,9 @@ let KanbanKernel = (function() {
     static Step(m, a) {
       return KanbanDomain.__default.Normalize(KanbanDomain.__default.Apply(m, a));
     };
+    static InitHistory() {
+      return KanbanKernel.History.create_History(_dafny.Seq.of(), KanbanDomain.__default.Init(), _dafny.Seq.of());
+    };
     static Do(h, a) {
       return KanbanKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), KanbanKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
@@ -1652,8 +1658,7 @@ let KanbanAppCore = (function() {
       return [];
     }
     static Init() {
-      let _0_m = KanbanDomain.Model.create_Model(_dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO);
-      return KanbanKernel.History.create_History(_dafny.Seq.of(), _0_m, _dafny.Seq.of());
+      return KanbanKernel.__default.InitHistory();
     };
     static AddColumn(col, limit) {
       return KanbanDomain.Action.create_AddColumn(col, limit);

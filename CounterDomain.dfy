@@ -9,6 +9,10 @@ module CounterDomain refines Domain {
     m >= 0
   }
 
+  function Init(): Model {
+    0
+  }
+
   function Apply(m: Model, a: Action): Model {
     match a
     case Inc => m + 1
@@ -17,6 +21,11 @@ module CounterDomain refines Domain {
 
   function Normalize(m: Model): Model {
     if m < 0 then 0 else m
+  }
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
   }
 
   lemma StepPreservesInv(m: Model, a: Action)
@@ -33,7 +42,7 @@ module AppCore {
   import K = CounterKernel
   import D = CounterDomain
 
-  function Init(): K.History { K.History([], 0, []) }
+  function Init(): K.History { K.InitHistory() }
 
   function Inc(): D.Action { D.Inc }
   function Dec(): D.Action { D.Dec }

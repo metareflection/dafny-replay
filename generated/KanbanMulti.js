@@ -1257,6 +1257,9 @@ let KanbanDomain = (function() {
         }
       }
     };
+    static Init() {
+      return KanbanDomain.Model.create_Model(_dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO);
+    };
     static Get(mp, k, d) {
       if ((mp).contains(k)) {
         return (mp).get(k);
@@ -2025,6 +2028,9 @@ let KanbanMultiCollaboration = (function() {
     static Version(s) {
       return new BigNumber(((s).dtor_appliedLog).length);
     };
+    static InitServer() {
+      return KanbanMultiCollaboration.ServerState.create_ServerState(KanbanDomain.__default.Init(), _dafny.Seq.of(), _dafny.Seq.of());
+    };
     static ChooseCandidate(m, cs) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((cs).length)).isEqualTo(_dafny.ZERO)) {
@@ -2328,7 +2334,10 @@ let KanbanAppCore = (function() {
     _parentTraits() {
       return [];
     }
-    static InitServer(initModel) {
+    static Init() {
+      return KanbanMultiCollaboration.__default.InitServer();
+    };
+    static InitServerWithModel(initModel) {
       return KanbanMultiCollaboration.ServerState.create_ServerState(initModel, _dafny.Seq.of(), _dafny.Seq.of());
     };
     static InitClientFromServer(server) {

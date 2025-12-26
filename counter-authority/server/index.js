@@ -37,8 +37,8 @@ const dafnyStringToJs = (seq) => {
   return Array.from(seq).join('');
 };
 
-// Server state (in-memory, single document)
-let serverState = AppCore.__default.InitServer(new BigNumber(0));
+// Server state (in-memory, single document) - uses verified Init
+let serverState = AppCore.__default.Init();
 
 const app = express();
 app.use(cors());

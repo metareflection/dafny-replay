@@ -11,7 +11,6 @@ import {
   KanbanAppCore,
   modelToJs,
   actionFromJson,
-  createInitialModel,
   toNumber,
   BigNumber
 } from './kanban-core.js';
@@ -26,7 +25,7 @@ class TestServer {
   }
 
   reset() {
-    this.state = KanbanAppCore.__default.InitServer(createInitialModel());
+    this.state = KanbanAppCore.__default.Init();
   }
 
   sync() {

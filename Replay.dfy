@@ -4,8 +4,12 @@ abstract module {:compile false} Domain {
 
   ghost predicate Inv(m: Model)
 
+  function Init(): Model
   function Apply(m: Model, a: Action): Model
   function Normalize(m: Model): Model
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
 
   lemma StepPreservesInv(m: Model, a: Action)
     requires Inv(m)
@@ -17,6 +21,10 @@ abstract module {:compile false} Kernel {
 
   function Step(m: D.Model, a: D.Action): D.Model {
     D.Normalize(D.Apply(m, a))
+  }
+
+  function InitHistory(): History {
+    History([], D.Init(), [])
   }
 
   datatype History =
@@ -50,6 +58,12 @@ abstract module {:compile false} Kernel {
     (forall i | 0 <= i < |h.past| :: D.Inv(h.past[i])) &&
     D.Inv(h.present) &&
     (forall j | 0 <= j < |h.future| :: D.Inv(h.future[j]))
+  }
+
+  lemma InitHistorySatisfiesInv()
+    ensures HistInv(InitHistory())
+  {
+    D.InitSatisfiesInv();
   }
 
   lemma UndoPreservesHistInv(h: History)

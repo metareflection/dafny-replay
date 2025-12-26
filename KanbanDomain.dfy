@@ -125,6 +125,13 @@ module KanbanDomain refines Domain {
   }
 
   // --------------------------
+  // Init
+  // --------------------------
+  function Init(): Model {
+    Model([], map[], map[], map[], 0)
+  }
+
+  // --------------------------
   // Normalize
   // --------------------------
   // For now, Normalize is the identity.
@@ -207,8 +214,14 @@ module KanbanDomain refines Domain {
   }
 
   // --------------------------
-  // The required lemma for dafny-replay
+  // The required lemmas for dafny-replay
   // --------------------------
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
+  }
+
   //
   // This is the only thing the replay kernel needs from the domain:
   // Step preserves Inv (possibly after Normalize, but Normalize is identity here).
@@ -1843,8 +1856,7 @@ module KanbanAppCore {
   import D = KanbanDomain
 
   function Init(): K.History {
-    var m := D.Model([], map[], map[], map[], 0);
-    K.History([], m, [])
+    K.InitHistory()
   }
 
   // Action constructors

@@ -45,4 +45,10 @@ dafny translate js --no-verify -o generated/Canon --include-runtime Canon.dfy
 echo "Copying to canon project..."
 cp generated/Canon.js canon/src/dafny/Canon.cjs
 
+echo "Compiling ColorWheelDomain to JavaScript..."
+dafny translate js --no-verify -o generated/ColorWheel --include-runtime ColorWheelDomain.dfy
+
+echo "Copying to colorwheel project..."
+cp generated/ColorWheel.js colorwheel/src/dafny/ColorWheel.cjs
+
 echo "Done."

@@ -111,6 +111,11 @@ module KanbanDomain refines Domain {
     && (forall id :: id in m.cards ==> id < m.nextId)
   }
 
+  // --- Initial model ---
+  function Init(): Model {
+    Model([], map[], map[], map[], 0)
+  }
+
   // --- Helpers ---
   function Get<K,V>(mp: map<K,V>, k: K, d: V): V { if k in mp then mp[k] else d }
   function Lane(m: Model, c: ColId): seq<CardId> { Get(m.lanes, c, []) }
@@ -315,6 +320,12 @@ module KanbanDomain refines Domain {
            MoveCard(id, toCol, Before(first))]
       case _ =>
         [a]
+  }
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
+    // Empty model trivially satisfies all invariant conditions
   }
 
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
@@ -1539,8 +1550,15 @@ module KanbanAppCore {
   // Initialization
   // -------------------------------------------------------------------------
 
-  // Create initial server state from a model
-  function InitServer(initModel: K.Model): MC.ServerState
+  // Create initial server state with verified default model
+  function Init(): MC.ServerState
+  {
+    MC.InitServer()
+  }
+
+  // Create initial server state from a custom model
+  // Note: caller is responsible for ensuring model satisfies K.Inv
+  function InitServerWithModel(initModel: K.Model): MC.ServerState
   {
     MC.ServerState(initModel, [], [])
   }
