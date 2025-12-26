@@ -376,10 +376,18 @@ button:disabled {
   color: #333;
 }
 
-.adjust-mode-note {
-  margin: 0 0 1rem 0;
+.mode-control {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mode-control label {
+  display: block;
+  font-weight: 600;
   font-size: 0.9rem;
-  color: #666;
+  color: #555;
+  margin-bottom: 0.5rem;
 }
 
 .adjust-color-select {

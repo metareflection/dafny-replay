@@ -135,6 +135,14 @@ function ColorWheel() {
   // Handle color adjustment
   const handleAdjustColor = () => {
     if (deltaH !== 0 || deltaS !== 0 || deltaL !== 0) {
+      console.log('AdjustColor:', {
+        adjustIndex,
+        deltaH,
+        deltaS,
+        deltaL,
+        currentMode: getAdjustmentModeName(model.adjustmentMode),
+        currentModeTag: model.adjustmentMode?.$tag
+      });
       dispatch(App.AdjustColor(adjustIndex, deltaH, deltaS, deltaL));
       // Reset sliders after applying
       setDeltaH(0);
@@ -240,28 +248,6 @@ function ColorWheel() {
           <span>Current: {getMoodName(model.mood)} + {getHarmonyName(model.harmony)}</span>
         </div>
 
-        <div className="control-group">
-          <label>Adjustment Mode</label>
-          <div className="mode-toggle">
-            <button
-              className={`mode-btn ${currentModeTag === 0 ? 'active' : ''}`}
-              onClick={() => handleAdjustmentModeChange('linked')}
-            >
-              Linked
-            </button>
-            <button
-              className={`mode-btn ${currentModeTag === 1 ? 'active' : ''}`}
-              onClick={() => handleAdjustmentModeChange('independent')}
-            >
-              Independent
-            </button>
-          </div>
-          <span className="mode-hint">
-            {currentModeTag === 0
-              ? 'All colors adjust together'
-              : 'Each color adjusts independently'}
-          </span>
-        </div>
       </div>
 
       <div className="palette">
@@ -335,12 +321,29 @@ function ColorWheel() {
 
       <div className="adjust-section">
         <h3>Adjust Colors</h3>
-        <p className="adjust-mode-note">
-          Mode: <strong>{currentModeTag === 0 ? 'Linked' : 'Independent'}</strong>
-          {currentModeTag === 0
-            ? ' - adjustments apply to all colors'
-            : ' - adjustments apply to selected color only'}
-        </p>
+
+        <div className="mode-control">
+          <label>Adjustment Mode</label>
+          <div className="mode-toggle">
+            <button
+              className={`mode-btn ${currentModeTag === 0 ? 'active' : ''}`}
+              onClick={() => handleAdjustmentModeChange('linked')}
+            >
+              Linked
+            </button>
+            <button
+              className={`mode-btn ${currentModeTag === 1 ? 'active' : ''}`}
+              onClick={() => handleAdjustmentModeChange('independent')}
+            >
+              Independent
+            </button>
+          </div>
+          <span className="mode-hint">
+            {currentModeTag === 0
+              ? 'Adjustments apply to all 5 colors'
+              : 'Adjustments apply to selected color only'}
+          </span>
+        </div>
 
         {currentModeTag === 1 && (
           <div className="adjust-color-select">
