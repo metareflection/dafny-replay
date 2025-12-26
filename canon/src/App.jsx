@@ -2,6 +2,71 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import Canon from './dafny/app.js'
 import './App.css'
 
+// TikZ export helper functions
+function tikzSanitizeNodeName(id) {
+  // Node name used in: \node (...) at ...
+  // Allow only [A-Za-z0-9_]. Replace others with "_".
+  let name = String(id).replace(/[^A-Za-z0-9_]/g, "_");
+  if (name.length === 0) name = "n";
+  if (/^[0-9]/.test(name)) name = "n_" + name;
+  return name;
+}
+
+function tikzEscapeLabel(text) {
+  // Minimal LaTeX escaping for labels
+  return String(text)
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/([{}_#$%&])/g, "\\$1")
+    .replace(/\^/g, "\\^{}")
+    .replace(/~/g, "\\~{}");
+}
+
+function fmt2(x) {
+  // format number with 2 decimals, avoid "-0.00"
+  const s = (Math.round(x * 100) / 100).toFixed(2);
+  return s === "-0.00" ? "0.00" : s;
+}
+
+function downloadTextFile(filename, content) {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportTikzFromNodes(nodesArr, opts = {}) {
+  const scalePxPerCm = opts.scalePxPerCm ?? 50;
+
+  // Sort by id for stable output
+  const sorted = [...nodesArr].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+  const lines = [];
+  lines.push("\\begin{tikzpicture}[");
+  lines.push("  canon node/.style={draw, rounded corners, inner sep=2pt}");
+  lines.push("]");
+
+  for (const n of sorted) {
+    const id = String(n.id);
+    const name = tikzSanitizeNodeName(id);
+    const label = tikzEscapeLabel(id);
+
+    const xCm = n.x / scalePxPerCm;
+    const yCm = -n.y / scalePxPerCm;
+
+    lines.push(`\\node[canon node] (${name}) at (${fmt2(xCm)}, ${fmt2(yCm)}) {${label}};`);
+  }
+
+  lines.push("\\end{tikzpicture}");
+  lines.push(""); // trailing newline
+
+  return lines.join("\n");
+}
+
 const INITIAL_NODES = [
   { id: 'A', x: 100, y: 100 },
   { id: 'B', x: 200, y: 120 },
@@ -114,6 +179,15 @@ function App() {
     })
   }
 
+  const exportTikz = () => {
+    // Get canonicalized model
+    const mCanon = Canon.Canon(model)
+    const canonNodes = Canon.GetNodes(mCanon)
+    // Generate TikZ and download
+    const tikz = exportTikzFromNodes(canonNodes, { scalePxPerCm: 50 })
+    downloadTextFile("diagram.tex", tikz)
+  }
+
   // Set up global mouse listeners
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove)
@@ -195,6 +269,7 @@ function App() {
         <button onClick={addEvenSpace} disabled={selected.size < 3}>
           Even Space ({selected.size})
         </button>
+        <button onClick={exportTikz}>Export TikZ</button>
       </div>
 
       <div className="main">
