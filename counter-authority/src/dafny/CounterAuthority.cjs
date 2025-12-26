@@ -1199,6 +1199,9 @@ let CounterDomain = (function() {
     static Inv(m) {
       return (_dafny.ZERO).isLessThanOrEqualTo(m);
     };
+    static Init() {
+      return _dafny.ZERO;
+    };
     static TryStep(m, a) {
       let _source0 = a;
       {
@@ -1349,6 +1352,9 @@ let CounterServer = (function() {
           return _dafny.Tuple.of(s, CounterServer.Response.create_Response((s).dtor_ver, CounterServer.Result.create_Failure(CounterServer.FailureReason.create_InvalidAction(_1_msg))));
         }
       }
+    };
+    static InitServer() {
+      return CounterServer.S.create_S(_dafny.ZERO, CounterDomain.__default.Init());
     };
   };
 
@@ -1584,7 +1590,10 @@ let AppCore = (function() {
     _parentTraits() {
       return [];
     }
-    static InitServer(initial) {
+    static Init() {
+      return CounterServer.__default.InitServer();
+    };
+    static InitServerWithValue(initial) {
       return CounterServer.S.create_S(_dafny.ZERO, (((_dafny.ZERO).isLessThanOrEqualTo(initial)) ? (initial) : (_dafny.ZERO)));
     };
     static Inc() {

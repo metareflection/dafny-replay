@@ -25,8 +25,15 @@ abstract module {:compile false} Domain {
   // Global invariant
   ghost predicate Inv(m: Model)
 
+  // Initial model
+  function Init(): Model
+
   // Apply a concrete action; may reject with a domain error
   function TryStep(m: Model, a: Action): Result<Model, Err>
+
+  // Domain obligation: initial model satisfies invariant
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
 
   // Domain obligation: successful steps preserve invariant
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
@@ -96,6 +103,17 @@ abstract module {:compile false} MultiCollaboration {
   )
 
   function Version(s: ServerState): nat { |s.appliedLog| }
+
+  // Initialize server with domain's initial model
+  function InitServer(): ServerState {
+    ServerState(D.Init(), [], [])
+  }
+
+  lemma InitServerSatisfiesInv()
+    ensures D.Inv(InitServer().present)
+  {
+    D.InitSatisfiesInv();
+  }
 
   // Choose first candidate that succeeds. If none succeed, reject.
   function ChooseCandidate(m: D.Model, cs: seq<D.Action>): D.Result<(D.Model, D.Action), D.Err>

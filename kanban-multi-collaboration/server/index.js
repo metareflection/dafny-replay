@@ -8,13 +8,12 @@ import {
   KanbanAppCore,
   modelToJs,
   actionFromJson,
-  createInitialModel,
   toNumber,
   BigNumber
 } from './kanban-core.js';
 
-// Server state (in-memory, single board)
-let serverState = KanbanAppCore.__default.InitServer(createInitialModel());
+// Server state (in-memory, single board) - uses verified Init
+let serverState = KanbanAppCore.__default.Init();
 
 const app = express();
 app.use(cors());

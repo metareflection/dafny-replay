@@ -6,12 +6,19 @@ module CounterDomain refines Domain {
 
   predicate Inv(m: Model) { m >= 0 }
 
+  function Init(): Model { 0 }
+
   function TryStep(m: Model, a: Action): TryStepResult {
     match a
       case Inc => Ok(m + 1)
       case Dec =>
         if m == 0 then Invalid("cannot decrement at 0")
         else Ok(m - 1)
+  }
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
   }
 
   lemma TryStepOkPreservesInv(m: Model, a: Action)
@@ -31,8 +38,13 @@ module AppCore {
   // Server state type alias
   type ServerState = S.S
 
-  // Initialize server with starting value
-  function InitServer(initial: int): S.S {
+  // Initialize server with default (verified) initial state
+  function Init(): S.S {
+    S.InitServer()
+  }
+
+  // Initialize server with custom starting value (self-healing: clamps negative to 0)
+  function InitServerWithValue(initial: int): S.S {
     S.S(0, if initial >= 0 then initial else 0)
   }
 

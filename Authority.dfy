@@ -6,12 +6,17 @@ abstract module {:compile false} Domain {
 
   ghost predicate Inv(m: Model)
 
+  function Init(): Model
+
   // A partial step: either returns an updated model, or an invalid-action message.
   datatype TryStepResult =
     | Ok(m': Model)
     | Invalid(msg: string)
 
   function TryStep(m: Model, a: Action): TryStepResult
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
 
   lemma TryStepOkPreservesInv(m: Model, a: Action)
     requires Inv(m)
@@ -69,6 +74,17 @@ abstract module {:compile false} ServerKernel {
   // Server invariant lifted from Domain.Inv
   ghost predicate SInv(s: S) {
     D.Inv(s.present)
+  }
+
+  // Initialize server with domain's initial model
+  function InitServer(): S {
+    S(0, D.Init())
+  }
+
+  lemma InitServerSatisfiesSInv()
+    ensures SInv(InitServer())
+  {
+    D.InitSatisfiesInv();
   }
 
   // Main preservation lemma: Dispatch keeps server invariant.
