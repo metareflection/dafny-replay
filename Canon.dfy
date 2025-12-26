@@ -20,8 +20,11 @@ module Canon {
     | Align(cid: int, targets: seq<NodeId>, axis: Axis)
     | EvenSpace(cid: int, targets: seq<NodeId>, axis: Axis)
 
+  datatype Edge = Edge(from: NodeId, to: NodeId)
+
   datatype Model = Model(
     nodes: map<NodeId, Node>,
+    edges: seq<Edge>,
     constraints: seq<Constraint>,
     nextCid: int
   )
@@ -44,8 +47,17 @@ module Canon {
     forall i :: 0 <= i < |cs| ==> ConstraintTargetsValid(cs[i], nodes)
   }
 
+  predicate EdgeValid(e: Edge, nodes: map<NodeId, Node>) {
+    e.from in nodes && e.to in nodes
+  }
+
+  predicate AllEdgesValid(es: seq<Edge>, nodes: map<NodeId, Node>) {
+    forall i :: 0 <= i < |es| ==> EdgeValid(es[i], nodes)
+  }
+
   ghost predicate Inv(m: Model) {
     AllConstraintsValid(m.constraints, m.nodes)
+    && AllEdgesValid(m.edges, m.nodes)
   }
 
   predicate Contains(xs: seq<NodeId>, x: NodeId) {
@@ -98,6 +110,51 @@ module Canon {
     }
   }
 
+  // Edge mentions a node if either endpoint equals x.
+  predicate EdgeMentions(e: Edge, x: NodeId) {
+    e.from == x || e.to == x
+  }
+
+  predicate NoEdgesMention(es: seq<Edge>, x: NodeId) {
+    forall i :: 0 <= i < |es| ==> !EdgeMentions(es[i], x)
+  }
+
+  lemma EdgeValidMinusLemma(e: Edge, nodes: map<NodeId, Node>, x: NodeId)
+    requires EdgeValid(e, nodes)
+    requires !EdgeMentions(e, x)
+    ensures EdgeValid(e, nodes - {x})
+  {
+  }
+
+  lemma AllEdgesValidMinusLemma(es: seq<Edge>, nodes: map<NodeId, Node>, x: NodeId)
+    requires AllEdgesValid(es, nodes)
+    requires NoEdgesMention(es, x)
+    ensures AllEdgesValid(es, nodes - {x})
+  {
+    forall i | 0 <= i < |es|
+      ensures EdgeValid(es[i], nodes - {x})
+    {
+      EdgeValidMinusLemma(es[i], nodes, x);
+    }
+  }
+
+  // Filter out edges incident to x.
+  function FilterOutIncidentEdges(es: seq<Edge>, x: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>): (result: seq<Edge>)
+    requires AllEdgesValid(es, nodes)
+    requires AllEdgesValid(acc, nodes)
+    requires NoEdgesMention(acc, x)
+    ensures AllEdgesValid(result, nodes)
+    ensures NoEdgesMention(result, x)
+    decreases |es| - i
+  {
+    if i >= |es| then acc
+    else
+      var e := es[i];
+      if EdgeMentions(e, x)
+      then FilterOutIncidentEdges(es, x, i + 1, acc, nodes)
+      else FilterOutIncidentEdges(es, x, i + 1, acc + [e], nodes)
+  }
+
   // ----------------------------
   // Axis-generic helpers (no v/h duplication)
   // ----------------------------
@@ -117,14 +174,14 @@ module Canon {
   function Empty(): (result: Model)
     ensures Inv(result)
   {
-    Model(map[], [], 0)
+    Model(map[], [], [], 0)
   }
 
   // Build from a seq of nodes (last writer wins on duplicate ids).
   function Init(ns: seq<Node>): (result: Model)
     ensures Inv(result)
   {
-    Model(NodesFromSeq(ns), [], 0)
+    Model(NodesFromSeq(ns), [], [], 0)
   }
 
   // UI passes selected ids (possibly with duplicates or missing).
@@ -137,7 +194,7 @@ module Canon {
     if |targets| <= 1 then m else
       var axis := InferAxis(m, targets);
       var c := Constraint.Align(m.nextCid, targets, axis);
-      Model(m.nodes, m.constraints + [c], m.nextCid + 1)
+      Model(m.nodes, m.edges, m.constraints + [c], m.nextCid + 1)
   }
 
   function FlipAxis(a: Axis): Axis {
@@ -154,7 +211,7 @@ module Canon {
       // but EvenSpace needs the spread axis, so flip it.
       var axis := FlipAxis(InferAxis(m, targets));
       var c := Constraint.EvenSpace(m.nextCid, targets, axis);
-      Model(m.nodes, m.constraints + [c], m.nextCid + 1)
+      Model(m.nodes, m.edges, m.constraints + [c], m.nextCid + 1)
   }
 
   // Delete constraint by cid (first-class constraints).
@@ -162,10 +219,44 @@ module Canon {
     requires Inv(m)
     ensures Inv(result)
   {
-    Model(m.nodes, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
+    Model(m.nodes, m.edges, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
+  }
+
+  // Add a directed edge (skip if endpoints missing).
+  function AddEdge(m: Model, from: NodeId, to: NodeId): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
+    if from !in m.nodes || to !in m.nodes then m
+    else
+      var e := Edge(from, to);
+      Model(m.nodes, m.edges + [e], m.constraints, m.nextCid)
+  }
+
+  // Delete edge (remove all matching occurrences).
+  function DeleteEdge(m: Model, from: NodeId, to: NodeId): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
+    Model(m.nodes, FilterOutEdge(m.edges, from, to, 0, [], m.nodes), m.constraints, m.nextCid)
+  }
+
+  function FilterOutEdge(es: seq<Edge>, from: NodeId, to: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>): (result: seq<Edge>)
+    requires AllEdgesValid(es, nodes)
+    requires AllEdgesValid(acc, nodes)
+    ensures AllEdgesValid(result, nodes)
+    decreases |es| - i
+  {
+    if i >= |es| then acc
+    else
+      var e := es[i];
+      if e.from == from && e.to == to
+      then FilterOutEdge(es, from, to, i + 1, acc, nodes)
+      else FilterOutEdge(es, from, to, i + 1, acc + [e], nodes)
   }
 
   // Remove a node and shrink constraints that mention it (drop degenerate ones).
+  // Also removes edges incident to the node.
   function RemoveNode(m: Model, x: NodeId): (result: Model)
     requires Inv(m)
     ensures Inv(result)
@@ -173,10 +264,12 @@ module Canon {
     if x !in m.nodes then m
     else
       var cs2 := ShrinkConstraints(m.constraints, x, 0, [], m.nodes);
-      // cs2 constraints are still valid wrt old nodes, and none mention x
+      var es2 := FilterOutIncidentEdges(m.edges, x, 0, [], m.nodes);
+      // cs2 and es2 are still valid wrt old nodes, and none mention x
       var nodes2 := m.nodes - {x};
       AllConstraintsValidMinusLemma(cs2, m.nodes, x);
-      Model(nodes2, cs2, m.nextCid)
+      AllEdgesValidMinusLemma(es2, m.nodes, x);
+      Model(nodes2, es2, cs2, m.nextCid)
   }
 
   // CanonOnce = apply constraints sequentially, deterministic (one pass).
@@ -184,7 +277,7 @@ module Canon {
     requires Inv(m)
     ensures Inv(result)
   {
-    ApplyAll(Model(m.nodes, m.constraints, m.nextCid), 0)
+    ApplyAll(Model(m.nodes, m.edges, m.constraints, m.nextCid), 0)
   }
 
   // Node-map equality predicate for fixpoint detection.
@@ -234,9 +327,9 @@ module Canon {
   {
     match c
     case Align(_, targets, axis) =>
-      Model(ApplyAlignNodes(m.nodes, targets, axis), m.constraints, m.nextCid)
+      Model(ApplyAlignNodes(m.nodes, targets, axis), m.edges, m.constraints, m.nextCid)
     case EvenSpace(_, targets, axis) =>
-      Model(ApplyEvenSpaceNodes(m.nodes, targets, axis), m.constraints, m.nextCid)
+      Model(ApplyEvenSpaceNodes(m.nodes, targets, axis), m.edges, m.constraints, m.nextCid)
   }
 
   // Align: set Coord to mean anchor for all targets.
