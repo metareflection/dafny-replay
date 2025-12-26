@@ -1221,6 +1221,15 @@ let Canon = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((cs).length)))) || (Canon.__default.ConstraintTargetsValid((cs)[_0_i], nodes));
       });
     };
+    static EdgeValid(e, nodes) {
+      return ((nodes).contains((e).dtor_from)) && ((nodes).contains((e).dtor_to));
+    };
+    static AllEdgesValid(es, nodes) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((es).length)), true, function (_forall_var_0) {
+        let _0_i = _forall_var_0;
+        return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((es).length)))) || (Canon.__default.EdgeValid((es)[_0_i], nodes));
+      });
+    };
     static Contains(xs, x) {
       return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((xs).length)), false, function (_exists_var_0) {
         let _0_i = _exists_var_0;
@@ -1246,6 +1255,49 @@ let Canon = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((cs).length)))) || (!(Canon.__default.Mentions((cs)[_0_i], x)));
       });
     };
+    static EdgeMentions(e, x) {
+      return (_dafny.areEqual((e).dtor_from, x)) || (_dafny.areEqual((e).dtor_to, x));
+    };
+    static NoEdgesMention(es, x) {
+      return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((es).length)), true, function (_forall_var_0) {
+        let _0_i = _forall_var_0;
+        return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((es).length)))) || (!(Canon.__default.EdgeMentions((es)[_0_i], x)));
+      });
+    };
+    static FilterOutIncidentEdges(es, x, i, acc, nodes) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((es).length)).isLessThanOrEqualTo(i)) {
+          return acc;
+        } else {
+          let _0_e = (es)[i];
+          if (Canon.__default.EdgeMentions(_0_e, x)) {
+            let _in0 = es;
+            let _in1 = x;
+            let _in2 = (i).plus(_dafny.ONE);
+            let _in3 = acc;
+            let _in4 = nodes;
+            es = _in0;
+            x = _in1;
+            i = _in2;
+            acc = _in3;
+            nodes = _in4;
+            continue TAIL_CALL_START;
+          } else {
+            let _in5 = es;
+            let _in6 = x;
+            let _in7 = (i).plus(_dafny.ONE);
+            let _in8 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
+            let _in9 = nodes;
+            es = _in5;
+            x = _in6;
+            i = _in7;
+            acc = _in8;
+            nodes = _in9;
+            continue TAIL_CALL_START;
+          }
+        }
+      }
+    };
     static Coord(n, axis) {
       if (_dafny.areEqual(axis, Canon.Axis.create_X())) {
         return (n).dtor_x;
@@ -1261,10 +1313,10 @@ let Canon = (function() {
       }
     };
     static Empty() {
-      return Canon.Model.create_Model(_dafny.Map.Empty.slice(), _dafny.Seq.of(), _dafny.ZERO);
+      return Canon.Model.create_Model(_dafny.Map.Empty.slice(), _dafny.Seq.of(), _dafny.Seq.of(), _dafny.ZERO);
     };
     static Init(ns) {
-      return Canon.Model.create_Model(Canon.__default.NodesFromSeq(ns), _dafny.Seq.of(), _dafny.ZERO);
+      return Canon.Model.create_Model(Canon.__default.NodesFromSeq(ns), _dafny.Seq.of(), _dafny.Seq.of(), _dafny.ZERO);
     };
     static AddAlign(m, sel) {
       let _0_targets = Canon.__default.FilterPresent((m).dtor_nodes, Canon.__default.Dedup(sel));
@@ -1273,7 +1325,7 @@ let Canon = (function() {
       } else {
         let _1_axis = Canon.__default.InferAxis(m, _0_targets);
         let _2_c = Canon.Constraint.create_Align((m).dtor_nextCid, _0_targets, _1_axis);
-        return Canon.Model.create_Model((m).dtor_nodes, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
+        return Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
       }
     };
     static FlipAxis(a) {
@@ -1290,23 +1342,73 @@ let Canon = (function() {
       } else {
         let _1_axis = Canon.__default.FlipAxis(Canon.__default.InferAxis(m, _0_targets));
         let _2_c = Canon.Constraint.create_EvenSpace((m).dtor_nextCid, _0_targets, _1_axis);
-        return Canon.Model.create_Model((m).dtor_nodes, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
+        return Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, _dafny.Seq.Concat((m).dtor_constraints, _dafny.Seq.of(_2_c)), ((m).dtor_nextCid).plus(_dafny.ONE));
       }
     };
     static DeleteConstraint(m, cid) {
-      return Canon.Model.create_Model((m).dtor_nodes, Canon.__default.FilterOutCid((m).dtor_constraints, cid, (m).dtor_nodes), (m).dtor_nextCid);
+      return Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, Canon.__default.FilterOutCid((m).dtor_constraints, cid, (m).dtor_nodes), (m).dtor_nextCid);
+    };
+    static AddEdge(m, from, to) {
+      if ((!((m).dtor_nodes).contains(from)) || (!((m).dtor_nodes).contains(to))) {
+        return m;
+      } else {
+        let _0_e = Canon.Edge.create_Edge(from, to);
+        return Canon.Model.create_Model((m).dtor_nodes, _dafny.Seq.Concat((m).dtor_edges, _dafny.Seq.of(_0_e)), (m).dtor_constraints, (m).dtor_nextCid);
+      }
+    };
+    static DeleteEdge(m, from, to) {
+      return Canon.Model.create_Model((m).dtor_nodes, Canon.__default.FilterOutEdge((m).dtor_edges, from, to, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes), (m).dtor_constraints, (m).dtor_nextCid);
+    };
+    static FilterOutEdge(es, from, to, i, acc, nodes) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((es).length)).isLessThanOrEqualTo(i)) {
+          return acc;
+        } else {
+          let _0_e = (es)[i];
+          if ((_dafny.areEqual((_0_e).dtor_from, from)) && (_dafny.areEqual((_0_e).dtor_to, to))) {
+            let _in0 = es;
+            let _in1 = from;
+            let _in2 = to;
+            let _in3 = (i).plus(_dafny.ONE);
+            let _in4 = acc;
+            let _in5 = nodes;
+            es = _in0;
+            from = _in1;
+            to = _in2;
+            i = _in3;
+            acc = _in4;
+            nodes = _in5;
+            continue TAIL_CALL_START;
+          } else {
+            let _in6 = es;
+            let _in7 = from;
+            let _in8 = to;
+            let _in9 = (i).plus(_dafny.ONE);
+            let _in10 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
+            let _in11 = nodes;
+            es = _in6;
+            from = _in7;
+            to = _in8;
+            i = _in9;
+            acc = _in10;
+            nodes = _in11;
+            continue TAIL_CALL_START;
+          }
+        }
+      }
     };
     static RemoveNode(m, x) {
       if (!((m).dtor_nodes).contains(x)) {
         return m;
       } else {
         let _0_cs2 = Canon.__default.ShrinkConstraints((m).dtor_constraints, x, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes);
-        let _1_nodes2 = ((m).dtor_nodes).Subtract(_dafny.Set.fromElements(x));
-        return Canon.Model.create_Model(_1_nodes2, _0_cs2, (m).dtor_nextCid);
+        let _1_es2 = Canon.__default.FilterOutIncidentEdges((m).dtor_edges, x, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes);
+        let _2_nodes2 = ((m).dtor_nodes).Subtract(_dafny.Set.fromElements(x));
+        return Canon.Model.create_Model(_2_nodes2, _1_es2, _0_cs2, (m).dtor_nextCid);
       }
     };
     static CanonOnce(m) {
-      return Canon.__default.ApplyAll(Canon.Model.create_Model((m).dtor_nodes, (m).dtor_constraints, (m).dtor_nextCid), _dafny.ZERO);
+      return Canon.__default.ApplyAll(Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, (m).dtor_constraints, (m).dtor_nextCid), _dafny.ZERO);
     };
     static SameNodes(a, b) {
       return (a).equals(b);
@@ -1351,13 +1453,13 @@ let Canon = (function() {
         if (_source0.is_Align) {
           let _0_targets = (_source0).targets;
           let _1_axis = (_source0).axis;
-          return Canon.Model.create_Model(Canon.__default.ApplyAlignNodes((m).dtor_nodes, _0_targets, _1_axis), (m).dtor_constraints, (m).dtor_nextCid);
+          return Canon.Model.create_Model(Canon.__default.ApplyAlignNodes((m).dtor_nodes, _0_targets, _1_axis), (m).dtor_edges, (m).dtor_constraints, (m).dtor_nextCid);
         }
       }
       {
         let _2_targets = (_source0).targets;
         let _3_axis = (_source0).axis;
-        return Canon.Model.create_Model(Canon.__default.ApplyEvenSpaceNodes((m).dtor_nodes, _2_targets, _3_axis), (m).dtor_constraints, (m).dtor_nextCid);
+        return Canon.Model.create_Model(Canon.__default.ApplyEvenSpaceNodes((m).dtor_nodes, _2_targets, _3_axis), (m).dtor_edges, (m).dtor_constraints, (m).dtor_nextCid);
       }
     };
     static ApplyAlignNodes(nodes, targets, axis) {
@@ -1969,24 +2071,22 @@ let Canon = (function() {
     }
   }
 
-  $module.Model = class Model {
+  $module.Edge = class Edge {
     constructor(tag) {
       this.$tag = tag;
     }
-    static create_Model(nodes, constraints, nextCid) {
-      let $dt = new Model(0);
-      $dt.nodes = nodes;
-      $dt.constraints = constraints;
-      $dt.nextCid = nextCid;
+    static create_Edge(from, to) {
+      let $dt = new Edge(0);
+      $dt.from = from;
+      $dt.to = to;
       return $dt;
     }
-    get is_Model() { return this.$tag === 0; }
-    get dtor_nodes() { return this.nodes; }
-    get dtor_constraints() { return this.constraints; }
-    get dtor_nextCid() { return this.nextCid; }
+    get is_Edge() { return this.$tag === 0; }
+    get dtor_from() { return this.from; }
+    get dtor_to() { return this.to; }
     toString() {
       if (this.$tag === 0) {
-        return "Canon.Model.Model" + "(" + _dafny.toString(this.nodes) + ", " + _dafny.toString(this.constraints) + ", " + _dafny.toString(this.nextCid) + ")";
+        return "Canon.Edge.Edge" + "(" + this.from.toVerbatimString(true) + ", " + this.to.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -1995,13 +2095,58 @@ let Canon = (function() {
       if (this === other) {
         return true;
       } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.nodes, other.nodes) && _dafny.areEqual(this.constraints, other.constraints) && _dafny.areEqual(this.nextCid, other.nextCid);
+        return other.$tag === 0 && _dafny.areEqual(this.from, other.from) && _dafny.areEqual(this.to, other.to);
       } else  {
         return false; // unexpected
       }
     }
     static Default() {
-      return Canon.Model.create_Model(_dafny.Map.Empty, _dafny.Seq.of(), _dafny.ZERO);
+      return Canon.Edge.create_Edge(_dafny.Seq.UnicodeFromString(""), _dafny.Seq.UnicodeFromString(""));
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Edge.Default();
+        }
+      };
+    }
+  }
+
+  $module.Model = class Model {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_Model(nodes, edges, constraints, nextCid) {
+      let $dt = new Model(0);
+      $dt.nodes = nodes;
+      $dt.edges = edges;
+      $dt.constraints = constraints;
+      $dt.nextCid = nextCid;
+      return $dt;
+    }
+    get is_Model() { return this.$tag === 0; }
+    get dtor_nodes() { return this.nodes; }
+    get dtor_edges() { return this.edges; }
+    get dtor_constraints() { return this.constraints; }
+    get dtor_nextCid() { return this.nextCid; }
+    toString() {
+      if (this.$tag === 0) {
+        return "Canon.Model.Model" + "(" + _dafny.toString(this.nodes) + ", " + _dafny.toString(this.edges) + ", " + _dafny.toString(this.constraints) + ", " + _dafny.toString(this.nextCid) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.nodes, other.nodes) && _dafny.areEqual(this.edges, other.edges) && _dafny.areEqual(this.constraints, other.constraints) && _dafny.areEqual(this.nextCid, other.nextCid);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return Canon.Model.create_Model(_dafny.Map.Empty, _dafny.Seq.of(), _dafny.Seq.of(), _dafny.ZERO);
     }
     static Rtd() {
       return class {

@@ -85,6 +85,7 @@ function App() {
   const canvasRef = useRef(null)
 
   const nodes = Canon.GetNodes(model)
+  const edges = Canon.GetEdges(model)
   const constraints = Canon.GetConstraints(model)
 
   // Handle node click for selection toggle
@@ -167,6 +168,16 @@ function App() {
     const newNode = { id, x: 150 + nodes.length * 20, y: 150 + nodes.length * 20 }
     const updatedNodes = [...nodes, newNode]
     setModel(Canon.Init(updatedNodes))
+  }
+
+  const addEdge = () => {
+    if (selected.size !== 2) return
+    const [from, to] = Array.from(selected)
+    setModel(Canon.AddEdge(model, from, to))
+  }
+
+  const removeEdge = (from, to) => {
+    setModel(Canon.DeleteEdge(model, from, to))
   }
 
   const removeNode = (nodeId) => {
@@ -263,6 +274,9 @@ function App() {
 
       <div className="toolbar">
         <button onClick={addNode}>+ Node</button>
+        <button onClick={addEdge} disabled={selected.size !== 2}>
+          + Edge ({selected.size})
+        </button>
         <button onClick={addAlign} disabled={selected.size < 2}>
           Align ({selected.size})
         </button>
@@ -279,8 +293,48 @@ function App() {
             className="canvas"
             viewBox="0 0 600 400"
           >
+            {/* Arrow marker for edges */}
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+              </marker>
+            </defs>
+
             {/* Constraint visualization */}
             {renderConstraintLines()}
+
+            {/* Edges */}
+            {edges.map((e, i) => {
+              const fromNode = nodes.find(n => n.id === e.from)
+              const toNode = nodes.find(n => n.id === e.to)
+              if (!fromNode || !toNode) return null
+              // Shorten line so arrow tip ends at node edge
+              const dx = toNode.x - fromNode.x
+              const dy = toNode.y - fromNode.y
+              const len = Math.sqrt(dx * dx + dy * dy)
+              if (len === 0) return null
+              const offset = NODE_SIZE / 2 + 2 // half node + small gap
+              const x2 = toNode.x - (dx / len) * offset
+              const y2 = toNode.y - (dy / len) * offset
+              return (
+                <line
+                  key={`edge-${e.from}-${e.to}-${i}`}
+                  x1={fromNode.x}
+                  y1={fromNode.y}
+                  x2={x2}
+                  y2={y2}
+                  className="edge-line"
+                  markerEnd="url(#arrowhead)"
+                />
+              )
+            })}
 
             {/* Nodes */}
             {nodes.map(node => (
@@ -333,6 +387,24 @@ function App() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="panel">
+            <h3>Edges</h3>
+            {edges.length === 0 ? (
+              <p className="empty">No edges</p>
+            ) : (
+              <ul className="edge-list">
+                {edges.map((e, i) => (
+                  <li key={`${e.from}-${e.to}-${i}`}>
+                    <span className="edge-info">
+                      <strong>{e.from}</strong> → <strong>{e.to}</strong>
+                    </span>
+                    <button className="delete-btn" onClick={() => removeEdge(e.from, e.to)}>x</button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section className="panel">

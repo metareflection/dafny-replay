@@ -123,6 +123,13 @@
   stroke-dasharray: 2 2;
 }
 
+/* Edge lines */
+.edge-line {
+  stroke: #666;
+  stroke-width: 1.5;
+  fill: none;
+}
+
 /* Sidebar */
 .sidebar {
   width: 240px;
@@ -192,6 +199,13 @@
   color: #888;
   font-family: ui-monospace, monospace;
   font-size: 11px;
+}
+
+.edge-info {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-family: ui-monospace, monospace;
 }
 
 .constraint-info {

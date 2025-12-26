@@ -88,6 +88,20 @@ const extractConstraints = (model) => {
   return constraints;
 };
 
+// Helper to extract edges to JS array
+const extractEdges = (model) => {
+  const edges = [];
+  const es = model.dtor_edges;
+  for (let i = 0; i < es.length; i++) {
+    const e = es[i];
+    edges.push({
+      from: fromDafnyString(e.dtor_from),
+      to: fromDafnyString(e.dtor_to),
+    });
+  }
+  return edges;
+};
+
 // Create a clean API wrapper
 const App = {
   // Initialize empty model
@@ -127,9 +141,10 @@ const App = {
       return map.update(toDafnyString(n.id), dNode);
     }, _dafny.Map.Empty);
 
-    // Return model with updated nodes, same constraints and nextCid
+    // Return model with updated nodes, same edges, constraints and nextCid
     return Canon.Model.create_Model(
       newNodesMap,
+      model.dtor_edges,
       model.dtor_constraints,
       model.dtor_nextCid
     );
@@ -140,6 +155,19 @@ const App = {
 
   // Extract constraints as JS array
   GetConstraints: (model) => extractConstraints(model),
+
+  // Extract edges as JS array
+  GetEdges: (model) => extractEdges(model),
+
+  // Add directed edge
+  AddEdge: (model, from, to) => {
+    return Canon.__default.AddEdge(model, toDafnyString(from), toDafnyString(to));
+  },
+
+  // Delete edge
+  DeleteEdge: (model, from, to) => {
+    return Canon.__default.DeleteEdge(model, toDafnyString(from), toDafnyString(to));
+  },
 };
 
 export default App;
