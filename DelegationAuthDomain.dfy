@@ -41,6 +41,10 @@ module DelegationAuthDomain refines Domain {
     (forall eid :: eid in m.delegations ==> eid < m.nextEdge)
   }
 
+  function Init(): Model {
+    Model({}, {}, map[], 0)
+  }
+
   function Normalize(m: Model): Model { m }
 
   // --------------------------
@@ -168,8 +172,13 @@ module DelegationAuthDomain refines Domain {
   }
 
   // --------------------------
-  // Required lemma for dafny-replay
+  // Required lemmas for dafny-replay
   // --------------------------
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
+  }
+
   lemma StepPreservesInv(m: Model, a: Action)
   {
   }
@@ -262,8 +271,7 @@ module DelegationAuthAppCore {
   import D = DelegationAuthDomain
 
   function Init(): K.History {
-    var m := D.Model({}, {}, map[], 0);
-    K.History([], m, [])
+    K.InitHistory()
   }
 
   // Action constructors

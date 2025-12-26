@@ -3,6 +3,112 @@ include "ColorWheelSpec.dfy"
 module ColorWheelProof {
   import opened CWSpec = ColorWheelSpec
 
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
+    var m := Init();
+    // The Init function uses valid parameters:
+    // - baseHue = 180, which is in [0, 360)
+    // - randomSeeds are all 50, which are in [0, 100]
+    // - GeneratePaletteColors produces 5 valid colors
+    // - contrastPair = (0, 1), both in [0, 5)
+
+    // Help Dafny see the colors are generated correctly
+    var randomSeeds := [50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
+    assert ValidRandomSeeds(randomSeeds);
+    assert ValidBaseHue(180);
+
+    // Generated colors satisfy mood and harmony by construction
+    GeneratePaletteColorsValid(180, Vibrant, Complementary, randomSeeds);
+  }
+
+  // Helper lemma: GeneratePaletteColors produces colors satisfying mood
+  lemma GeneratePaletteColorsValid(baseHue: int, mood: Mood, harmony: Harmony, randomSeeds: seq<int>)
+    requires ValidBaseHue(baseHue)
+    requires ValidRandomSeeds(randomSeeds)
+    ensures var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
+            |colors| == 5 &&
+            (forall i | 0 <= i < 5 :: ValidColor(colors[i])) &&
+            (mood != Mood.Custom ==> forall i | 0 <= i < 5 :: ColorSatisfiesMood(colors[i], mood)) &&
+            HuesMatchHarmony(colors, baseHue, harmony)
+  {
+    var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
+    var hues := AllHarmonyHues(baseHue, harmony);
+
+    // Prove each color is valid and satisfies mood
+    forall i | 0 <= i < 5
+      ensures ValidColor(colors[i])
+      ensures mood != Mood.Custom ==> ColorSatisfiesMood(colors[i], mood)
+    {
+      GenerateColorGoldenValid(
+        if |hues| == 5 then hues[i] else baseHue,
+        mood,
+        i,
+        randomSeeds[2*i],
+        randomSeeds[2*i + 1]
+      );
+    }
+
+    // Prove hues match harmony
+    if harmony != Harmony.Custom && |hues| == 5 {
+      assert forall i | 0 <= i < 5 :: colors[i].h == hues[i];
+    }
+  }
+
+  // Helper lemma: GenerateColorGolden produces a valid color satisfying mood
+  lemma GenerateColorGoldenValid(h: int, mood: Mood, colorIndex: int, seedS: int, seedL: int)
+    requires 0 <= h < 360
+    requires 0 <= colorIndex < 5
+    requires 0 <= seedS <= 100
+    requires 0 <= seedL <= 100
+    ensures ValidColor(GenerateColorGolden(h, mood, colorIndex, seedS, seedL))
+    ensures mood != Mood.Custom ==> ColorSatisfiesMood(GenerateColorGolden(h, mood, colorIndex, seedS, seedL), mood)
+  {
+    var c := GenerateColorGolden(h, mood, colorIndex, seedS, seedL);
+    var (s, l) := GoldenSLForMood(mood, colorIndex, seedS, seedL);
+
+    // The color has hue h (valid), and s, l are within mood bounds
+    GoldenSLForMoodValid(mood, colorIndex, seedS, seedL);
+  }
+
+  // Helper lemma: GoldenSLForMood produces values within mood bounds
+  lemma GoldenSLForMoodValid(mood: Mood, colorIndex: int, seedS: int, seedL: int)
+    requires 0 <= colorIndex < 5
+    requires 0 <= seedS <= 100
+    requires 0 <= seedL <= 100
+    ensures var (s, l) := GoldenSLForMood(mood, colorIndex, seedS, seedL);
+            0 <= s <= 100 && 0 <= l <= 100 &&
+            (mood != Mood.Custom ==> ColorSatisfiesMood(Color(0, s, l), mood))
+  {
+    var (minS, maxS, minL, maxL) := MoodBounds(mood);
+    var spreadS := (seedS + colorIndex * GoldenOffset) % 101;
+    var spreadL := (seedL + colorIndex * 38) % 101;
+    var s := RandomInRange(spreadS, minS, maxS);
+    var l := RandomInRange(spreadL, minL, maxL);
+
+    // RandomInRange produces values in [min, max]
+    RandomInRangeValid(spreadS, minS, maxS);
+    RandomInRangeValid(spreadL, minL, maxL);
+  }
+
+  // Helper lemma: RandomInRange produces values in [min, max]
+  lemma RandomInRangeValid(seed: int, min: int, max: int)
+    requires 0 <= seed <= 100
+    requires min <= max
+    ensures min <= RandomInRange(seed, min, max) <= max
+  {
+    if min == max {
+      // Result is min
+    } else {
+      // Result is min + (seed * (max - min)) / 100
+      var delta := seed * (max - min);
+      assert 0 <= delta <= 100 * (max - min);
+      var result := min + delta / 100;
+      assert min <= result;
+      assert result <= min + (max - min);
+    }
+  }
+
   lemma StepPreservesInv(m: Model, a: Action)
   requires Inv(m)
   ensures Inv(Normalize(Apply(m, a)))

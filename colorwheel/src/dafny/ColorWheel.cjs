@@ -1386,6 +1386,14 @@ let ColorWheelSpec = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_1_i)) && ((_1_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ColorSatisfiesMood(((m).dtor_colors)[_1_i], (m).dtor_mood));
       })))) && (ColorWheelSpec.__default.HuesMatchHarmony((m).dtor_colors, (m).dtor_baseHue, (m).dtor_harmony));
     };
+    static Init() {
+      let _0_randomSeeds = _dafny.Seq.of(new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50));
+      let _1_baseHue = new BigNumber(180);
+      let _2_mood = ColorWheelSpec.Mood.create_Vibrant();
+      let _3_harmony = ColorWheelSpec.Harmony.create_Complementary();
+      let _4_colors = ColorWheelSpec.__default.GeneratePaletteColors(_1_baseHue, _2_mood, _3_harmony, _0_randomSeeds);
+      return ColorWheelSpec.Model.create_Model(_1_baseHue, _2_mood, _3_harmony, _4_colors, ColorWheelSpec.AdjustmentMode.create_Independent(), _dafny.Tuple.of(_dafny.ZERO, _dafny.ONE));
+    };
     static ValidRandomSeeds(seeds) {
       return ((new BigNumber((seeds).length)).isEqualTo(new BigNumber(10))) && (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(10)), true, function (_forall_var_0) {
         let _0_i = _forall_var_0;
@@ -2111,6 +2119,9 @@ let ColorWheelDomain = (function() {
     static Inv(m) {
       return ColorWheelSpec.__default.Inv(m);
     };
+    static Init() {
+      return ColorWheelSpec.__default.Init();
+    };
     static Apply(m, a) {
       if (ColorWheelDomain.__default.Inv(m)) {
         return ColorWheelSpec.__default.Apply(m, a);
@@ -2136,6 +2147,9 @@ let ColorWheelKernel = (function() {
     }
     static Step(m, a) {
       return ColorWheelDomain.__default.Normalize(ColorWheelDomain.__default.Apply(m, a));
+    };
+    static InitHistory() {
+      return ColorWheelKernel.History.create_History(_dafny.Seq.of(), ColorWheelDomain.__default.Init(), _dafny.Seq.of());
     };
     static Do(h, a) {
       return ColorWheelKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ColorWheelKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
@@ -2212,9 +2226,7 @@ let AppCore = (function() {
       return [];
     }
     static Init() {
-      let _0_randomSeeds = _dafny.Seq.of(new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50), new BigNumber(50));
-      let _1_initialModel = ColorWheelSpec.Model.create_Model(new BigNumber(180), ColorWheelSpec.Mood.create_Vibrant(), ColorWheelSpec.Harmony.create_Complementary(), ColorWheelSpec.__default.GeneratePaletteColors(new BigNumber(180), ColorWheelSpec.Mood.create_Vibrant(), ColorWheelSpec.Harmony.create_Complementary(), _0_randomSeeds), ColorWheelSpec.AdjustmentMode.create_Independent(), _dafny.Tuple.of(_dafny.ZERO, _dafny.ONE));
-      return ColorWheelKernel.History.create_History(_dafny.Seq.of(), _1_initialModel, _dafny.Seq.of());
+      return ColorWheelKernel.__default.InitHistory();
     };
     static GeneratePalette(baseHue, mood, harmony, randomSeeds) {
       return ColorWheelSpec.Action.create_GeneratePalette(baseHue, mood, harmony, randomSeeds);

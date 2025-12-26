@@ -1199,6 +1199,9 @@ let CounterDomain = (function() {
     static Inv(m) {
       return (_dafny.ZERO).isLessThanOrEqualTo(m);
     };
+    static Init() {
+      return _dafny.ZERO;
+    };
     static Apply(m, a) {
       let _source0 = a;
       {
@@ -1286,6 +1289,9 @@ let CounterKernel = (function() {
     static Step(m, a) {
       return CounterDomain.__default.Normalize(CounterDomain.__default.Apply(m, a));
     };
+    static InitHistory() {
+      return CounterKernel.History.create_History(_dafny.Seq.of(), CounterDomain.__default.Init(), _dafny.Seq.of());
+    };
     static Do(h, a) {
       return CounterKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), CounterKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
@@ -1361,7 +1367,7 @@ let AppCore = (function() {
       return [];
     }
     static Init() {
-      return CounterKernel.History.create_History(_dafny.Seq.of(), _dafny.ZERO, _dafny.Seq.of());
+      return CounterKernel.__default.InitHistory();
     };
     static Inc() {
       return CounterDomain.Action.create_Inc();

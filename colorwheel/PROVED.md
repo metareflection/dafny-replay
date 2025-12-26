@@ -4,6 +4,7 @@
 
 | Property | Location | Description |
 |----------|----------|-------------|
+| `InitSatisfiesInv` | ColorWheelProof.dfy | `Inv(Init())` |
 | `StepPreservesInv` | ColorWheelProof.dfy | `Inv(m) ==> Inv(Normalize(Apply(m, a)))` for all actions |
 | `ValidBaseHue` | via Normalize | Base hue always in [0, 360) |
 | `ValidColors` | via Normalize | All 5 colors have valid h/s/l ranges |
@@ -15,7 +16,6 @@
 
 | Property | Reason |
 |----------|--------|
-| Initial state satisfies `Inv` | No `InitModel` function in spec |
 | `Apply` preserves specific semantics | Only proven that `Normalize` repairs any violations |
 | Generated JS matches Dafny semantics | Translation trusted, not verified |
 | UI correctly calls spec functions | Runtime integration not verified |

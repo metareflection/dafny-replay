@@ -1196,6 +1196,9 @@ let DelegationAuthDomain = (function() {
     _parentTraits() {
       return [];
     }
+    static Init() {
+      return DelegationAuthDomain.Model.create_Model(_dafny.Set.fromElements(), _dafny.Set.fromElements(), _dafny.Map.Empty.slice(), _dafny.ZERO);
+    };
     static Normalize(m) {
       return m;
     };
@@ -1472,6 +1475,9 @@ let DelegationAuthKernel = (function() {
     static Step(m, a) {
       return DelegationAuthDomain.__default.Normalize(DelegationAuthDomain.__default.Apply(m, a));
     };
+    static InitHistory() {
+      return DelegationAuthKernel.History.create_History(_dafny.Seq.of(), DelegationAuthDomain.__default.Init(), _dafny.Seq.of());
+    };
     static Do(h, a) {
       return DelegationAuthKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), DelegationAuthKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
@@ -1547,8 +1553,7 @@ let DelegationAuthAppCore = (function() {
       return [];
     }
     static Init() {
-      let _0_m = DelegationAuthDomain.Model.create_Model(_dafny.Set.fromElements(), _dafny.Set.fromElements(), _dafny.Map.Empty.slice(), _dafny.ZERO);
-      return DelegationAuthKernel.History.create_History(_dafny.Seq.of(), _0_m, _dafny.Seq.of());
+      return DelegationAuthKernel.__default.InitHistory();
     };
     static AddSubject(s) {
       return DelegationAuthDomain.Action.create_AddSubject(s);

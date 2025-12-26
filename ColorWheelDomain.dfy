@@ -13,12 +13,22 @@ module ColorWheelDomain refines Domain {
     CWSpec.Inv(m)
   }
 
+  function Init(): Model {
+    CWSpec.Init()
+  }
+
   function Apply(m: Model, a: Action): Model {
     if Inv(m) then CWSpec.Apply(m, a) else m
   }
 
   function Normalize(m: Model): Model {
     CWSpec.Normalize(m)
+  }
+
+  lemma InitSatisfiesInv()
+    ensures Inv(Init())
+  {
+    Proof.InitSatisfiesInv();
   }
 
   lemma StepPreservesInv(m: Model, a: Action)
@@ -38,16 +48,7 @@ module AppCore {
 
   // Initialize with a default palette
   function Init(): K.History {
-    var randomSeeds := [50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
-    var initialModel := CWSpec.Model(
-      180,  // baseHue: start with blue
-      CWSpec.Vibrant,  // mood
-      CWSpec.Complementary,  // harmony
-      CWSpec.GeneratePaletteColors(180, CWSpec.Vibrant, CWSpec.Complementary, randomSeeds),
-      CWSpec.Independent,  // adjustmentMode
-      (0, 1)  // contrastPair
-    );
-    K.History([], initialModel, [])
+    K.InitHistory()
   }
 
   // Action constructors

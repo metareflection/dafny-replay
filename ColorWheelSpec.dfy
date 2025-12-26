@@ -217,6 +217,19 @@ module ColorWheelSpec {
   }
 
   // ============================================================================
+  // Initial State
+  // ============================================================================
+
+  function Init(): Model {
+    var randomSeeds := [50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
+    var baseHue := 180;  // Start with blue
+    var mood := Vibrant;
+    var harmony := Complementary;
+    var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
+    Model(baseHue, mood, harmony, colors, Independent, (0, 1))
+  }
+
+  // ============================================================================
   // Color Generation
   // ============================================================================
 
