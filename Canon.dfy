@@ -73,9 +73,10 @@ module Canon {
     Model(NodesFromSeq(ns), [], 0)
   }
 
-  // UI passes selected ids (possibly with duplicates).
+  // UI passes selected ids (possibly with duplicates or missing).
+  // Filter to present nodes to maintain Inv.
   function AddAlign(m: Model, sel: seq<NodeId>): Model {
-    var targets := Dedup(sel);
+    var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 1 then m else
       var axis := InferAxis(m, targets);
       var anchor := InferAnchor(m, targets, axis);
@@ -84,7 +85,7 @@ module Canon {
   }
 
   function AddEvenSpace(m: Model, sel: seq<NodeId>): Model {
-    var targets := Dedup(sel);
+    var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 2 then m else
       var axis := InferAxis(m, targets);
       var c := Constraint.EvenSpace(m.nextCid, targets, axis);
@@ -213,18 +214,18 @@ module Canon {
   // ----------------------------
 
   // Returns ids that (1) exist in nodes, (2) are deduped, (3) sorted by Coord(axis) asc.
-  function OrderTargets(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis): seq<NodeId>
-    ensures AllIn(OrderTargets(nodes, targets, axis), nodes)
+  function OrderTargets(nodes: map<NodeId, Node>, targets: seq<NodeId>, axis: Axis): (result: seq<NodeId>)
+    ensures AllIn(result, nodes)
   {
     var present := FilterPresent(nodes, Dedup(targets));
     InsertionSortByAxis(nodes, present, axis, 0, [])
   }
 
   // Insertion sort (O(n^2), fine for MVP diagrams).
-  function InsertionSortByAxis(nodes: map<NodeId, Node>, xs: seq<NodeId>, axis: Axis, i: nat, acc: seq<NodeId>): seq<NodeId>
+  function InsertionSortByAxis(nodes: map<NodeId, Node>, xs: seq<NodeId>, axis: Axis, i: nat, acc: seq<NodeId>): (result: seq<NodeId>)
     requires AllIn(xs, nodes)
     requires AllIn(acc, nodes)
-    ensures AllIn(InsertionSortByAxis(nodes, xs, axis, i, acc), nodes)
+    ensures AllIn(result, nodes)
     decreases |xs| - i
   {
     if i >= |xs| then acc
@@ -235,18 +236,18 @@ module Canon {
   }
 
   // Insert id into already-sorted acc.
-  function InsertByAxis(nodes: map<NodeId, Node>, acc: seq<NodeId>, id: NodeId, axis: Axis): seq<NodeId>
+  function InsertByAxis(nodes: map<NodeId, Node>, acc: seq<NodeId>, id: NodeId, axis: Axis): (result: seq<NodeId>)
     requires id in nodes
     requires AllIn(acc, nodes)
-    ensures AllIn(InsertByAxis(nodes, acc, id, axis), nodes)
+    ensures AllIn(result, nodes)
   {
     InsertByAxisFrom(nodes, acc, id, axis, 0)
   }
 
-  function InsertByAxisFrom(nodes: map<NodeId, Node>, acc: seq<NodeId>, id: NodeId, axis: Axis, i: nat): seq<NodeId>
+  function InsertByAxisFrom(nodes: map<NodeId, Node>, acc: seq<NodeId>, id: NodeId, axis: Axis, i: nat): (result: seq<NodeId>)
     requires id in nodes
     requires AllIn(acc, nodes)
-    ensures AllIn(InsertByAxisFrom(nodes, acc, id, axis, i), nodes)
+    ensures AllIn(result, nodes)
     decreases |acc| - i
   {
     if i >= |acc| then acc + [id]
@@ -278,15 +279,15 @@ module Canon {
   }
 
   // Keep only ids that exist in nodes (preserve order).
-  function FilterPresent(nodes: map<NodeId, Node>, xs: seq<NodeId>): seq<NodeId>
-    ensures AllIn(FilterPresent(nodes, xs), nodes)
+  function FilterPresent(nodes: map<NodeId, Node>, xs: seq<NodeId>): (result: seq<NodeId>)
+    ensures AllIn(result, nodes)
   {
     FilterPresentFrom(nodes, xs, 0, [])
   }
 
-  function FilterPresentFrom(nodes: map<NodeId, Node>, xs: seq<NodeId>, i: nat, acc: seq<NodeId>): seq<NodeId>
+  function FilterPresentFrom(nodes: map<NodeId, Node>, xs: seq<NodeId>, i: nat, acc: seq<NodeId>): (result: seq<NodeId>)
     requires AllIn(acc, nodes)
-    ensures AllIn(FilterPresentFrom(nodes, xs, i, acc), nodes)
+    ensures AllIn(result, nodes)
     decreases |xs| - i
   {
     if i >= |xs| then acc
