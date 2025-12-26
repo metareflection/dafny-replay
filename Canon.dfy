@@ -48,6 +48,56 @@ module Canon {
     AllConstraintsValid(m.constraints, m.nodes)
   }
 
+  predicate Contains(xs: seq<NodeId>, x: NodeId) {
+    exists i :: 0 <= i < |xs| && xs[i] == x
+  }
+
+  predicate Mentions(c: Constraint, x: NodeId) {
+    match c
+    case Align(_, targets, _, _) => Contains(targets, x)
+    case EvenSpace(_, targets, _) => Contains(targets, x)
+  }
+
+  // If targets are all in nodes and don't contain x, they're still in nodes - {x}
+  lemma AllInMinusLemma(targets: seq<NodeId>, nodes: map<NodeId, Node>, x: NodeId)
+    requires AllIn(targets, nodes)
+    requires !Contains(targets, x)
+    ensures AllIn(targets, nodes - {x})
+  {
+    forall i | 0 <= i < |targets|
+      ensures targets[i] in (nodes - {x})
+    {
+      assert targets[i] in nodes;
+      assert targets[i] != x;
+    }
+  }
+
+  lemma ConstraintValidMinusLemma(c: Constraint, nodes: map<NodeId, Node>, x: NodeId)
+    requires ConstraintTargetsValid(c, nodes)
+    requires !Mentions(c, x)
+    ensures ConstraintTargetsValid(c, nodes - {x})
+  {
+    match c
+    case Align(_, targets, _, _) => AllInMinusLemma(targets, nodes, x);
+    case EvenSpace(_, targets, _) => AllInMinusLemma(targets, nodes, x);
+  }
+
+  predicate NoneMatch(cs: seq<Constraint>, x: NodeId) {
+    forall i :: 0 <= i < |cs| ==> !Mentions(cs[i], x)
+  }
+
+  lemma AllConstraintsValidMinusLemma(cs: seq<Constraint>, nodes: map<NodeId, Node>, x: NodeId)
+    requires AllConstraintsValid(cs, nodes)
+    requires NoneMatch(cs, x)
+    ensures AllConstraintsValid(cs, nodes - {x})
+  {
+    forall i | 0 <= i < |cs|
+      ensures ConstraintTargetsValid(cs[i], nodes - {x})
+    {
+      ConstraintValidMinusLemma(cs[i], nodes, x);
+    }
+  }
+
   // ----------------------------
   // Axis-generic helpers (no v/h duplication)
   // ----------------------------
@@ -108,6 +158,21 @@ module Canon {
     ensures Inv(result)
   {
     Model(m.nodes, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
+  }
+
+  // Remove a node and all constraints that mention it.
+  function RemoveNode(m: Model, x: NodeId): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
+    if x !in m.nodes then m
+    else
+      var nodes2 := m.nodes - {x};
+      // Constraints were valid wrt old nodes; remove any mentioning x
+      var cs2 := FilterOutMentioning(m.constraints, x, m.nodes);
+      // Now cs2 is valid wrt old nodes, and none mention x, so valid wrt nodes2 too
+      AllConstraintsValidMinusLemma(cs2, m.nodes, x);
+      Model(nodes2, cs2, m.nextCid)
   }
 
   // Canon = apply constraints sequentially, deterministic.
@@ -367,6 +432,32 @@ module Canon {
     match c
     case Align(cid, _, _, _) => cid
     case EvenSpace(cid, _, _) => cid
+  }
+
+  // Filter out constraints that mention a node
+  function FilterOutMentioning(cs: seq<Constraint>, x: NodeId, nodes: map<NodeId, Node>): (result: seq<Constraint>)
+    requires AllConstraintsValid(cs, nodes)
+    ensures AllConstraintsValid(result, nodes)
+    ensures NoneMatch(result, x)
+  {
+    FilterOutMentioningFrom(cs, x, 0, [], nodes)
+  }
+
+  function FilterOutMentioningFrom(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
+    requires AllConstraintsValid(cs, nodes)
+    requires AllConstraintsValid(acc, nodes)
+    requires NoneMatch(acc, x)
+    ensures AllConstraintsValid(result, nodes)
+    ensures NoneMatch(result, x)
+    decreases |cs| - i
+  {
+    if i >= |cs| then acc
+    else
+      var c := cs[i];
+      if Mentions(c, x) then
+        FilterOutMentioningFrom(cs, x, i + 1, acc, nodes)
+      else
+        FilterOutMentioningFrom(cs, x, i + 1, acc + [c], nodes)
   }
 
   // Min/Max along an axis for a non-empty seq of ids present in nodes.
