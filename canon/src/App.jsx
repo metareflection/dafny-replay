@@ -39,7 +39,7 @@ function downloadTextFile(filename, content) {
   URL.revokeObjectURL(url);
 }
 
-function exportTikzFromNodes(nodesArr, opts = {}) {
+function exportTikzFromNodes(nodesArr, edgesArr = [], opts = {}) {
   const scalePxPerCm = opts.scalePxPerCm ?? 50;
 
   // Sort by id for stable output
@@ -47,7 +47,8 @@ function exportTikzFromNodes(nodesArr, opts = {}) {
 
   const lines = [];
   lines.push("\\begin{tikzpicture}[");
-  lines.push("  canon node/.style={draw, rounded corners, inner sep=2pt}");
+  lines.push("  canon node/.style={draw, rounded corners, inner sep=2pt},");
+  lines.push("  canon edge/.style={->, >=stealth}");
   lines.push("]");
 
   for (const n of sorted) {
@@ -59,6 +60,13 @@ function exportTikzFromNodes(nodesArr, opts = {}) {
     const yCm = -n.y / scalePxPerCm;
 
     lines.push(`\\node[canon node] (${name}) at (${fmt2(xCm)}, ${fmt2(yCm)}) {${label}};`);
+  }
+
+  // Export edges
+  for (const e of edgesArr) {
+    const fromName = tikzSanitizeNodeName(e.from);
+    const toName = tikzSanitizeNodeName(e.to);
+    lines.push(`\\draw[canon edge] (${fromName}) -- (${toName});`);
   }
 
   lines.push("\\end{tikzpicture}");
@@ -194,8 +202,9 @@ function App() {
     // Get canonicalized model
     const mCanon = Canon.Canon(model)
     const canonNodes = Canon.GetNodes(mCanon)
+    const canonEdges = Canon.GetEdges(mCanon)
     // Generate TikZ and download
-    const tikz = exportTikzFromNodes(canonNodes, { scalePxPerCm: 50 })
+    const tikz = exportTikzFromNodes(canonNodes, canonEdges, { scalePxPerCm: 50 })
     downloadTextFile("diagram.tex", tikz)
   }
 
