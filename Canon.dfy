@@ -179,12 +179,39 @@ module Canon {
       Model(nodes2, cs2, m.nextCid)
   }
 
-  // Canon = apply constraints sequentially, deterministic.
-  function Canon(m: Model): (result: Model)
+  // CanonOnce = apply constraints sequentially, deterministic (one pass).
+  function CanonOnce(m: Model): (result: Model)
     requires Inv(m)
     ensures Inv(result)
   {
     ApplyAll(Model(m.nodes, m.constraints, m.nextCid), 0)
+  }
+
+  // Node-map equality predicate for fixpoint detection.
+  predicate SameNodes(a: map<NodeId, Node>, b: map<NodeId, Node>)
+  {
+    a == b
+  }
+
+  // Fixpoint iterator: repeat CanonOnce until stable or fuel runs out.
+  function CanonFixpoint(m: Model, fuel: nat): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+    decreases fuel
+  {
+    if fuel == 0 then m
+    else
+      var m2 := CanonOnce(m);
+      if SameNodes(m2.nodes, m.nodes) then m2
+      else CanonFixpoint(m2, fuel - 1)
+  }
+
+  // Canon = bounded fixpoint version.
+  function Canon(m: Model): (result: Model)
+    requires Inv(m)
+    ensures Inv(result)
+  {
+    CanonFixpoint(m, 10)
   }
 
   // ----------------------------

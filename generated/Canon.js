@@ -1305,8 +1305,32 @@ let Canon = (function() {
         return Canon.Model.create_Model(_1_nodes2, _0_cs2, (m).dtor_nextCid);
       }
     };
-    static Canon(m) {
+    static CanonOnce(m) {
       return Canon.__default.ApplyAll(Canon.Model.create_Model((m).dtor_nodes, (m).dtor_constraints, (m).dtor_nextCid), _dafny.ZERO);
+    };
+    static SameNodes(a, b) {
+      return (a).equals(b);
+    };
+    static CanonFixpoint(m, fuel) {
+      TAIL_CALL_START: while (true) {
+        if ((fuel).isEqualTo(_dafny.ZERO)) {
+          return m;
+        } else {
+          let _0_m2 = Canon.__default.CanonOnce(m);
+          if (Canon.__default.SameNodes((_0_m2).dtor_nodes, (m).dtor_nodes)) {
+            return _0_m2;
+          } else {
+            let _in0 = _0_m2;
+            let _in1 = (fuel).minus(_dafny.ONE);
+            m = _in0;
+            fuel = _in1;
+            continue TAIL_CALL_START;
+          }
+        }
+      }
+    };
+    static Canon(m) {
+      return Canon.__default.CanonFixpoint(m, new BigNumber(10));
     };
     static ApplyAll(m, i) {
       TAIL_CALL_START: while (true) {
