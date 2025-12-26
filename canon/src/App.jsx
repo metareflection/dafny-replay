@@ -184,7 +184,7 @@ function App() {
     <div className="app">
       <header className="header">
         <h1>Canon</h1>
-        <span className="subtitle">Verified Constraint Solver</span>
+        <span className="subtitle">Verified Diagram Builder</span>
       </header>
 
       <div className="toolbar">
