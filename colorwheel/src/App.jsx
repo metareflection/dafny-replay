@@ -30,6 +30,31 @@ const getHarmonyName = (harmony) => {
   return 'Custom';
 };
 
+// Map mood tag to App.Mood object
+const getMoodByTag = (tag) => {
+  switch (tag) {
+    case 0: return App.Mood.Vibrant;
+    case 1: return App.Mood.SoftMuted;
+    case 2: return App.Mood.Pastel;
+    case 3: return App.Mood.DeepJewel;
+    case 4: return App.Mood.Earth;
+    case 5: return App.Mood.Neon;
+    default: return App.Mood.Vibrant;
+  }
+};
+
+// Map harmony tag to App.Harmony object
+const getHarmonyByTag = (tag) => {
+  switch (tag) {
+    case 0: return App.Harmony.Complementary;
+    case 1: return App.Harmony.Triadic;
+    case 2: return App.Harmony.Analogous;
+    case 3: return App.Harmony.SplitComplement;
+    case 4: return App.Harmony.Square;
+    default: return App.Harmony.Complementary;
+  }
+};
+
 function ColorWheel() {
   const [h, setH] = useState(() => {
     console.log('Initializing app...');
@@ -41,6 +66,10 @@ function ColorWheel() {
   const model = App.Present(h);
   console.log('Current model:', model);
 
+  // Local state for selections (before Generate is clicked)
+  const [selectedMoodTag, setSelectedMoodTag] = useState(model.mood?.$tag ?? 0);
+  const [selectedHarmonyTag, setSelectedHarmonyTag] = useState(model.harmony?.$tag ?? 0);
+
   const dispatch = (action) => {
     console.log('Dispatching action:', action);
     const newH = App.Dispatch(h, action);
@@ -50,6 +79,12 @@ function ColorWheel() {
   const undo = () => setH(App.Undo(h));
   const redo = () => setH(App.Redo(h));
 
+  const handleGenerate = () => {
+    const mood = getMoodByTag(selectedMoodTag);
+    const harmony = getHarmonyByTag(selectedHarmonyTag);
+    dispatch(App.GeneratePalette(model.baseHue, mood, harmony));
+  };
+
   return (
     <div className="app">
       <header>
@@ -58,32 +93,50 @@ function ColorWheel() {
       </header>
 
       <div className="controls">
-        <div className="control-group">
-          <label>Mood: {getMoodName(model.mood)}</label>
-          <div className="button-row">
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.Vibrant))}>Vibrant</button>
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.SoftMuted))}>Soft</button>
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.Pastel))}>Pastel</button>
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.DeepJewel))}>Deep</button>
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.Earth))}>Earth</button>
-            <button onClick={() => dispatch(App.RegenerateMood(App.Mood.Neon))}>Neon</button>
+        <div className="control-row">
+          <div className="control-group">
+            <label htmlFor="mood-select">Mood</label>
+            <select
+              id="mood-select"
+              value={selectedMoodTag}
+              onChange={(e) => setSelectedMoodTag(Number(e.target.value))}
+            >
+              <option value={0}>Vibrant</option>
+              <option value={1}>Soft/Muted</option>
+              <option value={2}>Pastel</option>
+              <option value={3}>Deep/Jewel</option>
+              <option value={4}>Earth</option>
+              <option value={5}>Neon</option>
+            </select>
           </div>
-        </div>
 
-        <div className="control-group">
-          <label>Harmony: {getHarmonyName(model.harmony)}</label>
-          <div className="button-row">
-            <button onClick={() => dispatch(App.RegenerateHarmony(App.Harmony.Complementary))}>Complementary</button>
-            <button onClick={() => dispatch(App.RegenerateHarmony(App.Harmony.Triadic))}>Triadic</button>
-            <button onClick={() => dispatch(App.RegenerateHarmony(App.Harmony.Analogous))}>Analogous</button>
-            <button onClick={() => dispatch(App.RegenerateHarmony(App.Harmony.SplitComplement))}>Split</button>
-            <button onClick={() => dispatch(App.RegenerateHarmony(App.Harmony.Square))}>Square</button>
+          <div className="control-group">
+            <label htmlFor="harmony-select">Harmony</label>
+            <select
+              id="harmony-select"
+              value={selectedHarmonyTag}
+              onChange={(e) => setSelectedHarmonyTag(Number(e.target.value))}
+            >
+              <option value={0}>Complementary</option>
+              <option value={1}>Triadic</option>
+              <option value={2}>Analogous</option>
+              <option value={3}>Split-Complement</option>
+              <option value={4}>Square</option>
+            </select>
           </div>
+
+          <button className="generate-btn" onClick={handleGenerate}>
+            Generate
+          </button>
         </div>
 
         <div className="control-group">
           <label>Base Hue: {model.baseHue}°</label>
-          <button onClick={() => dispatch(App.RandomizeBaseHue())}>Randomize</button>
+          <button onClick={() => dispatch(App.RandomizeBaseHue())}>Randomize Base Hue</button>
+        </div>
+
+        <div className="current-settings">
+          <span>Current: {getMoodName(model.mood)} + {getHarmonyName(model.harmony)}</span>
         </div>
       </div>
 

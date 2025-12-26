@@ -42,6 +42,13 @@ h1 {
   margin-bottom: 2rem;
 }
 
+.control-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
 .control-group {
   display: flex;
   flex-direction: column;
@@ -51,6 +58,42 @@ h1 {
 .control-group label {
   font-weight: 600;
   color: #333;
+}
+
+.control-group select {
+  padding: 0.6em 1em;
+  font-size: 1em;
+  font-family: inherit;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.control-group select:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.6em 2em;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.generate-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.current-settings {
+  font-size: 0.9rem;
+  color: #666;
+  padding: 0.5rem 0;
 }
 
 .button-row {

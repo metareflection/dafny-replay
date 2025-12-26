@@ -1309,6 +1309,24 @@ let ColorWheelSpec = (function() {
       let _3_maxL = (_let_tmp_rhs0)[3];
       return _dafny.Tuple.of(ColorWheelSpec.__default.RandomInRange(seedS, _0_minS, _1_maxS), ColorWheelSpec.__default.RandomInRange(seedL, _2_minL, _3_maxL));
     };
+    static ZonedSLForMood(mood, colorIndex, seedS, seedL) {
+      let _let_tmp_rhs0 = ColorWheelSpec.__default.MoodBounds(mood);
+      let _0_minS = (_let_tmp_rhs0)[0];
+      let _1_maxS = (_let_tmp_rhs0)[1];
+      let _2_minL = (_let_tmp_rhs0)[2];
+      let _3_maxL = (_let_tmp_rhs0)[3];
+      let _4_rangeS = (_1_maxS).minus(_0_minS);
+      let _5_rangeL = (_3_maxL).minus(_2_minL);
+      let _6_zoneWidthS = (((new BigNumber(5)).isLessThanOrEqualTo(_4_rangeS)) ? (_dafny.EuclideanDivision(_4_rangeS, new BigNumber(5))) : (_dafny.ONE));
+      let _7_zoneWidthL = (((new BigNumber(5)).isLessThanOrEqualTo(_5_rangeL)) ? (_dafny.EuclideanDivision(_5_rangeL, new BigNumber(5))) : (_dafny.ONE));
+      let _8_zoneMinS = (_0_minS).plus(_dafny.EuclideanDivision((colorIndex).multipliedBy(_4_rangeS), new BigNumber(5)));
+      let _9_zoneMaxS = (((colorIndex).isEqualTo(new BigNumber(4))) ? (_1_maxS) : ((_0_minS).plus(_dafny.EuclideanDivision(((colorIndex).plus(_dafny.ONE)).multipliedBy(_4_rangeS), new BigNumber(5)))));
+      let _10_zoneMinL = (_2_minL).plus(_dafny.EuclideanDivision((colorIndex).multipliedBy(_5_rangeL), new BigNumber(5)));
+      let _11_zoneMaxL = (((colorIndex).isEqualTo(new BigNumber(4))) ? (_3_maxL) : ((_2_minL).plus(_dafny.EuclideanDivision(((colorIndex).plus(_dafny.ONE)).multipliedBy(_5_rangeL), new BigNumber(5)))));
+      let _12_s = (((_9_zoneMaxS).isLessThanOrEqualTo(_8_zoneMinS)) ? (_8_zoneMinS) : (ColorWheelSpec.__default.RandomInRange(seedS, _8_zoneMinS, _9_zoneMaxS)));
+      let _13_l = (((_11_zoneMaxL).isLessThanOrEqualTo(_10_zoneMinL)) ? (_10_zoneMinL) : (ColorWheelSpec.__default.RandomInRange(seedL, _10_zoneMinL, _11_zoneMaxL)));
+      return _dafny.Tuple.of(_12_s, _13_l);
+    };
     static BaseHarmonyHues(baseHue, harmony) {
       let _source0 = harmony;
       {
@@ -1347,11 +1365,11 @@ let ColorWheelSpec = (function() {
       } else if ((new BigNumber((_0_base).length)).isEqualTo(new BigNumber(5))) {
         return _0_base;
       } else if ((new BigNumber((_0_base).length)).isEqualTo(new BigNumber(4))) {
-        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of((_0_base)[_dafny.ZERO]));
+        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of(ColorWheelSpec.__default.NormalizeHue((baseHue).plus(new BigNumber(45)))));
       } else if ((new BigNumber((_0_base).length)).isEqualTo(new BigNumber(3))) {
-        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of((_0_base)[_dafny.ZERO], (_0_base)[_dafny.ONE]));
+        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of(ColorWheelSpec.__default.NormalizeHue(((_0_base)[_dafny.ZERO]).plus(ColorWheelSpec.__default.HueSpread)), ColorWheelSpec.__default.NormalizeHue(((_0_base)[_dafny.ONE]).minus(ColorWheelSpec.__default.HueSpread))));
       } else if ((new BigNumber((_0_base).length)).isEqualTo(new BigNumber(2))) {
-        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of((_0_base)[_dafny.ZERO], (_0_base)[_dafny.ONE], (_0_base)[_dafny.ZERO]));
+        return _dafny.Seq.Concat(_0_base, _dafny.Seq.of(ColorWheelSpec.__default.NormalizeHue(((_0_base)[_dafny.ZERO]).plus(ColorWheelSpec.__default.HueSpread)), ColorWheelSpec.__default.NormalizeHue(((_0_base)[_dafny.ONE]).plus(ColorWheelSpec.__default.HueSpread)), ColorWheelSpec.__default.NormalizeHue(((_0_base)[_dafny.ZERO]).minus(ColorWheelSpec.__default.HueSpread))));
       } else {
         return _dafny.Seq.of();
       }
@@ -1382,8 +1400,8 @@ let ColorWheelSpec = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber(10)))) || (((_dafny.ZERO).isLessThanOrEqualTo((seeds)[_0_i])) && (((seeds)[_0_i]).isLessThanOrEqualTo(new BigNumber(100))));
       }));
     };
-    static GenerateColorForHue(h, mood, seedS, seedL) {
-      let _let_tmp_rhs0 = ColorWheelSpec.__default.RandomSLForMood(mood, seedS, seedL);
+    static GenerateColorForHueZoned(h, mood, colorIndex, seedS, seedL) {
+      let _let_tmp_rhs0 = ColorWheelSpec.__default.ZonedSLForMood(mood, colorIndex, seedS, seedL);
       let _0_s = (_let_tmp_rhs0)[0];
       let _1_l = (_let_tmp_rhs0)[1];
       return ColorWheelSpec.Color.create_Color(h, _0_s, _1_l);
@@ -1391,9 +1409,9 @@ let ColorWheelSpec = (function() {
     static GeneratePaletteColors(baseHue, mood, harmony, randomSeeds) {
       let _0_hues = ColorWheelSpec.__default.AllHarmonyHues(baseHue, harmony);
       if (!(new BigNumber((_0_hues).length)).isEqualTo(new BigNumber(5))) {
-        return _dafny.Seq.of(ColorWheelSpec.__default.GenerateColorForHue(baseHue, mood, (randomSeeds)[_dafny.ZERO], (randomSeeds)[_dafny.ONE]), ColorWheelSpec.__default.GenerateColorForHue(baseHue, mood, (randomSeeds)[new BigNumber(2)], (randomSeeds)[new BigNumber(3)]), ColorWheelSpec.__default.GenerateColorForHue(baseHue, mood, (randomSeeds)[new BigNumber(4)], (randomSeeds)[new BigNumber(5)]), ColorWheelSpec.__default.GenerateColorForHue(baseHue, mood, (randomSeeds)[new BigNumber(6)], (randomSeeds)[new BigNumber(7)]), ColorWheelSpec.__default.GenerateColorForHue(baseHue, mood, (randomSeeds)[new BigNumber(8)], (randomSeeds)[new BigNumber(9)]));
+        return _dafny.Seq.of(ColorWheelSpec.__default.GenerateColorForHueZoned(baseHue, mood, _dafny.ZERO, (randomSeeds)[_dafny.ZERO], (randomSeeds)[_dafny.ONE]), ColorWheelSpec.__default.GenerateColorForHueZoned(baseHue, mood, _dafny.ONE, (randomSeeds)[new BigNumber(2)], (randomSeeds)[new BigNumber(3)]), ColorWheelSpec.__default.GenerateColorForHueZoned(baseHue, mood, new BigNumber(2), (randomSeeds)[new BigNumber(4)], (randomSeeds)[new BigNumber(5)]), ColorWheelSpec.__default.GenerateColorForHueZoned(baseHue, mood, new BigNumber(3), (randomSeeds)[new BigNumber(6)], (randomSeeds)[new BigNumber(7)]), ColorWheelSpec.__default.GenerateColorForHueZoned(baseHue, mood, new BigNumber(4), (randomSeeds)[new BigNumber(8)], (randomSeeds)[new BigNumber(9)]));
       } else {
-        return _dafny.Seq.of(ColorWheelSpec.__default.GenerateColorForHue((_0_hues)[_dafny.ZERO], mood, (randomSeeds)[_dafny.ZERO], (randomSeeds)[_dafny.ONE]), ColorWheelSpec.__default.GenerateColorForHue((_0_hues)[_dafny.ONE], mood, (randomSeeds)[new BigNumber(2)], (randomSeeds)[new BigNumber(3)]), ColorWheelSpec.__default.GenerateColorForHue((_0_hues)[new BigNumber(2)], mood, (randomSeeds)[new BigNumber(4)], (randomSeeds)[new BigNumber(5)]), ColorWheelSpec.__default.GenerateColorForHue((_0_hues)[new BigNumber(3)], mood, (randomSeeds)[new BigNumber(6)], (randomSeeds)[new BigNumber(7)]), ColorWheelSpec.__default.GenerateColorForHue((_0_hues)[new BigNumber(4)], mood, (randomSeeds)[new BigNumber(8)], (randomSeeds)[new BigNumber(9)]));
+        return _dafny.Seq.of(ColorWheelSpec.__default.GenerateColorForHueZoned((_0_hues)[_dafny.ZERO], mood, _dafny.ZERO, (randomSeeds)[_dafny.ZERO], (randomSeeds)[_dafny.ONE]), ColorWheelSpec.__default.GenerateColorForHueZoned((_0_hues)[_dafny.ONE], mood, _dafny.ONE, (randomSeeds)[new BigNumber(2)], (randomSeeds)[new BigNumber(3)]), ColorWheelSpec.__default.GenerateColorForHueZoned((_0_hues)[new BigNumber(2)], mood, new BigNumber(2), (randomSeeds)[new BigNumber(4)], (randomSeeds)[new BigNumber(5)]), ColorWheelSpec.__default.GenerateColorForHueZoned((_0_hues)[new BigNumber(3)], mood, new BigNumber(3), (randomSeeds)[new BigNumber(6)], (randomSeeds)[new BigNumber(7)]), ColorWheelSpec.__default.GenerateColorForHueZoned((_0_hues)[new BigNumber(4)], mood, new BigNumber(4), (randomSeeds)[new BigNumber(8)], (randomSeeds)[new BigNumber(9)]));
       }
     };
     static Apply(m, a) {
@@ -1582,6 +1600,9 @@ let ColorWheelSpec = (function() {
       let _10_dt__update_hcolors_h0 = _1_normalizedColors;
       let _11_dt__update_hbaseHue_h0 = _0_normalizedBaseHue;
       return ColorWheelSpec.Model.create_Model(_11_dt__update_hbaseHue_h0, _8_dt__update_hmood_h0, _7_dt__update_hharmony_h0, _10_dt__update_hcolors_h0, (_6_dt__update__tmp_h0).dtor_adjustmentMode, _9_dt__update_hcontrastPair_h0);
+    };
+    static get HueSpread() {
+      return new BigNumber(20);
     };
   };
 

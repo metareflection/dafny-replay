@@ -127,6 +127,36 @@ module ColorWheelSpec {
     (RandomInRange(seedS, minS, maxS), RandomInRange(seedL, minL, maxL))
   }
 
+  // Generate (S, L) with zone-based distribution for better spread
+  // Each color index gets a different zone of the S/L range
+  // colorIndex: 0-4, seed: 0-100 for variation within zone
+  function ZonedSLForMood(mood: Mood, colorIndex: int, seedS: int, seedL: int): (int, int)
+    requires 0 <= colorIndex < 5
+    requires 0 <= seedS <= 100
+    requires 0 <= seedL <= 100
+  {
+    var (minS, maxS, minL, maxL) := MoodBounds(mood);
+    var rangeS := maxS - minS;
+    var rangeL := maxL - minL;
+
+    // Divide range into 5 zones, each color gets one zone
+    // Zone width is range/5, with some overlap for natural feel
+    var zoneWidthS := if rangeS >= 5 then rangeS / 5 else 1;
+    var zoneWidthL := if rangeL >= 5 then rangeL / 5 else 1;
+
+    // Calculate zone boundaries for this color index
+    var zoneMinS := minS + (colorIndex * rangeS) / 5;
+    var zoneMaxS := if colorIndex == 4 then maxS else minS + ((colorIndex + 1) * rangeS) / 5;
+    var zoneMinL := minL + (colorIndex * rangeL) / 5;
+    var zoneMaxL := if colorIndex == 4 then maxL else minL + ((colorIndex + 1) * rangeL) / 5;
+
+    // Use seed to pick within the zone
+    var s := if zoneMinS >= zoneMaxS then zoneMinS else RandomInRange(seedS, zoneMinS, zoneMaxS);
+    var l := if zoneMinL >= zoneMaxL then zoneMinL else RandomInRange(seedL, zoneMinL, zoneMaxL);
+
+    (s, l)
+  }
+
   // ============================================================================
   // Harmony Functions
   // ============================================================================
@@ -144,15 +174,26 @@ module ColorWheelSpec {
     case Custom          => [] // No constraint
   }
 
-  // Returns all 5 hues for a harmony (with padding if needed)
-  // Padding strategy: repeat base hues to fill to 5
+  // Hue spread offset for creating variation in repeated hues
+  const HueSpread: int := 20
+
+  // Returns all 5 hues for a harmony (with spreading for variety)
+  // Instead of repeating exact hues, we spread them by ±HueSpread degrees
   function AllHarmonyHues(baseHue: int, harmony: Harmony): seq<int> {
     var base := BaseHarmonyHues(baseHue, harmony);
     if harmony == Harmony.Custom then []
-    else if |base| == 5 then base  // Analogous
-    else if |base| == 4 then base + [base[0]]  // Square: add variation of first hue
-    else if |base| == 3 then base + [base[0], base[1]]  // Triadic/Split: add 2 variations
-    else if |base| == 2 then base + [base[0], base[1], base[0]]  // Complementary: add 3 variations
+    else if |base| == 5 then base  // Analogous: already 5 distinct hues
+    else if |base| == 4 then
+      // Square: add midpoint between first two hues
+      base + [NormalizeHue(baseHue + 45)]
+    else if |base| == 3 then
+      // Triadic/Split: spread the first two base hues
+      base + [NormalizeHue(base[0] + HueSpread), NormalizeHue(base[1] - HueSpread)]
+    else if |base| == 2 then
+      // Complementary: spread both base hues
+      base + [NormalizeHue(base[0] + HueSpread),
+              NormalizeHue(base[1] + HueSpread),
+              NormalizeHue(base[0] - HueSpread)]
     else []
   }
 
@@ -190,35 +231,36 @@ module ColorWheelSpec {
     |seeds| == 10 && (forall i | 0 <= i < 10 :: 0 <= seeds[i] <= 100)
   }
 
-  // Generate a color with given hue that satisfies the mood using random seeds
-  function GenerateColorForHue(h: int, mood: Mood, seedS: int, seedL: int): Color
+  // Generate a color with given hue that satisfies the mood using zoned S/L
+  function GenerateColorForHueZoned(h: int, mood: Mood, colorIndex: int, seedS: int, seedL: int): Color
     requires 0 <= h < 360
+    requires 0 <= colorIndex < 5
     requires 0 <= seedS <= 100
     requires 0 <= seedL <= 100
   {
-    var (s, l) := RandomSLForMood(mood, seedS, seedL);
+    var (s, l) := ZonedSLForMood(mood, colorIndex, seedS, seedL);
     Color(h, s, l)
   }
 
-  // Generate a full 5-color palette using random seeds
+  // Generate a full 5-color palette using random seeds with zoned S/L distribution
   function GeneratePaletteColors(baseHue: int, mood: Mood, harmony: Harmony, randomSeeds: seq<int>): seq<Color>
     requires ValidBaseHue(baseHue)
     requires ValidRandomSeeds(randomSeeds)
   {
     var hues := AllHarmonyHues(baseHue, harmony);
     if |hues| != 5 then
-      // Fallback for Custom harmony: use baseHue for all
-      [GenerateColorForHue(baseHue, mood, randomSeeds[0], randomSeeds[1]),
-       GenerateColorForHue(baseHue, mood, randomSeeds[2], randomSeeds[3]),
-       GenerateColorForHue(baseHue, mood, randomSeeds[4], randomSeeds[5]),
-       GenerateColorForHue(baseHue, mood, randomSeeds[6], randomSeeds[7]),
-       GenerateColorForHue(baseHue, mood, randomSeeds[8], randomSeeds[9])]
+      // Fallback for Custom harmony: use baseHue for all with zoned S/L
+      [GenerateColorForHueZoned(baseHue, mood, 0, randomSeeds[0], randomSeeds[1]),
+       GenerateColorForHueZoned(baseHue, mood, 1, randomSeeds[2], randomSeeds[3]),
+       GenerateColorForHueZoned(baseHue, mood, 2, randomSeeds[4], randomSeeds[5]),
+       GenerateColorForHueZoned(baseHue, mood, 3, randomSeeds[6], randomSeeds[7]),
+       GenerateColorForHueZoned(baseHue, mood, 4, randomSeeds[8], randomSeeds[9])]
     else
-      [GenerateColorForHue(hues[0], mood, randomSeeds[0], randomSeeds[1]),
-       GenerateColorForHue(hues[1], mood, randomSeeds[2], randomSeeds[3]),
-       GenerateColorForHue(hues[2], mood, randomSeeds[4], randomSeeds[5]),
-       GenerateColorForHue(hues[3], mood, randomSeeds[6], randomSeeds[7]),
-       GenerateColorForHue(hues[4], mood, randomSeeds[8], randomSeeds[9])]
+      [GenerateColorForHueZoned(hues[0], mood, 0, randomSeeds[0], randomSeeds[1]),
+       GenerateColorForHueZoned(hues[1], mood, 1, randomSeeds[2], randomSeeds[3]),
+       GenerateColorForHueZoned(hues[2], mood, 2, randomSeeds[4], randomSeeds[5]),
+       GenerateColorForHueZoned(hues[3], mood, 3, randomSeeds[6], randomSeeds[7]),
+       GenerateColorForHueZoned(hues[4], mood, 4, randomSeeds[8], randomSeeds[9])]
   }
 
   // ============================================================================
