@@ -275,12 +275,6 @@ A verified color palette generator that enforces mood and harmony constraints by
 3. **Graceful Degradation**
    Adjustments that would break constraints automatically fall back to Custom mode rather than failing—the palette always remains valid.
 
-**Verified actions (in kernel):**
-* **Linked adjustment**: Shifting any color shifts all colors together, preserving harmony relationships — *not yet in UI*
-* **Independent adjustment**: Modify a single color; harmony/mood auto-degrade if constraints break — *not yet in UI*
-* **SetColorDirect**: Set a color via picker; preserves mood/harmony when possible — *not yet in UI*
-* **Golden ratio distribution**: S/L values use golden ratio offsets for maximum visual distinction across the palette
-
 ---
 
 ## Why this is interesting
