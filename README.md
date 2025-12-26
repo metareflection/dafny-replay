@@ -41,6 +41,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 |-------------|---------------------------|----------------|
 | Kanban      | Task board                | Exact card partition (no duplication/loss), WIP limits respected |
 | ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
+| ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
 
 ---
 
@@ -246,6 +247,39 @@ A verified expense-splitting application with mathematically guaranteed conserva
 **Architecture:**
 
 The code is structured as an abstract specification module (`ClearSplitSpec`) containing user-facing types, predicates, and theorem signatures, refined by an implementation module (`ClearSplit`) containing all helper lemmas and proofs.
+
+### ColorWheel (color palette generator)
+
+A verified color palette generator that enforces mood and harmony constraints by construction.
+
+**Of note**:
+* This app separates the spec from the proof for the purpose of ensuring that the LLM is not independently making edits to the spec in order for the proof to go through. A change to the spec was made so that proofs could complete, but it was approved by the user first. 
+* This app includes a helpful file `PROVED.md` which shows what implementations were actually proven and which were shipped as is. 
+
+**Model:**
+* Base hue (0-359, the anchor for harmony calculations)
+* Mood (Vibrant, SoftMuted, Pastel, DeepJewel, Earth, Neon, or Custom)
+* Harmony (Complementary, Triadic, Analogous, SplitComplement, Square, or Custom)
+* Colors (always exactly 5 HSL colors)
+* Adjustment mode (Linked or Independent) — *not yet in UI*
+* Contrast pair (foreground/background indices) — *not yet in UI*
+
+**Key invariants:**
+
+1. **Mood Satisfaction**
+   All 5 colors satisfy the current mood's saturation/lightness bounds (e.g., Vibrant requires S >= 70, 40 <= L <= 60). When a color violates bounds, the system auto-transitions to Custom mood.
+
+2. **Harmony Coherence**
+   Hues follow the selected harmony pattern relative to the base hue (e.g., Complementary produces hues at H and H+180). When a hue deviates, the system auto-transitions to Custom harmony.
+
+3. **Graceful Degradation**
+   Adjustments that would break constraints automatically fall back to Custom mode rather than failing—the palette always remains valid.
+
+**Verified actions (in kernel):**
+* **Linked adjustment**: Shifting any color shifts all colors together, preserving harmony relationships — *not yet in UI*
+* **Independent adjustment**: Modify a single color; harmony/mood auto-degrade if constraints break — *not yet in UI*
+* **SetColorDirect**: Set a color via picker; preserves mood/harmony when possible — *not yet in UI*
+* **Golden ratio distribution**: S/L values use golden ratio offsets for maximum visual distinction across the palette
 
 ---
 
