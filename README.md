@@ -13,7 +13,7 @@ This project started as a verified replay (undo/redo) kernel for UI state—henc
 
 The core idea is simple:
 
-> If every state transition preserves an invariant, then *every* state reachable through the system
+> If every state transition preserves an invariant (and the initial state satisfies it), then *every* state reachable through the system
 > (including via replay or protocol interaction) also satisfies that invariant — by construction.
 
 
