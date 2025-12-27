@@ -22,12 +22,6 @@ export function GenerateSection() {
     dispatch(App.RandomizeBaseHue(newHue, randomSeeds()));
   };
 
-  const handleHueChange = (newHue) => {
-    const mood = getMoodByTag(selectedMoodTag);
-    const harmony = getHarmonyByTag(selectedHarmonyTag);
-    dispatch(App.GeneratePalette(newHue, mood, harmony, randomSeeds()));
-  };
-
   return (
     <section className="section">
       <h3>Generate</h3>
@@ -57,17 +51,6 @@ export function GenerateSection() {
           <option value={3}>Split-Complement</option>
           <option value={4}>Square</option>
         </select>
-      </div>
-      <div className="field">
-        <label>Base Hue: {model.baseHue}°</label>
-        <input
-          type="range"
-          className="hue-slider"
-          min="0"
-          max="359"
-          value={model.baseHue}
-          onChange={(e) => handleHueChange(Number(e.target.value))}
-        />
       </div>
       <div className="button-row">
         <button className="btn btn-primary" onClick={handleGenerateOrShift}>
