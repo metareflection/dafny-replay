@@ -1,0 +1,33 @@
+\documentclass[tikz,border=5pt]{standalone}
+
+\usepackage{tikz}
+
+\begin{document}
+
+\pgfdeclarelayer{edgelayer}
+\pgfsetlayers{edgelayer,main}
+\begin{tikzpicture}[
+  canon node/.style={draw, fill=white, rounded corners, inner sep=2pt},
+  canon edge/.style={->, >=stealth}
+]
+\node[canon node] (A) at (3.04, -1.28) {A};
+\node[canon node] (B) at (3.04, -2.48) {B};
+%\node[canon node] (C) at (3.04, -3.68) {C};
+\node[canon node] (D) at (3.04, -4.88) {D};
+\node[canon node] (E) at (4.78, -3.68) {E};
+\node[canon node] (F) at (6.52, -4.88) {F};
+%\node[canon node] (G) at (6.52, -3.68) {G};
+%\node[canon node] (H) at (6.52, -2.48) {H};
+\node[canon node] (I) at (6.52, -1.28) {I};
+\begin{pgfonlayer}{edgelayer}
+\draw[canon edge] (A) -- (B);
+\draw[canon edge] (B) -- (E);
+\draw[canon edge] (E) -- (D);
+\draw[canon edge] (D) -- (F);
+\draw[canon edge] (F) -- (I);
+\draw[canon edge] (I) -- (A);
+\end{pgfonlayer}
+\end{tikzpicture}
+
+
+\end{document}
