@@ -55,7 +55,7 @@ module Canon {
     forall i :: 0 <= i < |es| ==> EdgeValid(es[i], nodes)
   }
 
-  ghost predicate Inv(m: Model) {
+  predicate Inv(m: Model) {
     AllConstraintsValid(m.constraints, m.nodes)
     && AllEdgesValid(m.edges, m.nodes)
   }
@@ -139,20 +139,35 @@ module Canon {
   }
 
   // Filter out edges incident to x.
-  function FilterOutIncidentEdges(es: seq<Edge>, x: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>): (result: seq<Edge>)
-    requires AllEdgesValid(es, nodes)
-    requires AllEdgesValid(acc, nodes)
-    requires NoEdgesMention(acc, x)
-    ensures AllEdgesValid(result, nodes)
-    ensures NoEdgesMention(result, x)
+  function FilterOutIncidentEdges(es: seq<Edge>, x: NodeId, i: nat, acc: seq<Edge>): seq<Edge>
     decreases |es| - i
   {
     if i >= |es| then acc
     else
       var e := es[i];
       if EdgeMentions(e, x)
-      then FilterOutIncidentEdges(es, x, i + 1, acc, nodes)
-      else FilterOutIncidentEdges(es, x, i + 1, acc + [e], nodes)
+      then FilterOutIncidentEdges(es, x, i + 1, acc)
+      else FilterOutIncidentEdges(es, x, i + 1, acc + [e])
+  }
+
+  lemma FilterOutIncidentEdgesSpec(es: seq<Edge>, x: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>)
+    requires AllEdgesValid(es, nodes)
+    requires AllEdgesValid(acc, nodes)
+    requires NoEdgesMention(acc, x)
+    requires i <= |es|
+    ensures AllEdgesValid(FilterOutIncidentEdges(es, x, i, acc), nodes)
+    ensures NoEdgesMention(FilterOutIncidentEdges(es, x, i, acc), x)
+    decreases |es| - i
+  {
+    if i >= |es| {
+    } else {
+      var e := es[i];
+      if EdgeMentions(e, x) {
+        FilterOutIncidentEdgesSpec(es, x, i + 1, acc, nodes);
+      } else {
+        FilterOutIncidentEdgesSpec(es, x, i + 1, acc + [e], nodes);
+      }
+    }
   }
 
   // ----------------------------
@@ -186,9 +201,7 @@ module Canon {
 
   // UI passes selected ids (possibly with duplicates or missing).
   // Filter to present nodes to maintain Inv.
-  function AddAlign(m: Model, sel: seq<NodeId>): (result: Model)
-    requires Inv(m)
-    ensures Inv(result)
+  function AddAlign(m: Model, sel: seq<NodeId>): Model
   {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 1 then m else
@@ -197,13 +210,17 @@ module Canon {
       Model(m.nodes, m.edges, m.constraints + [c], m.nextCid + 1)
   }
 
+  lemma AddAlignPreservesInv(m: Model, sel: seq<NodeId>)
+    requires Inv(m)
+    ensures Inv(AddAlign(m, sel))
+  {
+  }
+
   function FlipAxis(a: Axis): Axis {
     if a == X then Y else X
   }
 
-  function AddEvenSpace(m: Model, sel: seq<NodeId>): (result: Model)
-    requires Inv(m)
-    ensures Inv(result)
+  function AddEvenSpace(m: Model, sel: seq<NodeId>): Model
   {
     var targets := FilterPresent(m.nodes, Dedup(sel));
     if |targets| <= 2 then m else
@@ -214,18 +231,27 @@ module Canon {
       Model(m.nodes, m.edges, m.constraints + [c], m.nextCid + 1)
   }
 
-  // Delete constraint by cid (first-class constraints).
-  function DeleteConstraint(m: Model, cid: int): (result: Model)
+  lemma AddEvenSpacePreservesInv(m: Model, sel: seq<NodeId>)
     requires Inv(m)
-    ensures Inv(result)
+    ensures Inv(AddEvenSpace(m, sel))
   {
-    Model(m.nodes, m.edges, FilterOutCid(m.constraints, cid, m.nodes), m.nextCid)
+  }
+
+  // Delete constraint by cid (first-class constraints).
+  function DeleteConstraint(m: Model, cid: int): Model
+  {
+    Model(m.nodes, m.edges, FilterOutCid(m.constraints, cid), m.nextCid)
+  }
+
+  lemma DeleteConstraintPreservesInv(m: Model, cid: int)
+    requires Inv(m)
+    ensures Inv(DeleteConstraint(m, cid))
+  {
+    FilterOutCidPreservesValid(m.constraints, cid, m.nodes);
   }
 
   // Add a directed edge (skip if endpoints missing).
-  function AddEdge(m: Model, from: NodeId, to: NodeId): (result: Model)
-    requires Inv(m)
-    ensures Inv(result)
+  function AddEdge(m: Model, from: NodeId, to: NodeId): Model
   {
     if from !in m.nodes || to !in m.nodes then m
     else
@@ -233,43 +259,80 @@ module Canon {
       Model(m.nodes, m.edges + [e], m.constraints, m.nextCid)
   }
 
-  // Delete edge (remove all matching occurrences).
-  function DeleteEdge(m: Model, from: NodeId, to: NodeId): (result: Model)
+  lemma AddEdgePreservesInv(m: Model, from: NodeId, to: NodeId)
     requires Inv(m)
-    ensures Inv(result)
+    ensures Inv(AddEdge(m, from, to))
   {
-    Model(m.nodes, FilterOutEdge(m.edges, from, to, 0, [], m.nodes), m.constraints, m.nextCid)
   }
 
-  function FilterOutEdge(es: seq<Edge>, from: NodeId, to: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>): (result: seq<Edge>)
-    requires AllEdgesValid(es, nodes)
-    requires AllEdgesValid(acc, nodes)
-    ensures AllEdgesValid(result, nodes)
+  // Delete edge (remove all matching occurrences).
+  function DeleteEdge(m: Model, from: NodeId, to: NodeId): Model
+  {
+    Model(m.nodes, FilterOutEdge(m.edges, from, to, 0, []), m.constraints, m.nextCid)
+  }
+
+  lemma DeleteEdgePreservesInv(m: Model, from: NodeId, to: NodeId)
+    requires Inv(m)
+    ensures Inv(DeleteEdge(m, from, to))
+  {
+    FilterOutEdgePreservesValid(m.edges, from, to, 0, [], m.nodes);
+  }
+
+  function FilterOutEdge(es: seq<Edge>, from: NodeId, to: NodeId, i: nat, acc: seq<Edge>): seq<Edge>
     decreases |es| - i
   {
     if i >= |es| then acc
     else
       var e := es[i];
       if e.from == from && e.to == to
-      then FilterOutEdge(es, from, to, i + 1, acc, nodes)
-      else FilterOutEdge(es, from, to, i + 1, acc + [e], nodes)
+      then FilterOutEdge(es, from, to, i + 1, acc)
+      else FilterOutEdge(es, from, to, i + 1, acc + [e])
+  }
+
+  lemma FilterOutEdgePreservesValid(es: seq<Edge>, from: NodeId, to: NodeId, i: nat, acc: seq<Edge>, nodes: map<NodeId, Node>)
+    requires AllEdgesValid(es, nodes)
+    requires AllEdgesValid(acc, nodes)
+    requires i <= |es|
+    ensures AllEdgesValid(FilterOutEdge(es, from, to, i, acc), nodes)
+    decreases |es| - i
+  {
+    if i >= |es| {
+    } else {
+      var e := es[i];
+      if e.from == from && e.to == to {
+        FilterOutEdgePreservesValid(es, from, to, i + 1, acc, nodes);
+      } else {
+        FilterOutEdgePreservesValid(es, from, to, i + 1, acc + [e], nodes);
+      }
+    }
   }
 
   // Remove a node and shrink constraints that mention it (drop degenerate ones).
   // Also removes edges incident to the node.
-  function RemoveNode(m: Model, x: NodeId): (result: Model)
-    requires Inv(m)
-    ensures Inv(result)
+  function RemoveNode(m: Model, x: NodeId): Model
   {
     if x !in m.nodes then m
     else
-      var cs2 := ShrinkConstraints(m.constraints, x, 0, [], m.nodes);
-      var es2 := FilterOutIncidentEdges(m.edges, x, 0, [], m.nodes);
-      // cs2 and es2 are still valid wrt old nodes, and none mention x
+      var cs2 := ShrinkConstraints(m.constraints, x, 0, []);
+      var es2 := FilterOutIncidentEdges(m.edges, x, 0, []);
       var nodes2 := m.nodes - {x};
+      Model(nodes2, es2, cs2, m.nextCid)
+  }
+
+  lemma RemoveNodePreservesInv(m: Model, x: NodeId)
+    requires Inv(m)
+    ensures Inv(RemoveNode(m, x))
+  {
+    if x !in m.nodes {
+    } else {
+      var cs2 := ShrinkConstraints(m.constraints, x, 0, []);
+      var es2 := FilterOutIncidentEdges(m.edges, x, 0, []);
+      ShrinkConstraintsSpec(m.constraints, x, 0, [], m.nodes);
+      FilterOutIncidentEdgesSpec(m.edges, x, 0, [], m.nodes);
+      // cs2 and es2 are still valid wrt old nodes, and none mention x
       AllConstraintsValidMinusLemma(cs2, m.nodes, x);
       AllEdgesValidMinusLemma(es2, m.nodes, x);
-      Model(nodes2, es2, cs2, m.nextCid)
+    }
   }
 
   // CanonOnce = apply constraints sequentially, deterministic (one pass).
@@ -467,26 +530,43 @@ module Canon {
   // ----------------------------
 
   // Remove all occurrences of x from xs.
-  function RemoveFromSeq(xs: seq<NodeId>, x: NodeId, nodes: map<NodeId, Node>): (result: seq<NodeId>)
-    requires AllIn(xs, nodes)
-    ensures !Contains(result, x)
-    ensures AllIn(result, nodes)
+  function RemoveFromSeq(xs: seq<NodeId>, x: NodeId): seq<NodeId>
   {
-    RemoveFromSeqFrom(xs, x, 0, [], nodes)
+    RemoveFromSeqFrom(xs, x, 0, [])
   }
 
-  function RemoveFromSeqFrom(xs: seq<NodeId>, x: NodeId, i: nat, acc: seq<NodeId>, nodes: map<NodeId, Node>): (result: seq<NodeId>)
-    requires AllIn(xs, nodes)
-    requires AllIn(acc, nodes)
-    requires !Contains(acc, x)
-    ensures !Contains(result, x)
-    ensures AllIn(result, nodes)
+  function RemoveFromSeqFrom(xs: seq<NodeId>, x: NodeId, i: nat, acc: seq<NodeId>): seq<NodeId>
     decreases |xs| - i
   {
     if i >= |xs| then acc
     else if xs[i] == x
-         then RemoveFromSeqFrom(xs, x, i + 1, acc, nodes)
-         else RemoveFromSeqFrom(xs, x, i + 1, acc + [xs[i]], nodes)
+         then RemoveFromSeqFrom(xs, x, i + 1, acc)
+         else RemoveFromSeqFrom(xs, x, i + 1, acc + [xs[i]])
+  }
+
+  lemma RemoveFromSeqFromSpec(xs: seq<NodeId>, x: NodeId, i: nat, acc: seq<NodeId>, nodes: map<NodeId, Node>)
+    requires AllIn(xs, nodes)
+    requires AllIn(acc, nodes)
+    requires !Contains(acc, x)
+    requires i <= |xs|
+    ensures !Contains(RemoveFromSeqFrom(xs, x, i, acc), x)
+    ensures AllIn(RemoveFromSeqFrom(xs, x, i, acc), nodes)
+    decreases |xs| - i
+  {
+    if i >= |xs| {
+    } else if xs[i] == x {
+      RemoveFromSeqFromSpec(xs, x, i + 1, acc, nodes);
+    } else {
+      RemoveFromSeqFromSpec(xs, x, i + 1, acc + [xs[i]], nodes);
+    }
+  }
+
+  lemma RemoveFromSeqSpec(xs: seq<NodeId>, x: NodeId, nodes: map<NodeId, Node>)
+    requires AllIn(xs, nodes)
+    ensures !Contains(RemoveFromSeq(xs, x), x)
+    ensures AllIn(RemoveFromSeq(xs, x), nodes)
+  {
+    RemoveFromSeqFromSpec(xs, x, 0, [], nodes);
   }
 
   // Deduplicate while preserving first occurrence order.
@@ -540,26 +620,46 @@ module Canon {
   }
 
   // Filter out constraint id
-  function FilterOutCid(cs: seq<Constraint>, cid: int, nodes: map<NodeId, Node>): (result: seq<Constraint>)
-    requires AllConstraintsValid(cs, nodes)
-    ensures AllConstraintsValid(result, nodes)
+  function FilterOutCid(cs: seq<Constraint>, cid: int): seq<Constraint>
   {
-    FilterOutCidFrom(cs, cid, 0, [], nodes)
+    FilterOutCidFrom(cs, cid, 0, [])
   }
 
-  function FilterOutCidFrom(cs: seq<Constraint>, cid: int, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
-    requires AllConstraintsValid(cs, nodes)
-    requires AllConstraintsValid(acc, nodes)
-    ensures AllConstraintsValid(result, nodes)
+  function FilterOutCidFrom(cs: seq<Constraint>, cid: int, i: nat, acc: seq<Constraint>): seq<Constraint>
     decreases |cs| - i
   {
     if i >= |cs| then acc
     else
       var c := cs[i];
       if CidOf(c) == cid then
-        FilterOutCidFrom(cs, cid, i + 1, acc, nodes)
+        FilterOutCidFrom(cs, cid, i + 1, acc)
       else
-        FilterOutCidFrom(cs, cid, i + 1, acc + [c], nodes)
+        FilterOutCidFrom(cs, cid, i + 1, acc + [c])
+  }
+
+  lemma FilterOutCidFromPreservesValid(cs: seq<Constraint>, cid: int, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>)
+    requires AllConstraintsValid(cs, nodes)
+    requires AllConstraintsValid(acc, nodes)
+    requires i <= |cs|
+    ensures AllConstraintsValid(FilterOutCidFrom(cs, cid, i, acc), nodes)
+    decreases |cs| - i
+  {
+    if i >= |cs| {
+    } else {
+      var c := cs[i];
+      if CidOf(c) == cid {
+        FilterOutCidFromPreservesValid(cs, cid, i + 1, acc, nodes);
+      } else {
+        FilterOutCidFromPreservesValid(cs, cid, i + 1, acc + [c], nodes);
+      }
+    }
+  }
+
+  lemma FilterOutCidPreservesValid(cs: seq<Constraint>, cid: int, nodes: map<NodeId, Node>)
+    requires AllConstraintsValid(cs, nodes)
+    ensures AllConstraintsValid(FilterOutCid(cs, cid), nodes)
+  {
+    FilterOutCidFromPreservesValid(cs, cid, 0, [], nodes);
   }
 
   function CidOf(c: Constraint): int {
@@ -570,38 +670,62 @@ module Canon {
 
   // Shrink one constraint by removing x from targets; return (keep, shrunken)
   // Drop if too small (Align needs >=2, EvenSpace needs >=3)
-  function ShrinkConstraint(c: Constraint, x: NodeId, nodes: map<NodeId, Node>): (result: (bool, Constraint))
-    requires ConstraintTargetsValid(c, nodes)
-    // If kept, doesn't mention x and is still valid
-    ensures result.0 ==> !Mentions(result.1, x)
-    ensures result.0 ==> ConstraintTargetsValid(result.1, nodes)
+  function ShrinkConstraint(c: Constraint, x: NodeId): (bool, Constraint)
   {
     match c
     case Align(cid, targets, axis) =>
-      var t2 := RemoveFromSeq(targets, x, nodes);
+      var t2 := RemoveFromSeq(targets, x);
       if |t2| < 2 then (false, c) else (true, Align(cid, t2, axis))
     case EvenSpace(cid, targets, axis) =>
-      var t2 := RemoveFromSeq(targets, x, nodes);
+      var t2 := RemoveFromSeq(targets, x);
       if |t2| < 3 then (false, c) else (true, EvenSpace(cid, t2, axis))
   }
 
+  lemma ShrinkConstraintSpec(c: Constraint, x: NodeId, nodes: map<NodeId, Node>)
+    requires ConstraintTargetsValid(c, nodes)
+    ensures var (keep, c2) := ShrinkConstraint(c, x);
+            keep ==> !Mentions(c2, x) && ConstraintTargetsValid(c2, nodes)
+  {
+    match c
+    case Align(cid, targets, axis) =>
+      RemoveFromSeqSpec(targets, x, nodes);
+    case EvenSpace(cid, targets, axis) =>
+      RemoveFromSeqSpec(targets, x, nodes);
+  }
+
   // Shrink all constraints, dropping degenerate ones
-  function ShrinkConstraints(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>): (result: seq<Constraint>)
-    requires AllConstraintsValid(cs, nodes)
-    requires AllConstraintsValid(acc, nodes)
-    requires NoneMatch(acc, x)
-    ensures AllConstraintsValid(result, nodes)
-    ensures NoneMatch(result, x)
+  function ShrinkConstraints(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>): seq<Constraint>
     decreases |cs| - i
   {
     if i >= |cs| then acc
     else
       var c := cs[i];
-      var (keep, c2) := ShrinkConstraint(c, x, nodes);
-      // c2 targets are a subsequence of c targets, so still in nodes
+      var (keep, c2) := ShrinkConstraint(c, x);
       if keep
-      then ShrinkConstraints(cs, x, i + 1, acc + [c2], nodes)
-      else ShrinkConstraints(cs, x, i + 1, acc, nodes)
+      then ShrinkConstraints(cs, x, i + 1, acc + [c2])
+      else ShrinkConstraints(cs, x, i + 1, acc)
+  }
+
+  lemma ShrinkConstraintsSpec(cs: seq<Constraint>, x: NodeId, i: nat, acc: seq<Constraint>, nodes: map<NodeId, Node>)
+    requires AllConstraintsValid(cs, nodes)
+    requires AllConstraintsValid(acc, nodes)
+    requires NoneMatch(acc, x)
+    requires i <= |cs|
+    ensures AllConstraintsValid(ShrinkConstraints(cs, x, i, acc), nodes)
+    ensures NoneMatch(ShrinkConstraints(cs, x, i, acc), x)
+    decreases |cs| - i
+  {
+    if i >= |cs| {
+    } else {
+      var c := cs[i];
+      ShrinkConstraintSpec(c, x, nodes);
+      var (keep, c2) := ShrinkConstraint(c, x);
+      if keep {
+        ShrinkConstraintsSpec(cs, x, i + 1, acc + [c2], nodes);
+      } else {
+        ShrinkConstraintsSpec(cs, x, i + 1, acc, nodes);
+      }
+    }
   }
 
   // Min/Max along an axis for a non-empty seq of ids present in nodes.
