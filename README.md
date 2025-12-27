@@ -354,6 +354,7 @@ cd kanban            # kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
+cd colorwheel        # color wheel app
 cd canon             # diagram builder
 cd canon-replay      # diagram builder with undo/redo
 npm install
