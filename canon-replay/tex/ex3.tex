@@ -1,0 +1,21 @@
+\documentclass[tikz,border=5pt]{standalone}
+
+\usepackage{tikz}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  canon node/.style={draw, rounded corners, inner sep=2pt},
+  canon edge/.style={->, >=stealth}
+]
+\node[canon node] (A) at (2.50, -2.88) {A};
+\node[canon node] (B) at (6.06, -2.88) {B};
+\node[canon node] (C) at (4.28, -2.88) {C};
+\node[canon node] (D) at (2.50, -5.02) {D};
+\node[canon node] (E) at (6.06, -5.02) {E};
+\draw[canon edge] (A) -- (B);
+\draw[canon edge] (A) -- (D);
+\draw[canon edge] (B) -- (E);
+\end{tikzpicture}
+
+\end{document}
