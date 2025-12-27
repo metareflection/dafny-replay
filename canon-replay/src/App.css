@@ -49,6 +49,12 @@
   border-color: #999;
 }
 
+.toolbar .separator {
+  color: #ccc;
+  margin: 0 4px;
+  user-select: none;
+}
+
 .toolbar button:disabled {
   opacity: 0.4;
   cursor: not-allowed;

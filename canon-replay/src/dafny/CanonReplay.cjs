@@ -1,4 +1,4 @@
-// Dafny program Canon.dfy compiled into JavaScript
+// Dafny program CanonDomain.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
@@ -2138,6 +2138,367 @@ let Canon = (function() {
   }
   return $module;
 })(); // end of module Canon
+let CanonDomain = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "CanonDomain._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static Init() {
+      return Canon.__default.Empty();
+    };
+    static Apply(m, a) {
+      let _source0 = a;
+      {
+        if (_source0.is_AddNode) {
+          let _0_id = (_source0).id;
+          let _1_x = (_source0).x;
+          let _2_y = (_source0).y;
+          return CanonDomain.__default.AddNodeImpl(m, _0_id, _1_x, _2_y);
+        }
+      }
+      {
+        if (_source0.is_AddAlign) {
+          let _3_sel = (_source0).sel;
+          return Canon.__default.AddAlign(m, _3_sel);
+        }
+      }
+      {
+        if (_source0.is_AddEvenSpace) {
+          let _4_sel = (_source0).sel;
+          return Canon.__default.AddEvenSpace(m, _4_sel);
+        }
+      }
+      {
+        if (_source0.is_AddEdge) {
+          let _5_from = (_source0).from;
+          let _6_to = (_source0).to;
+          return Canon.__default.AddEdge(m, _5_from, _6_to);
+        }
+      }
+      {
+        if (_source0.is_DeleteConstraint) {
+          let _7_cid = (_source0).cid;
+          return Canon.__default.DeleteConstraint(m, _7_cid);
+        }
+      }
+      {
+        if (_source0.is_DeleteEdge) {
+          let _8_from = (_source0).from;
+          let _9_to = (_source0).to;
+          return Canon.__default.DeleteEdge(m, _8_from, _9_to);
+        }
+      }
+      {
+        if (_source0.is_RemoveNode) {
+          let _10_nodeId = (_source0).nodeId;
+          return Canon.__default.RemoveNode(m, _10_nodeId);
+        }
+      }
+      {
+        let _11_id = (_source0).id;
+        let _12_newX = (_source0).newX;
+        let _13_newY = (_source0).newY;
+        return CanonDomain.__default.MoveNodeImpl(m, _11_id, _12_newX, _13_newY);
+      }
+    };
+    static AddNodeImpl(m, id, x, y) {
+      if (((m).dtor_nodes).contains(id)) {
+        return m;
+      } else {
+        let _0_n = Canon.Node.create_Node(id, x, y);
+        return Canon.Model.create_Model(((m).dtor_nodes).update(id, _0_n), (m).dtor_edges, (m).dtor_constraints, (m).dtor_nextCid);
+      }
+    };
+    static MoveNodeImpl(m, id, newX, newY) {
+      if (!((m).dtor_nodes).contains(id)) {
+        return m;
+      } else {
+        let _0_n = Canon.Node.create_Node(id, newX, newY);
+        return Canon.Model.create_Model(((m).dtor_nodes).update(id, _0_n), (m).dtor_edges, (m).dtor_constraints, (m).dtor_nextCid);
+      }
+    };
+    static Normalize(m) {
+      return m;
+    };
+  };
+
+  $module.Action = class Action {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_AddNode(id, x, y) {
+      let $dt = new Action(0);
+      $dt.id = id;
+      $dt.x = x;
+      $dt.y = y;
+      return $dt;
+    }
+    static create_AddAlign(sel) {
+      let $dt = new Action(1);
+      $dt.sel = sel;
+      return $dt;
+    }
+    static create_AddEvenSpace(sel) {
+      let $dt = new Action(2);
+      $dt.sel = sel;
+      return $dt;
+    }
+    static create_AddEdge(from, to) {
+      let $dt = new Action(3);
+      $dt.from = from;
+      $dt.to = to;
+      return $dt;
+    }
+    static create_DeleteConstraint(cid) {
+      let $dt = new Action(4);
+      $dt.cid = cid;
+      return $dt;
+    }
+    static create_DeleteEdge(from, to) {
+      let $dt = new Action(5);
+      $dt.from = from;
+      $dt.to = to;
+      return $dt;
+    }
+    static create_RemoveNode(nodeId) {
+      let $dt = new Action(6);
+      $dt.nodeId = nodeId;
+      return $dt;
+    }
+    static create_MoveNode(id, newX, newY) {
+      let $dt = new Action(7);
+      $dt.id = id;
+      $dt.newX = newX;
+      $dt.newY = newY;
+      return $dt;
+    }
+    get is_AddNode() { return this.$tag === 0; }
+    get is_AddAlign() { return this.$tag === 1; }
+    get is_AddEvenSpace() { return this.$tag === 2; }
+    get is_AddEdge() { return this.$tag === 3; }
+    get is_DeleteConstraint() { return this.$tag === 4; }
+    get is_DeleteEdge() { return this.$tag === 5; }
+    get is_RemoveNode() { return this.$tag === 6; }
+    get is_MoveNode() { return this.$tag === 7; }
+    get dtor_id() { return this.id; }
+    get dtor_x() { return this.x; }
+    get dtor_y() { return this.y; }
+    get dtor_sel() { return this.sel; }
+    get dtor_from() { return this.from; }
+    get dtor_to() { return this.to; }
+    get dtor_cid() { return this.cid; }
+    get dtor_nodeId() { return this.nodeId; }
+    get dtor_newX() { return this.newX; }
+    get dtor_newY() { return this.newY; }
+    toString() {
+      if (this.$tag === 0) {
+        return "CanonDomain.Action.AddNode" + "(" + this.id.toVerbatimString(true) + ", " + _dafny.toString(this.x) + ", " + _dafny.toString(this.y) + ")";
+      } else if (this.$tag === 1) {
+        return "CanonDomain.Action.AddAlign" + "(" + _dafny.toString(this.sel) + ")";
+      } else if (this.$tag === 2) {
+        return "CanonDomain.Action.AddEvenSpace" + "(" + _dafny.toString(this.sel) + ")";
+      } else if (this.$tag === 3) {
+        return "CanonDomain.Action.AddEdge" + "(" + this.from.toVerbatimString(true) + ", " + this.to.toVerbatimString(true) + ")";
+      } else if (this.$tag === 4) {
+        return "CanonDomain.Action.DeleteConstraint" + "(" + _dafny.toString(this.cid) + ")";
+      } else if (this.$tag === 5) {
+        return "CanonDomain.Action.DeleteEdge" + "(" + this.from.toVerbatimString(true) + ", " + this.to.toVerbatimString(true) + ")";
+      } else if (this.$tag === 6) {
+        return "CanonDomain.Action.RemoveNode" + "(" + this.nodeId.toVerbatimString(true) + ")";
+      } else if (this.$tag === 7) {
+        return "CanonDomain.Action.MoveNode" + "(" + this.id.toVerbatimString(true) + ", " + _dafny.toString(this.newX) + ", " + _dafny.toString(this.newY) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.x, other.x) && _dafny.areEqual(this.y, other.y);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.sel, other.sel);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.sel, other.sel);
+      } else if (this.$tag === 3) {
+        return other.$tag === 3 && _dafny.areEqual(this.from, other.from) && _dafny.areEqual(this.to, other.to);
+      } else if (this.$tag === 4) {
+        return other.$tag === 4 && _dafny.areEqual(this.cid, other.cid);
+      } else if (this.$tag === 5) {
+        return other.$tag === 5 && _dafny.areEqual(this.from, other.from) && _dafny.areEqual(this.to, other.to);
+      } else if (this.$tag === 6) {
+        return other.$tag === 6 && _dafny.areEqual(this.nodeId, other.nodeId);
+      } else if (this.$tag === 7) {
+        return other.$tag === 7 && _dafny.areEqual(this.id, other.id) && _dafny.areEqual(this.newX, other.newX) && _dafny.areEqual(this.newY, other.newY);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return CanonDomain.Action.create_AddNode(_dafny.Seq.UnicodeFromString(""), _dafny.ZERO, _dafny.ZERO);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Action.Default();
+        }
+      };
+    }
+  }
+  return $module;
+})(); // end of module CanonDomain
+let CanonKernel = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "CanonKernel._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static Step(m, a) {
+      return CanonDomain.__default.Normalize(CanonDomain.__default.Apply(m, a));
+    };
+    static InitHistory() {
+      return CanonKernel.History.create_History(_dafny.Seq.of(), CanonDomain.__default.Init(), _dafny.Seq.of());
+    };
+    static Do(h, a) {
+      return CanonKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), CanonKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
+    };
+    static Undo(h) {
+      if ((new BigNumber(((h).dtor_past).length)).isEqualTo(_dafny.ZERO)) {
+        return h;
+      } else {
+        let _0_i = (new BigNumber(((h).dtor_past).length)).minus(_dafny.ONE);
+        return CanonKernel.History.create_History(((h).dtor_past).slice(0, _0_i), ((h).dtor_past)[_0_i], _dafny.Seq.Concat(_dafny.Seq.of((h).dtor_present), (h).dtor_future));
+      }
+    };
+    static Redo(h) {
+      if ((new BigNumber(((h).dtor_future).length)).isEqualTo(_dafny.ZERO)) {
+        return h;
+      } else {
+        return CanonKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), ((h).dtor_future)[_dafny.ZERO], ((h).dtor_future).slice(_dafny.ONE));
+      }
+    };
+  };
+
+  $module.History = class History {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_History(past, present, future) {
+      let $dt = new History(0);
+      $dt.past = past;
+      $dt.present = present;
+      $dt.future = future;
+      return $dt;
+    }
+    get is_History() { return this.$tag === 0; }
+    get dtor_past() { return this.past; }
+    get dtor_present() { return this.present; }
+    get dtor_future() { return this.future; }
+    toString() {
+      if (this.$tag === 0) {
+        return "CanonKernel.History.History" + "(" + _dafny.toString(this.past) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.future) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.past, other.past) && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.future, other.future);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return CanonKernel.History.create_History(_dafny.Seq.of(), Canon.Model.Default(), _dafny.Seq.of());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return History.Default();
+        }
+      };
+    }
+  }
+  return $module;
+})(); // end of module CanonKernel
+let AppCore = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "AppCore._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static Init() {
+      return CanonKernel.__default.InitHistory();
+    };
+    static AddNode(id, x, y) {
+      return CanonDomain.Action.create_AddNode(id, x, y);
+    };
+    static AddAlign(sel) {
+      return CanonDomain.Action.create_AddAlign(sel);
+    };
+    static AddEvenSpace(sel) {
+      return CanonDomain.Action.create_AddEvenSpace(sel);
+    };
+    static AddEdge(from, to) {
+      return CanonDomain.Action.create_AddEdge(from, to);
+    };
+    static DeleteConstraint(cid) {
+      return CanonDomain.Action.create_DeleteConstraint(cid);
+    };
+    static DeleteEdge(from, to) {
+      return CanonDomain.Action.create_DeleteEdge(from, to);
+    };
+    static RemoveNode(x) {
+      return CanonDomain.Action.create_RemoveNode(x);
+    };
+    static MoveNode(id, newX, newY) {
+      return CanonDomain.Action.create_MoveNode(id, newX, newY);
+    };
+    static Dispatch(h, a) {
+      return CanonKernel.__default.Do(h, a);
+    };
+    static Undo(h) {
+      return CanonKernel.__default.Undo(h);
+    };
+    static Redo(h) {
+      return CanonKernel.__default.Redo(h);
+    };
+    static Present(h) {
+      return (h).dtor_present;
+    };
+    static CanUndo(h) {
+      return (_dafny.ZERO).isLessThan(new BigNumber(((h).dtor_past).length));
+    };
+    static CanRedo(h) {
+      return (_dafny.ZERO).isLessThan(new BigNumber(((h).dtor_future).length));
+    };
+    static Nodes(h) {
+      return ((h).dtor_present).dtor_nodes;
+    };
+    static Edges(h) {
+      return ((h).dtor_present).dtor_edges;
+    };
+    static Constraints(h) {
+      return ((h).dtor_present).dtor_constraints;
+    };
+  };
+  return $module;
+})(); // end of module AppCore
 let _module = (function() {
   let $module = {};
 

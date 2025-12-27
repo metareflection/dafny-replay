@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import Canon from './dafny/app.js'
+import App from './dafny/app.js'
 import './App.css'
 
 // TikZ export helper functions
@@ -92,16 +92,64 @@ const INITIAL_NODES = [
 
 const NODE_SIZE = 40
 
-function App() {
-  const [model, setModel] = useState(() => Canon.Init(INITIAL_NODES))
+function CanonApp() {
+  // History-based state (supports undo/redo)
+  const [history, setHistory] = useState(() => App.Init(INITIAL_NODES))
   const [selected, setSelected] = useState(new Set())
+
+  // Drag state - tracked separately so intermediate positions aren't in history
   const [dragging, setDragging] = useState(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [dragPos, setDragPos] = useState(null)  // Current drag position { x, y }
+  const dragStartPos = useRef(null)  // Position when drag started
+
   const canvasRef = useRef(null)
 
-  const nodes = Canon.GetNodes(model)
-  const edges = Canon.GetEdges(model)
-  const constraints = Canon.GetConstraints(model)
+  // Get data from history's present model
+  const historyNodes = App.GetNodes(history)
+  const edges = App.GetEdges(history)
+  const constraints = App.GetConstraints(history)
+
+  // Compute display nodes (apply drag position if dragging)
+  const nodes = dragPos && dragging
+    ? historyNodes.map(n => n.id === dragging ? { ...n, x: dragPos.x, y: dragPos.y } : n)
+    : historyNodes
+
+  // Undo/Redo handlers
+  const undo = useCallback(() => {
+    if (App.CanUndo(history)) {
+      setHistory(App.Undo(history))
+    }
+  }, [history])
+
+  const redo = useCallback(() => {
+    if (App.CanRedo(history)) {
+      setHistory(App.Redo(history))
+    }
+  }, [history])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault()
+          redo()
+        } else {
+          e.preventDefault()
+          undo()
+        }
+      }
+      // Cmd+Y (alternative redo)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo])
 
   // Handle node click for selection toggle
   const handleNodeClick = (e, nodeId) => {
@@ -120,7 +168,7 @@ function App() {
   // Handle node mousedown for drag
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation()
-    const node = nodes.find(n => n.id === nodeId)
+    const node = historyNodes.find(n => n.id === nodeId)
     if (!node) return
 
     setDragging(nodeId)
@@ -128,6 +176,8 @@ function App() {
       x: e.clientX - node.x,
       y: e.clientY - node.y,
     })
+    setDragPos({ x: node.x, y: node.y })
+    dragStartPos.current = { x: node.x, y: node.y }
   }
 
   // Handle mouse move for dragging
@@ -136,23 +186,25 @@ function App() {
 
     const newX = e.clientX - dragOffset.x
     const newY = e.clientY - dragOffset.y
+    setDragPos({ x: newX, y: newY })
+  }, [dragging, dragOffset])
 
-    // Update node position directly during drag
-    const updatedNodes = nodes.map(n =>
-      n.id === dragging ? { ...n, x: newX, y: newY } : n
-    )
-    const newModel = Canon.SetNodes(model, updatedNodes)
-    setModel(newModel)
-  }, [dragging, dragOffset, nodes, model])
-
-  // Handle mouse up to end drag and canonicalize
+  // Handle mouse up to end drag and commit to history
   const handleMouseUp = useCallback(() => {
-    if (dragging) {
-      // Apply Canon on mouse-up to re-satisfy constraints
-      setModel(prev => Canon.Canon(prev))
+    if (dragging && dragPos) {
+      // Only commit if position actually changed
+      const start = dragStartPos.current
+      if (start && (Math.abs(dragPos.x - start.x) > 1 || Math.abs(dragPos.y - start.y) > 1)) {
+        // Dispatch MoveNode action, then apply Canon
+        const h1 = App.Dispatch(history, App.MoveNode(dragging, dragPos.x, dragPos.y))
+        const h2 = App.Canon(h1)
+        setHistory(h2)
+      }
       setDragging(null)
+      setDragPos(null)
+      dragStartPos.current = null
     }
-  }, [dragging])
+  }, [dragging, dragPos, history])
 
   // Click on canvas to deselect
   const handleCanvasClick = () => {
@@ -162,42 +214,44 @@ function App() {
   // Add constraint handlers
   const addAlign = () => {
     if (selected.size < 2) return
-    const m1 = Canon.AddAlign(model, Array.from(selected))
-    const m2 = Canon.Canon(m1)
-    setModel(m2)
+    const h1 = App.Dispatch(history, App.AddAlign(Array.from(selected)))
+    const h2 = App.Canon(h1)
+    setHistory(h2)
   }
 
   const addEvenSpace = () => {
     if (selected.size < 3) return
-    const m1 = Canon.AddEvenSpace(model, Array.from(selected))
-    const m2 = Canon.Canon(m1)
-    setModel(m2)
+    const h1 = App.Dispatch(history, App.AddEvenSpace(Array.from(selected)))
+    const h2 = App.Canon(h1)
+    setHistory(h2)
   }
 
   const deleteConstraint = (cid) => {
-    setModel(Canon.DeleteConstraint(model, cid))
+    const h1 = App.Dispatch(history, App.DeleteConstraint(cid))
+    setHistory(h1)
   }
 
   const addNode = () => {
-    const id = String.fromCharCode(65 + nodes.length) // A, B, C, ...
-    const newNode = { id, x: 150 + nodes.length * 20, y: 150 + nodes.length * 20 }
-    const updatedNodes = [...nodes, newNode]
-    setModel(Canon.Init(updatedNodes))
+    const id = String.fromCharCode(65 + historyNodes.length) // A, B, C, ...
+    const h1 = App.Dispatch(history, App.AddNode(id, 150 + historyNodes.length * 20, 150 + historyNodes.length * 20))
+    setHistory(h1)
   }
 
   const addEdge = () => {
     if (selected.size !== 2) return
     const [from, to] = Array.from(selected)
-    setModel(Canon.AddEdge(model, from, to))
+    const h1 = App.Dispatch(history, App.AddEdge(from, to))
+    setHistory(h1)
   }
 
   const removeEdge = (from, to) => {
-    setModel(Canon.DeleteEdge(model, from, to))
+    const h1 = App.Dispatch(history, App.DeleteEdge(from, to))
+    setHistory(h1)
   }
 
   const removeNode = (nodeId) => {
-    const m1 = Canon.RemoveNode(model, nodeId)
-    setModel(m1)
+    const h1 = App.Dispatch(history, App.RemoveNode(nodeId))
+    setHistory(h1)
     setSelected(prev => {
       const next = new Set(prev)
       next.delete(nodeId)
@@ -207,9 +261,9 @@ function App() {
 
   const exportTikz = () => {
     // Get canonicalized model
-    const mCanon = Canon.Canon(model)
-    const canonNodes = Canon.GetNodes(mCanon)
-    const canonEdges = Canon.GetEdges(mCanon)
+    const hCanon = App.Canon(history)
+    const canonNodes = App.GetNodes(hCanon)
+    const canonEdges = App.GetEdges(hCanon)
     // Generate TikZ and download
     const tikz = exportTikzFromNodes(canonNodes, canonEdges, { scalePxPerCm: 50 })
     downloadTextFile("diagram.tex", tikz)
@@ -284,11 +338,18 @@ function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1>Canon</h1>
-        <span className="subtitle">Verified Diagram Builder</span>
+        <h1>Canon Replay</h1>
+        <span className="subtitle">Verified Diagram Builder with Undo/Redo</span>
       </header>
 
       <div className="toolbar">
+        <button onClick={undo} disabled={!App.CanUndo(history)} title="Undo (Cmd+Z)">
+          Undo
+        </button>
+        <button onClick={redo} disabled={!App.CanRedo(history)} title="Redo (Cmd+Shift+Z)">
+          Redo
+        </button>
+        <span className="separator">|</span>
         <button onClick={addNode}>+ Node</button>
         <button onClick={addEdge} disabled={selected.size !== 2}>
           + Edge ({selected.size})
@@ -378,7 +439,7 @@ function App() {
           <section className="panel">
             <h3>Nodes</h3>
             <ul className="node-list">
-              {nodes.map(node => (
+              {historyNodes.map(node => (
                 <li
                   key={node.id}
                   className={selected.has(node.id) ? 'selected' : ''}
@@ -449,4 +510,4 @@ function App() {
   )
 }
 
-export default App
+export default CanonApp

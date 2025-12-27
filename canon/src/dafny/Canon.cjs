@@ -1264,7 +1264,7 @@ let Canon = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((es).length)))) || (!(Canon.__default.EdgeMentions((es)[_0_i], x)));
       });
     };
-    static FilterOutIncidentEdges(es, x, i, acc, nodes) {
+    static FilterOutIncidentEdges(es, x, i, acc) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((es).length)).isLessThanOrEqualTo(i)) {
           return acc;
@@ -1275,24 +1275,20 @@ let Canon = (function() {
             let _in1 = x;
             let _in2 = (i).plus(_dafny.ONE);
             let _in3 = acc;
-            let _in4 = nodes;
             es = _in0;
             x = _in1;
             i = _in2;
             acc = _in3;
-            nodes = _in4;
             continue TAIL_CALL_START;
           } else {
-            let _in5 = es;
-            let _in6 = x;
-            let _in7 = (i).plus(_dafny.ONE);
-            let _in8 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
-            let _in9 = nodes;
-            es = _in5;
-            x = _in6;
-            i = _in7;
-            acc = _in8;
-            nodes = _in9;
+            let _in4 = es;
+            let _in5 = x;
+            let _in6 = (i).plus(_dafny.ONE);
+            let _in7 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
+            es = _in4;
+            x = _in5;
+            i = _in6;
+            acc = _in7;
             continue TAIL_CALL_START;
           }
         }
@@ -1346,7 +1342,7 @@ let Canon = (function() {
       }
     };
     static DeleteConstraint(m, cid) {
-      return Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, Canon.__default.FilterOutCid((m).dtor_constraints, cid, (m).dtor_nodes), (m).dtor_nextCid);
+      return Canon.Model.create_Model((m).dtor_nodes, (m).dtor_edges, Canon.__default.FilterOutCid((m).dtor_constraints, cid), (m).dtor_nextCid);
     };
     static AddEdge(m, from, to) {
       if ((!((m).dtor_nodes).contains(from)) || (!((m).dtor_nodes).contains(to))) {
@@ -1357,9 +1353,9 @@ let Canon = (function() {
       }
     };
     static DeleteEdge(m, from, to) {
-      return Canon.Model.create_Model((m).dtor_nodes, Canon.__default.FilterOutEdge((m).dtor_edges, from, to, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes), (m).dtor_constraints, (m).dtor_nextCid);
+      return Canon.Model.create_Model((m).dtor_nodes, Canon.__default.FilterOutEdge((m).dtor_edges, from, to, _dafny.ZERO, _dafny.Seq.of()), (m).dtor_constraints, (m).dtor_nextCid);
     };
-    static FilterOutEdge(es, from, to, i, acc, nodes) {
+    static FilterOutEdge(es, from, to, i, acc) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((es).length)).isLessThanOrEqualTo(i)) {
           return acc;
@@ -1371,27 +1367,23 @@ let Canon = (function() {
             let _in2 = to;
             let _in3 = (i).plus(_dafny.ONE);
             let _in4 = acc;
-            let _in5 = nodes;
             es = _in0;
             from = _in1;
             to = _in2;
             i = _in3;
             acc = _in4;
-            nodes = _in5;
             continue TAIL_CALL_START;
           } else {
-            let _in6 = es;
-            let _in7 = from;
-            let _in8 = to;
-            let _in9 = (i).plus(_dafny.ONE);
-            let _in10 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
-            let _in11 = nodes;
-            es = _in6;
-            from = _in7;
-            to = _in8;
-            i = _in9;
-            acc = _in10;
-            nodes = _in11;
+            let _in5 = es;
+            let _in6 = from;
+            let _in7 = to;
+            let _in8 = (i).plus(_dafny.ONE);
+            let _in9 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_e));
+            es = _in5;
+            from = _in6;
+            to = _in7;
+            i = _in8;
+            acc = _in9;
             continue TAIL_CALL_START;
           }
         }
@@ -1401,8 +1393,8 @@ let Canon = (function() {
       if (!((m).dtor_nodes).contains(x)) {
         return m;
       } else {
-        let _0_cs2 = Canon.__default.ShrinkConstraints((m).dtor_constraints, x, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes);
-        let _1_es2 = Canon.__default.FilterOutIncidentEdges((m).dtor_edges, x, _dafny.ZERO, _dafny.Seq.of(), (m).dtor_nodes);
+        let _0_cs2 = Canon.__default.ShrinkConstraints((m).dtor_constraints, x, _dafny.ZERO, _dafny.Seq.of());
+        let _1_es2 = Canon.__default.FilterOutIncidentEdges((m).dtor_edges, x, _dafny.ZERO, _dafny.Seq.of());
         let _2_nodes2 = ((m).dtor_nodes).Subtract(_dafny.Set.fromElements(x));
         return Canon.Model.create_Model(_2_nodes2, _1_es2, _0_cs2, (m).dtor_nextCid);
       }
@@ -1614,10 +1606,10 @@ let Canon = (function() {
         }
       }
     };
-    static RemoveFromSeq(xs, x, nodes) {
-      return Canon.__default.RemoveFromSeqFrom(xs, x, _dafny.ZERO, _dafny.Seq.of(), nodes);
+    static RemoveFromSeq(xs, x) {
+      return Canon.__default.RemoveFromSeqFrom(xs, x, _dafny.ZERO, _dafny.Seq.of());
     };
-    static RemoveFromSeqFrom(xs, x, i, acc, nodes) {
+    static RemoveFromSeqFrom(xs, x, i, acc) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((xs).length)).isLessThanOrEqualTo(i)) {
           return acc;
@@ -1626,24 +1618,20 @@ let Canon = (function() {
           let _in1 = x;
           let _in2 = (i).plus(_dafny.ONE);
           let _in3 = acc;
-          let _in4 = nodes;
           xs = _in0;
           x = _in1;
           i = _in2;
           acc = _in3;
-          nodes = _in4;
           continue TAIL_CALL_START;
         } else {
-          let _in5 = xs;
-          let _in6 = x;
-          let _in7 = (i).plus(_dafny.ONE);
-          let _in8 = _dafny.Seq.Concat(acc, _dafny.Seq.of((xs)[i]));
-          let _in9 = nodes;
-          xs = _in5;
-          x = _in6;
-          i = _in7;
-          acc = _in8;
-          nodes = _in9;
+          let _in4 = xs;
+          let _in5 = x;
+          let _in6 = (i).plus(_dafny.ONE);
+          let _in7 = _dafny.Seq.Concat(acc, _dafny.Seq.of((xs)[i]));
+          xs = _in4;
+          x = _in5;
+          i = _in6;
+          acc = _in7;
           continue TAIL_CALL_START;
         }
       }
@@ -1733,10 +1721,10 @@ let Canon = (function() {
         }
       }
     };
-    static FilterOutCid(cs, cid, nodes) {
-      return Canon.__default.FilterOutCidFrom(cs, cid, _dafny.ZERO, _dafny.Seq.of(), nodes);
+    static FilterOutCid(cs, cid) {
+      return Canon.__default.FilterOutCidFrom(cs, cid, _dafny.ZERO, _dafny.Seq.of());
     };
-    static FilterOutCidFrom(cs, cid, i, acc, nodes) {
+    static FilterOutCidFrom(cs, cid, i, acc) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((cs).length)).isLessThanOrEqualTo(i)) {
           return acc;
@@ -1747,24 +1735,20 @@ let Canon = (function() {
             let _in1 = cid;
             let _in2 = (i).plus(_dafny.ONE);
             let _in3 = acc;
-            let _in4 = nodes;
             cs = _in0;
             cid = _in1;
             i = _in2;
             acc = _in3;
-            nodes = _in4;
             continue TAIL_CALL_START;
           } else {
-            let _in5 = cs;
-            let _in6 = cid;
-            let _in7 = (i).plus(_dafny.ONE);
-            let _in8 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_c));
-            let _in9 = nodes;
-            cs = _in5;
-            cid = _in6;
-            i = _in7;
-            acc = _in8;
-            nodes = _in9;
+            let _in4 = cs;
+            let _in5 = cid;
+            let _in6 = (i).plus(_dafny.ONE);
+            let _in7 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_0_c));
+            cs = _in4;
+            cid = _in5;
+            i = _in6;
+            acc = _in7;
             continue TAIL_CALL_START;
           }
         }
@@ -1783,14 +1767,14 @@ let Canon = (function() {
         return _1_cid;
       }
     };
-    static ShrinkConstraint(c, x, nodes) {
+    static ShrinkConstraint(c, x) {
       let _source0 = c;
       {
         if (_source0.is_Align) {
           let _0_cid = (_source0).cid;
           let _1_targets = (_source0).targets;
           let _2_axis = (_source0).axis;
-          let _3_t2 = Canon.__default.RemoveFromSeq(_1_targets, x, nodes);
+          let _3_t2 = Canon.__default.RemoveFromSeq(_1_targets, x);
           if ((new BigNumber((_3_t2).length)).isLessThan(new BigNumber(2))) {
             return _dafny.Tuple.of(false, c);
           } else {
@@ -1802,7 +1786,7 @@ let Canon = (function() {
         let _4_cid = (_source0).cid;
         let _5_targets = (_source0).targets;
         let _6_axis = (_source0).axis;
-        let _7_t2 = Canon.__default.RemoveFromSeq(_5_targets, x, nodes);
+        let _7_t2 = Canon.__default.RemoveFromSeq(_5_targets, x);
         if ((new BigNumber((_7_t2).length)).isLessThan(new BigNumber(3))) {
           return _dafny.Tuple.of(false, c);
         } else {
@@ -1810,13 +1794,13 @@ let Canon = (function() {
         }
       }
     };
-    static ShrinkConstraints(cs, x, i, acc, nodes) {
+    static ShrinkConstraints(cs, x, i, acc) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((cs).length)).isLessThanOrEqualTo(i)) {
           return acc;
         } else {
           let _0_c = (cs)[i];
-          let _let_tmp_rhs0 = Canon.__default.ShrinkConstraint(_0_c, x, nodes);
+          let _let_tmp_rhs0 = Canon.__default.ShrinkConstraint(_0_c, x);
           let _1_keep = (_let_tmp_rhs0)[0];
           let _2_c2 = (_let_tmp_rhs0)[1];
           if (_1_keep) {
@@ -1824,24 +1808,20 @@ let Canon = (function() {
             let _in1 = x;
             let _in2 = (i).plus(_dafny.ONE);
             let _in3 = _dafny.Seq.Concat(acc, _dafny.Seq.of(_2_c2));
-            let _in4 = nodes;
             cs = _in0;
             x = _in1;
             i = _in2;
             acc = _in3;
-            nodes = _in4;
             continue TAIL_CALL_START;
           } else {
-            let _in5 = cs;
-            let _in6 = x;
-            let _in7 = (i).plus(_dafny.ONE);
-            let _in8 = acc;
-            let _in9 = nodes;
-            cs = _in5;
-            x = _in6;
-            i = _in7;
-            acc = _in8;
-            nodes = _in9;
+            let _in4 = cs;
+            let _in5 = x;
+            let _in6 = (i).plus(_dafny.ONE);
+            let _in7 = acc;
+            cs = _in4;
+            x = _in5;
+            i = _in6;
+            acc = _in7;
             continue TAIL_CALL_START;
           }
         }
