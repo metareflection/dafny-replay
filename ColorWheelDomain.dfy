@@ -9,7 +9,7 @@ module ColorWheelDomain refines Domain {
   type Model = CWSpec.Model
   type Action = CWSpec.Action
 
-  predicate Inv(m: Model) {
+  ghost predicate Inv(m: Model) {
     CWSpec.Inv(m)
   }
 
@@ -18,7 +18,7 @@ module ColorWheelDomain refines Domain {
   }
 
   function Apply(m: Model, a: Action): Model {
-    if Inv(m) then CWSpec.Apply(m, a) else m
+    CWSpec.Apply(m, a)
   }
 
   function Normalize(m: Model): Model {
