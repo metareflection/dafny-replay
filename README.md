@@ -281,8 +281,8 @@ A verified color palette generator that enforces mood and harmony constraints by
 * Mood (Vibrant, SoftMuted, Pastel, DeepJewel, Earth, Neon, or Custom)
 * Harmony (Complementary, Triadic, Analogous, SplitComplement, Square, or Custom)
 * Colors (always exactly 5 HSL colors)
-* Adjustment mode (Linked or Independent) — *not yet in UI*
-* Contrast pair (foreground/background indices) — *not yet in UI*
+* Adjustment mode (Linked or Independent) —
+* Contrast pair (foreground/background indices) — *incomplete in UI*
 
 **Key invariants:**
 
