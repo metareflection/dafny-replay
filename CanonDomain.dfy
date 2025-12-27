@@ -16,7 +16,7 @@ module CanonDomain refines Domain {
     | RemoveNode(nodeId: C.NodeId)
     | MoveNode(id: C.NodeId, newX: int, newY: int)
 
-  predicate Inv(m: Model) {
+  ghost predicate Inv(m: Model) {
     C.Inv(m)
   }
 
@@ -25,25 +25,23 @@ module CanonDomain refines Domain {
   }
 
   function Apply(m: Model, a: Action): Model {
-    if !C.Inv(m) then m
-    else
-      match a
-      case AddNode(id, x, y) =>
-        AddNodeImpl(m, id, x, y)
-      case AddAlign(sel) =>
-        C.AddAlign(m, sel)
-      case AddEvenSpace(sel) =>
-        C.AddEvenSpace(m, sel)
-      case AddEdge(from, to) =>
-        C.AddEdge(m, from, to)
-      case DeleteConstraint(cid) =>
-        C.DeleteConstraint(m, cid)
-      case DeleteEdge(from, to) =>
-        C.DeleteEdge(m, from, to)
-      case RemoveNode(nodeId) =>
-        C.RemoveNode(m, nodeId)
-      case MoveNode(id, newX, newY) =>
-        MoveNodeImpl(m, id, newX, newY)
+    match a
+    case AddNode(id, x, y) =>
+      AddNodeImpl(m, id, x, y)
+    case AddAlign(sel) =>
+      C.AddAlign(m, sel)
+    case AddEvenSpace(sel) =>
+      C.AddEvenSpace(m, sel)
+    case AddEdge(from, to) =>
+      C.AddEdge(m, from, to)
+    case DeleteConstraint(cid) =>
+      C.DeleteConstraint(m, cid)
+    case DeleteEdge(from, to) =>
+      C.DeleteEdge(m, from, to)
+    case RemoveNode(nodeId) =>
+      C.RemoveNode(m, nodeId)
+    case MoveNode(id, newX, newY) =>
+      MoveNodeImpl(m, id, newX, newY)
   }
 
   // Helper: add a node (if id not already present)
@@ -76,9 +74,9 @@ module CanonDomain refines Domain {
   {
   }
 
-  // Normalize applies the Canon fixpoint solver
+  // Normalize is identity - Canon is called separately (outside Replay)
   function Normalize(m: Model): Model {
-    if C.Inv(m) then C.Canon(m) else m
+    m
   }
 
   lemma InitSatisfiesInv()
@@ -88,25 +86,23 @@ module CanonDomain refines Domain {
 
   lemma StepPreservesInv(m: Model, a: Action)
   {
-    if C.Inv(m) {
-      match a
-      case AddNode(id, x, y) =>
-        AddNodeImplPreservesInv(m, id, x, y);
-      case AddAlign(sel) =>
-        C.AddAlignPreservesInv(m, sel);
-      case AddEvenSpace(sel) =>
-        C.AddEvenSpacePreservesInv(m, sel);
-      case AddEdge(from, to) =>
-        C.AddEdgePreservesInv(m, from, to);
-      case DeleteConstraint(cid) =>
-        C.DeleteConstraintPreservesInv(m, cid);
-      case DeleteEdge(from, to) =>
-        C.DeleteEdgePreservesInv(m, from, to);
-      case RemoveNode(nodeId) =>
-        C.RemoveNodePreservesInv(m, nodeId);
-      case MoveNode(id, newX, newY) =>
-        MoveNodeImplPreservesInv(m, id, newX, newY);
-    }
+    match a
+    case AddNode(id, x, y) =>
+      AddNodeImplPreservesInv(m, id, x, y);
+    case AddAlign(sel) =>
+      C.AddAlignPreservesInv(m, sel);
+    case AddEvenSpace(sel) =>
+      C.AddEvenSpacePreservesInv(m, sel);
+    case AddEdge(from, to) =>
+      C.AddEdgePreservesInv(m, from, to);
+    case DeleteConstraint(cid) =>
+      C.DeleteConstraintPreservesInv(m, cid);
+    case DeleteEdge(from, to) =>
+      C.DeleteEdgePreservesInv(m, from, to);
+    case RemoveNode(nodeId) =>
+      C.RemoveNodePreservesInv(m, nodeId);
+    case MoveNode(id, newX, newY) =>
+      MoveNodeImplPreservesInv(m, id, newX, newY);
   }
 }
 

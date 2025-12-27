@@ -55,7 +55,7 @@ module Canon {
     forall i :: 0 <= i < |es| ==> EdgeValid(es[i], nodes)
   }
 
-  predicate Inv(m: Model) {
+  ghost predicate Inv(m: Model) {
     AllConstraintsValid(m.constraints, m.nodes)
     && AllEdgesValid(m.edges, m.nodes)
   }
