@@ -1464,21 +1464,38 @@ let ColorWheelSpec = (function() {
         }
       }
       {
+        if (_source0.is_AdjustPalette) {
+          let _15_deltaH = (_source0).deltaH;
+          let _16_deltaS = (_source0).deltaS;
+          let _17_deltaL = (_source0).deltaL;
+          if (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5))) {
+            return m;
+          } else if (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), true, function (_forall_var_1) {
+            let _18_i = _forall_var_1;
+            return !(((_dafny.ZERO).isLessThanOrEqualTo(_18_i)) && ((_18_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ValidColor(((m).dtor_colors)[_18_i]));
+          })) {
+            return ColorWheelSpec.__default.ApplyLinkedAdjustment(m, _15_deltaH, _16_deltaS, _17_deltaL);
+          } else {
+            return m;
+          }
+        }
+      }
+      {
         if (_source0.is_SetAdjustmentMode) {
-          let _15_mode = (_source0).mode;
-          let _16_dt__update__tmp_h1 = m;
-          let _17_dt__update_hadjustmentMode_h0 = _15_mode;
-          return ColorWheelSpec.Model.create_Model((_16_dt__update__tmp_h1).dtor_baseHue, (_16_dt__update__tmp_h1).dtor_mood, (_16_dt__update__tmp_h1).dtor_harmony, (_16_dt__update__tmp_h1).dtor_colors, _17_dt__update_hadjustmentMode_h0, (_16_dt__update__tmp_h1).dtor_contrastPair);
+          let _19_mode = (_source0).mode;
+          let _20_dt__update__tmp_h1 = m;
+          let _21_dt__update_hadjustmentMode_h0 = _19_mode;
+          return ColorWheelSpec.Model.create_Model((_20_dt__update__tmp_h1).dtor_baseHue, (_20_dt__update__tmp_h1).dtor_mood, (_20_dt__update__tmp_h1).dtor_harmony, (_20_dt__update__tmp_h1).dtor_colors, _21_dt__update_hadjustmentMode_h0, (_20_dt__update__tmp_h1).dtor_contrastPair);
         }
       }
       {
         if (_source0.is_SelectContrastPair) {
-          let _18_fg = (_source0).fg;
-          let _19_bg = (_source0).bg;
-          if ((((_dafny.ZERO).isLessThanOrEqualTo(_18_fg)) && ((_18_fg).isLessThan(new BigNumber(5)))) && (((_dafny.ZERO).isLessThanOrEqualTo(_19_bg)) && ((_19_bg).isLessThan(new BigNumber(5))))) {
-            let _20_dt__update__tmp_h2 = m;
-            let _21_dt__update_hcontrastPair_h0 = _dafny.Tuple.of(_18_fg, _19_bg);
-            return ColorWheelSpec.Model.create_Model((_20_dt__update__tmp_h2).dtor_baseHue, (_20_dt__update__tmp_h2).dtor_mood, (_20_dt__update__tmp_h2).dtor_harmony, (_20_dt__update__tmp_h2).dtor_colors, (_20_dt__update__tmp_h2).dtor_adjustmentMode, _21_dt__update_hcontrastPair_h0);
+          let _22_fg = (_source0).fg;
+          let _23_bg = (_source0).bg;
+          if ((((_dafny.ZERO).isLessThanOrEqualTo(_22_fg)) && ((_22_fg).isLessThan(new BigNumber(5)))) && (((_dafny.ZERO).isLessThanOrEqualTo(_23_bg)) && ((_23_bg).isLessThan(new BigNumber(5))))) {
+            let _24_dt__update__tmp_h2 = m;
+            let _25_dt__update_hcontrastPair_h0 = _dafny.Tuple.of(_22_fg, _23_bg);
+            return ColorWheelSpec.Model.create_Model((_24_dt__update__tmp_h2).dtor_baseHue, (_24_dt__update__tmp_h2).dtor_mood, (_24_dt__update__tmp_h2).dtor_harmony, (_24_dt__update__tmp_h2).dtor_colors, (_24_dt__update__tmp_h2).dtor_adjustmentMode, _25_dt__update_hcontrastPair_h0);
           } else {
             return m;
           }
@@ -1486,56 +1503,56 @@ let ColorWheelSpec = (function() {
       }
       {
         if (_source0.is_SetColorDirect) {
-          let _22_index = (_source0).index;
-          let _23_color = (_source0).color;
-          if ((((_22_index).isLessThan(_dafny.ZERO)) || ((new BigNumber(5)).isLessThanOrEqualTo(_22_index))) || (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5)))) {
+          let _26_index = (_source0).index;
+          let _27_color = (_source0).color;
+          if ((((_26_index).isLessThan(_dafny.ZERO)) || ((new BigNumber(5)).isLessThanOrEqualTo(_26_index))) || (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5)))) {
             return m;
           } else {
-            return ColorWheelSpec.__default.ApplySetColorDirect(m, _22_index, _23_color);
+            return ColorWheelSpec.__default.ApplySetColorDirect(m, _26_index, _27_color);
           }
         }
       }
       {
         if (_source0.is_RegenerateMood) {
-          let _24_mood = (_source0).mood;
-          let _25_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_25_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          let _28_mood = (_source0).mood;
+          let _29_randomSeeds = (_source0).randomSeeds;
+          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_29_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
             return m;
           } else {
-            let _26_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, _24_mood, (m).dtor_harmony, _25_randomSeeds);
-            let _27_dt__update__tmp_h3 = m;
-            let _28_dt__update_hcolors_h1 = _26_colors;
-            let _29_dt__update_hmood_h1 = _24_mood;
-            return ColorWheelSpec.Model.create_Model((_27_dt__update__tmp_h3).dtor_baseHue, _29_dt__update_hmood_h1, (_27_dt__update__tmp_h3).dtor_harmony, _28_dt__update_hcolors_h1, (_27_dt__update__tmp_h3).dtor_adjustmentMode, (_27_dt__update__tmp_h3).dtor_contrastPair);
+            let _30_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, _28_mood, (m).dtor_harmony, _29_randomSeeds);
+            let _31_dt__update__tmp_h3 = m;
+            let _32_dt__update_hcolors_h1 = _30_colors;
+            let _33_dt__update_hmood_h1 = _28_mood;
+            return ColorWheelSpec.Model.create_Model((_31_dt__update__tmp_h3).dtor_baseHue, _33_dt__update_hmood_h1, (_31_dt__update__tmp_h3).dtor_harmony, _32_dt__update_hcolors_h1, (_31_dt__update__tmp_h3).dtor_adjustmentMode, (_31_dt__update__tmp_h3).dtor_contrastPair);
           }
         }
       }
       {
         if (_source0.is_RegenerateHarmony) {
-          let _30_harmony = (_source0).harmony;
-          let _31_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_31_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          let _34_harmony = (_source0).harmony;
+          let _35_randomSeeds = (_source0).randomSeeds;
+          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_35_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
             return m;
           } else {
-            let _32_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, (m).dtor_mood, _30_harmony, _31_randomSeeds);
-            let _33_dt__update__tmp_h4 = m;
-            let _34_dt__update_hcolors_h2 = _32_colors;
-            let _35_dt__update_hharmony_h1 = _30_harmony;
-            return ColorWheelSpec.Model.create_Model((_33_dt__update__tmp_h4).dtor_baseHue, (_33_dt__update__tmp_h4).dtor_mood, _35_dt__update_hharmony_h1, _34_dt__update_hcolors_h2, (_33_dt__update__tmp_h4).dtor_adjustmentMode, (_33_dt__update__tmp_h4).dtor_contrastPair);
+            let _36_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, (m).dtor_mood, _34_harmony, _35_randomSeeds);
+            let _37_dt__update__tmp_h4 = m;
+            let _38_dt__update_hcolors_h2 = _36_colors;
+            let _39_dt__update_hharmony_h1 = _34_harmony;
+            return ColorWheelSpec.Model.create_Model((_37_dt__update__tmp_h4).dtor_baseHue, (_37_dt__update__tmp_h4).dtor_mood, _39_dt__update_hharmony_h1, _38_dt__update_hcolors_h2, (_37_dt__update__tmp_h4).dtor_adjustmentMode, (_37_dt__update__tmp_h4).dtor_contrastPair);
           }
         }
       }
       {
-        let _36_newBaseHue = (_source0).newBaseHue;
-        let _37_randomSeeds = (_source0).randomSeeds;
-        if ((!(ColorWheelSpec.__default.ValidBaseHue(_36_newBaseHue))) || (!(ColorWheelSpec.__default.ValidRandomSeeds(_37_randomSeeds)))) {
+        let _40_newBaseHue = (_source0).newBaseHue;
+        let _41_randomSeeds = (_source0).randomSeeds;
+        if ((!(ColorWheelSpec.__default.ValidBaseHue(_40_newBaseHue))) || (!(ColorWheelSpec.__default.ValidRandomSeeds(_41_randomSeeds)))) {
           return m;
         } else {
-          let _38_colors = ColorWheelSpec.__default.GeneratePaletteColors(_36_newBaseHue, (m).dtor_mood, (m).dtor_harmony, _37_randomSeeds);
-          let _39_dt__update__tmp_h5 = m;
-          let _40_dt__update_hcolors_h3 = _38_colors;
-          let _41_dt__update_hbaseHue_h1 = _36_newBaseHue;
-          return ColorWheelSpec.Model.create_Model(_41_dt__update_hbaseHue_h1, (_39_dt__update__tmp_h5).dtor_mood, (_39_dt__update__tmp_h5).dtor_harmony, _40_dt__update_hcolors_h3, (_39_dt__update__tmp_h5).dtor_adjustmentMode, (_39_dt__update__tmp_h5).dtor_contrastPair);
+          let _42_colors = ColorWheelSpec.__default.GeneratePaletteColors(_40_newBaseHue, (m).dtor_mood, (m).dtor_harmony, _41_randomSeeds);
+          let _43_dt__update__tmp_h5 = m;
+          let _44_dt__update_hcolors_h3 = _42_colors;
+          let _45_dt__update_hbaseHue_h1 = _40_newBaseHue;
+          return ColorWheelSpec.Model.create_Model(_45_dt__update_hbaseHue_h1, (_43_dt__update__tmp_h5).dtor_mood, (_43_dt__update__tmp_h5).dtor_harmony, _44_dt__update_hcolors_h3, (_43_dt__update__tmp_h5).dtor_adjustmentMode, (_43_dt__update__tmp_h5).dtor_contrastPair);
         }
       }
     };
@@ -1973,49 +1990,57 @@ let ColorWheelSpec = (function() {
       $dt.deltaL = deltaL;
       return $dt;
     }
-    static create_SetAdjustmentMode(mode) {
+    static create_AdjustPalette(deltaH, deltaS, deltaL) {
       let $dt = new Action(2);
+      $dt.deltaH = deltaH;
+      $dt.deltaS = deltaS;
+      $dt.deltaL = deltaL;
+      return $dt;
+    }
+    static create_SetAdjustmentMode(mode) {
+      let $dt = new Action(3);
       $dt.mode = mode;
       return $dt;
     }
     static create_SelectContrastPair(fg, bg) {
-      let $dt = new Action(3);
+      let $dt = new Action(4);
       $dt.fg = fg;
       $dt.bg = bg;
       return $dt;
     }
     static create_SetColorDirect(index, color) {
-      let $dt = new Action(4);
+      let $dt = new Action(5);
       $dt.index = index;
       $dt.color = color;
       return $dt;
     }
     static create_RegenerateMood(mood, randomSeeds) {
-      let $dt = new Action(5);
+      let $dt = new Action(6);
       $dt.mood = mood;
       $dt.randomSeeds = randomSeeds;
       return $dt;
     }
     static create_RegenerateHarmony(harmony, randomSeeds) {
-      let $dt = new Action(6);
+      let $dt = new Action(7);
       $dt.harmony = harmony;
       $dt.randomSeeds = randomSeeds;
       return $dt;
     }
     static create_RandomizeBaseHue(newBaseHue, randomSeeds) {
-      let $dt = new Action(7);
+      let $dt = new Action(8);
       $dt.newBaseHue = newBaseHue;
       $dt.randomSeeds = randomSeeds;
       return $dt;
     }
     get is_GeneratePalette() { return this.$tag === 0; }
     get is_AdjustColor() { return this.$tag === 1; }
-    get is_SetAdjustmentMode() { return this.$tag === 2; }
-    get is_SelectContrastPair() { return this.$tag === 3; }
-    get is_SetColorDirect() { return this.$tag === 4; }
-    get is_RegenerateMood() { return this.$tag === 5; }
-    get is_RegenerateHarmony() { return this.$tag === 6; }
-    get is_RandomizeBaseHue() { return this.$tag === 7; }
+    get is_AdjustPalette() { return this.$tag === 2; }
+    get is_SetAdjustmentMode() { return this.$tag === 3; }
+    get is_SelectContrastPair() { return this.$tag === 4; }
+    get is_SetColorDirect() { return this.$tag === 5; }
+    get is_RegenerateMood() { return this.$tag === 6; }
+    get is_RegenerateHarmony() { return this.$tag === 7; }
+    get is_RandomizeBaseHue() { return this.$tag === 8; }
     get dtor_baseHue() { return this.baseHue; }
     get dtor_mood() { return this.mood; }
     get dtor_harmony() { return this.harmony; }
@@ -2035,16 +2060,18 @@ let ColorWheelSpec = (function() {
       } else if (this.$tag === 1) {
         return "ColorWheelSpec.Action.AdjustColor" + "(" + _dafny.toString(this.index) + ", " + _dafny.toString(this.deltaH) + ", " + _dafny.toString(this.deltaS) + ", " + _dafny.toString(this.deltaL) + ")";
       } else if (this.$tag === 2) {
-        return "ColorWheelSpec.Action.SetAdjustmentMode" + "(" + _dafny.toString(this.mode) + ")";
+        return "ColorWheelSpec.Action.AdjustPalette" + "(" + _dafny.toString(this.deltaH) + ", " + _dafny.toString(this.deltaS) + ", " + _dafny.toString(this.deltaL) + ")";
       } else if (this.$tag === 3) {
-        return "ColorWheelSpec.Action.SelectContrastPair" + "(" + _dafny.toString(this.fg) + ", " + _dafny.toString(this.bg) + ")";
+        return "ColorWheelSpec.Action.SetAdjustmentMode" + "(" + _dafny.toString(this.mode) + ")";
       } else if (this.$tag === 4) {
-        return "ColorWheelSpec.Action.SetColorDirect" + "(" + _dafny.toString(this.index) + ", " + _dafny.toString(this.color) + ")";
+        return "ColorWheelSpec.Action.SelectContrastPair" + "(" + _dafny.toString(this.fg) + ", " + _dafny.toString(this.bg) + ")";
       } else if (this.$tag === 5) {
-        return "ColorWheelSpec.Action.RegenerateMood" + "(" + _dafny.toString(this.mood) + ", " + _dafny.toString(this.randomSeeds) + ")";
+        return "ColorWheelSpec.Action.SetColorDirect" + "(" + _dafny.toString(this.index) + ", " + _dafny.toString(this.color) + ")";
       } else if (this.$tag === 6) {
-        return "ColorWheelSpec.Action.RegenerateHarmony" + "(" + _dafny.toString(this.harmony) + ", " + _dafny.toString(this.randomSeeds) + ")";
+        return "ColorWheelSpec.Action.RegenerateMood" + "(" + _dafny.toString(this.mood) + ", " + _dafny.toString(this.randomSeeds) + ")";
       } else if (this.$tag === 7) {
+        return "ColorWheelSpec.Action.RegenerateHarmony" + "(" + _dafny.toString(this.harmony) + ", " + _dafny.toString(this.randomSeeds) + ")";
+      } else if (this.$tag === 8) {
         return "ColorWheelSpec.Action.RandomizeBaseHue" + "(" + _dafny.toString(this.newBaseHue) + ", " + _dafny.toString(this.randomSeeds) + ")";
       } else  {
         return "<unexpected>";
@@ -2058,17 +2085,19 @@ let ColorWheelSpec = (function() {
       } else if (this.$tag === 1) {
         return other.$tag === 1 && _dafny.areEqual(this.index, other.index) && _dafny.areEqual(this.deltaH, other.deltaH) && _dafny.areEqual(this.deltaS, other.deltaS) && _dafny.areEqual(this.deltaL, other.deltaL);
       } else if (this.$tag === 2) {
-        return other.$tag === 2 && _dafny.areEqual(this.mode, other.mode);
+        return other.$tag === 2 && _dafny.areEqual(this.deltaH, other.deltaH) && _dafny.areEqual(this.deltaS, other.deltaS) && _dafny.areEqual(this.deltaL, other.deltaL);
       } else if (this.$tag === 3) {
-        return other.$tag === 3 && _dafny.areEqual(this.fg, other.fg) && _dafny.areEqual(this.bg, other.bg);
+        return other.$tag === 3 && _dafny.areEqual(this.mode, other.mode);
       } else if (this.$tag === 4) {
-        return other.$tag === 4 && _dafny.areEqual(this.index, other.index) && _dafny.areEqual(this.color, other.color);
+        return other.$tag === 4 && _dafny.areEqual(this.fg, other.fg) && _dafny.areEqual(this.bg, other.bg);
       } else if (this.$tag === 5) {
-        return other.$tag === 5 && _dafny.areEqual(this.mood, other.mood) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
+        return other.$tag === 5 && _dafny.areEqual(this.index, other.index) && _dafny.areEqual(this.color, other.color);
       } else if (this.$tag === 6) {
-        return other.$tag === 6 && _dafny.areEqual(this.harmony, other.harmony) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
+        return other.$tag === 6 && _dafny.areEqual(this.mood, other.mood) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
       } else if (this.$tag === 7) {
-        return other.$tag === 7 && _dafny.areEqual(this.newBaseHue, other.newBaseHue) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
+        return other.$tag === 7 && _dafny.areEqual(this.harmony, other.harmony) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
+      } else if (this.$tag === 8) {
+        return other.$tag === 8 && _dafny.areEqual(this.newBaseHue, other.newBaseHue) && _dafny.areEqual(this.randomSeeds, other.randomSeeds);
       } else  {
         return false; // unexpected
       }
@@ -2233,6 +2262,9 @@ let AppCore = (function() {
     };
     static AdjustColor(index, deltaH, deltaS, deltaL) {
       return ColorWheelSpec.Action.create_AdjustColor(index, deltaH, deltaS, deltaL);
+    };
+    static AdjustPalette(deltaH, deltaS, deltaL) {
+      return ColorWheelSpec.Action.create_AdjustPalette(deltaH, deltaS, deltaL);
     };
     static SetAdjustmentMode(mode) {
       return ColorWheelSpec.Action.create_SetAdjustmentMode(mode);

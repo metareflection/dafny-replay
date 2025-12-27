@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useRef } from 'react';
 import App from '../dafny/app.js';
 
 const ColorWheelContext = createContext(null);
@@ -62,18 +62,68 @@ export const getHarmonyByTag = (tag) => {
   }
 };
 
+// Helper to convert BigNumber to JS number
+const toNum = (bn) => (bn && typeof bn.toNumber === 'function') ? bn.toNumber() : bn;
+
+// Convert Dafny model to plain JS object with native numbers
+const convertModel = (dafnyModel) => {
+  if (!dafnyModel) return null;
+
+  // Convert colors array (Dafny seq)
+  const colors = [];
+  const dafnyColors = dafnyModel.dtor_colors;
+  if (dafnyColors) {
+    for (let i = 0; i < dafnyColors.length; i++) {
+      const c = dafnyColors[i];
+      colors.push({
+        h: toNum(c.dtor_h),
+        s: toNum(c.dtor_s),
+        l: toNum(c.dtor_l),
+      });
+    }
+  }
+
+  // Convert contrast pair
+  const cp = dafnyModel.dtor_contrastPair;
+  const contrastPair = cp ? [toNum(cp[0]), toNum(cp[1])] : [0, 1];
+
+  return {
+    baseHue: toNum(dafnyModel.dtor_baseHue),
+    mood: dafnyModel.dtor_mood,
+    harmony: dafnyModel.dtor_harmony,
+    colors,
+    adjustmentMode: dafnyModel.dtor_adjustmentMode,
+    contrastPair,
+  };
+};
+
+// Generate 10 random seeds in [0, 100]
+export const randomSeeds = () => Array.from({ length: 10 }, () => Math.floor(Math.random() * 101));
+
 export function ColorWheelProvider({ children }) {
   const [h, setH] = useState(() => App.Init());
+  // Use ref to track current state for chained dispatches in same event handler
+  const hRef = useRef(h);
+  hRef.current = h;
 
-  const model = App.Present(h);
+  const model = convertModel(App.Present(h));
 
   const dispatch = (action) => {
-    const newH = App.Dispatch(h, action);
+    const newH = App.Dispatch(hRef.current, action);
+    hRef.current = newH;
     setH(newH);
   };
 
-  const undo = () => setH(App.Undo(h));
-  const redo = () => setH(App.Redo(h));
+  const undo = () => {
+    const newH = App.Undo(hRef.current);
+    hRef.current = newH;
+    setH(newH);
+  };
+  const redo = () => {
+    const newH = App.Redo(hRef.current);
+    hRef.current = newH;
+    setH(newH);
+  };
   const canUndo = App.CanUndo(h);
   const canRedo = App.CanRedo(h);
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useColorWheel, getMoodName, getHarmonyName, getMoodByTag, getHarmonyByTag } from '../context/ColorWheelContext';
+import { useColorWheel, getMoodName, getHarmonyName, getMoodByTag, getHarmonyByTag, randomSeeds } from '../context/ColorWheelContext';
 
 export function GenerateSection() {
   const { model, dispatch, App } = useColorWheel();
@@ -14,17 +14,18 @@ export function GenerateSection() {
   const handleGenerateOrShift = () => {
     const mood = getMoodByTag(selectedMoodTag);
     const harmony = getHarmonyByTag(selectedHarmonyTag);
-    dispatch(App.GeneratePalette(model.baseHue, mood, harmony));
+    dispatch(App.GeneratePalette(model.baseHue, mood, harmony, randomSeeds()));
   };
 
   const handleRegenerate = () => {
-    dispatch(App.RandomizeBaseHue());
+    const newHue = Math.floor(Math.random() * 360);
+    dispatch(App.RandomizeBaseHue(newHue, randomSeeds()));
   };
 
   const handleHueChange = (newHue) => {
     const mood = getMoodByTag(selectedMoodTag);
     const harmony = getHarmonyByTag(selectedHarmonyTag);
-    dispatch(App.GeneratePalette(newHue, mood, harmony));
+    dispatch(App.GeneratePalette(newHue, mood, harmony, randomSeeds()));
   };
 
   return (

@@ -368,6 +368,70 @@ select:focus {
   gap: 6px;
 }
 
+/* Color Editor Overlay */
+.color-swatch {
+  cursor: pointer;
+}
+
+.color-swatch.editing {
+  z-index: 10;
+}
+
+.color-editor {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.color-editor .close-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.color-editor .close-btn:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-field label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #555;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.editor-field .slider,
+.editor-field .hue-slider {
+  height: 8px;
+}
+
 /* Contrast Section */
 .contrast-section {
   padding: 12px;

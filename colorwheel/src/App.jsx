@@ -2,7 +2,6 @@ import { ColorWheelProvider, useColorWheel } from './context/ColorWheelContext';
 import {
   GenerateSection,
   AdjustSection,
-  DirectEditSection,
   Palette,
   ContrastSection,
   HistoryControls,
@@ -24,7 +23,6 @@ function Dashboard() {
 
         <GenerateSection />
         <AdjustSection />
-        <DirectEditSection />
         <HistoryControls />
       </div>
 

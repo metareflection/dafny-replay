@@ -41,6 +41,8 @@ module ColorWheelSpec {
     // randomSeeds: 10 values [0-100] for random S/L generation (2 per color)
     | GeneratePalette(baseHue: int, mood: Mood, harmony: Harmony, randomSeeds: seq<int>)
     | AdjustColor(index: int, deltaH: int, deltaS: int, deltaL: int)
+    // AdjustPalette: Always applies linked adjustment to ALL colors, regardless of mode
+    | AdjustPalette(deltaH: int, deltaS: int, deltaL: int)
     | SetAdjustmentMode(mode: AdjustmentMode)
     | SelectContrastPair(fg: int, bg: int)
     | SetColorDirect(index: int, color: Color)
@@ -297,6 +299,13 @@ module ColorWheelSpec {
         else m
       else
         ApplyIndependentAdjustment(m, index, deltaH, deltaS, deltaL)
+
+    // AdjustPalette: Always linked, regardless of adjustmentMode
+    case AdjustPalette(deltaH, deltaS, deltaL) =>
+      if |m.colors| != 5 then m
+      else if forall i | 0 <= i < 5 :: ValidColor(m.colors[i]) then
+        ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
+      else m
 
     case SetAdjustmentMode(mode) =>
       m.(adjustmentMode := mode)

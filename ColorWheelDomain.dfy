@@ -60,6 +60,11 @@ module AppCore {
     CWSpec.AdjustColor(index, deltaH, deltaS, deltaL)
   }
 
+  // AdjustPalette: Always applies linked adjustment to ALL colors, regardless of mode
+  function AdjustPalette(deltaH: int, deltaS: int, deltaL: int): D.Action {
+    CWSpec.AdjustPalette(deltaH, deltaS, deltaL)
+  }
+
   function SetAdjustmentMode(mode: CWSpec.AdjustmentMode): D.Action {
     CWSpec.SetAdjustmentMode(mode)
   }
