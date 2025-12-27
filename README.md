@@ -42,6 +42,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Kanban      | Task board                | Exact card partition (no duplication/loss), WIP limits respected |
 | ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
 | ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
+| Canon       | Diagram constraint solver | Valid node/edge references, constraint integrity, undo/redo support |
 
 ---
 
@@ -139,6 +140,25 @@ A subject *can* access a capability if:
 * there exists a delegation chain from a granted subject to them.
 
 The `Reach` function computes transitive closure via bounded iteration, with a proof (`ReachCorrect`) that it matches the ghost specification `HasCap`.
+
+### 4. Canon (diagram constraint solver)
+
+A visual diagram editor with geometric constraints:
+
+* nodes with (x, y) positions,
+* directed edges between nodes,
+* alignment constraints (horizontal/vertical),
+* even-spacing constraints,
+* automatic constraint solver (canonicalization).
+
+**Key invariants:**
+
+1. **Referential integrity**
+   All constraints and edges reference only existing nodes.
+2. **Constraint ID freshness**
+   Constraint IDs are always less than the allocator counter.
+
+**CanonDomain** refines the Replay kernel, providing undo/redo for all diagram operations (add/remove nodes, add/remove edges, add/delete constraints, move nodes). The `canon-replay` app demonstrates the full integration with React.
 
 ---
 
@@ -334,6 +354,9 @@ cd kanban            # kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
+cd colorwheel        # color wheel app
+cd canon             # diagram builder
+cd canon-replay      # diagram builder with undo/redo
 npm install
 npm run dev
 ```
