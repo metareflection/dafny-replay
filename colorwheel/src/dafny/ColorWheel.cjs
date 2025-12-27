@@ -2145,18 +2145,11 @@ let ColorWheelDomain = (function() {
     _parentTraits() {
       return [];
     }
-    static Inv(m) {
-      return ColorWheelSpec.__default.Inv(m);
-    };
     static Init() {
       return ColorWheelSpec.__default.Init();
     };
     static Apply(m, a) {
-      if (ColorWheelDomain.__default.Inv(m)) {
-        return ColorWheelSpec.__default.Apply(m, a);
-      } else {
-        return m;
-      }
+      return ColorWheelSpec.__default.Apply(m, a);
     };
     static Normalize(m) {
       return ColorWheelSpec.__default.Normalize(m);
