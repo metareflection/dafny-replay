@@ -44,6 +44,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
 | Canon       | Diagram constraint solver | Valid node/edge references, constraint integrity, undo/redo support |
 
+
 ---
 
 ## Architecture (Replay Kernel)
