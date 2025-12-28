@@ -1,4 +1,4 @@
-// ESM wrapper for Dafny-generated Canon module
+// ESM wrapper for Dafny-generated CanonDomain (with undo/redo via Replay kernel)
 // Provides a clean API for React without modifying generated code
 
 import BigNumber from 'bignumber.js';
@@ -7,7 +7,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import canonCode from './Canon.cjs?raw';
+import canonReplayCode from './CanonReplay.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -17,11 +17,11 @@ const require = (mod) => {
 
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
-  ${canonCode}
-  return { _dafny, Canon };
+  ${canonReplayCode}
+  return { _dafny, CanonDomain, CanonKernel, AppCore, Canon };
 `);
 
-const { _dafny, Canon } = initDafny(require);
+const { _dafny, CanonKernel, AppCore, Canon } = initDafny(require);
 
 // Helper to convert JS string to Dafny string
 const toDafnyString = (s) => _dafny.Seq.UnicodeFromString(s);
@@ -45,17 +45,12 @@ const fromDafnyNode = (dNode) => ({
   y: dNode.dtor_y.toNumber(),
 });
 
-// Helper to convert JS nodes array to Dafny seq
-const toDafnyNodeSeq = (nodes) => {
-  return _dafny.Seq.of(...nodes.map(toDafnyNode));
-};
-
 // Helper to convert JS string array to Dafny seq of strings
 const toDafnyStringSeq = (ids) => {
   return _dafny.Seq.of(...ids.map(toDafnyString));
 };
 
-// Helper to extract nodes map to JS array
+// Helper to extract nodes map to JS array (from Model)
 const extractNodes = (model) => {
   const nodes = [];
   const nodesMap = model.dtor_nodes;
@@ -66,7 +61,7 @@ const extractNodes = (model) => {
   return nodes;
 };
 
-// Helper to extract constraints to JS array
+// Helper to extract constraints to JS array (from Model)
 const extractConstraints = (model) => {
   const constraints = [];
   const cs = model.dtor_constraints;
@@ -88,7 +83,7 @@ const extractConstraints = (model) => {
   return constraints;
 };
 
-// Helper to extract edges to JS array
+// Helper to extract edges to JS array (from Model)
 const extractEdges = (model) => {
   const edges = [];
   const es = model.dtor_edges;
@@ -102,71 +97,187 @@ const extractEdges = (model) => {
   return edges;
 };
 
+// Helper to convert JS edge to Dafny Edge
+const toDafnyEdge = (edge) => {
+  return Canon.Edge.create_Edge(
+    toDafnyString(edge.from),
+    toDafnyString(edge.to)
+  );
+};
+
+// Helper to convert JS constraint to Dafny Constraint
+const toDafnyConstraint = (c) => {
+  const targets = toDafnyStringSeq(c.targets);
+  const axis = c.axis === 'X' ? Canon.Axis.create_X() : Canon.Axis.create_Y();
+  const cid = new BigNumber(c.cid);
+  if (c.type === 'Align') {
+    return Canon.Constraint.create_Align(cid, targets, axis);
+  } else {
+    return Canon.Constraint.create_EvenSpace(cid, targets, axis);
+  }
+};
+
+// Helper to build Dafny Model from plain JS data
+const buildDafnyModel = (data) => {
+  // Build nodes map
+  let nodesMap = _dafny.Map.Empty;
+  for (const n of data.nodes) {
+    const dNode = toDafnyNode(n);
+    nodesMap = nodesMap.update(toDafnyString(n.id), dNode);
+  }
+
+  // Build edges seq
+  const edgesSeq = _dafny.Seq.of(...data.edges.map(toDafnyEdge));
+
+  // Build constraints seq
+  const constraintsSeq = _dafny.Seq.of(...data.constraints.map(toDafnyConstraint));
+
+  // Create model
+  return Canon.Model.create_Model(
+    nodesMap,
+    edgesSeq,
+    constraintsSeq,
+    new BigNumber(data.nextCid)
+  );
+};
+
 // Create a clean API wrapper
 const App = {
-  // Initialize empty model
-  Empty: () => Canon.__default.Empty(),
-
-  // Initialize from JS nodes array
-  Init: (nodes) => Canon.__default.Init(toDafnyNodeSeq(nodes)),
-
-  // Add alignment constraint for selected nodes
-  AddAlign: (model, selectedIds) => {
-    return Canon.__default.AddAlign(model, toDafnyStringSeq(selectedIds));
+  // Initialize a new history with initial nodes
+  Init: (nodes) => {
+    // Start with empty history
+    let h = AppCore.__default.Init();
+    // Dispatch AddNode for each initial node
+    for (const node of nodes) {
+      const action = AppCore.__default.AddNode(
+        toDafnyString(node.id),
+        new BigNumber(Math.round(node.x)),
+        new BigNumber(Math.round(node.y))
+      );
+      h = AppCore.__default.Dispatch(h, action);
+    }
+    // Clear history so initial nodes aren't undoable
+    // Create fresh history with current present, empty past/future
+    const present = h.dtor_present;
+    return CanonKernel.History.create_History(
+      _dafny.Seq.of(), // empty past
+      present,
+      _dafny.Seq.of()  // empty future
+    );
   },
 
-  // Add even spacing constraint for selected nodes
-  AddEvenSpace: (model, selectedIds) => {
-    return Canon.__default.AddEvenSpace(model, toDafnyStringSeq(selectedIds));
-  },
+  // Action constructors
+  AddNode: (id, x, y) => AppCore.__default.AddNode(
+    toDafnyString(id),
+    new BigNumber(Math.round(x)),
+    new BigNumber(Math.round(y))
+  ),
 
-  // Delete constraint by id
-  DeleteConstraint: (model, cid) => {
-    return Canon.__default.DeleteConstraint(model, new BigNumber(cid));
-  },
+  MoveNode: (id, x, y) => AppCore.__default.MoveNode(
+    toDafnyString(id),
+    new BigNumber(Math.round(x)),
+    new BigNumber(Math.round(y))
+  ),
 
-  // Remove a node from the model
-  RemoveNode: (model, nodeId) => {
-    return Canon.__default.RemoveNode(model, toDafnyString(nodeId));
-  },
+  AddAlign: (selectedIds) => AppCore.__default.AddAlign(toDafnyStringSeq(selectedIds)),
 
-  // Apply all constraints (canonicalize)
-  Canon: (model) => Canon.__default.Canon(model),
+  AddEvenSpace: (selectedIds) => AppCore.__default.AddEvenSpace(toDafnyStringSeq(selectedIds)),
 
-  // Update node positions from JS (rebuild model with new node positions)
-  SetNodes: (model, jsNodes) => {
+  AddEdge: (from, to) => AppCore.__default.AddEdge(toDafnyString(from), toDafnyString(to)),
+
+  DeleteEdge: (from, to) => AppCore.__default.DeleteEdge(toDafnyString(from), toDafnyString(to)),
+
+  DeleteConstraint: (cid) => AppCore.__default.DeleteConstraint(new BigNumber(cid)),
+
+  RemoveNode: (nodeId) => AppCore.__default.RemoveNode(toDafnyString(nodeId)),
+
+  // State transitions
+  Dispatch: (h, action) => AppCore.__default.Dispatch(h, action),
+  Undo: (h) => AppCore.__default.Undo(h),
+  Redo: (h) => AppCore.__default.Redo(h),
+
+  // Selectors
+  CanUndo: (h) => AppCore.__default.CanUndo(h),
+  CanRedo: (h) => AppCore.__default.CanRedo(h),
+
+  // Extract data from history's present model
+  GetNodes: (h) => extractNodes(h.dtor_present),
+  GetEdges: (h) => extractEdges(h.dtor_present),
+  GetConstraints: (h) => extractConstraints(h.dtor_present),
+
+  // Update node positions in history's present (for drag preview)
+  // Returns new history with updated present, same past/future
+  SetNodes: (h, jsNodes) => {
+    const model = h.dtor_present;
     // Build new nodes map from JS nodes
     const newNodesMap = jsNodes.reduce((map, n) => {
       const dNode = toDafnyNode(n);
       return map.update(toDafnyString(n.id), dNode);
     }, _dafny.Map.Empty);
 
-    // Return model with updated nodes, same edges, constraints and nextCid
-    return Canon.Model.create_Model(
+    // Create new model with updated nodes
+    const newModel = Canon.Model.create_Model(
       newNodesMap,
       model.dtor_edges,
       model.dtor_constraints,
       model.dtor_nextCid
     );
+
+    // Return history with updated present
+    return CanonKernel.History.create_History(
+      h.dtor_past,
+      newModel,
+      h.dtor_future
+    );
   },
 
-  // Extract nodes as JS array
-  GetNodes: (model) => extractNodes(model),
-
-  // Extract constraints as JS array
-  GetConstraints: (model) => extractConstraints(model),
-
-  // Extract edges as JS array
-  GetEdges: (model) => extractEdges(model),
-
-  // Add directed edge
-  AddEdge: (model, from, to) => {
-    return Canon.__default.AddEdge(model, toDafnyString(from), toDafnyString(to));
+  // Apply Canon (constraint solver) to history's present
+  // Returns new history with canonicalized present
+  Canon: (h) => {
+    const model = h.dtor_present;
+    const canonModel = Canon.__default.Canon(model);
+    return CanonKernel.History.create_History(
+      h.dtor_past,
+      canonModel,
+      h.dtor_future
+    );
   },
 
-  // Delete edge
-  DeleteEdge: (model, from, to) => {
-    return Canon.__default.DeleteEdge(model, toDafnyString(from), toDafnyString(to));
+  // Get present model from history
+  GetPresent: (h) => h.dtor_present,
+
+  // Check model invariant (runtime-checkable)
+  CheckInv: (model) => Canon.__default.Inv(model),
+
+  // Serialize model to plain JS object
+  Serialize: (model) => ({
+    nodes: extractNodes(model),
+    edges: extractEdges(model),
+    constraints: extractConstraints(model),
+    nextCid: model.dtor_nextCid.toNumber(),
+  }),
+
+  // Load model from plain JS data
+  // If h is provided, preserves undo history; otherwise starts fresh
+  // Returns new history with loaded model as present, or null if invalid
+  Load: (data, h = null) => {
+    try {
+      const model = buildDafnyModel(data);
+      if (!Canon.__default.Inv(model)) {
+        return null;
+      }
+      const newPast = h
+        ? h.dtor_past.concat(_dafny.Seq.of(h.dtor_present))
+        : _dafny.Seq.of();
+      return CanonKernel.History.create_History(
+        newPast,
+        model,
+        _dafny.Seq.of()
+      );
+    } catch (e) {
+      console.error('Failed to load model:', e);
+      return null;
+    }
   },
 };
 
