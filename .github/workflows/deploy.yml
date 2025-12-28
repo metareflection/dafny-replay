@@ -20,24 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build canon-replay
-        working-directory: canon-replay
-        run: |
-          rm -f package-lock.json
-          npm install
-          npm run build
-
-      - name: Build colorwheel
-        working-directory: colorwheel
-        run: |
-          rm -f package-lock.json
-          npm install
-          npm run build
-
       - name: Combine builds
         run: |
           mkdir -p _site/canon _site/colorwheel
