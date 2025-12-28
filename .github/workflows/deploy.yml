@@ -1,0 +1,68 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build canon-replay
+        working-directory: canon-replay
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build colorwheel
+        working-directory: colorwheel
+        run: |
+          npm ci
+          npm run build
+
+      - name: Combine builds
+        run: |
+          mkdir -p _site/canon _site/colorwheel
+          cp canon-replay/dist/index.html _site/canon/index.html
+          cp colorwheel/dist/index.html _site/colorwheel/index.html
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>Dafny Replay Apps</title></head>
+          <body>
+            <h1>Dafny Replay Apps</h1>
+            <ul>
+              <li><a href="canon/">Canon</a></li>
+              <li><a href="colorwheel/">Colorwheel</a></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
