@@ -97,6 +97,50 @@ const extractEdges = (model) => {
   return edges;
 };
 
+// Helper to convert JS edge to Dafny Edge
+const toDafnyEdge = (edge) => {
+  return Canon.Edge.create_Edge(
+    toDafnyString(edge.from),
+    toDafnyString(edge.to)
+  );
+};
+
+// Helper to convert JS constraint to Dafny Constraint
+const toDafnyConstraint = (c) => {
+  const targets = toDafnyStringSeq(c.targets);
+  const axis = c.axis === 'X' ? Canon.Axis.create_X() : Canon.Axis.create_Y();
+  const cid = new BigNumber(c.cid);
+  if (c.type === 'Align') {
+    return Canon.Constraint.create_Align(cid, targets, axis);
+  } else {
+    return Canon.Constraint.create_EvenSpace(cid, targets, axis);
+  }
+};
+
+// Helper to build Dafny Model from plain JS data
+const buildDafnyModel = (data) => {
+  // Build nodes map
+  let nodesMap = _dafny.Map.Empty;
+  for (const n of data.nodes) {
+    const dNode = toDafnyNode(n);
+    nodesMap = nodesMap.update(toDafnyString(n.id), dNode);
+  }
+
+  // Build edges seq
+  const edgesSeq = _dafny.Seq.of(...data.edges.map(toDafnyEdge));
+
+  // Build constraints seq
+  const constraintsSeq = _dafny.Seq.of(...data.constraints.map(toDafnyConstraint));
+
+  // Create model
+  return Canon.Model.create_Model(
+    nodesMap,
+    edgesSeq,
+    constraintsSeq,
+    new BigNumber(data.nextCid)
+  );
+};
+
 // Create a clean API wrapper
 const App = {
   // Initialize a new history with initial nodes
@@ -197,6 +241,43 @@ const App = {
       canonModel,
       h.dtor_future
     );
+  },
+
+  // Get present model from history
+  GetPresent: (h) => h.dtor_present,
+
+  // Check model invariant (runtime-checkable)
+  CheckInv: (model) => Canon.__default.Inv(model),
+
+  // Serialize model to plain JS object
+  Serialize: (model) => ({
+    nodes: extractNodes(model),
+    edges: extractEdges(model),
+    constraints: extractConstraints(model),
+    nextCid: model.dtor_nextCid.toNumber(),
+  }),
+
+  // Load model from plain JS data
+  // If h is provided, preserves undo history; otherwise starts fresh
+  // Returns new history with loaded model as present, or null if invalid
+  Load: (data, h = null) => {
+    try {
+      const model = buildDafnyModel(data);
+      if (!Canon.__default.Inv(model)) {
+        return null;
+      }
+      const newPast = h
+        ? h.dtor_past.concat(_dafny.Seq.of(h.dtor_present))
+        : _dafny.Seq.of();
+      return CanonKernel.History.create_History(
+        newPast,
+        model,
+        _dafny.Seq.of()
+      );
+    } catch (e) {
+      console.error('Failed to load model:', e);
+      return null;
+    }
   },
 };
 

@@ -1230,6 +1230,9 @@ let Canon = (function() {
         return !(((_dafny.ZERO).isLessThanOrEqualTo(_0_i)) && ((_0_i).isLessThan(new BigNumber((es).length)))) || (Canon.__default.EdgeValid((es)[_0_i], nodes));
       });
     };
+    static Inv(m) {
+      return (Canon.__default.AllConstraintsValid((m).dtor_constraints, (m).dtor_nodes)) && (Canon.__default.AllEdgesValid((m).dtor_edges, (m).dtor_nodes));
+    };
     static Contains(xs, x) {
       return _dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber((xs).length)), false, function (_exists_var_0) {
         let _0_i = _exists_var_0;
@@ -2148,6 +2151,9 @@ let CanonDomain = (function() {
     _parentTraits() {
       return [];
     }
+    static Inv(m) {
+      return Canon.__default.Inv(m);
+    };
     static Init() {
       return Canon.__default.Empty();
     };

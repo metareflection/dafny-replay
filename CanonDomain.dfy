@@ -16,7 +16,7 @@ module CanonDomain refines Domain {
     | RemoveNode(nodeId: C.NodeId)
     | MoveNode(id: C.NodeId, newX: int, newY: int)
 
-  ghost predicate Inv(m: Model) {
+  predicate Inv(m: Model) {
     C.Inv(m)
   }
 

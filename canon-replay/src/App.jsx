@@ -91,10 +91,35 @@ const INITIAL_NODES = [
 ]
 
 const NODE_SIZE = 40
+const STORAGE_KEY = 'canon-replay'
+
+// Load from localStorage on startup
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    return App.Load(data)
+  } catch (e) {
+    console.error('Failed to load from storage:', e)
+    return null
+  }
+}
+
+// Save to localStorage
+function saveToStorage(history) {
+  try {
+    const data = App.Serialize(App.GetPresent(history))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch (e) {
+    console.error('Failed to save to storage:', e)
+  }
+}
 
 function CanonApp() {
   // History-based state (supports undo/redo)
-  const [history, setHistory] = useState(() => App.Init(INITIAL_NODES))
+  // Try to load from localStorage, fall back to initial nodes
+  const [history, setHistory] = useState(() => loadFromStorage() ?? App.Init(INITIAL_NODES))
   const [selected, setSelected] = useState(new Set())
 
   // Drag state - tracked separately so intermediate positions aren't in history
@@ -150,6 +175,11 @@ function CanonApp() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo])
+
+  // Save to localStorage whenever history changes
+  useEffect(() => {
+    saveToStorage(history)
+  }, [history])
 
   // Handle node click for selection toggle
   const handleNodeClick = (e, nodeId) => {
@@ -269,6 +299,38 @@ function CanonApp() {
     downloadTextFile("diagram.tex", tikz)
   }
 
+  const exportJson = () => {
+    const data = App.Serialize(App.GetPresent(history))
+    downloadTextFile("diagram.json", JSON.stringify(data, null, 2))
+  }
+
+  const fileInputRef = useRef(null)
+
+  const importJson = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileImport = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result)
+        const newHistory = App.Load(data, history)
+        if (newHistory) {
+          setHistory(newHistory)
+        } else {
+          alert('Invalid diagram file')
+        }
+      } catch (err) {
+        alert('Failed to parse file: ' + err.message)
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = '' // Reset so same file can be imported again
+  }
+
   // Set up global mouse listeners
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove)
@@ -360,7 +422,17 @@ function CanonApp() {
         <button onClick={addEvenSpace} disabled={selected.size < 3}>
           Even Space ({selected.size})
         </button>
+        <span className="separator">|</span>
+        <button onClick={importJson}>Import</button>
+        <button onClick={exportJson}>Export</button>
         <button onClick={exportTikz}>Export TikZ</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          style={{ display: 'none' }}
+          onChange={handleFileImport}
+        />
       </div>
 
       <div className="main">
