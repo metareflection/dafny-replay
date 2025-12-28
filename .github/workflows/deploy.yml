@@ -27,12 +27,14 @@ jobs:
       - name: Build canon-replay
         working-directory: canon-replay
         run: |
+          rm -f package-lock.json
           npm install
           npm run build
 
       - name: Build colorwheel
         working-directory: colorwheel
         run: |
+          rm -f package-lock.json
           npm install
           npm run build
 
