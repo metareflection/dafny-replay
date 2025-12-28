@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 
-cp colorwheel/dist/index.html site/colorwheel/
-cp canon-replay/dist/index.html site/canon/
+cp colorwheel/dist/index.html docs/colorwheel/
+cp canon-replay/dist/index.html docs/canon/
