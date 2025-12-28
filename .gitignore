@@ -1,12 +1,4 @@
 node_modules/
-*~
-
-# Ignore dist except for built single-file apps
 dist/
-!canon-replay/dist/
-canon-replay/dist/*
-!canon-replay/dist/index.html
-!colorwheel/dist/
-colorwheel/dist/*
-!colorwheel/dist/index.html
+*~
 
