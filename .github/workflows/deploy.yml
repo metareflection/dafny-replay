@@ -27,13 +27,13 @@ jobs:
       - name: Build canon-replay
         working-directory: canon-replay
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Build colorwheel
         working-directory: colorwheel
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Combine builds
