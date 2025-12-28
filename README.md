@@ -46,8 +46,11 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 ---
 
-## Architecture (Replay Kernel)
+## List of Kernels
 
+### The Replay Kernel
+
+Architecture:
 ```
 Abstract Domain (spec)
         ↓ refined by
@@ -57,8 +60,6 @@ Replay Kernel (generic, proved once)
         ↓ compiled to JS
 AppCore (React-facing API)
 ```
-
-### The Replay Kernel
 
 The kernel maintains:
 
