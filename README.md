@@ -40,15 +40,17 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | App         | Domain                    | Key Guarantees |
 |-------------|---------------------------|----------------|
 | Kanban      | Task board                | Exact card partition (no duplication/loss), WIP limits respected |
-| ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
-| ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
 | Canon       | Diagram constraint solver | Valid node/edge references, constraint integrity, undo/redo support |
-
+| ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
+| ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
 
 ---
 
-## Architecture (Replay Kernel)
+## List of Kernels
 
+### The Replay Kernel
+
+Architecture:
 ```
 Abstract Domain (spec)
         ↓ refined by
@@ -58,8 +60,6 @@ Replay Kernel (generic, proved once)
         ↓ compiled to JS
 AppCore (React-facing API)
 ```
-
-### The Replay Kernel
 
 The kernel maintains:
 
@@ -75,91 +75,16 @@ and provides:
 
 It is proved *once* that replay preserves the domain invariant.
 
-### Domain obligation (the only proof you owe)
+### Domain obligation (the only proofs you owe)
 
 For a given domain, you must prove:
 
 ```text
+Inv(Init())
 Inv(m) ⇒ Inv(Normalize(Apply(m, action)))
 ```
 
 After that, **undo/redo correctness is automatic**.
-
----
-
-## Domains in this repository
-
-### 1. Toy domain (counter)
-
-A minimal sanity check:
-
-* `Model = int`
-* invariant: `m ≥ 0`
-
-Useful for bootstrapping the pipeline.
-
-### 2. Kanban board (non-trivial)
-
-A realistic, non-local domain with:
-
-* dynamic columns (string IDs),
-* ordered cards per column,
-* per-column WIP limits,
-* model-allocated card IDs,
-* undo/redo over drag-and-drop operations.
-
-**Key invariants:**
-
-1. **Exact partition**
-   Every card exists in *exactly one* column
-   (no disappearance, no duplication).
-2. **WIP limits respected**
-   Column sizes never exceed their limits.
-
-This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
-
-### 3. Delegation Auth (capability delegation)
-
-A permission system with transitive capability delegation:
-
-* subjects (users/entities),
-* direct capability grants,
-* delegations (edges transferring capability access),
-* revocable delegation edges with unique IDs.
-
-**Key invariants:**
-
-1. **Referential integrity**
-   All grant subjects and delegation endpoints must exist in the subject set.
-2. **Fresh edge IDs**
-   Delegation IDs are always less than the allocator counter.
-
-**Access semantics:**
-
-A subject *can* access a capability if:
-* they have a direct grant, OR
-* there exists a delegation chain from a granted subject to them.
-
-The `Reach` function computes transitive closure via bounded iteration, with a proof (`ReachCorrect`) that it matches the ghost specification `HasCap`.
-
-### 4. Canon (diagram constraint solver)
-
-A visual diagram editor with geometric constraints:
-
-* nodes with (x, y) positions,
-* directed edges between nodes,
-* alignment constraints (horizontal/vertical),
-* even-spacing constraints,
-* automatic constraint solver (canonicalization).
-
-**Key invariants:**
-
-1. **Referential integrity**
-   All constraints and edges reference only existing nodes.
-2. **Constraint ID freshness**
-   Constraint IDs are always less than the allocator counter.
-
-**CanonDomain** refines the Replay kernel, providing undo/redo for all diagram operations (add/remove nodes, add/remove edges, add/delete constraints, move nodes). The `canon-replay` app demonstrates the full integration with React.
 
 ---
 
@@ -234,7 +159,108 @@ The kernel is designed for domains where "intent" matters more than exact positi
 
 ---
 
-## Apps
+## List of Apps/Domains
+
+### Toy domain (counter)
+
+A minimal sanity check:
+
+* `Model = int`
+* invariant: `m ≥ 0`
+
+Useful for bootstrapping the pipeline.
+
+See counter/ and counter-authority/.
+
+### Kanban board (non-trivial)
+
+A realistic, non-local domain with:
+
+* dynamic columns (string IDs),
+* ordered cards per column,
+* per-column WIP limits,
+* model-allocated card IDs,
+* undo/redo over drag-and-drop operations.
+
+**Key invariants:**
+
+1. **Exact partition**
+   Every card exists in *exactly one* column
+   (no disappearance, no duplication).
+2. **WIP limits respected**
+   Column sizes never exceed their limits.
+
+This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
+
+See kanban/ (replay kernel) and kanban-multi-collaboration/ (multi-collaboration kernel).
+
+### Delegation Auth (capability delegation)
+
+A permission system with transitive capability delegation:
+
+* subjects (users/entities),
+* direct capability grants,
+* delegations (edges transferring capability access),
+* revocable delegation edges with unique IDs.
+
+**Key invariants:**
+
+1. **Referential integrity**
+   All grant subjects and delegation endpoints must exist in the subject set.
+2. **Fresh edge IDs**
+   Delegation IDs are always less than the allocator counter.
+
+**Access semantics:**
+
+A subject *can* access a capability if:
+* they have a direct grant, OR
+* there exists a delegation chain from a granted subject to them.
+
+The `Reach` function computes transitive closure via bounded iteration, with a proof (`ReachCorrect`) that it matches the ghost specification `HasCap`.
+
+### Canon (diagram constraint solver)
+
+A visual diagram editor with geometric constraints:
+
+* nodes with (x, y) positions,
+* directed edges between nodes,
+* alignment constraints (horizontal/vertical),
+* even-spacing constraints,
+* automatic constraint solver (canonicalization).
+
+**Key invariants:**
+
+1. **Referential integrity**
+   All constraints and edges reference only existing nodes.
+2. **Constraint ID freshness**
+   Constraint IDs are always less than the allocator counter.
+
+### ColorWheel (color palette generator)
+
+A verified color palette generator that enforces mood and harmony constraints by construction.
+
+**Of note**:
+* This app separates the spec from the proof for the purpose of ensuring that the LLM is not independently making edits to the spec in order for the proof to go through. A change to the spec was made so that proofs could complete, but it was approved by the user first. 
+* This app includes a helpful file `PROVED.md` which shows what implementations were actually proven and which were shipped as is. 
+
+**Model:**
+* Base hue (0-359, the anchor for harmony calculations)
+* Mood (Vibrant, SoftMuted, Pastel, DeepJewel, Earth, Neon, or Custom)
+* Harmony (Complementary, Triadic, Analogous, SplitComplement, Square, or Custom)
+* Colors (always exactly 5 HSL colors)
+* Adjustment mode (Linked or Independent) —
+* Contrast pair (foreground/background indices) — *incomplete in UI*
+
+**Key invariants:**
+
+1. **Mood Satisfaction**
+   All 5 colors satisfy the current mood's saturation/lightness bounds (e.g., Vibrant requires S >= 70, 40 <= L <= 60). When a color violates bounds, the system auto-transitions to Custom mood.
+
+2. **Harmony Coherence**
+   Hues follow the selected harmony pattern relative to the base hue (e.g., Complementary produces hues at H and H+180). When a hue deviates, the system auto-transitions to Custom harmony.
+
+3. **Graceful Degradation**
+   Adjustments that would break constraints automatically fall back to Custom mode rather than failing—the palette always remains valid.
 
 ### ClearSplit (expense splitting)
 
@@ -269,33 +295,6 @@ A verified expense-splitting application with mathematically guaranteed conserva
 
 The code is structured as an abstract specification module (`ClearSplitSpec`) containing user-facing types, predicates, and theorem signatures, refined by an implementation module (`ClearSplit`) containing all helper lemmas and proofs.
 
-### ColorWheel (color palette generator)
-
-A verified color palette generator that enforces mood and harmony constraints by construction.
-
-**Of note**:
-* This app separates the spec from the proof for the purpose of ensuring that the LLM is not independently making edits to the spec in order for the proof to go through. A change to the spec was made so that proofs could complete, but it was approved by the user first. 
-* This app includes a helpful file `PROVED.md` which shows what implementations were actually proven and which were shipped as is. 
-
-**Model:**
-* Base hue (0-359, the anchor for harmony calculations)
-* Mood (Vibrant, SoftMuted, Pastel, DeepJewel, Earth, Neon, or Custom)
-* Harmony (Complementary, Triadic, Analogous, SplitComplement, Square, or Custom)
-* Colors (always exactly 5 HSL colors)
-* Adjustment mode (Linked or Independent) —
-* Contrast pair (foreground/background indices) — *incomplete in UI*
-
-**Key invariants:**
-
-1. **Mood Satisfaction**
-   All 5 colors satisfy the current mood's saturation/lightness bounds (e.g., Vibrant requires S >= 70, 40 <= L <= 60). When a color violates bounds, the system auto-transitions to Custom mood.
-
-2. **Harmony Coherence**
-   Hues follow the selected harmony pattern relative to the base hue (e.g., Complementary produces hues at H and H+180). When a hue deviates, the system auto-transitions to Custom harmony.
-
-3. **Graceful Degradation**
-   Adjustments that would break constraints automatically fall back to Custom mode rather than failing—the palette always remains valid.
-
 ---
 
 ## Why this is interesting
@@ -307,25 +306,6 @@ Using AI for code generation today means choosing between blind trust and heavy 
 * The human reviews and approves the spec (the only review required)
 * The LLM writes implementations, automatically verified against the spec
 * All final implementations are mathematically guaranteed to satisfy the spec
-
----
-
-## Using it from React
-
-The compiled JavaScript exposes a small API (via `AppCore`):
-
-```ts
-const h0 = App.Init();
-const h1 = App.Dispatch(h0, action);
-const h2 = App.Undo(h1);
-const h3 = App.Redo(h2);
-
-App.Present(h3);
-App.CanUndo(h3);
-App.CanRedo(h3);
-```
-
-React stores the **entire History** as state; rendering uses selectors over `present`.
 
 ---
 
@@ -351,13 +331,13 @@ This produces JavaScript artifacts consumed by the demo.
 
 ```bash
 cd counter           # counter
-cd kanban            # kanban board
+cd kanban            # Kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
+cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
-cd canon             # diagram builder
-cd canon-replay      # diagram builder with undo/redo
+cd clear-split       # ClearSplit app
 npm install
 npm run dev
 ```
