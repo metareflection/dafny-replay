@@ -401,7 +401,7 @@ function CanonApp() {
     <div className="app">
       <header className="header">
         <h1>Canon Replay</h1>
-        <span className="subtitle">Verified Diagram Builder with Undo/Redo</span>
+        <span className="subtitle">Verified Diagram Builder</span>
       </header>
 
       <div className="toolbar">
