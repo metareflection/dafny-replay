@@ -129,6 +129,19 @@
   stroke-dasharray: 2 2;
 }
 
+.constraint-line.selected {
+  stroke-opacity: 1;
+  stroke-width: 2.5;
+}
+
+.constraint-line.align.selected {
+  stroke: #07f;
+}
+
+.constraint-line.space.selected {
+  stroke: #f80;
+}
+
 /* Edge lines */
 .edge-line {
   stroke: #666;

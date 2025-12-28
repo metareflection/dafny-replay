@@ -121,6 +121,7 @@ function CanonApp() {
   // Try to load from localStorage, fall back to initial nodes
   const [history, setHistory] = useState(() => loadFromStorage() ?? App.Init(INITIAL_NODES))
   const [selected, setSelected] = useState(new Set())
+  const [selectedConstraint, setSelectedConstraint] = useState(null)
 
   // Drag state - tracked separately so intermediate positions aren't in history
   const [dragging, setDragging] = useState(null)
@@ -239,6 +240,7 @@ function CanonApp() {
   // Click on canvas to deselect
   const handleCanvasClick = () => {
     setSelected(new Set())
+    setSelectedConstraint(null)
   }
 
   // Add constraint handlers
@@ -346,6 +348,7 @@ function CanonApp() {
     return constraints.map(c => {
       const targetNodes = c.targets.map(id => nodes.find(n => n.id === id)).filter(Boolean)
       if (targetNodes.length < 2) return null
+      const isSelected = selectedConstraint === c.cid
 
       if (c.type === 'Align') {
         // Draw a line through aligned nodes
@@ -359,7 +362,7 @@ function CanonApp() {
             <line
               key={`align-${c.cid}`}
               x1={avgX} y1={minY} x2={avgX} y2={maxY}
-              className="constraint-line align"
+              className={`constraint-line align ${isSelected ? 'selected' : ''}`}
             />
           )
         } else {
@@ -371,7 +374,7 @@ function CanonApp() {
             <line
               key={`align-${c.cid}`}
               x1={minX} y1={avgY} x2={maxX} y2={avgY}
-              className="constraint-line align"
+              className={`constraint-line align ${isSelected ? 'selected' : ''}`}
             />
           )
         }
@@ -387,7 +390,7 @@ function CanonApp() {
                 key={`space-${c.cid}-${i}`}
                 x1={n.x} y1={n.y}
                 x2={sorted[i + 1].x} y2={sorted[i + 1].y}
-                className="constraint-line space"
+                className={`constraint-line space ${isSelected ? 'selected' : ''}`}
               />
             ))}
           </g>
@@ -563,13 +566,17 @@ function CanonApp() {
             ) : (
               <ul className="constraint-list">
                 {constraints.map(c => (
-                  <li key={c.cid}>
+                  <li
+                    key={c.cid}
+                    className={selectedConstraint === c.cid ? 'selected' : ''}
+                    onClick={() => setSelectedConstraint(prev => prev === c.cid ? null : c.cid)}
+                  >
                     <span className="constraint-info">
                       <span className={`badge ${c.type.toLowerCase()}`}>{c.type}</span>
                       <span className="axis">{c.axis}</span>
                       <span className="targets">{c.targets.join(', ')}</span>
                     </span>
-                    <button className="delete-btn" onClick={() => deleteConstraint(c.cid)}>x</button>
+                    <button className="delete-btn" onClick={(e) => { e.stopPropagation(); deleteConstraint(c.cid) }}>x</button>
                   </li>
                 ))}
               </ul>
