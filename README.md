@@ -330,12 +330,13 @@ This produces JavaScript artifacts consumed by the demo.
 
 ```bash
 cd counter           # counter
-cd kanban            # kanban board
+cd kanban            # Kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
-cd canon             # diagram builder
+cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
+cd clear-split       # ClearSplit app
 npm install
 npm run dev
 ```
