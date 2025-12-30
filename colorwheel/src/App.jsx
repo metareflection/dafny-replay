@@ -31,7 +31,14 @@ function Dashboard() {
         <Palette contrastFg={contrastFg} contrastBg={contrastBg} />
         <ContrastSection />
         <div className="footer-text">
-          All state transitions verified by Dafny
+          All state transitions verified by Dafny with{' '}
+          <a
+            href="https://github.com/metareflection/dafny-replay"
+            target="_blank"
+            rel="noopener"
+          >
+            dafny-replay
+          </a>
         </div>
       </div>
     </div>
