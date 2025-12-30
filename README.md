@@ -90,6 +90,7 @@ After that, **undo/redo correctness is automatic**.
 
 ## The Authority Kernel
 
+<details>
 In addition to local replay, the repository includes an experimental **authority kernel** for **server-authoritative application state** with optimistic clients.
 
 The authority kernel models a single authoritative server that maintains:
@@ -124,12 +125,15 @@ Inv(m) ∧ TryStep(m, action) = Ok(m′) ⇒ Inv(m′)
 The authority kernel is proved once to preserve the invariant of the authoritative state across all protocol interactions, regardless of client behavior.
 
 This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions.
+</details>
 
 ---
 
 ## The Multi-Collaboration Kernel
 
-A kernel for server-authoritative collaboration with offline clients.
+<details>
+<summary>A kernel for server-authoritative collaboration with offline clients.</summary>
+
 See also the [MULTICOLLAB](MULTICOLLAB.md) design note.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
@@ -149,6 +153,7 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 * **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
 
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
+</details>
 
 ---
 
