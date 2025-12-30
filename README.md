@@ -163,18 +163,21 @@ The kernel is designed for domains where "intent" matters more than exact positi
 
 ### Toy domain (counter)
 
-A minimal sanity check:
+<details>
+<summary>A minimal sanity check:</summary>
 
 * `Model = int`
 * invariant: `m ≥ 0`
 
-Useful for bootstrapping the pipeline.
+>Useful for bootstrapping the pipeline.
 
 See counter/ and counter-authority/.
+</details>
 
 ### Kanban board (non-trivial)
 
-A realistic, non-local domain with:
+<details>
+<summary>A realistic, non-local domain with:</summary>
 
 * dynamic columns (string IDs),
 * ordered cards per column,
@@ -193,11 +196,12 @@ A realistic, non-local domain with:
 This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
 
 See kanban/ (replay kernel) and kanban-multi-collaboration/ (multi-collaboration kernel).
+</details>
 
 ### Delegation Auth (capability delegation)
 
-A permission system with transitive capability delegation:
-
+<details>
+<summary>A permission system with transitive capability delegation:</summary>
 * subjects (users/entities),
 * direct capability grants,
 * delegations (edges transferring capability access),
@@ -217,10 +221,12 @@ A subject *can* access a capability if:
 * there exists a delegation chain from a granted subject to them.
 
 The `Reach` function computes transitive closure via bounded iteration, with a proof (`ReachCorrect`) that it matches the ghost specification `HasCap`.
+</details>
 
 ### Canon (diagram constraint solver)
 
-A visual diagram editor with geometric constraints:
+<details>
+<summary>A visual diagram editor with geometric constraints:</summary>
 
 * nodes with (x, y) positions,
 * directed edges between nodes,
@@ -234,10 +240,12 @@ A visual diagram editor with geometric constraints:
    All constraints and edges reference only existing nodes.
 2. **Constraint ID freshness**
    Constraint IDs are always less than the allocator counter.
+</details>
 
 ### ColorWheel (color palette generator)
 
-A verified color palette generator that enforces mood and harmony constraints by construction.
+<details>
+<summary>A verified color palette generator that enforces mood and harmony constraints by construction.</summary>
 
 **Of note**:
 * This app separates the spec from the proof for the purpose of ensuring that the LLM is not independently making edits to the spec in order for the proof to go through. A change to the spec was made so that proofs could complete, but it was approved by the user first. 
@@ -261,10 +269,12 @@ A verified color palette generator that enforces mood and harmony constraints by
 
 3. **Graceful Degradation**
    Adjustments that would break constraints automatically fall back to Custom mode rather than failing—the palette always remains valid.
+</details>
 
 ### ClearSplit (expense splitting)
 
-A verified expense-splitting application with mathematically guaranteed conservation of money.
+<details>
+<summary>A verified expense-splitting application with mathematically guaranteed conservation of money.</summary>
 
 **Model:**
 * Members (group participants)
@@ -294,6 +304,7 @@ A verified expense-splitting application with mathematically guaranteed conserva
 **Architecture:**
 
 The code is structured as an abstract specification module (`ClearSplitSpec`) containing user-facing types, predicates, and theorem signatures, refined by an implementation module (`ClearSplit`) containing all helper lemmas and proofs.
+</details>
 
 ---
 
