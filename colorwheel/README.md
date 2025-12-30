@@ -2,6 +2,8 @@
 
 A React app powered by Dafny-verified color palette generation logic.
 
+[Live App](https://dafny-replay.midspiral.com/colorwheel/)!
+
 ## Features
 
 - **Mood-based palettes**: Vibrant, Soft/Muted, Pastel, Deep/Jewel, Earth, Neon
