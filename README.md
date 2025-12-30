@@ -195,6 +195,7 @@ See kanban/ (replay kernel) and kanban-multi-collaboration/ (multi-collaboration
 
 <details>
 <summary>A permission system with transitive capability delegation:</summary>
+
 * subjects (users/entities),
 * direct capability grants,
 * delegations (edges transferring capability access),
