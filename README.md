@@ -123,13 +123,6 @@ Inv(m) ∧ TryStep(m, action) = Ok(m′) ⇒ Inv(m′)
 
 The authority kernel is proved once to preserve the invariant of the authoritative state across all protocol interactions, regardless of client behavior.
 
-### What this gives you
-
-* ✅ **Server-side invariants by construction**
-* ✅ **Explicit separation of protocol errors vs domain errors**
-* ✅ **Optimistic UI compatibility**
-* ✅ **Executable JavaScript server logic**
-
 This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions.
 
 ---
