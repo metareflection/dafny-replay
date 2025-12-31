@@ -1,6 +1,7 @@
 # Kanban Supabase
 
 Dafny-verified collaborative Kanban board using Supabase for authentication, authorization, persistence, and realtime updates.
+See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 
 ## Architecture
 
