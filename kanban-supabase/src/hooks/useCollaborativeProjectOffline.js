@@ -186,8 +186,12 @@ export function useCollaborativeProjectOffline(projectId) {
     let currentClient = clientState
     let acceptedCount = 0
     let rejectedCount = 0
+    let actionIndex = 0
+    let consecutiveConflicts = 0
+    const maxConflictRetries = 5
 
-    for (const action of pendingActions) {
+    while (actionIndex < pendingActions.length) {
+      const action = pendingActions[actionIndex]
       try {
         const baseVersion = App.GetBaseVersion(currentClient)
         const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
@@ -208,16 +212,41 @@ export function useCollaborativeProjectOffline(projectId) {
           // Update client to new server state with empty pending
           currentClient = App.InitClient(data.version, data.state)
           acceptedCount++
+          consecutiveConflicts = 0
+          actionIndex++
         } else if (data.status === 'conflict') {
-          // Concurrent modification - sync and retry remaining
-          console.warn('Conflict during flush, resyncing...')
-          await sync()
-          break
+          // Concurrent modification - fetch fresh state and retry same action
+          consecutiveConflicts++
+          if (consecutiveConflicts >= maxConflictRetries) {
+            console.error('Max conflict retries exceeded, aborting flush')
+            setError('Too many conflicts, please try again')
+            break
+          }
+          console.warn(`Conflict during flush (attempt ${consecutiveConflicts}), fetching fresh state...`)
+
+          // Fetch fresh state directly (don't use sync() which affects React state)
+          const { data: freshProject, error: fetchError } = await supabase
+            .from('projects')
+            .select('state, version')
+            .eq('id', projectId)
+            .single()
+
+          if (fetchError || !freshProject) {
+            console.error('Failed to fetch fresh state:', fetchError)
+            break
+          }
+
+          // Update currentClient with fresh state, then retry (don't increment actionIndex)
+          currentClient = App.InitClient(freshProject.version, freshProject.state)
+          setServerVersion(freshProject.version)
+          // Loop continues with same actionIndex to retry
         } else {
-          // Action rejected
+          // Action rejected by domain - move on
           rejectedCount++
           const actionJson = App.actionToJson(action)
           console.warn('Action rejected during flush:', actionJson)
+          consecutiveConflicts = 0
+          actionIndex++
         }
       } catch (e) {
         console.error('Flush error:', e)
