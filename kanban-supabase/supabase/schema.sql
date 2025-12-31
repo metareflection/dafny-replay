@@ -1,0 +1,170 @@
+-- Kanban Supabase Schema
+-- Dafny-verified collaborative Kanban with Supabase
+
+-- ============================================================================
+-- Tables
+-- ============================================================================
+
+-- Projects table: stores Dafny state
+CREATE TABLE IF NOT EXISTS projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Dafny model state (JSON)
+  state JSONB NOT NULL DEFAULT '{
+    "cols": [],
+    "lanes": {},
+    "wip": {},
+    "cards": {},
+    "nextId": 0
+  }',
+
+  -- For reconciliation (MultiCollaboration pattern)
+  version INT NOT NULL DEFAULT 0,
+  applied_log JSONB NOT NULL DEFAULT '[]',
+
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Project members: who can access which project
+CREATE TABLE IF NOT EXISTS project_members (
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
+  joined_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (project_id, user_id)
+);
+
+-- Index for fast membership lookups
+CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
+
+-- ============================================================================
+-- Row Level Security
+-- ============================================================================
+
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
+
+-- Projects: members can read
+-- (Writes go through Edge Function which uses service role)
+CREATE POLICY "members can read projects"
+  ON projects FOR SELECT
+  USING (
+    id IN (
+      SELECT project_id FROM project_members
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- Project members: members can see other members
+CREATE POLICY "members can view membership"
+  ON project_members FOR SELECT
+  USING (
+    project_id IN (
+      SELECT project_id FROM project_members
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- Only owner can add members
+CREATE POLICY "owner can add members"
+  ON project_members FOR INSERT
+  WITH CHECK (
+    project_id IN (
+      SELECT id FROM projects
+      WHERE owner_id = auth.uid()
+    )
+  );
+
+-- Only owner can remove members (but not themselves)
+CREATE POLICY "owner can remove members"
+  ON project_members FOR DELETE
+  USING (
+    project_id IN (
+      SELECT id FROM projects
+      WHERE owner_id = auth.uid()
+    )
+    AND user_id != auth.uid()
+  );
+
+-- ============================================================================
+-- Functions
+-- ============================================================================
+
+-- Create a new project (owner auto-added as member)
+CREATE OR REPLACE FUNCTION create_project(project_name TEXT)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_id UUID;
+BEGIN
+  -- Create project
+  INSERT INTO projects (name, owner_id, state)
+  VALUES (
+    project_name,
+    auth.uid(),
+    '{"cols": [], "lanes": {}, "wip": {}, "cards": {}, "nextId": 0}'::jsonb
+  )
+  RETURNING id INTO new_id;
+
+  -- Add owner as member
+  INSERT INTO project_members (project_id, user_id, role)
+  VALUES (new_id, auth.uid(), 'owner');
+
+  RETURN new_id;
+END;
+$$;
+
+-- ============================================================================
+-- Realtime
+-- ============================================================================
+
+-- Enable realtime for projects table
+ALTER PUBLICATION supabase_realtime ADD TABLE projects;
+
+-- ============================================================================
+-- Optional: Profiles table for user metadata
+-- (Uncomment if you want to store user profiles)
+-- ============================================================================
+
+-- CREATE TABLE IF NOT EXISTS profiles (
+--   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+--   email TEXT,
+--   display_name TEXT,
+--   created_at TIMESTAMPTZ DEFAULT now(),
+--   updated_at TIMESTAMPTZ DEFAULT now()
+-- );
+
+-- ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- CREATE POLICY "users can read all profiles"
+--   ON profiles FOR SELECT
+--   USING (true);
+
+-- CREATE POLICY "users can update own profile"
+--   ON profiles FOR UPDATE
+--   USING (id = auth.uid());
+
+-- -- Trigger to create profile on user signup
+-- CREATE OR REPLACE FUNCTION handle_new_user()
+-- RETURNS TRIGGER
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER
+-- SET search_path = public
+-- AS $$
+-- BEGIN
+--   INSERT INTO profiles (id, email)
+--   VALUES (NEW.id, NEW.email);
+--   RETURN NEW;
+-- END;
+-- $$;
+
+-- CREATE TRIGGER on_auth_user_created
+--   AFTER INSERT ON auth.users
+--   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
