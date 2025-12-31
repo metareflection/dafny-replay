@@ -9,11 +9,16 @@ import App from '../dafny/app.js'
 /**
  * Hook for managing a collaborative project with Dafny-verified state and offline support.
  *
- * Unlike useCollaborativeProject which only tracks a pending counter,
- * this hook uses Dafny's verified ClientState which maintains:
+ * Uses Dafny's verified ClientState which maintains:
  * - baseVersion: Last synced server version
  * - model: Current local model (with pending actions applied optimistically)
  * - pending: Full queue of actions waiting to be sent to server
+ *
+ * Offline support:
+ * - Auto-detects offline state via navigator.onLine and browser events
+ * - Automatically switches to offline mode on network errors
+ * - Auto-flushes pending actions when network is restored
+ * - Manual toggle also available for testing
  *
  * @param {string|null} projectId - The project ID to load
  * @returns {object} Hook result with:
@@ -25,8 +30,8 @@ import App from '../dafny/app.js'
  *   - pendingActions: Array of pending actions (for debugging)
  *   - error: Error message or null
  *   - status: 'syncing' | 'synced' | 'pending' | 'offline' | 'flushing' | 'error'
- *   - isOffline: Whether offline mode is active
- *   - toggleOffline(): Toggle offline mode (flushes on go-online)
+ *   - isOffline: Whether offline mode is active (auto-detected or manual)
+ *   - toggleOffline(): Manual toggle for offline mode (flushes on go-online)
  *   - flush(): Manually flush pending actions to server
  */
 export function useCollaborativeProjectOffline(projectId) {
@@ -35,11 +40,15 @@ export function useCollaborativeProjectOffline(projectId) {
   const [serverVersion, setServerVersion] = useState(0)
   const [error, setError] = useState(null)
   const [status, setStatus] = useState('syncing')
-  const [isOffline, setIsOffline] = useState(false)
+  const [isOffline, setIsOffline] = useState(() =>
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  )
   const [isFlushing, setIsFlushing] = useState(false)
 
   // Ref to track if we're currently dispatching (to avoid race conditions)
   const dispatchingRef = useRef(false)
+  // Ref for flush function to avoid stale closures in event handlers
+  const flushRef = useRef(null)
 
   // ============================================================================
   // Sync: Load state from Supabase and initialize ClientState
@@ -139,10 +148,20 @@ export function useCollaborativeProjectOffline(projectId) {
       }
     } catch (e) {
       console.error('Dispatch error:', e)
-      setError(e.message)
-      setStatus('error')
-      // Resync to recover
-      await sync()
+
+      // Check if this is a network error - switch to offline mode
+      if (e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine) {
+        console.log('Network error detected, switching to offline mode')
+        setIsOffline(true)
+        setStatus('offline')
+        setError(null)
+        // Action is already in pending queue from optimistic update
+      } else {
+        setError(e.message)
+        setStatus('error')
+        // Resync to recover
+        await sync()
+      }
     } finally {
       dispatchingRef.current = false
     }
@@ -202,13 +221,29 @@ export function useCollaborativeProjectOffline(projectId) {
         }
       } catch (e) {
         console.error('Flush error:', e)
+        // Network error during flush - go back to offline mode
+        if (e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine) {
+          console.log('Network error during flush, staying offline')
+          setIsOffline(true)
+          setStatus('offline')
+          setIsFlushing(false)
+          return
+        }
         setError('Failed to flush action')
         break
       }
     }
 
     // Final sync to get clean state
-    await sync()
+    try {
+      await sync()
+    } catch (e) {
+      // If sync fails due to network, stay offline
+      if (!navigator.onLine) {
+        setIsOffline(true)
+        setStatus('offline')
+      }
+    }
     setIsFlushing(false)
 
     if (rejectedCount > 0) {
@@ -231,6 +266,38 @@ export function useCollaborativeProjectOffline(projectId) {
       setStatus('offline')
     }
   }, [isOffline, flush])
+
+  // Keep flushRef updated for use in event handlers
+  flushRef.current = flush
+
+  // ============================================================================
+  // Auto-detect offline/online via browser events
+  // ============================================================================
+
+  useEffect(() => {
+    const handleOffline = () => {
+      console.log('Browser went offline')
+      setIsOffline(true)
+      setStatus('offline')
+    }
+
+    const handleOnline = () => {
+      console.log('Browser came online, flushing pending actions...')
+      setIsOffline(false)
+      // Use ref to get latest flush function
+      if (flushRef.current) {
+        flushRef.current()
+      }
+    }
+
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [])
 
   // ============================================================================
   // Initial sync
