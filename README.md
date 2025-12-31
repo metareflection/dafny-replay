@@ -156,7 +156,7 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
 - See the app kanban-multi-collaboration/ for an example with a non-persistent server.
-- See the app kanban-supabase for an example with user management and database persistence via Supabase.
+- See the app kanban-supabase/ for an example with user management and database persistence via Supabase.
 </details>
 
 ---
@@ -197,7 +197,7 @@ See counter/ and counter-authority/.
 
 This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
 
-See kanban/ (replay kernel) and kanban-multi-collaboration/ (multi-collaboration kernel).
+See kanban/ (replay kernel) and kanban-multi-collaboration/ and kanban-supabase/ (both multi-collaboration kernel).
 </details>
 
 ### Delegation Auth (capability delegation)
