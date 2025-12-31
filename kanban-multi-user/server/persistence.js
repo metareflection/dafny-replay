@@ -141,24 +141,18 @@ export const listProjects = async (userEmail) => {
 
     if (error) throw error;
 
-    console.log(`[listProjects] Found ${data?.length || 0} total projects for user ${userEmail}`);
-
     // Filter by membership
-    const accessible = (data || []).filter(p => {
-      const members = p.state?.present?.members;
-      const isMember = Array.isArray(members) && members.includes(userEmail);
-      console.log(`  Project ${p.id}: members=${JSON.stringify(members)}, isMember=${isMember}`);
-      return isMember;
-    });
-
-    console.log(`[listProjects] ${accessible.length} accessible to ${userEmail}`);
-
-    return accessible.map(p => ({
-      id: p.id,
-      name: p.name,
-      owner_email: p.owner_email,
-      is_owner: p.owner_email === userEmail
-    }));
+    return (data || [])
+      .filter(p => {
+        const members = p.state?.present?.members;
+        return Array.isArray(members) && members.includes(userEmail);
+      })
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        owner_email: p.owner_email,
+        is_owner: p.owner_email === userEmail
+      }));
   } catch (e) {
     console.error('Error listing projects:', e.message);
     throw e;
