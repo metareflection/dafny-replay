@@ -278,6 +278,111 @@ These are proven in `MultiUser.dfy`:
 | `StepPreservesInv` | Valid transitions preserve all invariants |
 | `SyncRequiresMembership` | `TrySync` succeeds ⟹ actor is member |
 
+## Project Lifecycle
+
+### Auto-Creation
+
+Projects are created automatically on first sync:
+
+1. User logs in and client calls `GET /sync` (no projectId)
+2. Server checks if user owns any project
+3. If not, creates one named `{email}'s Project`
+4. Returns the new project's state
+
+No explicit "create project" action needed for the first project.
+
+### Inviting Members
+
+1. Owner sends `InviteMember` action
+2. Dafny verifies actor is owner (`CanManage` check)
+3. User is added to `members` set
+4. Invited user now sees the project in their `/projects` list
+5. Invited user can read (TrySync) and write (Dispatch) to the project
+
+### Project Visibility
+
+A user sees a project in `/projects` if they are in `state.present.members`. This includes:
+- Projects they own (they're always a member)
+- Projects they've been invited to
+
+### Switching Projects
+
+Client passes `?projectId=xxx` to `/sync` or `projectId` in dispatch body to work on a specific project. The server:
+1. Loads that project's state
+2. Verifies membership via TrySync
+3. Rejects with 403 if not a member
+
+## Gotchas
+
+### Forgetting `projectId` in Dispatch
+
+**Wrong:**
+```javascript
+fetch('/dispatch', {
+  body: JSON.stringify({ baseVersion, action })  // Missing projectId!
+})
+```
+
+If you omit `projectId`, the server defaults to the user's *own* project, not the currently viewed project. This silently dispatches to the wrong project.
+
+**Right:**
+```javascript
+fetch('/dispatch', {
+  body: JSON.stringify({ baseVersion, action, projectId: currentProjectId })
+})
+```
+
+### Ad-hoc Authorization Checks
+
+**Wrong:**
+```javascript
+// In server endpoint
+const model = getModel(state);
+if (!model.members.includes(userId)) {  // Ad-hoc JS check
+  return res.status(403).json({ error: 'Unauthorized' });
+}
+```
+
+This duplicates logic that's already verified in Dafny. If the membership model changes, this check might drift out of sync.
+
+**Right:**
+```javascript
+const result = trySync(state, userId);  // Dafny-verified
+if (!result.ok) {
+  return res.status(403).json({ error: 'Not a member' });
+}
+```
+
+### Overwriting Project Name on Save
+
+When saving after an action, don't pass a name unless you're intentionally renaming:
+
+**Wrong:**
+```javascript
+await saveProject(projectId, newState, null, projectId);  // Overwrites name with UUID!
+```
+
+**Right:**
+```javascript
+await saveProject(projectId, newState);  // Preserves existing name
+```
+
+### Assuming Project Exists
+
+When loading a project by ID, always handle the not-found case:
+
+```javascript
+const project = await getProjectById(projectId);
+if (!project) {
+  return res.status(404).json({ error: 'Project not found' });
+}
+// Then check membership with trySync
+```
+
+### Cache Staleness
+
+The server caches projects in memory. If you modify the database directly (e.g., via Supabase dashboard), the cache won't reflect changes until server restart. For development, restart the server after manual DB changes.
+
 ## Current Limitations / TODO
 
 ### No Real-time Updates
