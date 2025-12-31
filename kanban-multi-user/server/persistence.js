@@ -156,22 +156,45 @@ export const listProjects = async (userEmail) => {
 };
 
 /**
- * Get or create the default project for an owner
- * Used during server startup for backward compatibility
- * @param {string} ownerEmail - The owner's email
+ * Get or create a project for a user (each user gets their own project)
+ * @param {string} userEmail - The user's email
  * @returns {Promise<{projectId: string, state: DafnyServerState}>}
  */
-export const getOrCreateDefaultProject = async (ownerEmail) => {
-  const { state, isNew } = await loadProject(DEFAULT_PROJECT_ID);
-
-  if (isNew) {
-    console.log(`[persistence] Creating default project for ${ownerEmail}`);
-    const owner = _dafny.Seq.UnicodeFromString(ownerEmail);
-    const newState = KanbanMultiUserAppCore.__default.InitProject(owner);
-    await saveProject(DEFAULT_PROJECT_ID, newState, ownerEmail, 'Default Project');
-    return { projectId: DEFAULT_PROJECT_ID, state: newState };
+export const getOrCreateUserProject = async (userEmail) => {
+  if (!isSupabaseConfigured()) {
+    // Dev mode: look for project owned by this user
+    for (const [id, json] of memoryStore) {
+      if (json.present.owner === userEmail) {
+        return { projectId: id, state: serverStateFromJson(json) };
+      }
+    }
+    // No project found, create one
+    console.log(`[persistence] Creating project for ${userEmail}`);
+    return await createProject(userEmail, `${userEmail}'s Project`);
   }
 
-  console.log(`[persistence] Loaded default project`);
-  return { projectId: DEFAULT_PROJECT_ID, state };
+  try {
+    // Look for a project owned by this user
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, state')
+      .eq('owner_email', userEmail)
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No project found, create one
+        console.log(`[persistence] Creating project for ${userEmail}`);
+        return await createProject(userEmail, `${userEmail}'s Project`);
+      }
+      throw error;
+    }
+
+    console.log(`[persistence] Loaded project for ${userEmail}`);
+    return { projectId: data.id, state: serverStateFromJson(data.state) };
+  } catch (e) {
+    console.error('Error getting user project:', e.message);
+    throw e;
+  }
 };
