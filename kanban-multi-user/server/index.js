@@ -11,7 +11,8 @@ import {
   actionFromJson,
   toNumber,
   BigNumber,
-  _dafny
+  _dafny,
+  trySync
 } from './kanban-core.js';
 import { requireAuth, isSupabaseConfigured } from './supabase.js';
 import { getOrCreateDefaultProject, saveProject } from './persistence.js';
@@ -53,13 +54,17 @@ const requireReady = (req, res, next) => {
   next();
 };
 
-// GET /sync - Get current state (requires auth)
+// GET /sync - Get current state (requires auth + Dafny-verified membership)
 app.get('/sync', requireAuth, requireReady, (req, res) => {
-  const version = toNumber(KanbanMultiUserAppCore.__default.ServerVersion(serverState));
-  const present = KanbanMultiUserAppCore.__default.ServerModel(serverState);
+  const result = trySync(serverState, req.userId);
+
+  if (!result.ok) {
+    return res.status(403).json({ error: 'Not a member of this project' });
+  }
+
   res.json({
-    version,
-    model: modelToJs(present),
+    version: result.version,
+    model: result.model,
     userId: req.userId
   });
 });
@@ -120,13 +125,17 @@ app.post('/dispatch', requireAuth, requireReady, async (req, res) => {
   }
 });
 
-// GET /state - Debug endpoint to see raw server state
+// GET /state - Debug endpoint (requires Dafny-verified membership)
 app.get('/state', requireAuth, requireReady, (req, res) => {
-  const version = toNumber(KanbanMultiUserAppCore.__default.ServerVersion(serverState));
-  const present = KanbanMultiUserAppCore.__default.ServerModel(serverState);
+  const result = trySync(serverState, req.userId);
+
+  if (!result.ok) {
+    return res.status(403).json({ error: 'Not a member of this project' });
+  }
+
   res.json({
-    version,
-    model: modelToJs(present)
+    version: result.version,
+    model: result.model
   });
 });
 

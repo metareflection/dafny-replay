@@ -289,4 +289,24 @@ abstract module {:compile false} MultiUserDomain refines Domain {
 // =============================================================================
 abstract module {:compile false} MultiUser refines MultiCollaboration {
   import D : MultiUserDomain
+
+  // -------------------------------------------------------------------------
+  // Sync with verified authorization
+  // -------------------------------------------------------------------------
+
+  datatype SyncReply = SyncOk(version: nat, model: D.Model) | SyncDenied
+
+  function TrySync(server: ServerState, actor: D.UserId): SyncReply
+  {
+    if actor in server.present.members then
+      SyncOk(Version(server), server.present)
+    else
+      SyncDenied
+  }
+
+  // Lemma: TrySync only succeeds for members
+  lemma SyncRequiresMembership(server: ServerState, actor: D.UserId)
+    ensures TrySync(server, actor).SyncOk? ==> actor in server.present.members
+  {
+  }
 }

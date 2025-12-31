@@ -358,4 +358,26 @@ export const serverStateFromJson = (json) => {
   return KanbanMultiUser.ServerState.create_ServerState(present, appliedLog, auditLog);
 };
 
+// Check if a user is a member (calls Dafny-verified IsMember)
+export const isMember = (model, userId) => {
+  const userDafny = _dafny.Seq.UnicodeFromString(userId);
+  return KanbanMultiUserAppCore.__default.IsMember(model, userDafny);
+};
+
+// Dafny-verified sync: returns { ok: true, version, model } or { ok: false }
+export const trySync = (serverState, userId) => {
+  const userDafny = _dafny.Seq.UnicodeFromString(userId);
+  const reply = KanbanMultiUser.__default.TrySync(serverState, userDafny);
+
+  if (reply.is_SyncOk) {
+    return {
+      ok: true,
+      version: toNumber(reply.dtor_version),
+      model: modelToJs(reply.dtor_model)
+    };
+  } else {
+    return { ok: false };
+  }
+};
+
 export { BigNumber };

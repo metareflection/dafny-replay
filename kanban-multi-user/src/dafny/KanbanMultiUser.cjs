@@ -2424,6 +2424,13 @@ let KanbanMultiUser = (function() {
     _parentTraits() {
       return [];
     }
+    static TrySync(server, actor) {
+      if ((((server).dtor_present).dtor_members).contains(actor)) {
+        return KanbanMultiUser.SyncReply.create_SyncOk(KanbanMultiUser.__default.Version(server), (server).dtor_present);
+      } else {
+        return KanbanMultiUser.SyncReply.create_SyncDenied();
+      }
+    };
     static Version(s) {
       return new BigNumber(((s).dtor_appliedLog).length);
     };
@@ -2476,6 +2483,56 @@ let KanbanMultiUser = (function() {
       }
     };
   };
+
+  $module.SyncReply = class SyncReply {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_SyncOk(version, model) {
+      let $dt = new SyncReply(0);
+      $dt.version = version;
+      $dt.model = model;
+      return $dt;
+    }
+    static create_SyncDenied() {
+      let $dt = new SyncReply(1);
+      return $dt;
+    }
+    get is_SyncOk() { return this.$tag === 0; }
+    get is_SyncDenied() { return this.$tag === 1; }
+    get dtor_version() { return this.version; }
+    get dtor_model() { return this.model; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.SyncReply.SyncOk" + "(" + _dafny.toString(this.version) + ", " + _dafny.toString(this.model) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUser.SyncReply.SyncDenied";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.version, other.version) && _dafny.areEqual(this.model, other.model);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1;
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.SyncReply.create_SyncOk(_dafny.ZERO, KanbanMultiUserDomain.Model.Default());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return SyncReply.Default();
+        }
+      };
+    }
+  }
 
   $module.RejectReason = class RejectReason {
     constructor(tag) {
