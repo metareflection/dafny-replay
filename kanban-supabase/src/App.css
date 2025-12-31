@@ -387,6 +387,83 @@
   padding: 0.4em 0.8em;
 }
 
+/* Members Panel */
+.members-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.members-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.members-error {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.members-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem 0;
+}
+
+.members-list li {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-email {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-member-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1rem;
+  padding: 0 0.3em;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.remove-member-btn:hover {
+  color: #ff6b6b;
+}
+
+.no-members {
+  color: #666;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem 0;
+  margin: 0;
+}
+
+.invite-error {
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
 /* Board Section */
 .board-section {
   flex: 1;
@@ -570,7 +647,9 @@
   .auth-form {
     background: #f5f5f5;
   }
-  .sidebar > div {
+  .sidebar > div,
+  .project-selector,
+  .members-panel {
     background: #f5f5f5;
   }
   .column {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import App from './dafny/app.js'
 import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
-import { useProjects } from './hooks/useCollaborativeProject.js'
+import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
 import './App.css'
 
@@ -233,7 +233,7 @@ function Toast({ message, onClose }) {
 // Project Selector
 // ============================================================================
 
-function ProjectSelector({ currentProjectId, onSelect }) {
+function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
   const { projects, loading, refresh, createProject } = useProjects()
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
@@ -249,6 +249,7 @@ function ProjectSelector({ currentProjectId, onSelect }) {
       setNewName('')
       setShowCreate(false)
       onSelect(projectId)
+      onIsOwnerChange?.(true) // Creator is always owner
     } catch (err) {
       console.error('Failed to create project:', err)
     } finally {
@@ -269,7 +270,10 @@ function ProjectSelector({ currentProjectId, onSelect }) {
           <li
             key={project.id}
             className={project.id === currentProjectId ? 'selected' : ''}
-            onClick={() => onSelect(project.id)}
+            onClick={() => {
+              onSelect(project.id)
+              onIsOwnerChange?.(project.isOwner)
+            }}
           >
             <span className="project-name">{project.name}</span>
             {project.isOwner && <span className="owner-badge">owner</span>}
@@ -308,11 +312,95 @@ function ProjectSelector({ currentProjectId, onSelect }) {
 }
 
 // ============================================================================
+// Members Panel
+// ============================================================================
+
+function MembersPanel({ projectId, isOwner, currentUserId }) {
+  const { members, loading, error, refresh, inviteMember, removeMember } = useProjectMembers(projectId)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState(null)
+
+  const handleInvite = async (e) => {
+    e.preventDefault()
+    if (!inviteEmail.trim() || inviting) return
+
+    setInviting(true)
+    setInviteError(null)
+    try {
+      await inviteMember(inviteEmail.trim())
+      setInviteEmail('')
+    } catch (err) {
+      setInviteError(err.message)
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleRemove = async (userId) => {
+    try {
+      await removeMember(userId)
+    } catch (err) {
+      console.error('Failed to remove member:', err)
+    }
+  }
+
+  if (!projectId) return null
+
+  return (
+    <div className="members-panel">
+      <div className="members-header">
+        <h4>Members</h4>
+        <button onClick={refresh} disabled={loading} className="refresh-btn">
+          {loading ? '...' : '↻'}
+        </button>
+      </div>
+      {error && <div className="members-error">{error}</div>}
+      <ul className="members-list">
+        {members.map((member) => (
+          <li key={member.user_id}>
+            <span className="member-email">{member.email}</span>
+            {member.role === 'owner' && <span className="owner-badge">owner</span>}
+            {isOwner && member.user_id !== currentUserId && member.role !== 'owner' && (
+              <button
+                className="remove-member-btn"
+                onClick={() => handleRemove(member.user_id)}
+                title="Remove member"
+              >
+                ×
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {members.length === 0 && !loading && (
+        <p className="no-members">No members</p>
+      )}
+      {isOwner && (
+        <form onSubmit={handleInvite} className="invite-form">
+          <input
+            type="email"
+            placeholder="Email to invite..."
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+          />
+          <button type="submit" disabled={!inviteEmail.trim() || inviting}>
+            {inviting ? '...' : 'Invite'}
+          </button>
+          {inviteError && <div className="invite-error">{inviteError}</div>}
+        </form>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
 // Main Kanban Board
 // ============================================================================
 
 function KanbanBoard({ user, onSignOut }) {
   const [currentProjectId, setCurrentProjectId] = useState(null)
+  const [isOwner, setIsOwner] = useState(false)
   const [newColName, setNewColName] = useState('')
   const [newColLimit, setNewColLimit] = useState(5)
   const [toast, setToast] = useState(null)
@@ -402,6 +490,12 @@ function KanbanBoard({ user, onSignOut }) {
           <ProjectSelector
             currentProjectId={currentProjectId}
             onSelect={setCurrentProjectId}
+            onIsOwnerChange={setIsOwner}
+          />
+          <MembersPanel
+            projectId={currentProjectId}
+            isOwner={isOwner}
+            currentUserId={user.id}
           />
         </div>
 

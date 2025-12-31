@@ -246,16 +246,36 @@ export function useProjectMembers(projectId) {
 
     setLoading(true)
     try {
-      const { data, error: fetchError } = await supabase
+      // Fetch members
+      const { data: membersData, error: membersError } = await supabase
         .from('project_members')
-        .select('user_id, role, users:user_id(email)')
+        .select('user_id, role')
         .eq('project_id', projectId)
 
-      if (fetchError) throw fetchError
+      if (membersError) throw membersError
 
-      // Note: This assumes you have a profiles/users table or use auth.users
-      // You may need to adjust based on your schema
-      setMembers(data || [])
+      // Fetch profiles for these users
+      const userIds = (membersData || []).map(m => m.user_id)
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds)
+
+      if (profilesError) throw profilesError
+
+      // Create a map of user_id -> email
+      const emailMap = {}
+      for (const p of (profilesData || [])) {
+        emailMap[p.id] = p.email
+      }
+
+      // Combine members with emails
+      const memberList = (membersData || []).map(m => ({
+        user_id: m.user_id,
+        role: m.role,
+        email: emailMap[m.user_id] || m.user_id.slice(0, 8) + '...'
+      }))
+      setMembers(memberList)
       setError(null)
     } catch (e) {
       console.error('Error fetching members:', e)
