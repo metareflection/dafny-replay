@@ -39,13 +39,6 @@ cp generated/KanbanMulti.js kanban-supabase/src/dafny/KanbanMulti.cjs
 echo "Building Deno bundle for kanban-supabase Edge Function..."
 (cd kanban-supabase/supabase/functions/dispatch && node build-bundle.js)
 
-echo "Compiling KanbanMultiUser to JavaScript..."
-dafny translate js --no-verify -o generated/KanbanMultiUser --include-runtime KanbanMultiUser.dfy
-
-echo "Copying to kanban-multi-user project..."
-cp generated/KanbanMultiUser.js kanban-multi-user/server/KanbanMultiUser.cjs
-cp generated/KanbanMultiUser.js kanban-multi-user/src/dafny/KanbanMultiUser.cjs
-
 echo "Compiling ClearSplit to JavaScript..."
 dafny translate js --no-verify -o generated/ClearSplit --include-runtime ClearSplit.dfy
 
