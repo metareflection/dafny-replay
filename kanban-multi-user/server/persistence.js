@@ -59,8 +59,11 @@ export const saveProject = async (projectId, state, ownerEmail = null, name = nu
   const json = serverStateToJson(state);
 
   if (!isSupabaseConfigured()) {
-    // Dev mode: use in-memory store
-    memoryStore.set(projectId, json);
+    // Dev mode: use in-memory store (include name for listing)
+    memoryStore.set(projectId, {
+      ...json,
+      name: name || memoryStore.get(projectId)?.name || projectId
+    });
     console.log(`[persistence] Saved project ${projectId} to memory (dev mode)`);
     return;
   }
@@ -108,19 +111,19 @@ export const createProject = async (ownerEmail, name) => {
 };
 
 /**
- * List projects accessible to a user
+ * List projects accessible to a user (owner or member)
  * @param {string} userEmail - The user's email
- * @returns {Promise<Array<{id: string, name: string, owner_email: string}>>}
+ * @returns {Promise<Array<{id: string, name: string, owner_email: string, is_owner: boolean}>>}
  */
 export const listProjects = async (userEmail) => {
   if (!isSupabaseConfigured()) {
-    // Dev mode: return all projects from memory
+    // Dev mode: return all projects from memory where user is a member
     const projects = [];
     for (const [id, json] of memoryStore) {
       if (json.present.members.includes(userEmail)) {
         projects.push({
           id,
-          name: id,
+          name: json.name || id,
           owner_email: json.present.owner,
           is_owner: json.present.owner === userEmail
         });
@@ -130,27 +133,76 @@ export const listProjects = async (userEmail) => {
   }
 
   try {
-    // Query projects where user is in the members array
-    // Note: This requires the state column to have the members extracted or use a SQL function
+    // Query all projects - we'll filter by membership in JS
+    // (A more efficient approach would use a generated column or RLS)
     const { data, error } = await supabase
       .from('projects')
-      .select('id, name, owner_email, state')
-      .or(`owner_email.eq.${userEmail}`);
+      .select('id, name, owner_email, state');
 
     if (error) throw error;
 
-    // Filter by membership (for now, check in JavaScript)
-    // A more efficient approach would be a generated column or RLS policy
-    return (data || [])
-      .filter(p => p.state?.present?.members?.includes(userEmail))
-      .map(p => ({
-        id: p.id,
-        name: p.name,
-        owner_email: p.owner_email,
-        is_owner: p.owner_email === userEmail
-      }));
+    console.log(`[listProjects] Found ${data?.length || 0} total projects for user ${userEmail}`);
+
+    // Filter by membership
+    const accessible = (data || []).filter(p => {
+      const members = p.state?.present?.members;
+      const isMember = Array.isArray(members) && members.includes(userEmail);
+      console.log(`  Project ${p.id}: members=${JSON.stringify(members)}, isMember=${isMember}`);
+      return isMember;
+    });
+
+    console.log(`[listProjects] ${accessible.length} accessible to ${userEmail}`);
+
+    return accessible.map(p => ({
+      id: p.id,
+      name: p.name,
+      owner_email: p.owner_email,
+      is_owner: p.owner_email === userEmail
+    }));
   } catch (e) {
     console.error('Error listing projects:', e.message);
+    throw e;
+  }
+};
+
+/**
+ * Load a specific project by ID (for any member)
+ * @param {string} projectId - The project ID
+ * @returns {Promise<{state: DafnyServerState, name: string, ownerEmail: string} | null>}
+ */
+export const loadProjectById = async (projectId) => {
+  if (!isSupabaseConfigured()) {
+    // Dev mode: look in memory store
+    const json = memoryStore.get(projectId);
+    if (json) {
+      return {
+        state: serverStateFromJson(json),
+        name: json.name || projectId,
+        ownerEmail: json.present.owner
+      };
+    }
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('state, name, owner_email')
+      .eq('id', projectId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    return {
+      state: serverStateFromJson(data.state),
+      name: data.name,
+      ownerEmail: data.owner_email
+    };
+  } catch (e) {
+    console.error('Error loading project by ID:', e.message);
     throw e;
   }
 };

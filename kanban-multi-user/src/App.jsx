@@ -246,6 +246,35 @@ function Toast({ message, onClose }) {
   )
 }
 
+function ProjectSelector({ projects, currentProjectId, onSelect, onRefresh, loading }) {
+  return (
+    <div className="project-selector">
+      <div className="project-header">
+        <h4>Projects</h4>
+        <button onClick={onRefresh} disabled={loading} className="refresh-btn">
+          {loading ? '...' : '↻'}
+        </button>
+      </div>
+      <ul className="project-list">
+        {projects.map((project) => (
+          <li
+            key={project.id}
+            className={project.id === currentProjectId ? 'selected' : ''}
+            onClick={() => onSelect(project.id)}
+          >
+            <span className="project-name">{project.name}</span>
+            {project.is_owner && <span className="owner-badge">owner</span>}
+            {!project.is_owner && <span className="member-badge">member</span>}
+          </li>
+        ))}
+      </ul>
+      {projects.length === 0 && !loading && (
+        <p className="no-projects">No projects yet</p>
+      )}
+    </div>
+  )
+}
+
 function MemberList({ members, owner, currentUser, onInvite, onRemove }) {
   const [newMember, setNewMember] = useState('')
 
@@ -302,13 +331,40 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
   const [isOffline, setIsOffline] = useState(false)
   const [isFlushing, setIsFlushing] = useState(false)
   const [modelInfo, setModelInfo] = useState({ owner: '', members: [] })
+  const [projects, setProjects] = useState([])
+  const [currentProjectId, setCurrentProjectId] = useState(null)
+  const [loadingProjects, setLoadingProjects] = useState(false)
+
+  // Fetch projects list
+  const fetchProjects = useCallback(async () => {
+    try {
+      setLoadingProjects(true)
+      const authHeaders = await getAuthHeaders(devUserId)
+      const res = await fetch(`${API_BASE}/projects`, {
+        headers: authHeaders
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to fetch projects')
+      }
+      const data = await res.json()
+      setProjects(data.projects)
+    } catch (e) {
+      console.error('Failed to fetch projects:', e.message)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }, [devUserId])
 
   // Sync with server
-  const sync = useCallback(async () => {
+  const sync = useCallback(async (projectId = currentProjectId) => {
     try {
       setStatus('syncing...')
       const authHeaders = await getAuthHeaders(devUserId)
-      const res = await fetch(`${API_BASE}/sync`, {
+      const url = projectId
+        ? `${API_BASE}/sync?projectId=${encodeURIComponent(projectId)}`
+        : `${API_BASE}/sync`
+      const res = await fetch(url, {
         headers: authHeaders
       })
       if (!res.ok) {
@@ -317,21 +373,31 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
       }
       const data = await res.json()
       setServerVersion(data.version)
+      setCurrentProjectId(data.projectId)
       const newClient = App.InitClient(data.version, data.model)
       setClient(newClient)
       setModelInfo({ owner: data.model.owner, members: data.model.members })
       setStatus('synced')
       setError(null)
+      // Refresh projects list to include any new project
+      await fetchProjects()
     } catch (e) {
       setStatus('error')
       setError(e.message || 'Failed to sync with server')
     }
-  }, [devUserId])
+  }, [devUserId, currentProjectId, fetchProjects])
 
-  // Initial sync
+  // Initial sync and fetch projects
   useEffect(() => {
     sync()
-  }, [sync])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Switch to a different project
+  const selectProject = async (projectId) => {
+    if (projectId === currentProjectId) return
+    setClient(null)
+    await sync(projectId)
+  }
 
   // Dispatch action to server and update client
   const dispatch = async (action) => {
@@ -361,7 +427,8 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
         },
         body: JSON.stringify({
           baseVersion,
-          action: App.actionToJson(action)
+          action: App.actionToJson(action),
+          projectId: currentProjectId
         })
       })
       const data = await res.json()
@@ -420,7 +487,8 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
           },
           body: JSON.stringify({
             baseVersion,
-            action: App.actionToJson(action)
+            action: App.actionToJson(action),
+            projectId: currentProjectId
           })
         })
         const data = await res.json()
@@ -495,7 +563,8 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
         },
         body: JSON.stringify({
           baseVersion,
-          action: { type: 'InviteMember', user: userEmail }
+          action: { type: 'InviteMember', user: userEmail },
+          projectId: currentProjectId
         })
       })
       const data = await res.json()
@@ -524,7 +593,8 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
         },
         body: JSON.stringify({
           baseVersion,
-          action: { type: 'RemoveMember', user: userEmail }
+          action: { type: 'RemoveMember', user: userEmail },
+          projectId: currentProjectId
         })
       })
       const data = await res.json()
@@ -595,6 +665,23 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
       <div className="main-content">
+        <div className="sidebar">
+          <ProjectSelector
+            projects={projects}
+            currentProjectId={currentProjectId}
+            onSelect={selectProject}
+            onRefresh={fetchProjects}
+            loading={loadingProjects}
+          />
+          <MemberList
+            members={modelInfo.members}
+            owner={modelInfo.owner}
+            currentUser={currentUserId}
+            onInvite={handleInviteMember}
+            onRemove={handleRemoveMember}
+          />
+        </div>
+
         <div className="board-section">
           <form className="add-column-form" onSubmit={handleAddColumn}>
             <input
@@ -636,14 +723,6 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
             </div>
           )}
         </div>
-
-        <MemberList
-          members={modelInfo.members}
-          owner={modelInfo.owner}
-          currentUser={currentUserId}
-          onInvite={handleInviteMember}
-          onRemove={handleRemoveMember}
-        />
       </div>
 
       <p className="info">
