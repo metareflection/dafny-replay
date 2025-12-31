@@ -136,6 +136,28 @@
   cursor: not-allowed;
 }
 
+.controls .offline-btn {
+  background: #ff9800;
+  border-color: #ff9800;
+  color: #000;
+}
+
+.controls .offline-btn:hover {
+  background: #f57c00;
+  border-color: #f57c00;
+}
+
+.controls .online-btn {
+  background: transparent;
+  border-color: #666;
+  color: #888;
+}
+
+.controls .online-btn:hover {
+  border-color: #ff9800;
+  color: #ff9800;
+}
+
 /* Status Bar */
 .status-bar {
   display: flex;

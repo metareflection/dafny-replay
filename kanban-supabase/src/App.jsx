@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import App from './dafny/app.js'
-import { kanbanDomain } from './dafny/app.js'
 import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
-import { useCollaborativeProject, useProjects } from './hooks/useCollaborativeProject.js'
+import { useProjects } from './hooks/useCollaborativeProject.js'
+import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
 import './App.css'
 
 // ============================================================================
@@ -317,8 +317,18 @@ function KanbanBoard({ user, onSignOut }) {
   const [newColLimit, setNewColLimit] = useState(5)
   const [toast, setToast] = useState(null)
 
-  const { model, version, dispatch, sync, pending, error, status } =
-    useCollaborativeProject(currentProjectId, kanbanDomain)
+  const {
+    model,
+    version,
+    dispatch,
+    sync,
+    pendingCount,
+    error,
+    status,
+    isOffline,
+    toggleOffline,
+    isFlushing
+  } = useCollaborativeProjectOffline(currentProjectId)
 
   const handleAddColumn = (e) => {
     e.preventDefault()
@@ -362,17 +372,26 @@ function KanbanBoard({ user, onSignOut }) {
           <button onClick={onSignOut} className="sign-out-btn">Sign Out</button>
         </div>
         <div className="controls">
-          <button onClick={sync} disabled={status === 'syncing'}>Sync</button>
+          <button
+            onClick={toggleOffline}
+            disabled={isFlushing}
+            className={isOffline ? 'offline-btn' : 'online-btn'}
+          >
+            {isFlushing ? 'Flushing...' : isOffline ? 'Go Online' : 'Go Offline'}
+          </button>
+          <button onClick={sync} disabled={isOffline || isFlushing || status === 'syncing'}>
+            Sync
+          </button>
         </div>
       </div>
 
       <div className="status-bar">
         <span>v{version}</span>
-        <span className={`status ${status === 'error' ? 'error' : ''}`}>
+        <span className={`status ${status === 'error' ? 'error' : ''} ${isOffline ? 'offline' : ''}`}>
           {status}
         </span>
-        {pending > 0 && (
-          <span className="pending-badge">{pending} pending</span>
+        {pendingCount > 0 && (
+          <span className="pending-badge">{pendingCount} pending</span>
         )}
       </div>
 
@@ -442,9 +461,9 @@ function KanbanBoard({ user, onSignOut }) {
       </div>
 
       <p className="info">
-        Dafny-verified domain invariants. Supabase handles auth and realtime sync.
+        Dafny-verified domain invariants and offline support.
         <br />
-        Edge Function runs reconciliation server-side.
+        Actions queue locally while offline, flush on reconnect.
       </p>
     </>
   )
