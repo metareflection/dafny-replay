@@ -1,5 +1,6 @@
 // Supabase Edge Function: dispatch
 // Runs Dafny reconciliation logic server-side (MultiCollaboration pattern)
+// JWT verified at gateway level
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -29,7 +30,7 @@ serve(async (req) => {
     // Get auth context
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -42,14 +43,17 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     )
 
-    // Get authenticated user
+    // Verify user via Supabase Auth API
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('Auth error:', authError)
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    const userId = user.id
 
     // Parse request body
     const { projectId, baseVersion, action } = await req.json()
@@ -66,7 +70,7 @@ serve(async (req) => {
       .from('project_members')
       .select('role')
       .eq('project_id', projectId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (memberError || !membership) {

@@ -66,28 +66,19 @@ export function useCollaborativeProject(projectId, domain) {
     setStatus('pending')
 
     try {
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
-      // Call Edge Function
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dispatch`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            projectId,
-            baseVersion: baseVersionRef.current,
-            action: domain.actionToJson(action)
-          })
+      // Call Edge Function using Supabase client (handles auth automatically)
+      const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
+        body: {
+          projectId,
+          baseVersion: baseVersionRef.current,
+          action: domain.actionToJson(action)
         }
-      )
+      })
 
-      const data = await response.json()
+      if (invokeError) {
+        console.error('Invoke error:', invokeError)
+        throw invokeError
+      }
 
       if (data.status === 'accepted') {
         const newModel = domain.modelFromJson(data.state)
