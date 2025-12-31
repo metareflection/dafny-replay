@@ -1,0 +1,2 @@
+[functions.dispatch]
+verify_jwt = true
