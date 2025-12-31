@@ -153,6 +153,8 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 * **Real invariants**: A comprehensive 7-part invariant covering column uniqueness, lane/WIP consistency, card existence, no duplicates, WIP limits, and allocator freshness.
 
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
+
+See the app kanban-multi-collaboration/ for an example.
 </details>
 
 ---
