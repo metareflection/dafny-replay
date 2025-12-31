@@ -64,6 +64,8 @@ const App = {
 
   // State transitions
   Dispatch: (h, a) => AppCore.__default.Dispatch(h, a),
+  Preview: (h, a) => AppCore.__default.Preview(h, a),
+  CommitFrom: (h, baseline) => AppCore.__default.CommitFrom(h, baseline),
   Undo: (h) => AppCore.__default.Undo(h),
   Redo: (h) => AppCore.__default.Redo(h),
 

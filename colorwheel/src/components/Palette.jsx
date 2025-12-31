@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useColorWheel, hslToCSS } from '../context/ColorWheelContext';
 
 export function Palette({ contrastFg, contrastBg }) {
-  const { model, dispatch, App } = useColorWheel();
+  const { model, dispatch, preview, commitFrom, getRawPresent, App } = useColorWheel();
 
   // Which color is being edited (null = none)
   const [editingIndex, setEditingIndex] = useState(null);
@@ -10,6 +10,8 @@ export function Palette({ contrastFg, contrastBg }) {
   const [editH, setEditH] = useState(0);
   const [editS, setEditS] = useState(0);
   const [editL, setEditL] = useState(0);
+  // Baseline for commitFrom
+  const baselineRef = useRef(null);
 
   // When a color is clicked, start editing it
   const handleColorClick = (index) => {
@@ -36,20 +38,31 @@ export function Palette({ contrastFg, contrastBg }) {
     setEditingIndex(null);
   };
 
-  // Instant dispatch using SetColorDirect
+  // Use preview during drag (doesn't pollute undo history)
   const handleHChange = (newValue) => {
     setEditH(newValue);
-    dispatch(App.SetColorDirect(editingIndex, { h: newValue, s: editS, l: editL }));
+    preview(App.SetColorDirect(editingIndex, { h: newValue, s: editS, l: editL }));
   };
 
   const handleSChange = (newValue) => {
     setEditS(newValue);
-    dispatch(App.SetColorDirect(editingIndex, { h: editH, s: newValue, l: editL }));
+    preview(App.SetColorDirect(editingIndex, { h: editH, s: newValue, l: editL }));
   };
 
   const handleLChange = (newValue) => {
     setEditL(newValue);
-    dispatch(App.SetColorDirect(editingIndex, { h: editH, s: editS, l: newValue }));
+    preview(App.SetColorDirect(editingIndex, { h: editH, s: editS, l: newValue }));
+  };
+
+  const handlePointerDown = () => {
+    baselineRef.current = getRawPresent();
+  };
+
+  const handlePointerUp = () => {
+    if (baselineRef.current) {
+      commitFrom(baselineRef.current);
+      baselineRef.current = null;
+    }
   };
 
   // Sync local state if model changes externally (e.g., undo/redo)
@@ -82,6 +95,8 @@ export function Palette({ contrastFg, contrastBg }) {
                   max="359"
                   value={editH}
                   onChange={(e) => handleHChange(Number(e.target.value))}
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
                   className="slider hue-slider"
                 />
               </div>
@@ -93,6 +108,8 @@ export function Palette({ contrastFg, contrastBg }) {
                   max="100"
                   value={editS}
                   onChange={(e) => handleSChange(Number(e.target.value))}
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
                   className="slider"
                 />
               </div>
@@ -104,6 +121,8 @@ export function Palette({ contrastFg, contrastBg }) {
                   max="100"
                   value={editL}
                   onChange={(e) => handleLChange(Number(e.target.value))}
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
                   className="slider"
                 />
               </div>

@@ -1586,6 +1586,12 @@ let KanbanKernel = (function() {
     static Do(h, a) {
       return KanbanKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), KanbanKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
+    static Preview(h, a) {
+      return KanbanKernel.History.create_History((h).dtor_past, KanbanKernel.__default.Step((h).dtor_present, a), (h).dtor_future);
+    };
+    static CommitFrom(h, baseline) {
+      return KanbanKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of(baseline)), (h).dtor_present, _dafny.Seq.of());
+    };
     static Undo(h) {
       if ((new BigNumber(((h).dtor_past).length)).isEqualTo(_dafny.ZERO)) {
         return h;

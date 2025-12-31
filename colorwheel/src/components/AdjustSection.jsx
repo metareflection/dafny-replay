@@ -1,54 +1,59 @@
-import { useState } from 'react';
+import { useRef } from 'react';
 import { useColorWheel } from '../context/ColorWheelContext';
 
 export function AdjustSection() {
-  const { dispatch, App } = useColorWheel();
+  const { model, preview, commitFrom, getRawPresent, App } = useColorWheel();
 
-  // Slider positions (total adjustment from baseline)
-  const [sliderH, setSliderH] = useState(0);
-  const [sliderS, setSliderS] = useState(0);
-  const [sliderL, setSliderL] = useState(0);
-  // Track what we've already applied (to compute incremental deltas)
-  const [appliedH, setAppliedH] = useState(0);
-  const [appliedS, setAppliedS] = useState(0);
-  const [appliedL, setAppliedL] = useState(0);
+  // Track what we've applied during this drag (to compute deltas)
+  const appliedRef = useRef({ h: 0, s: 0, l: 0 });
+  // Baseline for commitFrom
+  const baselineRef = useRef(null);
 
-  const resetSliders = () => {
-    setSliderH(0);
-    setSliderS(0);
-    setSliderL(0);
-    setAppliedH(0);
-    setAppliedS(0);
-    setAppliedL(0);
-  };
-
-  // Instant dispatch using AdjustPalette - proven to always affect ALL colors
   const handleHChange = (newValue) => {
-    const delta = newValue - appliedH;
+    const delta = newValue - appliedRef.current.h;
     if (delta !== 0) {
-      dispatch(App.AdjustPalette(delta, 0, 0));
-      setAppliedH(newValue);
+      preview(App.AdjustPalette(delta, 0, 0));
+      appliedRef.current.h = newValue;
     }
-    setSliderH(newValue);
   };
 
   const handleSChange = (newValue) => {
-    const delta = newValue - appliedS;
+    const delta = newValue - appliedRef.current.s;
     if (delta !== 0) {
-      dispatch(App.AdjustPalette(0, delta, 0));
-      setAppliedS(newValue);
+      preview(App.AdjustPalette(0, delta, 0));
+      appliedRef.current.s = newValue;
     }
-    setSliderS(newValue);
   };
 
   const handleLChange = (newValue) => {
-    const delta = newValue - appliedL;
+    const delta = newValue - appliedRef.current.l;
     if (delta !== 0) {
-      dispatch(App.AdjustPalette(0, 0, delta));
-      setAppliedL(newValue);
+      preview(App.AdjustPalette(0, 0, delta));
+      appliedRef.current.l = newValue;
     }
-    setSliderL(newValue);
   };
+
+  const handlePointerDown = () => {
+    baselineRef.current = getRawPresent();
+    // Sync applied with current model values
+    appliedRef.current = {
+      h: model.adjustmentH,
+      s: model.adjustmentS,
+      l: model.adjustmentL,
+    };
+  };
+
+  const handlePointerUp = () => {
+    if (baselineRef.current) {
+      commitFrom(baselineRef.current);
+      baselineRef.current = null;
+    }
+  };
+
+  // Slider values come directly from model
+  const sliderH = model.adjustmentH;
+  const sliderS = model.adjustmentS;
+  const sliderL = model.adjustmentL;
 
   return (
     <section className="section">
@@ -61,6 +66,8 @@ export function AdjustSection() {
           max="180"
           value={sliderH}
           onChange={(e) => handleHChange(Number(e.target.value))}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           className="slider"
         />
       </div>
@@ -72,6 +79,8 @@ export function AdjustSection() {
           max="50"
           value={sliderS}
           onChange={(e) => handleSChange(Number(e.target.value))}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           className="slider"
         />
       </div>
@@ -83,16 +92,11 @@ export function AdjustSection() {
           max="50"
           value={sliderL}
           onChange={(e) => handleLChange(Number(e.target.value))}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           className="slider"
         />
       </div>
-      <button
-        className="btn"
-        onClick={resetSliders}
-        disabled={sliderH === 0 && sliderS === 0 && sliderL === 0}
-      >
-        Reset
-      </button>
     </section>
   );
 }
