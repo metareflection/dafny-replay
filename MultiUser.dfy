@@ -165,6 +165,55 @@ abstract module {:compile false} MultiUserDomain refines Domain {
     Inner.InitSatisfiesInv();
   }
 
+  // =========================================================================
+  // Authorization guarantees (explicitly verified)
+  // =========================================================================
+
+  // Non-members cannot perform board actions
+  lemma NonMemberCannotEdit(m: Model, actor: UserId, innerAction: Inner.Action)
+    requires actor !in m.members
+    ensures TryStep(m, InnerAction(actor, innerAction)).Err?
+    ensures TryStep(m, InnerAction(actor, innerAction)).error == Unauthorized
+  {
+    // Follows directly from TryStep definition: !CanEdit(m, actor) => Err(Unauthorized)
+  }
+
+  // Non-owners cannot invite members
+  lemma NonOwnerCannotInvite(m: Model, actor: UserId, user: UserId)
+    requires actor != m.owner
+    ensures TryStep(m, InviteMember(actor, user)).Err?
+    ensures TryStep(m, InviteMember(actor, user)).error == Unauthorized
+  {
+    // Follows directly from TryStep definition: !CanManage(m, actor) => Err(Unauthorized)
+  }
+
+  // Non-owners cannot remove members
+  lemma NonOwnerCannotRemove(m: Model, actor: UserId, user: UserId)
+    requires actor != m.owner
+    ensures TryStep(m, RemoveMember(actor, user)).Err?
+    ensures TryStep(m, RemoveMember(actor, user)).error == Unauthorized
+  {
+    // Follows directly from TryStep definition
+  }
+
+  // Owner cannot be removed (even by themselves)
+  lemma OwnerCannotBeRemoved(m: Model, actor: UserId)
+    ensures TryStep(m, RemoveMember(actor, m.owner)).Err?
+  {
+    // If actor != owner, NonOwnerCannotRemove applies
+    // If actor == owner, TryStep checks user == m.owner and returns Unauthorized
+  }
+
+  // Owner is always a member (invariant guarantee)
+  lemma OwnerAlwaysMember(m: Model)
+    requires Inv(m)
+    ensures m.owner in m.members
+  {
+    // Directly from Inv definition
+  }
+
+  // =========================================================================
+
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
   {
     match a {
