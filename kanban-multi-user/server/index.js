@@ -14,20 +14,47 @@ import {
   _dafny
 } from './kanban-core.js';
 import { requireAuth, isSupabaseConfigured } from './supabase.js';
+import { getOrCreateDefaultProject, saveProject } from './persistence.js';
 
-// Server state (in-memory, single project)
-// In production, this would be stored in Supabase and loaded per-project
+// Server state - loaded from persistence on startup
 const DEFAULT_OWNER = process.env.DEFAULT_OWNER || 'owner@example.com';
-let serverState = KanbanMultiUserAppCore.__default.InitProject(
-  _dafny.Seq.UnicodeFromString(DEFAULT_OWNER)
-);
+let serverState = null;
+let serverReady = false;
+
+// Initialize state from persistence
+const initializeState = async () => {
+  try {
+    const { projectId, state } = await getOrCreateDefaultProject(DEFAULT_OWNER);
+    serverState = state;
+    serverReady = true;
+    console.log(`[server] State loaded (project: ${projectId})`);
+  } catch (e) {
+    console.error('[server] Failed to load state:', e.message);
+    // Fall back to in-memory state
+    serverState = KanbanMultiUserAppCore.__default.InitProject(
+      _dafny.Seq.UnicodeFromString(DEFAULT_OWNER)
+    );
+    serverReady = true;
+  }
+};
+
+// Start initialization
+initializeState();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Middleware to check server readiness
+const requireReady = (req, res, next) => {
+  if (!serverReady) {
+    return res.status(503).json({ error: 'Server initializing, please retry' });
+  }
+  next();
+};
+
 // GET /sync - Get current state (requires auth)
-app.get('/sync', requireAuth, (req, res) => {
+app.get('/sync', requireAuth, requireReady, (req, res) => {
   const version = toNumber(KanbanMultiUserAppCore.__default.ServerVersion(serverState));
   const present = KanbanMultiUserAppCore.__default.ServerModel(serverState);
   res.json({
@@ -38,7 +65,7 @@ app.get('/sync', requireAuth, (req, res) => {
 });
 
 // POST /dispatch - Process a single action (requires auth, injects userId)
-app.post('/dispatch', requireAuth, (req, res) => {
+app.post('/dispatch', requireAuth, requireReady, async (req, res) => {
   const { baseVersion, action } = req.body;
   const userId = req.userId;  // From auth middleware, NOT from request body
 
@@ -71,6 +98,15 @@ app.post('/dispatch', requireAuth, (req, res) => {
   if (KanbanMultiUserAppCore.__default.IsAccepted(reply)) {
     const newVersion = toNumber(reply.dtor_newVersion);
     const newPresent = reply.dtor_newPresent;
+
+    // Persist state after successful action
+    try {
+      await saveProject(null, serverState);  // null uses DEFAULT_PROJECT_ID
+    } catch (e) {
+      console.error('[server] Failed to persist state:', e.message);
+      // Continue anyway - state is in memory
+    }
+
     res.json({
       status: 'accepted',
       version: newVersion,
@@ -85,7 +121,7 @@ app.post('/dispatch', requireAuth, (req, res) => {
 });
 
 // GET /state - Debug endpoint to see raw server state
-app.get('/state', requireAuth, (req, res) => {
+app.get('/state', requireAuth, requireReady, (req, res) => {
   const version = toNumber(KanbanMultiUserAppCore.__default.ServerVersion(serverState));
   const present = KanbanMultiUserAppCore.__default.ServerModel(serverState);
   res.json({

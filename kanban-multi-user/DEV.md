@@ -157,7 +157,7 @@ These are proven in `MultiUser.dfy`:
 
 ### No Persistence
 - State is in-memory, lost on server restart
-- TODO: Store state in Supabase Postgres
+- TODO: Store state in Supabase Postgres (see Persistence Plan below)
 
 ### Single Project
 - Only one hardcoded project exists
@@ -170,6 +170,113 @@ These are proven in `MultiUser.dfy`:
 ### DEFAULT_OWNER Hack
 - Server initializes with a hardcoded owner
 - Goes away once project creation is implemented
+
+## Persistence Plan
+
+Store **full ServerState** (Option A) to preserve offline editing via rebasing.
+
+### Why Full State?
+
+The `appliedLog` enables rebasing stale client actions:
+
+```
+Client A (offline)          Server              Client B
+─────────────────          ──────              ────────
+version 5                   version 5          version 5
+
+  goes offline              ←─ AddCard ────────  (v6)
+  ...                       ←─ MoveCard ───────  (v7)
+  ...                       ←─ EditTitle ──────  (v8)
+
+  comes back online
+  sends action based on v5  ───────────────►
+         │
+         ▼
+  Server rebases through [v6,v7,v8] → works!
+```
+
+Without `appliedLog`, stale clients lose their offline edits.
+
+### Supabase Table Schema
+
+```sql
+create table projects (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  owner_email text not null,
+  state jsonb not null,  -- full ServerState: { present, appliedLog, auditLog }
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- Index for looking up projects by owner
+create index projects_owner_idx on projects(owner_email);
+```
+
+### ServerState Structure (JSON)
+
+```json
+{
+  "present": {
+    "inner": {
+      "cols": ["Todo", "Done"],
+      "lanes": { "Todo": [1, 2], "Done": [3] },
+      "wip": { "Todo": 5, "Done": 10 },
+      "cards": { "1": {"title": "Task 1"}, ... },
+      "nextId": 4
+    },
+    "owner": "owner@example.com",
+    "members": ["owner@example.com", "alice@example.com"]
+  },
+  "appliedLog": [
+    { "type": "InnerAction", "actor": "owner@example.com", "action": { "type": "AddColumn", ... } },
+    ...
+  ],
+  "version": 10
+}
+```
+
+### Implementation Steps
+
+1. **Add serialization** to `kanban-core.js`:
+   - `serverStateToJson(state)` - serialize Dafny state to JSON
+   - `serverStateFromJson(json)` - deserialize JSON to Dafny state
+
+2. **Create persistence module** `server/persistence.js`:
+   - `loadProject(projectId)` - load from Supabase
+   - `saveProject(projectId, state)` - save to Supabase
+   - `createProject(ownerEmail, name)` - create new project
+
+3. **Update server**:
+   - Load project state on first request
+   - Save after each successful dispatch
+   - Add `/projects` endpoints (list, create, get)
+
+4. **Update client**:
+   - Project selection UI
+   - Create project flow
+
+### Access Control
+
+Dafny already verifies authorization (only members can access). For defense in depth, can add Supabase RLS:
+
+```sql
+-- Extract members to array for RLS (or use application-level check)
+alter table projects add column member_emails text[] generated always as (
+  array(select jsonb_array_elements_text(state->'present'->'members'))
+) stored;
+
+create policy "Members can access projects"
+  on projects for all
+  using (auth.jwt()->>'email' = any(member_emails));
+```
+
+### Log Pruning (Future)
+
+The `appliedLog` grows unbounded. Future optimization:
+- Keep last N actions (e.g., 1000)
+- Prune older actions periodically
+- Very stale clients (older than N) must re-sync
 
 ## API Endpoints
 
