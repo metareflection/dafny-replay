@@ -379,9 +379,18 @@ if (!project) {
 // Then check membership with trySync
 ```
 
-### Cache Staleness
+### Cache Staleness (Single Server Only)
 
-The server caches projects in memory. If you modify the database directly (e.g., via Supabase dashboard), the cache won't reflect changes until server restart. For development, restart the server after manual DB changes.
+The server caches projects in memory. This is fine for multi-user syncing on a single server instance - all users share the same cache, which is updated on every dispatch.
+
+Cache staleness only matters for:
+- **Direct DB edits** (Supabase dashboard) - restart server to reload
+- **Multiple server instances** - each has its own cache, would need Redis or similar for shared state
+
+For production horizontal scaling, you'd need to either:
+1. Use a shared cache (Redis)
+2. Always load from DB (slower but consistent)
+3. Use cache invalidation via Supabase Realtime
 
 ## Current Limitations / TODO
 
