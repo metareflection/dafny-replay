@@ -44,9 +44,6 @@ const App = {
   AdjustPalette: (deltaH, deltaS, deltaL) =>
     AppCore.__default.AdjustPalette(bn(deltaH), bn(deltaS), bn(deltaL)),
 
-  SetAdjustmentMode: (mode) =>
-    AppCore.__default.SetAdjustmentMode(mode),
-
   SelectContrastPair: (fg, bg) =>
     AppCore.__default.SelectContrastPair(bn(fg), bn(bg)),
 
@@ -91,10 +88,6 @@ const App = {
     SplitComplement: ColorWheelSpec.Harmony.create_SplitComplement(),
     Square: ColorWheelSpec.Harmony.create_Square(),
     Custom: ColorWheelSpec.Harmony.create_Custom(),
-  },
-  AdjustmentMode: {
-    Linked: ColorWheelSpec.AdjustmentMode.create_Linked(),
-    Independent: ColorWheelSpec.AdjustmentMode.create_Independent(),
   },
   Color: ColorWheelSpec.Color,
 };

@@ -65,10 +65,6 @@ module AppCore {
     CWSpec.AdjustPalette(deltaH, deltaS, deltaL)
   }
 
-  function SetAdjustmentMode(mode: CWSpec.AdjustmentMode): D.Action {
-    CWSpec.SetAdjustmentMode(mode)
-  }
-
   function SelectContrastPair(fg: int, bg: int): D.Action {
     CWSpec.SelectContrastPair(fg, bg)
   }

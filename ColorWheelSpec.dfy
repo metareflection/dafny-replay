@@ -26,14 +26,11 @@ module ColorWheelSpec {
     | Square            // 4 base hues: [H₀, H₀+90°, H₀+180°, H₀+270°] + 1 variation
     | Custom            // No hue relationship
 
-  datatype AdjustmentMode = Linked | Independent
-
   datatype Model = Model(
     baseHue: int,                    // 0-359, the anchor hue
     mood: Mood,
     harmony: Harmony,
     colors: seq<Color>,              // Always exactly 5 colors
-    adjustmentMode: AdjustmentMode,
     contrastPair: (int, int),        // (foreground index, background index)
     // Cumulative palette adjustments (for UI slider display)
     adjustmentH: int,                // Cumulative hue adjustment
@@ -45,9 +42,8 @@ module ColorWheelSpec {
     // randomSeeds: 10 values [0-100] for random S/L generation (2 per color)
     | GeneratePalette(baseHue: int, mood: Mood, harmony: Harmony, randomSeeds: seq<int>)
     | AdjustColor(index: int, deltaH: int, deltaS: int, deltaL: int)
-    // AdjustPalette: Always applies linked adjustment to ALL colors, regardless of mode
+    // AdjustPalette: Applies linked adjustment to ALL colors
     | AdjustPalette(deltaH: int, deltaS: int, deltaL: int)
-    | SetAdjustmentMode(mode: AdjustmentMode)
     | SelectContrastPair(fg: int, bg: int)
     | SetColorDirect(index: int, color: Color)
     // randomSeeds: 10 values for regenerating colors with new mood
@@ -232,7 +228,7 @@ module ColorWheelSpec {
     var mood := Vibrant;
     var harmony := Complementary;
     var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
-    Model(baseHue, mood, harmony, colors, Independent, (0, 1), 0, 0, 0)
+    Model(baseHue, mood, harmony, colors, (0, 1), 0, 0, 0)
   }
 
   // ============================================================================
@@ -299,21 +295,16 @@ module ColorWheelSpec {
            adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
 
     case AdjustColor(index, deltaH, deltaS, deltaL) =>
-      if index < 0 || index >= 5 || |m.colors| != 5 then m
-      else if m.adjustmentMode == Linked then
-        ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
+      if index < 0 || index >= |m.colors| then m
       else
         ApplyIndependentAdjustment(m, index, deltaH, deltaS, deltaL)
 
-    // AdjustPalette: Always linked, regardless of adjustmentMode
+    // AdjustPalette: Applies linked adjustment to all colors
     case AdjustPalette(deltaH, deltaS, deltaL) =>
       var adjusted := ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL);
       adjusted.(adjustmentH := m.adjustmentH + deltaH,
                 adjustmentS := m.adjustmentS + deltaS,
                 adjustmentL := m.adjustmentL + deltaL)
-
-    case SetAdjustmentMode(mode) =>
-      m.(adjustmentMode := mode)
 
     case SelectContrastPair(fg, bg) =>
       if 0 <= fg < 5 && 0 <= bg < 5 then
@@ -321,7 +312,7 @@ module ColorWheelSpec {
       else m
 
     case SetColorDirect(index, color) =>
-      if index < 0 || index >= 5 || |m.colors| != 5 then m
+      if index < 0 || index >= |m.colors| then m
       else
         ApplySetColorDirect(m, index, color)
 
