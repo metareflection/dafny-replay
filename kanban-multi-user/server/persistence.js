@@ -69,20 +69,22 @@ export const saveProject = async (projectId, state, ownerEmail = null, name = nu
   }
 
   try {
+    // Build update object - only include name if provided (don't overwrite with UUID)
+    const updateData = {
+      id: projectId,
+      owner_email: ownerEmail || json.present.owner,
+      state: json,
+      updated_at: new Date().toISOString()
+    };
+    if (name) {
+      updateData.name = name;
+    }
+
     const { error } = await supabase
       .from('projects')
-      .upsert({
-        id: projectId,
-        name: name || projectId,
-        owner_email: ownerEmail || json.present.owner,
-        state: json,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      });
+      .upsert(updateData, { onConflict: 'id' });
 
     if (error) throw error;
-    console.log(`[persistence] Saved project ${projectId}`);
   } catch (e) {
     console.error('Error saving project:', e.message);
     throw e;
