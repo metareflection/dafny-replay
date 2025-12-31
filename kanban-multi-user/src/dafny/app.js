@@ -1,4 +1,4 @@
-// ESM wrapper for Dafny-generated KanbanAppCore (client-side)
+// ESM wrapper for Dafny-generated KanbanMultiUserAppCore (client-side)
 // Uses anchor-based Place for moves instead of positional index
 
 import BigNumber from 'bignumber.js';
@@ -7,7 +7,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import kanbanCode from './KanbanMulti.cjs?raw';
+import kanbanCode from './KanbanMultiUser.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -18,10 +18,13 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${kanbanCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+  return { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore };
 `);
 
-const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require);
+const { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore } = initDafny(require);
+
+// Alias for compatibility
+const KanbanAppCore = KanbanMultiUserAppCore;
 
 // Helper to convert Dafny seq to JS array
 const seqToArray = (seq) => {

@@ -1,8 +1,119 @@
 import { useState, useEffect, useCallback } from 'react'
 import App from './dafny/app.js'
+import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut, getAccessToken } from './supabase.js'
 import './App.css'
 
 const API_BASE = '/api'
+
+// Get auth headers for API requests
+const getAuthHeaders = async (devUserId = null) => {
+  if (isSupabaseConfigured()) {
+    const token = await getAccessToken();
+    if (token) {
+      return { 'Authorization': `Bearer ${token}` };
+    }
+    return {};
+  } else {
+    // Dev mode: use X-User-Id header
+    if (devUserId) {
+      return { 'X-User-Id': devUserId };
+    }
+    return {};
+  }
+};
+
+function AuthForm({ onDevLogin }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    try {
+      if (isSignUp) {
+        await signUp(email, password)
+        setError('Check your email for confirmation link')
+      } else {
+        await signIn(email, password)
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError(null)
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // Dev mode login
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="auth-form">
+        <h2>Development Mode Login</h2>
+        <p className="dev-warning">Supabase not configured. Using X-User-Id header.</p>
+        <form onSubmit={(e) => {
+          e.preventDefault()
+          if (email.trim()) onDevLogin(email.trim())
+        }}>
+          <input
+            type="text"
+            placeholder="Enter user ID (e.g., owner@example.com)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button type="submit" disabled={!email.trim()}>Login</button>
+        </form>
+      </div>
+    )
+  }
+
+  return (
+    <div className="auth-form">
+      <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
+      {error && <div className="auth-error">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button type="submit" disabled={loading}>
+          {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+        </button>
+      </form>
+      <button onClick={handleGoogleSignIn} className="google-btn">
+        Sign in with Google
+      </button>
+      <p className="auth-toggle">
+        {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+        <button onClick={() => setIsSignUp(!isSignUp)}>
+          {isSignUp ? 'Sign In' : 'Sign Up'}
+        </button>
+      </p>
+    </div>
+  )
+}
 
 function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
   const [editing, setEditing] = useState(false)
@@ -73,7 +184,6 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle })
   const handleDrop = (e) => {
     e.preventDefault()
     const cardId = parseInt(e.dataTransfer.getData('cardId'), 10)
-    // v2: Use AtEnd placement (drop at end of column)
     onMoveCard(cardId, name, App.AtEnd())
   }
 
@@ -90,7 +200,7 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle })
         </span>
       </div>
       <div className="cards">
-        {cards.map((cardId, index) => (
+        {cards.map((cardId) => (
           <Card
             key={cardId}
             id={cardId}
@@ -136,7 +246,52 @@ function Toast({ message, onClose }) {
   )
 }
 
-function KanbanBoard() {
+function MemberList({ members, owner, currentUser, onInvite, onRemove }) {
+  const [newMember, setNewMember] = useState('')
+
+  const handleInvite = (e) => {
+    e.preventDefault()
+    if (newMember.trim()) {
+      onInvite(newMember.trim())
+      setNewMember('')
+    }
+  }
+
+  const isOwner = currentUser === owner
+
+  return (
+    <div className="member-list">
+      <h4>Members</h4>
+      <ul>
+        {members.map((member) => (
+          <li key={member} className={member === owner ? 'owner' : ''}>
+            {member}
+            {member === owner && <span className="owner-badge">owner</span>}
+            {member === currentUser && <span className="you-badge">you</span>}
+            {isOwner && member !== owner && (
+              <button onClick={() => onRemove(member)} className="remove-btn">
+                remove
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {isOwner && (
+        <form onSubmit={handleInvite} className="invite-form">
+          <input
+            type="text"
+            placeholder="Invite member (email)..."
+            value={newMember}
+            onChange={(e) => setNewMember(e.target.value)}
+          />
+          <button type="submit" disabled={!newMember.trim()}>Invite</button>
+        </form>
+      )}
+    </div>
+  )
+}
+
+function KanbanBoard({ user, onSignOut, devUserId }) {
   const [client, setClient] = useState(null)
   const [serverVersion, setServerVersion] = useState(0)
   const [status, setStatus] = useState('syncing...')
@@ -146,23 +301,32 @@ function KanbanBoard() {
   const [toast, setToast] = useState(null)
   const [isOffline, setIsOffline] = useState(false)
   const [isFlushing, setIsFlushing] = useState(false)
+  const [modelInfo, setModelInfo] = useState({ owner: '', members: [] })
 
   // Sync with server
   const sync = useCallback(async () => {
     try {
       setStatus('syncing...')
-      const res = await fetch(`${API_BASE}/sync`)
+      const authHeaders = await getAuthHeaders(devUserId)
+      const res = await fetch(`${API_BASE}/sync`, {
+        headers: authHeaders
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to sync')
+      }
       const data = await res.json()
       setServerVersion(data.version)
       const newClient = App.InitClient(data.version, data.model)
       setClient(newClient)
+      setModelInfo({ owner: data.model.owner, members: data.model.members })
       setStatus('synced')
       setError(null)
     } catch (e) {
       setStatus('error')
-      setError('Failed to sync with server')
+      setError(e.message || 'Failed to sync with server')
     }
-  }, [])
+  }, [devUserId])
 
   // Initial sync
   useEffect(() => {
@@ -188,9 +352,13 @@ function KanbanBoard() {
     // Send to server
     try {
       const baseVersion = App.GetBaseVersion(client)
+      const authHeaders = await getAuthHeaders(devUserId)
       const res = await fetch(`${API_BASE}/dispatch`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
         body: JSON.stringify({
           baseVersion,
           action: App.actionToJson(action)
@@ -203,13 +371,15 @@ function KanbanBoard() {
         // Re-sync to get authoritative state (includes server-allocated IDs)
         const syncClient = App.InitClient(data.version, data.model)
         setClient(syncClient)
+        setModelInfo({ owner: data.model.owner, members: data.model.members })
         setStatus('synced')
         setError(null)
       } else {
         setStatus('rejected')
         // Show toast for rejected action
         const actionJson = App.actionToJson(action)
-        setToast(`Action rejected: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
+        const reason = data.reason || 'Unknown'
+        setToast(`Action rejected (${reason}): ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
         // Re-sync to recover
         await sync()
       }
@@ -241,9 +411,13 @@ function KanbanBoard() {
     for (const action of pendingActions) {
       try {
         const baseVersion = App.GetBaseVersion(currentClient)
+        const authHeaders = await getAuthHeaders(devUserId)
         const res = await fetch(`${API_BASE}/dispatch`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders
+          },
           body: JSON.stringify({
             baseVersion,
             action: App.actionToJson(action)
@@ -253,12 +427,9 @@ function KanbanBoard() {
 
         if (data.status === 'accepted') {
           setServerVersion(data.version)
-          // Update client to new server state, with remaining pending actions
-          // We rebuild with empty pending since we're processing them sequentially
           currentClient = App.InitClient(data.version, data.model)
           acceptedCount++
         } else {
-          // Action rejected - sync to server state and continue with remaining
           rejectedCount++
           const actionJson = App.actionToJson(action)
           setToast(`Action rejected: ${actionJson.type}${actionJson.title ? ` "${actionJson.title}"` : ''}`)
@@ -281,11 +452,9 @@ function KanbanBoard() {
   // Toggle offline mode
   const toggleOffline = async () => {
     if (isOffline) {
-      // Going online - flush pending actions
       setIsOffline(false)
       await flush()
     } else {
-      // Going offline
       setIsOffline(true)
       setStatus('offline')
     }
@@ -301,26 +470,85 @@ function KanbanBoard() {
     }
   }
 
-  // v2: AddCard only needs col and title; server allocates ID
   const handleAddCard = (col, title) => {
     dispatch(App.AddCard(col, title))
   }
 
-  // v2: MoveCard uses Place (AtEnd, Before, After) instead of position
   const handleMoveCard = (cardId, toCol, place) => {
     dispatch(App.MoveCard(cardId, toCol, place))
   }
 
-  // Edit card title
   const handleEditTitle = (cardId, title) => {
     dispatch(App.EditTitle(cardId, title))
   }
 
+  // Membership actions (these need to be sent as special action types)
+  const handleInviteMember = async (userEmail) => {
+    try {
+      const baseVersion = serverVersion
+      const authHeaders = await getAuthHeaders(devUserId)
+      const res = await fetch(`${API_BASE}/dispatch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({
+          baseVersion,
+          action: { type: 'InviteMember', user: userEmail }
+        })
+      })
+      const data = await res.json()
+
+      if (data.status === 'accepted') {
+        setServerVersion(data.version)
+        setModelInfo({ owner: data.model.owner, members: data.model.members })
+        setToast(`Invited ${userEmail}`)
+      } else {
+        setToast(`Failed to invite ${userEmail}: ${data.reason}`)
+      }
+    } catch (e) {
+      setToast(`Error inviting ${userEmail}`)
+    }
+  }
+
+  const handleRemoveMember = async (userEmail) => {
+    try {
+      const baseVersion = serverVersion
+      const authHeaders = await getAuthHeaders(devUserId)
+      const res = await fetch(`${API_BASE}/dispatch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({
+          baseVersion,
+          action: { type: 'RemoveMember', user: userEmail }
+        })
+      })
+      const data = await res.json()
+
+      if (data.status === 'accepted') {
+        setServerVersion(data.version)
+        setModelInfo({ owner: data.model.owner, members: data.model.members })
+        setToast(`Removed ${userEmail}`)
+      } else {
+        setToast(`Failed to remove ${userEmail}: ${data.reason}`)
+      }
+    } catch (e) {
+      setToast(`Error removing ${userEmail}`)
+    }
+  }
+
+  const currentUserId = user?.email || devUserId
+
   if (!client) {
     return (
       <div className="loading">
-        <h1>Kanban Multi-Collaboration</h1>
+        <h1>Kanban Multi-User</h1>
         <p>Loading...</p>
+        {error && <div className="error-banner">{error}</div>}
       </div>
     )
   }
@@ -333,8 +561,12 @@ function KanbanBoard() {
     <>
       <div className="header">
         <div>
-          <h1>Kanban Multi-Collaboration</h1>
-          <p className="subtitle">Anchor-based moves, server-allocated IDs, candidate fallback</p>
+          <h1>Kanban Multi-User</h1>
+          <p className="subtitle">Verified authorization with Dafny</p>
+        </div>
+        <div className="user-info">
+          <span className="user-email">{currentUserId}</span>
+          <button onClick={onSignOut} className="sign-out-btn">Sign Out</button>
         </div>
         <div className="controls">
           <button
@@ -362,53 +594,124 @@ function KanbanBoard() {
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
-      <form className="add-column-form" onSubmit={handleAddColumn}>
-        <input
-          type="text"
-          placeholder="Column name..."
-          value={newColName}
-          onChange={(e) => setNewColName(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="WIP"
-          min="1"
-          value={newColLimit}
-          onChange={(e) => setNewColLimit(parseInt(e.target.value, 10) || 1)}
-        />
-        <button type="submit" disabled={!newColName.trim() || cols.includes(newColName.trim())}>
-          Add Column
-        </button>
-      </form>
-
-      {cols.length === 0 ? (
-        <div className="empty-board">
-          <p>No columns yet. Add a column to get started!</p>
-        </div>
-      ) : (
-        <div className="board">
-          {cols.map((col) => (
-            <Column
-              key={col}
-              name={col}
-              cards={App.GetLane(model, col)}
-              wip={App.GetWip(model, col)}
-              model={model}
-              onAddCard={handleAddCard}
-              onMoveCard={handleMoveCard}
-              onEditTitle={handleEditTitle}
+      <div className="main-content">
+        <div className="board-section">
+          <form className="add-column-form" onSubmit={handleAddColumn}>
+            <input
+              type="text"
+              placeholder="Column name..."
+              value={newColName}
+              onChange={(e) => setNewColName(e.target.value)}
             />
-          ))}
+            <input
+              type="number"
+              placeholder="WIP"
+              min="1"
+              value={newColLimit}
+              onChange={(e) => setNewColLimit(parseInt(e.target.value, 10) || 1)}
+            />
+            <button type="submit" disabled={!newColName.trim() || cols.includes(newColName.trim())}>
+              Add Column
+            </button>
+          </form>
+
+          {cols.length === 0 ? (
+            <div className="empty-board">
+              <p>No columns yet. Add a column to get started!</p>
+            </div>
+          ) : (
+            <div className="board">
+              {cols.map((col) => (
+                <Column
+                  key={col}
+                  name={col}
+                  cards={App.GetLane(model, col)}
+                  wip={App.GetWip(model, col)}
+                  model={model}
+                  onAddCard={handleAddCard}
+                  onMoveCard={handleMoveCard}
+                  onEditTitle={handleEditTitle}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+
+        <MemberList
+          members={modelInfo.members}
+          owner={modelInfo.owner}
+          currentUser={currentUserId}
+          onInvite={handleInviteMember}
+          onRemove={handleRemoveMember}
+        />
+      </div>
 
       <p className="info">
-        Server-allocated card IDs, anchor-based placement (AtEnd, Before, After).
-        <br />
-        Stale anchors automatically fall back to AtEnd via candidate selection.
+        Verified authorization: only members can edit, only owner can manage members.
       </p>
     </>
   )
 }
 
-export default KanbanBoard
+function AppContainer() {
+  const [user, setUser] = useState(null)
+  const [devUserId, setDevUserId] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      // Dev mode: no auth needed initially
+      setLoading(false)
+      return
+    }
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignOut = async () => {
+    if (isSupabaseConfigured()) {
+      await signOut()
+    } else {
+      setDevUserId(null)
+    }
+  }
+
+  const handleDevLogin = (userId) => {
+    setDevUserId(userId)
+  }
+
+  if (loading) {
+    return (
+      <div className="loading">
+        <h1>Kanban Multi-User</h1>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  // Show auth form if not logged in
+  if (!user && !devUserId) {
+    return (
+      <div className="auth-container">
+        <h1>Kanban Multi-User</h1>
+        <p className="subtitle">Verified authorization with Dafny</p>
+        <AuthForm onDevLogin={handleDevLogin} />
+      </div>
+    )
+  }
+
+  return <KanbanBoard user={user} onSignOut={handleSignOut} devUserId={devUserId} />
+}
+
+export default AppContainer

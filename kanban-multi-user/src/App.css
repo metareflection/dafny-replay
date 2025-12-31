@@ -265,6 +265,217 @@
   }
 }
 
+/* Auth styles */
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.auth-container h1 {
+  margin-bottom: 0.5rem;
+}
+
+.auth-form {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 2rem;
+  min-width: 300px;
+  max-width: 400px;
+  margin-top: 2rem;
+}
+
+.auth-form h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.auth-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form input {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-size: 1rem;
+}
+
+.auth-form button[type="submit"] {
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
+.auth-error {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.dev-warning {
+  color: #ff9800;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.google-btn {
+  width: 100%;
+  margin-top: 1rem;
+  background: #4285f4 !important;
+  border-color: #4285f4 !important;
+}
+
+.google-btn:hover {
+  background: #3367d6 !important;
+}
+
+.auth-toggle {
+  margin-top: 1.5rem;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.auth-toggle button {
+  background: none;
+  border: none;
+  color: #646cff;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.auth-toggle button:hover {
+  text-decoration: underline;
+}
+
+/* User info in header */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-email {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.sign-out-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid #444 !important;
+}
+
+.sign-out-btn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Main content layout */
+.main-content {
+  display: flex;
+  gap: 2rem;
+}
+
+.board-section {
+  flex: 1;
+}
+
+/* Member list */
+.member-list {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 250px;
+  max-width: 300px;
+  height: fit-content;
+}
+
+.member-list h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.member-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.member-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.member-list li:last-child {
+  border-bottom: none;
+}
+
+.owner-badge {
+  background: #4caf50;
+  color: #000;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.you-badge {
+  background: #646cff;
+  color: #fff;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+}
+
+.remove-btn {
+  margin-left: auto;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(255, 107, 107, 0.2) !important;
+  border: 1px solid #ff6b6b !important;
+  color: #ff6b6b;
+}
+
+.remove-btn:hover {
+  background: rgba(255, 107, 107, 0.4) !important;
+}
+
+.invite-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.invite-form input {
+  flex: 1;
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.invite-form button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
 @media (prefers-color-scheme: light) {
   .header {
     border-bottom-color: #ddd;
