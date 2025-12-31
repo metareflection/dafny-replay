@@ -476,6 +476,50 @@
   padding: 1rem;
 }
 
+.new-project-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem !important;
+  background: rgba(100, 108, 255, 0.2) !important;
+  border: 1px dashed #646cff !important;
+  color: #646cff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.new-project-btn:hover {
+  background: rgba(100, 108, 255, 0.3) !important;
+}
+
+.new-project-form {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.new-project-form input {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.new-project-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.new-project-buttons button {
+  flex: 1;
+  padding: 0.4rem !important;
+  font-size: 0.8rem;
+}
+
+.new-project-buttons .cancel-btn {
+  background: transparent !important;
+  border: 1px solid #666 !important;
+  color: #888;
+}
+
 /* Member list */
 .member-list {
   background: rgba(255, 255, 255, 0.05);

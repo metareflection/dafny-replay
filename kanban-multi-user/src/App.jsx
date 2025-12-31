@@ -246,7 +246,25 @@ function Toast({ message, onClose }) {
   )
 }
 
-function ProjectSelector({ projects, currentProjectId, onSelect, onRefresh, loading }) {
+function ProjectSelector({ projects, currentProjectId, onSelect, onRefresh, onCreate, loading }) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [creating, setCreating] = useState(false)
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!newName.trim() || creating) return
+
+    setCreating(true)
+    try {
+      await onCreate(newName.trim())
+      setNewName('')
+      setShowCreate(false)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="project-selector">
       <div className="project-header">
@@ -270,6 +288,29 @@ function ProjectSelector({ projects, currentProjectId, onSelect, onRefresh, load
       </ul>
       {projects.length === 0 && !loading && (
         <p className="no-projects">No projects yet</p>
+      )}
+      {showCreate ? (
+        <form onSubmit={handleCreate} className="new-project-form">
+          <input
+            type="text"
+            placeholder="Project name..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            autoFocus
+          />
+          <div className="new-project-buttons">
+            <button type="submit" disabled={!newName.trim() || creating}>
+              {creating ? '...' : 'Create'}
+            </button>
+            <button type="button" onClick={() => setShowCreate(false)} className="cancel-btn">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button onClick={() => setShowCreate(true)} className="new-project-btn">
+          + New Project
+        </button>
       )}
     </div>
   )
@@ -397,6 +438,31 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
     if (projectId === currentProjectId) return
     setClient(null)
     await sync(projectId)
+  }
+
+  // Create a new project
+  const createNewProject = async (name) => {
+    try {
+      const authHeaders = await getAuthHeaders(devUserId)
+      const res = await fetch(`${API_BASE}/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({ name })
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to create project')
+      }
+      const data = await res.json()
+      // Switch to the new project
+      await sync(data.projectId)
+      setToast(`Created project "${name}"`)
+    } catch (e) {
+      setToast(`Error: ${e.message}`)
+    }
   }
 
   // Dispatch action to server and update client
@@ -671,6 +737,7 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
             currentProjectId={currentProjectId}
             onSelect={selectProject}
             onRefresh={fetchProjects}
+            onCreate={createNewProject}
             loading={loadingProjects}
           />
           <MemberList

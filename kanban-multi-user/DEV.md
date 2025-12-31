@@ -407,6 +407,7 @@ For production horizontal scaling, you'd need to either:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/projects` | Required | List projects user can access |
+| POST | `/projects` | Required | Create project `{ name }` |
 | GET | `/sync` | Required | Get state (`?projectId=xxx` optional) |
 | POST | `/dispatch` | Required | Send action `{ baseVersion, action, projectId? }` |
 | GET | `/state` | Required | Debug: raw server state |

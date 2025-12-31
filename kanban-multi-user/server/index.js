@@ -15,7 +15,7 @@ import {
   trySync
 } from './kanban-core.js';
 import { requireAuth, isSupabaseConfigured } from './supabase.js';
-import { getOrCreateUserProject, saveProject, listProjects, loadProjectById } from './persistence.js';
+import { getOrCreateUserProject, saveProject, listProjects, loadProjectById, createProject } from './persistence.js';
 
 // In-memory cache of projects: Map<projectId, { state, ownerEmail }>
 const projectCache = new Map();
@@ -72,6 +72,24 @@ app.get('/projects', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('[projects] Error:', e.message);
     res.status(500).json({ error: 'Failed to list projects' });
+  }
+});
+
+// POST /projects - Create a new project
+app.post('/projects', requireAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Project name is required' });
+    }
+
+    const { projectId, state } = await createProject(req.userId, name.trim());
+    projectCache.set(projectId, { state, ownerEmail: req.userId });
+
+    res.json({ projectId, name: name.trim() });
+  } catch (e) {
+    console.error('[projects] Create error:', e.message);
+    res.status(500).json({ error: 'Failed to create project' });
   }
 });
 
