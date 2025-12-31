@@ -8,7 +8,7 @@ Dafny-verified collaborative Kanban board using Supabase for authentication, aut
 ┌─────────────────────────────────────────────────────────┐
 │  Supabase                                               │
 │  ┌─────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │ Auth (JWT)  │  │ RLS Policies│  │ Edge Function  │  │
+│  │    Auth     │  │ RLS Policies│  │ Edge Function  │  │
 │  │             │  │ (read-only) │  │ /dispatch      │  │
 │  └─────────────┘  └─────────────┘  └────────────────┘  │
 │                                           │             │
@@ -113,7 +113,7 @@ npm run dev
 ## How It Works
 
 ### Authentication
-- Supabase handles JWT-based auth
+- Supabase handles auth
 - Supports email/password and OAuth providers
 - Session persisted in localStorage
 
@@ -173,16 +173,16 @@ kanban-supabase/
 └── .env.example
 ```
 
-## Differences from kanban-multi-user
+## Stack
 
-| Aspect | kanban-multi-user | kanban-supabase |
-|--------|-------------------|-----------------|
-| Server | Express.js | Supabase Edge Function |
-| Auth | Custom JWT + X-User-Id | Supabase Auth |
-| Authorization | Dafny MultiUser wrapper | Supabase RLS |
-| Persistence | JSON files | Postgres |
-| Realtime | Not implemented | Built-in |
-| Deployment | Separate Node server | Serverless |
+| Aspect | |
+|--------|-----------------|
+| Server | Supabase Edge Function |
+| Auth | Supabase Auth |
+| Authorization | Supabase RLS |
+| Persistence | Postgres |
+| Realtime | Built-in |
+| Deployment | Serverless |
 
 ## Development
 
