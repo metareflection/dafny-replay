@@ -72,7 +72,7 @@ supabase login
 supabase link --project-ref YOUR_PROJECT_REF
 
 # Deploy the dispatch function
-supabase functions deploy dispatch  --no-verify-jwt
+supabase functions deploy dispatch
 ```
 
 ### 4. Configure Client
