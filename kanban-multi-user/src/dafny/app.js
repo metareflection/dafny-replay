@@ -18,13 +18,10 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${kanbanCode}
-  return { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore };
+  return { _dafny, KanbanDomain, KanbanAppCore, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore };
 `);
 
-const { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore } = initDafny(require);
-
-// Alias for compatibility
-const KanbanAppCore = KanbanMultiUserAppCore;
+const { _dafny, KanbanDomain, KanbanAppCore, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore } = initDafny(require);
 
 // Helper to convert Dafny seq to JS array
 const seqToArray = (seq) => {
