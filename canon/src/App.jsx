@@ -196,16 +196,27 @@ function CanonApp() {
     })
   }
 
+  // Convert client coordinates to SVG viewBox coordinates
+  const clientToSvg = (clientX, clientY) => {
+    const svg = canvasRef.current
+    const rect = svg.getBoundingClientRect()
+    return {
+      x: (clientX - rect.left) * (600 / rect.width),
+      y: (clientY - rect.top) * (400 / rect.height),
+    }
+  }
+
   // Handle node mousedown for drag
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation()
     const node = historyNodes.find(n => n.id === nodeId)
     if (!node) return
 
+    const svgCoords = clientToSvg(e.clientX, e.clientY)
     setDragging(nodeId)
     setDragOffset({
-      x: e.clientX - node.x,
-      y: e.clientY - node.y,
+      x: svgCoords.x - node.x,
+      y: svgCoords.y - node.y,
     })
     setDragPos({ x: node.x, y: node.y })
     dragStartPos.current = { x: node.x, y: node.y }
@@ -215,8 +226,9 @@ function CanonApp() {
   const handleMouseMove = useCallback((e) => {
     if (!dragging) return
 
-    const newX = e.clientX - dragOffset.x
-    const newY = e.clientY - dragOffset.y
+    const svgCoords = clientToSvg(e.clientX, e.clientY)
+    const newX = svgCoords.x - dragOffset.x
+    const newY = svgCoords.y - dragOffset.y
     setDragPos({ x: newX, y: newY })
   }, [dragging, dragOffset])
 
