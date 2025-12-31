@@ -1,6 +1,7 @@
 // Express server using Dafny-verified KanbanMultiUserAppCore
 // Multi-user Kanban with verified authorization and Supabase auth
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import {
