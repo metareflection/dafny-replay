@@ -1450,14 +1450,7 @@ let ColorWheelSpec = (function() {
           if ((((_10_index).isLessThan(_dafny.ZERO)) || ((new BigNumber(5)).isLessThanOrEqualTo(_10_index))) || (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5)))) {
             return m;
           } else if (_dafny.areEqual((m).dtor_adjustmentMode, ColorWheelSpec.AdjustmentMode.create_Linked())) {
-            if (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), true, function (_forall_var_0) {
-              let _14_i = _forall_var_0;
-              return !(((_dafny.ZERO).isLessThanOrEqualTo(_14_i)) && ((_14_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ValidColor(((m).dtor_colors)[_14_i]));
-            })) {
-              return ColorWheelSpec.__default.ApplyLinkedAdjustment(m, _11_deltaH, _12_deltaS, _13_deltaL);
-            } else {
-              return m;
-            }
+            return ColorWheelSpec.__default.ApplyLinkedAdjustment(m, _11_deltaH, _12_deltaS, _13_deltaL);
           } else {
             return ColorWheelSpec.__default.ApplyIndependentAdjustment(m, _10_index, _11_deltaH, _12_deltaS, _13_deltaL);
           }
@@ -1465,37 +1458,28 @@ let ColorWheelSpec = (function() {
       }
       {
         if (_source0.is_AdjustPalette) {
-          let _15_deltaH = (_source0).deltaH;
-          let _16_deltaS = (_source0).deltaS;
-          let _17_deltaL = (_source0).deltaL;
-          if (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5))) {
-            return m;
-          } else if (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), true, function (_forall_var_1) {
-            let _18_i = _forall_var_1;
-            return !(((_dafny.ZERO).isLessThanOrEqualTo(_18_i)) && ((_18_i).isLessThan(new BigNumber(5)))) || (ColorWheelSpec.__default.ValidColor(((m).dtor_colors)[_18_i]));
-          })) {
-            return ColorWheelSpec.__default.ApplyLinkedAdjustment(m, _15_deltaH, _16_deltaS, _17_deltaL);
-          } else {
-            return m;
-          }
+          let _14_deltaH = (_source0).deltaH;
+          let _15_deltaS = (_source0).deltaS;
+          let _16_deltaL = (_source0).deltaL;
+          return ColorWheelSpec.__default.ApplyLinkedAdjustment(m, _14_deltaH, _15_deltaS, _16_deltaL);
         }
       }
       {
         if (_source0.is_SetAdjustmentMode) {
-          let _19_mode = (_source0).mode;
-          let _20_dt__update__tmp_h1 = m;
-          let _21_dt__update_hadjustmentMode_h0 = _19_mode;
-          return ColorWheelSpec.Model.create_Model((_20_dt__update__tmp_h1).dtor_baseHue, (_20_dt__update__tmp_h1).dtor_mood, (_20_dt__update__tmp_h1).dtor_harmony, (_20_dt__update__tmp_h1).dtor_colors, _21_dt__update_hadjustmentMode_h0, (_20_dt__update__tmp_h1).dtor_contrastPair);
+          let _17_mode = (_source0).mode;
+          let _18_dt__update__tmp_h1 = m;
+          let _19_dt__update_hadjustmentMode_h0 = _17_mode;
+          return ColorWheelSpec.Model.create_Model((_18_dt__update__tmp_h1).dtor_baseHue, (_18_dt__update__tmp_h1).dtor_mood, (_18_dt__update__tmp_h1).dtor_harmony, (_18_dt__update__tmp_h1).dtor_colors, _19_dt__update_hadjustmentMode_h0, (_18_dt__update__tmp_h1).dtor_contrastPair);
         }
       }
       {
         if (_source0.is_SelectContrastPair) {
-          let _22_fg = (_source0).fg;
-          let _23_bg = (_source0).bg;
-          if ((((_dafny.ZERO).isLessThanOrEqualTo(_22_fg)) && ((_22_fg).isLessThan(new BigNumber(5)))) && (((_dafny.ZERO).isLessThanOrEqualTo(_23_bg)) && ((_23_bg).isLessThan(new BigNumber(5))))) {
-            let _24_dt__update__tmp_h2 = m;
-            let _25_dt__update_hcontrastPair_h0 = _dafny.Tuple.of(_22_fg, _23_bg);
-            return ColorWheelSpec.Model.create_Model((_24_dt__update__tmp_h2).dtor_baseHue, (_24_dt__update__tmp_h2).dtor_mood, (_24_dt__update__tmp_h2).dtor_harmony, (_24_dt__update__tmp_h2).dtor_colors, (_24_dt__update__tmp_h2).dtor_adjustmentMode, _25_dt__update_hcontrastPair_h0);
+          let _20_fg = (_source0).fg;
+          let _21_bg = (_source0).bg;
+          if ((((_dafny.ZERO).isLessThanOrEqualTo(_20_fg)) && ((_20_fg).isLessThan(new BigNumber(5)))) && (((_dafny.ZERO).isLessThanOrEqualTo(_21_bg)) && ((_21_bg).isLessThan(new BigNumber(5))))) {
+            let _22_dt__update__tmp_h2 = m;
+            let _23_dt__update_hcontrastPair_h0 = _dafny.Tuple.of(_20_fg, _21_bg);
+            return ColorWheelSpec.Model.create_Model((_22_dt__update__tmp_h2).dtor_baseHue, (_22_dt__update__tmp_h2).dtor_mood, (_22_dt__update__tmp_h2).dtor_harmony, (_22_dt__update__tmp_h2).dtor_colors, (_22_dt__update__tmp_h2).dtor_adjustmentMode, _23_dt__update_hcontrastPair_h0);
           } else {
             return m;
           }
@@ -1503,56 +1487,56 @@ let ColorWheelSpec = (function() {
       }
       {
         if (_source0.is_SetColorDirect) {
-          let _26_index = (_source0).index;
-          let _27_color = (_source0).color;
-          if ((((_26_index).isLessThan(_dafny.ZERO)) || ((new BigNumber(5)).isLessThanOrEqualTo(_26_index))) || (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5)))) {
+          let _24_index = (_source0).index;
+          let _25_color = (_source0).color;
+          if ((((_24_index).isLessThan(_dafny.ZERO)) || ((new BigNumber(5)).isLessThanOrEqualTo(_24_index))) || (!(new BigNumber(((m).dtor_colors).length)).isEqualTo(new BigNumber(5)))) {
             return m;
           } else {
-            return ColorWheelSpec.__default.ApplySetColorDirect(m, _26_index, _27_color);
+            return ColorWheelSpec.__default.ApplySetColorDirect(m, _24_index, _25_color);
           }
         }
       }
       {
         if (_source0.is_RegenerateMood) {
-          let _28_mood = (_source0).mood;
-          let _29_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_29_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          let _26_mood = (_source0).mood;
+          let _27_randomSeeds = (_source0).randomSeeds;
+          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_27_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
             return m;
           } else {
-            let _30_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, _28_mood, (m).dtor_harmony, _29_randomSeeds);
-            let _31_dt__update__tmp_h3 = m;
-            let _32_dt__update_hcolors_h1 = _30_colors;
-            let _33_dt__update_hmood_h1 = _28_mood;
-            return ColorWheelSpec.Model.create_Model((_31_dt__update__tmp_h3).dtor_baseHue, _33_dt__update_hmood_h1, (_31_dt__update__tmp_h3).dtor_harmony, _32_dt__update_hcolors_h1, (_31_dt__update__tmp_h3).dtor_adjustmentMode, (_31_dt__update__tmp_h3).dtor_contrastPair);
+            let _28_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, _26_mood, (m).dtor_harmony, _27_randomSeeds);
+            let _29_dt__update__tmp_h3 = m;
+            let _30_dt__update_hcolors_h1 = _28_colors;
+            let _31_dt__update_hmood_h1 = _26_mood;
+            return ColorWheelSpec.Model.create_Model((_29_dt__update__tmp_h3).dtor_baseHue, _31_dt__update_hmood_h1, (_29_dt__update__tmp_h3).dtor_harmony, _30_dt__update_hcolors_h1, (_29_dt__update__tmp_h3).dtor_adjustmentMode, (_29_dt__update__tmp_h3).dtor_contrastPair);
           }
         }
       }
       {
         if (_source0.is_RegenerateHarmony) {
-          let _34_harmony = (_source0).harmony;
-          let _35_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_35_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          let _32_harmony = (_source0).harmony;
+          let _33_randomSeeds = (_source0).randomSeeds;
+          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_33_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
             return m;
           } else {
-            let _36_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, (m).dtor_mood, _34_harmony, _35_randomSeeds);
-            let _37_dt__update__tmp_h4 = m;
-            let _38_dt__update_hcolors_h2 = _36_colors;
-            let _39_dt__update_hharmony_h1 = _34_harmony;
-            return ColorWheelSpec.Model.create_Model((_37_dt__update__tmp_h4).dtor_baseHue, (_37_dt__update__tmp_h4).dtor_mood, _39_dt__update_hharmony_h1, _38_dt__update_hcolors_h2, (_37_dt__update__tmp_h4).dtor_adjustmentMode, (_37_dt__update__tmp_h4).dtor_contrastPair);
+            let _34_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, (m).dtor_mood, _32_harmony, _33_randomSeeds);
+            let _35_dt__update__tmp_h4 = m;
+            let _36_dt__update_hcolors_h2 = _34_colors;
+            let _37_dt__update_hharmony_h1 = _32_harmony;
+            return ColorWheelSpec.Model.create_Model((_35_dt__update__tmp_h4).dtor_baseHue, (_35_dt__update__tmp_h4).dtor_mood, _37_dt__update_hharmony_h1, _36_dt__update_hcolors_h2, (_35_dt__update__tmp_h4).dtor_adjustmentMode, (_35_dt__update__tmp_h4).dtor_contrastPair);
           }
         }
       }
       {
-        let _40_newBaseHue = (_source0).newBaseHue;
-        let _41_randomSeeds = (_source0).randomSeeds;
-        if ((!(ColorWheelSpec.__default.ValidBaseHue(_40_newBaseHue))) || (!(ColorWheelSpec.__default.ValidRandomSeeds(_41_randomSeeds)))) {
+        let _38_newBaseHue = (_source0).newBaseHue;
+        let _39_randomSeeds = (_source0).randomSeeds;
+        if ((!(ColorWheelSpec.__default.ValidBaseHue(_38_newBaseHue))) || (!(ColorWheelSpec.__default.ValidRandomSeeds(_39_randomSeeds)))) {
           return m;
         } else {
-          let _42_colors = ColorWheelSpec.__default.GeneratePaletteColors(_40_newBaseHue, (m).dtor_mood, (m).dtor_harmony, _41_randomSeeds);
-          let _43_dt__update__tmp_h5 = m;
-          let _44_dt__update_hcolors_h3 = _42_colors;
-          let _45_dt__update_hbaseHue_h1 = _40_newBaseHue;
-          return ColorWheelSpec.Model.create_Model(_45_dt__update_hbaseHue_h1, (_43_dt__update__tmp_h5).dtor_mood, (_43_dt__update__tmp_h5).dtor_harmony, _44_dt__update_hcolors_h3, (_43_dt__update__tmp_h5).dtor_adjustmentMode, (_43_dt__update__tmp_h5).dtor_contrastPair);
+          let _40_colors = ColorWheelSpec.__default.GeneratePaletteColors(_38_newBaseHue, (m).dtor_mood, (m).dtor_harmony, _39_randomSeeds);
+          let _41_dt__update__tmp_h5 = m;
+          let _42_dt__update_hcolors_h3 = _40_colors;
+          let _43_dt__update_hbaseHue_h1 = _38_newBaseHue;
+          return ColorWheelSpec.Model.create_Model(_43_dt__update_hbaseHue_h1, (_41_dt__update__tmp_h5).dtor_mood, (_41_dt__update__tmp_h5).dtor_harmony, _42_dt__update_hcolors_h3, (_41_dt__update__tmp_h5).dtor_adjustmentMode, (_41_dt__update__tmp_h5).dtor_contrastPair);
         }
       }
     };

@@ -6,6 +6,7 @@ abstract module {:compile false} Domain {
 
   function Init(): Model
   function Apply(m: Model, a: Action): Model
+    requires Inv(m)
   function Normalize(m: Model): Model
 
   lemma InitSatisfiesInv()
@@ -19,7 +20,9 @@ abstract module {:compile false} Domain {
 abstract module {:compile false} Kernel {
   import D : Domain
 
-  function Step(m: D.Model, a: D.Action): D.Model {
+  function Step(m: D.Model, a: D.Action): D.Model
+  requires D.Inv(m)
+  {
     D.Normalize(D.Apply(m, a))
   }
 
@@ -30,7 +33,9 @@ abstract module {:compile false} Kernel {
   datatype History =
     History(past: seq<D.Model>, present: D.Model, future: seq<D.Model>)
 
-  function Do(h: History, a: D.Action): History {
+  function Do(h: History, a: D.Action): History
+  requires D.Inv(h.present)
+  {
     History(h.past + [h.present], Step(h.present, a), [])
   }
 
@@ -87,6 +92,7 @@ abstract module {:compile false} Kernel {
 
   // proxy for linear undo: after a new action, there is no redo branch
   lemma DoHasNoRedoBranch(h: History, a: D.Action)
+  requires HistInv(h)
   ensures Redo(Do(h, a)) == Do(h, a)
   {
   }
@@ -113,4 +119,3 @@ abstract module {:compile false} Kernel {
   {
   }
 }
-

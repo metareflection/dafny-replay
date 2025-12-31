@@ -1866,7 +1866,7 @@ module KanbanAppCore {
   function MoveCard(id: nat, toCol: string, pos: int): D.Action { D.MoveCard(id, toCol, pos) }
 
   // State transitions
-  function Dispatch(h: K.History, a: D.Action): K.History { K.Do(h, a) }
+  function Dispatch(h: K.History, a: D.Action): K.History requires K.HistInv(h) { K.Do(h, a) }
   function Undo(h: K.History): K.History { K.Undo(h) }
   function Redo(h: K.History): K.History { K.Redo(h) }
 

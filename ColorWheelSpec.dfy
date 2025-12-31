@@ -283,7 +283,9 @@ module ColorWheelSpec {
   // State Transitions (Apply)
   // ============================================================================
 
-  function Apply(m: Model, a: Action): Model {
+  function Apply(m: Model, a: Action): Model
+  requires Inv(m)
+  {
     match a
     case GeneratePalette(baseHue, mood, harmony, randomSeeds) =>
       if !ValidBaseHue(baseHue) || !ValidRandomSeeds(randomSeeds) then m
@@ -294,18 +296,13 @@ module ColorWheelSpec {
     case AdjustColor(index, deltaH, deltaS, deltaL) =>
       if index < 0 || index >= 5 || |m.colors| != 5 then m
       else if m.adjustmentMode == Linked then
-        if forall i | 0 <= i < 5 :: ValidColor(m.colors[i]) then
-          ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
-        else m
+        ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
       else
         ApplyIndependentAdjustment(m, index, deltaH, deltaS, deltaL)
 
     // AdjustPalette: Always linked, regardless of adjustmentMode
     case AdjustPalette(deltaH, deltaS, deltaL) =>
-      if |m.colors| != 5 then m
-      else if forall i | 0 <= i < 5 :: ValidColor(m.colors[i]) then
-        ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
-      else m
+      ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
 
     case SetAdjustmentMode(mode) =>
       m.(adjustmentMode := mode)
