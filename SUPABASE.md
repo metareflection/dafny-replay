@@ -688,18 +688,17 @@ The key insight: let each system do what it's best at. Dafny verifies domain pro
 
 ---
 
-## Pending: Verified Dispatch Architecture
+## Verified Dispatch Architecture
 
-> **Status**: This section describes an improved architecture that is being implemented.
-> The current implementation manually orchestrates Dafny primitives in TypeScript, which
-> introduces soundness concerns. The new architecture uses the verified `Dispatch` directly.
+> **Status**: ✅ Implemented. The Edge Function now uses `KanbanMultiCollaboration.Dispatch` directly,
+> and the client uses `ClientState` for offline support with a full pending action queue.
 
-### The Problem with Current Implementation
+### The Problem with Unverified Orchestration
 
-The current `dispatch()` function in `dafny-bundle.ts` manually re-implements the reconciliation algorithm in unverified TypeScript:
+The previous `dispatch()` function manually re-implemented the reconciliation algorithm in unverified TypeScript:
 
 ```typescript
-// CURRENT (unverified orchestration)
+// OLD (unverified orchestration) - NO LONGER USED
 export function dispatch(stateJson, appliedLog, baseVersion, actionJson) {
   const suffix = appliedLog.slice(baseVersion);
   const rebased = rebaseThroughSuffix(suffix, actionJson);  // ← Unverified
@@ -786,15 +785,14 @@ Instead of re-implementing this in TypeScript, we compile and use it directly.
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### What Changes
+### Current Implementation
 
 #### Server-Side (Edge Function)
 
-**Before**: Manual orchestration of `TryStep`, `Candidates`, `Rebase`
-**After**: Single call to `KanbanMultiCollaboration.__default.Dispatch`
+The Edge Function now calls `KanbanMultiCollaboration.Dispatch` directly:
 
 ```typescript
-// NEW (verified dispatch)
+// dafny-bundle.ts - uses verified Dispatch
 import { KanbanMultiCollaboration } from './dafny-bundle.ts'
 
 // Load ServerState from DB
@@ -819,12 +817,11 @@ if (KanbanAppCore.__default.IsAccepted(reply)) {
 
 #### Client-Side (React Hook)
 
-**Before**: Simple counter `pending: number`
-**After**: Full Dafny `ClientState` with pending queue
+The `useCollaborativeProjectOffline` hook uses Dafny `ClientState` with full pending queue:
 
 ```typescript
-// NEW (verified client state)
-import { KanbanAppCore } from './dafny/app.js'
+// useCollaborativeProjectOffline.js - uses verified ClientState
+import App from '../dafny/app.js'
 
 const [clientState, setClientState] = useState<ClientState | null>(null);
 
@@ -893,17 +890,63 @@ Supabase Realtime is orthogonal to the dispatch mechanism:
 - **On update**: Call `InitClient(newVersion, newModel)` to reset client state
 - **Pending handling**: If pending queue is non-empty, may need to re-apply or warn user
 
-### Implementation Plan
+### Using the Offline Hook
 
-1. **Part A: Edge Function** - Use `KanbanMultiCollaboration.Dispatch` directly
-2. **Part B: Client Hook** - Use `ClientState` with pending queue and offline support
+The `useCollaborativeProjectOffline` hook provides full offline support:
+
+```jsx
+import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
+import App from './dafny/app.js'
+
+function KanbanBoard({ projectId }) {
+  const {
+    model,              // Current Dafny Model (optimistic)
+    version,            // Server version at last sync
+    dispatch,           // Queue action locally and send to server
+    sync,               // Force re-sync with server
+    pendingCount,       // Number of pending actions
+    status,             // 'syncing' | 'synced' | 'pending' | 'offline' | 'flushing' | 'error'
+    isOffline,          // Whether offline mode is active
+    toggleOffline,      // Toggle offline mode (flushes on go-online)
+    isFlushing          // Whether currently flushing pending actions
+  } = useCollaborativeProjectOffline(projectId)
+
+  return (
+    <div>
+      {/* Offline toggle button */}
+      <button onClick={toggleOffline} disabled={isFlushing}>
+        {isFlushing ? 'Flushing...' : isOffline ? 'Go Online' : 'Go Offline'}
+      </button>
+
+      {/* Status indicator */}
+      <span className={isOffline ? 'offline' : ''}>{status}</span>
+      {pendingCount > 0 && <span>{pendingCount} pending</span>}
+
+      {/* Board UI */}
+      {model && App.GetCols(model).map(col => (
+        <Column
+          key={col}
+          name={col}
+          cards={App.GetLane(model, col)}
+          onAddCard={(title) => dispatch(App.AddCard(col, title))}
+        />
+      ))}
+    </div>
+  )
+}
+```
+
+**Offline workflow:**
+1. Click "Go Offline" - actions queue locally in `ClientState.pending`
+2. Work offline - cards/columns work normally, pending count shows
+3. Click "Go Online" - `flush()` sends pending actions sequentially to server
 
 ### Database Schema Update
 
-Add optional `audit_log` column (the verified `Dispatch` produces audit records):
+The `audit_log` column stores the full audit trail from verified `Dispatch`:
 
 ```sql
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS audit_log JSONB DEFAULT '[]';
 ```
 
-This stores the full audit trail from `Dispatch`, useful for debugging and compliance.
+This is useful for debugging and compliance. The schema is already updated in `supabase/schema.sql`.
