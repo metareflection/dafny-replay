@@ -2,11 +2,12 @@
 
 This document describes a pattern for building multi-user collaborative applications where:
 
-- **Dafny** verifies domain invariants and reconciliation logic
+- **Dafny** verifies domain invariants and reconciliation logic (server-side dispatch + client-side offline queue)
 - **Supabase** handles authentication, authorization (RLS), persistence, and realtime
-- **Edge Functions** run the actual compiled Dafny code server-side for proper reconciliation
+- **Edge Functions** run the verified `KanbanMultiCollaboration.Dispatch` server-side
+- **Offline support** is built-in via Dafny's verified `ClientState` with pending action queue
 
-This approach simplifies the current Express-based architecture while preserving the MultiCollaboration guarantees (rebasing, candidate fallback, minimal rejection).
+This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, minimal rejection) with automatic offline handling.
 
 **Reference Implementation**: See `kanban-supabase/` for a complete working example.
 
@@ -40,39 +41,31 @@ This approach simplifies the current Express-based architecture while preserving
 │  React Client                                                    │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  useCollaborativeProject(projectId, domain)                │ │
+│  │  useCollaborativeProjectOffline(projectId)                 │ │
 │  │                                                            │ │
 │  │  - model: current state (optimistic)                       │ │
-│  │  - dispatch(action): send to Edge Function                 │ │
-│  │  - sync(): refresh from database                           │ │
-│  │  - pending: count of unconfirmed actions                   │ │
+│  │  - dispatch(action): queue locally + send to server        │ │
+│  │  - pendingCount: actions waiting to be confirmed           │ │
+│  │  - isOffline: auto-detected or manual                      │ │
+│  │  - flush(): send pending actions on reconnect              │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
 │                              ▼                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Dafny Domain (compiled to JS)                             │ │
+│  │  Dafny ClientState (verified)                              │ │
 │  │                                                            │ │
-│  │  - TryStep(model, action) → Result<Model, Err>             │ │
-│  │  - Rebase(remote, local) → Action                          │ │
-│  │  - Candidates(model, action) → seq<Action>                 │ │
+│  │  - ClientLocalDispatch: optimistic update + queue          │ │
+│  │  - InitClient: reset from server sync                      │ │
+│  │  - GetPendingActions: for flush                            │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Why This Approach
 
-| Concern | Express Server | Supabase + Edge Functions |
-|---------|---------------|---------------------------|
-| Authentication | Manual JWT verification | Built-in, integrated |
-| Authorization | Dafny MultiUser wrapper | RLS policies (simpler) |
-| Persistence | Custom code | Automatic |
-| Realtime | Manual WebSocket | Built-in subscriptions |
-| Deployment | Separate server | Serverless, managed |
-| Reconciliation | Express handler | Edge Function |
+Supabase handles auth, persistence, and realtime. Dafny verifies domain invariants and reconciliation. The Edge Function bridges them with verified dispatch.
 
-**Key insight**: The Dafny MultiUser wrapper proves authorization, but that proof depends on JavaScript correctly injecting the actor. With Supabase RLS, authorization is enforced at the database level—even buggy client code can't bypass it.
-
-Dafny focuses on what it's best at: **domain invariants and reconciliation logic**.
+**Key insight**: With Supabase RLS, authorization is enforced at the database level—even buggy client code can't bypass it. Dafny focuses on what it's best at: **domain invariants and reconciliation logic**.
 
 ---
 
@@ -332,221 +325,14 @@ The `dispatch` function from `dafny-bundle.ts` uses the **actual compiled Dafny 
 
 ## React Client
 
-### `useCollaborativeProject.ts`
+The `useCollaborativeProjectOffline` hook provides:
+- Dafny-verified `ClientState` with full pending action queue
+- Auto-detection of offline state via browser events
+- Automatic offline mode on network errors
+- Auto-flush when network is restored
+- Supabase Realtime subscription for updates from other clients
 
-```typescript
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { supabase } from './supabase'
-
-interface Domain<Model, Action> {
-  Init: () => Model
-  TryStep: (m: Model, a: Action) => { is_Ok: boolean; dtor_value?: Model }
-  modelFromJson: (json: any) => Model
-  modelToJson: (m: Model) => any
-  actionToJson: (a: Action) => any
-}
-
-interface UseCollaborativeProjectResult<Model, Action> {
-  model: Model | null
-  version: number
-  dispatch: (action: Action) => Promise<void>
-  sync: () => Promise<void>
-  pending: number
-  error: string | null
-  status: 'syncing' | 'synced' | 'pending' | 'error'
-}
-
-export function useCollaborativeProject<Model, Action>(
-  projectId: string | null,
-  domain: Domain<Model, Action>
-): UseCollaborativeProjectResult<Model, Action> {
-  const [model, setModel] = useState<Model | null>(null)
-  const [version, setVersion] = useState(0)
-  const [pending, setPending] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState<'syncing' | 'synced' | 'pending' | 'error'>('syncing')
-
-  const baseVersionRef = useRef(0)
-
-  // Sync: load state from Supabase
-  const sync = useCallback(async () => {
-    if (!projectId) return
-
-    setStatus('syncing')
-    try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('state, version')
-        .eq('id', projectId)
-        .single()
-
-      if (error) throw error
-
-      setModel(domain.modelFromJson(data.state))
-      setVersion(data.version)
-      baseVersionRef.current = data.version
-      setStatus('synced')
-      setError(null)
-    } catch (e: any) {
-      setError(e.message)
-      setStatus('error')
-    }
-  }, [projectId, domain])
-
-  // Dispatch: optimistic update + Edge Function
-  const dispatch = useCallback(async (action: Action) => {
-    if (!projectId || !model) return
-
-    // Optimistic local update
-    const result = domain.TryStep(model, action)
-    if (result.is_Ok && result.dtor_value) {
-      setModel(result.dtor_value)
-    }
-
-    setPending(p => p + 1)
-    setStatus('pending')
-
-    try {
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
-      // Call Edge Function
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dispatch`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            projectId,
-            baseVersion: baseVersionRef.current,
-            action: domain.actionToJson(action)
-          })
-        }
-      )
-
-      const data = await response.json()
-
-      if (data.status === 'accepted') {
-        setModel(domain.modelFromJson(data.state))
-        setVersion(data.version)
-        baseVersionRef.current = data.version
-        setStatus('synced')
-      } else if (data.status === 'conflict') {
-        // Concurrent modification - resync
-        await sync()
-      } else if (data.status === 'rejected') {
-        // Domain rejected - resync to get consistent state
-        await sync()
-      } else {
-        throw new Error(data.error || 'Unknown error')
-      }
-    } catch (e: any) {
-      setError(e.message)
-      setStatus('error')
-      // Resync to recover
-      await sync()
-    } finally {
-      setPending(p => Math.max(0, p - 1))
-    }
-  }, [projectId, model, domain, sync])
-
-  // Initial sync
-  useEffect(() => {
-    sync()
-  }, [sync])
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!projectId) return
-
-    const channel = supabase
-      .channel(`project:${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'projects',
-          filter: `id=eq.${projectId}`
-        },
-        (payload) => {
-          // Only update if this is a newer version
-          if (payload.new.version > baseVersionRef.current) {
-            setModel(domain.modelFromJson(payload.new.state))
-            setVersion(payload.new.version)
-            baseVersionRef.current = payload.new.version
-            if (pending === 0) {
-              setStatus('synced')
-            }
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [projectId, domain, pending])
-
-  return { model, version, dispatch, sync, pending, error, status }
-}
-```
-
-### Usage Example: Kanban
-
-```tsx
-// KanbanBoard.tsx
-import { useCollaborativeProject } from './useCollaborativeProject'
-import KanbanDomain from './dafny/KanbanDomain'
-
-// Wrap Dafny domain with JSON converters
-const kanbanDomain = {
-  Init: () => KanbanDomain.__default.Init(),
-  TryStep: (m, a) => KanbanDomain.__default.TryStep(m, a),
-  modelFromJson: (json) => { /* ... */ },
-  modelToJson: (m) => { /* ... */ },
-  actionToJson: (a) => { /* ... */ }
-}
-
-function KanbanBoard({ projectId }: { projectId: string }) {
-  const { model, version, dispatch, status, pending } =
-    useCollaborativeProject(projectId, kanbanDomain)
-
-  if (!model) return <div>Loading...</div>
-
-  const cols = KanbanDomain.__default.GetCols(model)
-
-  return (
-    <div className="kanban">
-      <div className="status-bar">
-        <span>v{version}</span>
-        <span>{status}</span>
-        {pending > 0 && <span>{pending} pending</span>}
-      </div>
-
-      <div className="board">
-        {cols.map(col => (
-          <Column
-            key={col}
-            name={col}
-            cards={KanbanDomain.__default.GetLane(model, col)}
-            onAddCard={(title) =>
-              dispatch(KanbanDomain.Action.create_AddCard(col, title))
-            }
-            onMoveCard={(id, toCol, place) =>
-              dispatch(KanbanDomain.Action.create_MoveCard(id, toCol, place))
-            }
-          />
-        ))}
-      </div>
-    </div>
-  )
-}
-```
+See the "Verified Dispatch & Offline Support" section below for the full hook API and usage examples.
 
 ---
 
@@ -618,28 +404,31 @@ Add to `compile.sh`:
 ### 5. Use the Hook
 
 ```tsx
-import { useCollaborativeProject } from './useCollaborativeProject'
-import { myDomain } from './domains/myDomain'
+import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline'
+import App from './dafny/app.js'
 
 function MyApp({ projectId }) {
-  const { model, dispatch } = useCollaborativeProject(projectId, myDomain)
+  const { model, dispatch, isOffline, pendingCount } =
+    useCollaborativeProjectOffline(projectId)
+
+  // Use App.* helpers for actions and model access
   // ...
 }
 ```
 
 ---
 
-## Comparison with Current Architecture
+## Architecture Benefits
 
-| Aspect | Current (Express) | Supabase Pattern |
-|--------|-------------------|------------------|
-| **Server** | Custom Express | Supabase Edge Function |
-| **Auth** | Manual JWT check | Automatic |
-| **Authorization** | Dafny MultiUser | Supabase RLS |
-| **Persistence** | Custom JSON files | Postgres |
-| **Realtime** | Not implemented | Built-in subscriptions |
-| **Deployment** | Separate process | Serverless |
-| **Dafny scope** | Domain + Auth | Domain only |
+| Aspect | Supabase Pattern |
+|--------|------------------|
+| **Server** | Supabase Edge Function (serverless) |
+| **Auth** | Supabase Auth (automatic) |
+| **Authorization** | Row Level Security policies |
+| **Persistence** | PostgreSQL with JSONB |
+| **Realtime** | Built-in subscriptions |
+| **Offline** | Dafny ClientState with pending queue |
+| **Dafny scope** | Domain + reconciliation (verified) |
 
 ---
 
