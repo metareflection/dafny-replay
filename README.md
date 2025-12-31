@@ -135,6 +135,7 @@ This kernel is intentionally minimal: it models a single authoritative state and
 <summary>A kernel for server-authoritative collaboration with offline clients.</summary>
 
 See also the [MULTICOLLAB](MULTICOLLAB.md) design note.
+See also the [SUPABASE](SUPABASE.md) design note for how this kernel can contribute the project model and the server reconciliation in a setup where Supabase contributes user management, database, and realtime.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
 
@@ -154,7 +155,8 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
-See the app kanban-multi-collaboration/ for an example.
+- See the app kanban-multi-collaboration/ for an example with a non-persistent server.
+- See the app kanban-supabase for an example with user management and database persistence via Supabase.
 </details>
 
 ---
@@ -347,6 +349,7 @@ cd kanban            # Kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
+cd kanban-supabase   # kanban with supabase (requires setup)
 cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
 cd clear-split       # ClearSplit app
@@ -377,5 +380,8 @@ This is an experimental methodology that ensures **correctness by construction**
 
 * ✔ Generic replay kernel proved
 * ✔ Generic authority kernel for client–server architectures proved
+* ✔ Generic multi-collaboration kernel for client–server architectures proved
 * ✔ JavaScript compilation
 * ✔ React integration
+* ✔ Supabase integration
+
