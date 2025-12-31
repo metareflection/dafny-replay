@@ -1,5 +1,5 @@
 {
-  "name": "kanban-multi-collaboration2",
+  "name": "kanban-multi-user",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,10 +9,10 @@
     "client": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "node --test server/integration.test.js"
+    "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "bignumber.js": "^9.3.1",
     "cors": "^2.8.5",
     "express": "^4.21.0",

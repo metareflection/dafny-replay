@@ -1,5 +1,5 @@
 // Express server using Dafny-verified KanbanMultiUserAppCore
-// Multi-user Kanban with verified authorization
+// Multi-user Kanban with verified authorization and Supabase auth
 
 import express from 'express';
 import cors from 'cors';
@@ -12,22 +12,11 @@ import {
   BigNumber,
   _dafny
 } from './kanban-core.js';
-
-// TODO: Replace with Supabase auth
-// For now, use a simple header-based auth for testing
-const getAuthenticatedUser = (req) => {
-  // In production: validate JWT from Supabase/Auth0 and extract userId
-  // For now: trust X-User-Id header (ONLY FOR DEVELOPMENT)
-  const userId = req.headers['x-user-id'];
-  if (!userId) {
-    return null;
-  }
-  return userId;
-};
+import { requireAuth, isSupabaseConfigured } from './supabase.js';
 
 // Server state (in-memory, single project)
-// Initialize with a default owner - in production this would come from project creation
-const DEFAULT_OWNER = 'owner@example.com';
+// In production, this would be stored in Supabase and loaded per-project
+const DEFAULT_OWNER = process.env.DEFAULT_OWNER || 'owner@example.com';
 let serverState = KanbanMultiUserAppCore.__default.InitProject(
   _dafny.Seq.UnicodeFromString(DEFAULT_OWNER)
 );
@@ -35,16 +24,6 @@ let serverState = KanbanMultiUserAppCore.__default.InitProject(
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// Auth middleware - ensures user is authenticated
-const requireAuth = (req, res, next) => {
-  const userId = getAuthenticatedUser(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required. Set X-User-Id header.' });
-  }
-  req.userId = userId;
-  next();
-};
 
 // GET /sync - Get current state (requires auth)
 app.get('/sync', requireAuth, (req, res) => {
@@ -118,9 +97,14 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Kanban Multi-User server running on http://localhost:${PORT}`);
   console.log('');
-  console.log('Authentication:');
-  console.log('  Set X-User-Id header to authenticate (dev mode)');
-  console.log(`  Default owner: ${DEFAULT_OWNER}`);
+  if (isSupabaseConfigured()) {
+    console.log('Authentication: Supabase JWT (production mode)');
+    console.log('  Set Authorization: Bearer <token> header');
+  } else {
+    console.log('Authentication: X-User-Id header (development mode)');
+    console.log('  Set SUPABASE_URL and SUPABASE_ANON_KEY for production');
+  }
+  console.log(`Default owner: ${DEFAULT_OWNER}`);
   console.log('');
   console.log('Endpoints:');
   console.log('  GET  /sync     - Get current state');
