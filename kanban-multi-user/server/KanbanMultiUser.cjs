@@ -1,4 +1,4 @@
-// Dafny program KanbanMultiCollaboration.dfy compiled into JavaScript
+// Dafny program KanbanMultiUser.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
@@ -2015,6 +2015,806 @@ let KanbanDomain = (function() {
   }
   return $module;
 })(); // end of module KanbanDomain
+let KanbanMultiUserDomain = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "KanbanMultiUserDomain._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static RejectErr() {
+      return KanbanMultiUserDomain.Err.create_Unauthorized();
+    };
+    static CanEdit(m, actor) {
+      return ((m).dtor_members).contains(actor);
+    };
+    static CanManage(m, actor) {
+      return _dafny.areEqual(actor, (m).dtor_owner);
+    };
+    static Init() {
+      return KanbanMultiUserDomain.Model.create_Model(KanbanDomain.__default.Init(), _dafny.Seq.UnicodeFromString(""), _dafny.Set.fromElements(_dafny.Seq.UnicodeFromString("")));
+    };
+    static InitWithOwner(creator) {
+      return KanbanMultiUserDomain.Model.create_Model(KanbanDomain.__default.Init(), creator, _dafny.Set.fromElements(creator));
+    };
+    static TryStep(m, a) {
+      let _source0 = a;
+      {
+        if (_source0.is_InnerAction) {
+          let _0_actor = (_source0).actor;
+          let _1_innerAction = (_source0).action;
+          if (!(KanbanMultiUserDomain.__default.CanEdit(m, _0_actor))) {
+            return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.Err.create_Unauthorized());
+          } else {
+            let _source1 = KanbanDomain.__default.TryStep((m).dtor_inner, _1_innerAction);
+            {
+              if (_source1.is_Ok) {
+                let _2_newInner = (_source1).value;
+                return KanbanMultiUserDomain.Result.create_Ok(KanbanMultiUserDomain.Model.create_Model(_2_newInner, (m).dtor_owner, (m).dtor_members));
+              }
+            }
+            {
+              let _3_e = (_source1).error;
+              return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.Err.create_InnerErr(_3_e));
+            }
+          }
+        }
+      }
+      {
+        if (_source0.is_InviteMember) {
+          let _4_actor = (_source0).actor;
+          let _5_user = (_source0).user;
+          if (!(KanbanMultiUserDomain.__default.CanManage(m, _4_actor))) {
+            return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.Err.create_Unauthorized());
+          } else {
+            return KanbanMultiUserDomain.Result.create_Ok(KanbanMultiUserDomain.Model.create_Model((m).dtor_inner, (m).dtor_owner, ((m).dtor_members).Union(_dafny.Set.fromElements(_5_user))));
+          }
+        }
+      }
+      {
+        let _6_actor = (_source0).actor;
+        let _7_user = (_source0).user;
+        if (!(KanbanMultiUserDomain.__default.CanManage(m, _6_actor))) {
+          return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.Err.create_Unauthorized());
+        } else if (_dafny.areEqual(_7_user, (m).dtor_owner)) {
+          return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.Err.create_Unauthorized());
+        } else {
+          return KanbanMultiUserDomain.Result.create_Ok(KanbanMultiUserDomain.Model.create_Model((m).dtor_inner, (m).dtor_owner, ((m).dtor_members).Difference(_dafny.Set.fromElements(_7_user))));
+        }
+      }
+    };
+    static Rebase(remote, local) {
+      let _source0 = _dafny.Tuple.of(remote, local);
+      {
+        let _00 = (_source0)[0];
+        if (_00.is_InnerAction) {
+          let _0_remoteInner = (_00).action;
+          let _10 = (_source0)[1];
+          if (_10.is_InnerAction) {
+            let _1_localActor = (_10).actor;
+            let _2_localInner = (_10).action;
+            return KanbanMultiUserDomain.Action.create_InnerAction(_1_localActor, KanbanDomain.__default.Rebase(_0_remoteInner, _2_localInner));
+          }
+        }
+      }
+      {
+        let _01 = (_source0)[0];
+        if (_01.is_InviteMember) {
+          let _11 = (_source0)[1];
+          if (_11.is_InnerAction) {
+            return local;
+          }
+        }
+      }
+      {
+        let _02 = (_source0)[0];
+        if (_02.is_RemoveMember) {
+          let _12 = (_source0)[1];
+          if (_12.is_InnerAction) {
+            return local;
+          }
+        }
+      }
+      {
+        let _03 = (_source0)[0];
+        if (_03.is_InnerAction) {
+          let _13 = (_source0)[1];
+          if (_13.is_InviteMember) {
+            return local;
+          }
+        }
+      }
+      {
+        let _04 = (_source0)[0];
+        if (_04.is_InnerAction) {
+          let _14 = (_source0)[1];
+          if (_14.is_RemoveMember) {
+            return local;
+          }
+        }
+      }
+      {
+        let _05 = (_source0)[0];
+        if (_05.is_InviteMember) {
+          let _15 = (_source0)[1];
+          if (_15.is_InviteMember) {
+            return local;
+          }
+        }
+      }
+      {
+        let _06 = (_source0)[0];
+        if (_06.is_InviteMember) {
+          let _16 = (_source0)[1];
+          if (_16.is_RemoveMember) {
+            return local;
+          }
+        }
+      }
+      {
+        let _07 = (_source0)[0];
+        if (_07.is_RemoveMember) {
+          let _17 = (_source0)[1];
+          if (_17.is_InviteMember) {
+            return local;
+          }
+        }
+      }
+      {
+        let _08 = (_source0)[0];
+        let _18 = (_source0)[1];
+        return local;
+      }
+    };
+    static WrapCandidates(actor, innerCandidates) {
+      return _dafny.Seq.Create(new BigNumber((innerCandidates).length), ((_0_actor, _1_innerCandidates) => function (_2_i) {
+        return KanbanMultiUserDomain.Action.create_InnerAction(_0_actor, (_1_innerCandidates)[_2_i]);
+      })(actor, innerCandidates));
+    };
+    static Candidates(m, a) {
+      let _source0 = a;
+      {
+        if (_source0.is_InnerAction) {
+          let _0_actor = (_source0).actor;
+          let _1_innerAction = (_source0).action;
+          let _2_innerCandidates = KanbanDomain.__default.Candidates((m).dtor_inner, _1_innerAction);
+          return KanbanMultiUserDomain.__default.WrapCandidates(_0_actor, _2_innerCandidates);
+        }
+      }
+      {
+        if (_source0.is_InviteMember) {
+          return _dafny.Seq.of(a);
+        }
+      }
+      {
+        return _dafny.Seq.of(a);
+      }
+    };
+    static RebaseThroughSuffix(suffix, a) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
+          return a;
+        } else {
+          let _in0 = (suffix).slice(0, (new BigNumber((suffix).length)).minus(_dafny.ONE));
+          let _in1 = KanbanMultiUserDomain.__default.Rebase((suffix)[(new BigNumber((suffix).length)).minus(_dafny.ONE)], a);
+          suffix = _in0;
+          a = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+  };
+
+  $module.Model = class Model {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_Model(inner, owner, members) {
+      let $dt = new Model(0);
+      $dt.inner = inner;
+      $dt.owner = owner;
+      $dt.members = members;
+      return $dt;
+    }
+    get is_Model() { return this.$tag === 0; }
+    get dtor_inner() { return this.inner; }
+    get dtor_owner() { return this.owner; }
+    get dtor_members() { return this.members; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUserDomain.Model.Model" + "(" + _dafny.toString(this.inner) + ", " + this.owner.toVerbatimString(true) + ", " + _dafny.toString(this.members) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.inner, other.inner) && _dafny.areEqual(this.owner, other.owner) && _dafny.areEqual(this.members, other.members);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUserDomain.Model.create_Model(KanbanDomain.Model.Default(), _dafny.Seq.UnicodeFromString(""), _dafny.Set.Empty);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Model.Default();
+        }
+      };
+    }
+  }
+
+  $module.Action = class Action {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_InnerAction(actor, action) {
+      let $dt = new Action(0);
+      $dt.actor = actor;
+      $dt.action = action;
+      return $dt;
+    }
+    static create_InviteMember(actor, user) {
+      let $dt = new Action(1);
+      $dt.actor = actor;
+      $dt.user = user;
+      return $dt;
+    }
+    static create_RemoveMember(actor, user) {
+      let $dt = new Action(2);
+      $dt.actor = actor;
+      $dt.user = user;
+      return $dt;
+    }
+    get is_InnerAction() { return this.$tag === 0; }
+    get is_InviteMember() { return this.$tag === 1; }
+    get is_RemoveMember() { return this.$tag === 2; }
+    get dtor_actor() { return this.actor; }
+    get dtor_action() { return this.action; }
+    get dtor_user() { return this.user; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUserDomain.Action.InnerAction" + "(" + this.actor.toVerbatimString(true) + ", " + _dafny.toString(this.action) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUserDomain.Action.InviteMember" + "(" + this.actor.toVerbatimString(true) + ", " + this.user.toVerbatimString(true) + ")";
+      } else if (this.$tag === 2) {
+        return "KanbanMultiUserDomain.Action.RemoveMember" + "(" + this.actor.toVerbatimString(true) + ", " + this.user.toVerbatimString(true) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.actor, other.actor) && _dafny.areEqual(this.action, other.action);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.actor, other.actor) && _dafny.areEqual(this.user, other.user);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.actor, other.actor) && _dafny.areEqual(this.user, other.user);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUserDomain.Action.create_InnerAction(_dafny.Seq.UnicodeFromString(""), KanbanDomain.Action.Default());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Action.Default();
+        }
+      };
+    }
+  }
+
+  $module.Err = class Err {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_InnerErr(e) {
+      let $dt = new Err(0);
+      $dt.e = e;
+      return $dt;
+    }
+    static create_Unauthorized() {
+      let $dt = new Err(1);
+      return $dt;
+    }
+    get is_InnerErr() { return this.$tag === 0; }
+    get is_Unauthorized() { return this.$tag === 1; }
+    get dtor_e() { return this.e; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUserDomain.Err.InnerErr" + "(" + _dafny.toString(this.e) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUserDomain.Err.Unauthorized";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.e, other.e);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1;
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUserDomain.Err.create_InnerErr(KanbanDomain.Err.Default());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Err.Default();
+        }
+      };
+    }
+  }
+
+  $module.Result = class Result {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_Ok(value) {
+      let $dt = new Result(0);
+      $dt.value = value;
+      return $dt;
+    }
+    static create_Err(error) {
+      let $dt = new Result(1);
+      $dt.error = error;
+      return $dt;
+    }
+    get is_Ok() { return this.$tag === 0; }
+    get is_Err() { return this.$tag === 1; }
+    get dtor_value() { return this.value; }
+    get dtor_error() { return this.error; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUserDomain.Result.Ok" + "(" + _dafny.toString(this.value) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUserDomain.Result.Err" + "(" + _dafny.toString(this.error) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.value, other.value);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.error, other.error);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default(_default_T) {
+      return KanbanMultiUserDomain.Result.create_Ok(_default_T);
+    }
+    static Rtd(rtd$_T) {
+      return class {
+        static get Default() {
+          return Result.Default(rtd$_T.Default);
+        }
+      };
+    }
+  }
+  return $module;
+})(); // end of module KanbanMultiUserDomain
+let KanbanMultiUser = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "KanbanMultiUser._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static Version(s) {
+      return new BigNumber(((s).dtor_appliedLog).length);
+    };
+    static InitServer() {
+      return KanbanMultiUser.ServerState.create_ServerState(KanbanMultiUserDomain.__default.Init(), _dafny.Seq.of(), _dafny.Seq.of());
+    };
+    static ChooseCandidate(m, cs) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((cs).length)).isEqualTo(_dafny.ZERO)) {
+          return KanbanMultiUserDomain.Result.create_Err(KanbanMultiUserDomain.__default.RejectErr());
+        } else {
+          let _source0 = KanbanMultiUserDomain.__default.TryStep(m, (cs)[_dafny.ZERO]);
+          {
+            if (_source0.is_Ok) {
+              let _0_m2 = (_source0).value;
+              return KanbanMultiUserDomain.Result.create_Ok(_dafny.Tuple.of(_0_m2, (cs)[_dafny.ZERO]));
+            }
+          }
+          {
+            let _in0 = m;
+            let _in1 = (cs).slice(_dafny.ONE);
+            m = _in0;
+            cs = _in1;
+            continue TAIL_CALL_START;
+          }
+        }
+      }
+    };
+    static Dispatch(s, baseVersion, orig) {
+      let _0_suffix = ((s).dtor_appliedLog).slice(baseVersion);
+      let _1_rebased = KanbanMultiUserDomain.__default.RebaseThroughSuffix(_0_suffix, orig);
+      let _2_cs = KanbanMultiUserDomain.__default.Candidates((s).dtor_present, _1_rebased);
+      let _source0 = KanbanMultiUser.__default.ChooseCandidate((s).dtor_present, _2_cs);
+      {
+        if (_source0.is_Ok) {
+          let _3_pair = (_source0).value;
+          let _4_m2 = (_3_pair)[0];
+          let _5_chosen = (_3_pair)[1];
+          let _6_noChange = _dafny.areEqual(_4_m2, (s).dtor_present);
+          let _7_newApplied = _dafny.Seq.Concat((s).dtor_appliedLog, _dafny.Seq.of(_5_chosen));
+          let _8_rec = KanbanMultiUser.RequestRecord.create_Req(baseVersion, orig, _1_rebased, _5_chosen, KanbanMultiUser.RequestOutcome.create_AuditAccepted(_5_chosen, _6_noChange));
+          let _9_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_8_rec));
+          return _dafny.Tuple.of(KanbanMultiUser.ServerState.create_ServerState(_4_m2, _7_newApplied, _9_newAudit), KanbanMultiUser.Reply.create_Accepted(new BigNumber((_7_newApplied).length), _4_m2, _5_chosen, _6_noChange));
+        }
+      }
+      {
+        let _10_rec = KanbanMultiUser.RequestRecord.create_Req(baseVersion, orig, _1_rebased, _1_rebased, KanbanMultiUser.RequestOutcome.create_AuditRejected(KanbanMultiUser.RejectReason.create_DomainInvalid(), _1_rebased));
+        let _11_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_10_rec));
+        return _dafny.Tuple.of(KanbanMultiUser.ServerState.create_ServerState((s).dtor_present, (s).dtor_appliedLog, _11_newAudit), KanbanMultiUser.Reply.create_Rejected(KanbanMultiUser.RejectReason.create_DomainInvalid(), _1_rebased));
+      }
+    };
+  };
+
+  $module.RejectReason = class RejectReason {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_DomainInvalid() {
+      let $dt = new RejectReason(0);
+      return $dt;
+    }
+    get is_DomainInvalid() { return this.$tag === 0; }
+    static get AllSingletonConstructors() {
+      return this.AllSingletonConstructors_();
+    }
+    static *AllSingletonConstructors_() {
+      yield RejectReason.create_DomainInvalid();
+    }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.RejectReason.DomainInvalid";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.RejectReason.create_DomainInvalid();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return RejectReason.Default();
+        }
+      };
+    }
+  }
+
+  $module.Reply = class Reply {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_Accepted(newVersion, newPresent, applied, noChange) {
+      let $dt = new Reply(0);
+      $dt.newVersion = newVersion;
+      $dt.newPresent = newPresent;
+      $dt.applied = applied;
+      $dt.noChange = noChange;
+      return $dt;
+    }
+    static create_Rejected(reason, rebased) {
+      let $dt = new Reply(1);
+      $dt.reason = reason;
+      $dt.rebased = rebased;
+      return $dt;
+    }
+    get is_Accepted() { return this.$tag === 0; }
+    get is_Rejected() { return this.$tag === 1; }
+    get dtor_newVersion() { return this.newVersion; }
+    get dtor_newPresent() { return this.newPresent; }
+    get dtor_applied() { return this.applied; }
+    get dtor_noChange() { return this.noChange; }
+    get dtor_reason() { return this.reason; }
+    get dtor_rebased() { return this.rebased; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.Reply.Accepted" + "(" + _dafny.toString(this.newVersion) + ", " + _dafny.toString(this.newPresent) + ", " + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUser.Reply.Rejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.newVersion, other.newVersion) && _dafny.areEqual(this.newPresent, other.newPresent) && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.Reply.create_Accepted(_dafny.ZERO, KanbanMultiUserDomain.Model.Default(), KanbanMultiUserDomain.Action.Default(), false);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return Reply.Default();
+        }
+      };
+    }
+  }
+
+  $module.RequestOutcome = class RequestOutcome {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_AuditAccepted(applied, noChange) {
+      let $dt = new RequestOutcome(0);
+      $dt.applied = applied;
+      $dt.noChange = noChange;
+      return $dt;
+    }
+    static create_AuditRejected(reason, rebased) {
+      let $dt = new RequestOutcome(1);
+      $dt.reason = reason;
+      $dt.rebased = rebased;
+      return $dt;
+    }
+    get is_AuditAccepted() { return this.$tag === 0; }
+    get is_AuditRejected() { return this.$tag === 1; }
+    get dtor_applied() { return this.applied; }
+    get dtor_noChange() { return this.noChange; }
+    get dtor_reason() { return this.reason; }
+    get dtor_rebased() { return this.rebased; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.RequestOutcome.AuditAccepted" + "(" + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
+      } else if (this.$tag === 1) {
+        return "KanbanMultiUser.RequestOutcome.AuditRejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.RequestOutcome.create_AuditAccepted(KanbanMultiUserDomain.Action.Default(), false);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return RequestOutcome.Default();
+        }
+      };
+    }
+  }
+
+  $module.RequestRecord = class RequestRecord {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_Req(baseVersion, orig, rebased, chosen, outcome) {
+      let $dt = new RequestRecord(0);
+      $dt.baseVersion = baseVersion;
+      $dt.orig = orig;
+      $dt.rebased = rebased;
+      $dt.chosen = chosen;
+      $dt.outcome = outcome;
+      return $dt;
+    }
+    get is_Req() { return this.$tag === 0; }
+    get dtor_baseVersion() { return this.baseVersion; }
+    get dtor_orig() { return this.orig; }
+    get dtor_rebased() { return this.rebased; }
+    get dtor_chosen() { return this.chosen; }
+    get dtor_outcome() { return this.outcome; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.RequestRecord.Req" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.orig) + ", " + _dafny.toString(this.rebased) + ", " + _dafny.toString(this.chosen) + ", " + _dafny.toString(this.outcome) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.orig, other.orig) && _dafny.areEqual(this.rebased, other.rebased) && _dafny.areEqual(this.chosen, other.chosen) && _dafny.areEqual(this.outcome, other.outcome);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.RequestRecord.create_Req(_dafny.ZERO, KanbanMultiUserDomain.Action.Default(), KanbanMultiUserDomain.Action.Default(), KanbanMultiUserDomain.Action.Default(), KanbanMultiUser.RequestOutcome.Default());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return RequestRecord.Default();
+        }
+      };
+    }
+  }
+
+  $module.ServerState = class ServerState {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_ServerState(present, appliedLog, auditLog) {
+      let $dt = new ServerState(0);
+      $dt.present = present;
+      $dt.appliedLog = appliedLog;
+      $dt.auditLog = auditLog;
+      return $dt;
+    }
+    get is_ServerState() { return this.$tag === 0; }
+    get dtor_present() { return this.present; }
+    get dtor_appliedLog() { return this.appliedLog; }
+    get dtor_auditLog() { return this.auditLog; }
+    toString() {
+      if (this.$tag === 0) {
+        return "KanbanMultiUser.ServerState.ServerState" + "(" + _dafny.toString(this.present) + ", " + _dafny.toString(this.appliedLog) + ", " + _dafny.toString(this.auditLog) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.appliedLog, other.appliedLog) && _dafny.areEqual(this.auditLog, other.auditLog);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return KanbanMultiUser.ServerState.create_ServerState(KanbanMultiUserDomain.Model.Default(), _dafny.Seq.of(), _dafny.Seq.of());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return ServerState.Default();
+        }
+      };
+    }
+  }
+  return $module;
+})(); // end of module KanbanMultiUser
+let KanbanMultiUserAppCore = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "KanbanMultiUserAppCore._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static InitProject(owner) {
+      let _0_model = KanbanMultiUserDomain.__default.InitWithOwner(owner);
+      return KanbanMultiUser.ServerState.create_ServerState(_0_model, _dafny.Seq.of(), _dafny.Seq.of());
+    };
+    static AddColumn(actor, col, limit) {
+      return KanbanMultiUserDomain.Action.create_InnerAction(actor, KanbanDomain.Action.create_AddColumn(col, limit));
+    };
+    static SetWip(actor, col, limit) {
+      return KanbanMultiUserDomain.Action.create_InnerAction(actor, KanbanDomain.Action.create_SetWip(col, limit));
+    };
+    static AddCard(actor, col, title) {
+      return KanbanMultiUserDomain.Action.create_InnerAction(actor, KanbanDomain.Action.create_AddCard(col, title));
+    };
+    static MoveCard(actor, id, toCol, place) {
+      return KanbanMultiUserDomain.Action.create_InnerAction(actor, KanbanDomain.Action.create_MoveCard(id, toCol, place));
+    };
+    static EditTitle(actor, id, title) {
+      return KanbanMultiUserDomain.Action.create_InnerAction(actor, KanbanDomain.Action.create_EditTitle(id, title));
+    };
+    static AtEnd() {
+      return KanbanDomain.Place.create_AtEnd();
+    };
+    static Before(anchor) {
+      return KanbanDomain.Place.create_Before(anchor);
+    };
+    static After(anchor) {
+      return KanbanDomain.Place.create_After(anchor);
+    };
+    static InviteMember(actor, user) {
+      return KanbanMultiUserDomain.Action.create_InviteMember(actor, user);
+    };
+    static RemoveMember(actor, user) {
+      return KanbanMultiUserDomain.Action.create_RemoveMember(actor, user);
+    };
+    static Dispatch(server, baseVersion, action) {
+      return KanbanMultiUser.__default.Dispatch(server, baseVersion, action);
+    };
+    static GetOwner(m) {
+      return (m).dtor_owner;
+    };
+    static GetMembers(m) {
+      return (m).dtor_members;
+    };
+    static IsMember(m, user) {
+      return ((m).dtor_members).contains(user);
+    };
+    static IsOwner(m, user) {
+      return _dafny.areEqual(user, (m).dtor_owner);
+    };
+    static GetCols(m) {
+      return ((m).dtor_inner).dtor_cols;
+    };
+    static GetLanes(m) {
+      return ((m).dtor_inner).dtor_lanes;
+    };
+    static GetWip(m) {
+      return ((m).dtor_inner).dtor_wip;
+    };
+    static GetCards(m) {
+      return ((m).dtor_inner).dtor_cards;
+    };
+    static GetNextId(m) {
+      return ((m).dtor_inner).dtor_nextId;
+    };
+    static ServerVersion(server) {
+      return KanbanMultiUser.__default.Version(server);
+    };
+    static ServerModel(server) {
+      return (server).dtor_present;
+    };
+    static IsAccepted(reply) {
+      return (reply).is_Accepted;
+    };
+    static IsRejected(reply) {
+      return (reply).is_Rejected;
+    };
+    static IsUnauthorized(reply) {
+      return ((reply).is_Rejected) && (_dafny.areEqual((reply).dtor_reason, KanbanMultiUser.RejectReason.create_DomainInvalid()));
+    };
+  };
+  return $module;
+})(); // end of module KanbanMultiUserAppCore
 let KanbanMultiCollaboration = (function() {
   let $module = {};
 

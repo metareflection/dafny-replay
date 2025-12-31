@@ -1,4 +1,4 @@
-// Shared Dafny kernel loading and conversion helpers
+// Shared Dafny kernel loading and conversion helpers for KanbanMultiUser
 // Used by both the Express server and integration tests
 
 import { readFileSync } from 'fs';
@@ -12,7 +12,7 @@ BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 // Load Dafny-generated code
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const kanbanCode = readFileSync(join(__dirname, 'KanbanMulti.cjs'), 'utf-8');
+const kanbanCode = readFileSync(join(__dirname, 'KanbanMultiUser.cjs'), 'utf-8');
 
 const require = (mod) => {
   if (mod === 'bignumber.js') return BigNumber;
@@ -21,10 +21,10 @@ const require = (mod) => {
 
 const initDafny = new Function('require', `
   ${kanbanCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+  return { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore };
 `);
 
-export const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require);
+export const { _dafny, KanbanDomain, KanbanMultiUserDomain, KanbanMultiUser, KanbanMultiUserAppCore } = initDafny(require);
 
 // Helper to convert Dafny Seq (string) to JS string
 export const dafnyStringToJs = (seq) => {
@@ -42,6 +42,17 @@ export const seqToArray = (seq) => {
   return arr;
 };
 
+// Helper to convert Dafny set to JS array
+export const setToArray = (set) => {
+  const arr = [];
+  if (set && set.Elements) {
+    for (const elem of set.Elements) {
+      arr.push(elem);
+    }
+  }
+  return arr;
+};
+
 // Helper to convert BigNumber to JS number
 export const toNumber = (bn) => {
   if (bn && typeof bn.toNumber === 'function') {
@@ -50,8 +61,8 @@ export const toNumber = (bn) => {
   return bn;
 };
 
-// Convert Dafny Model to JS object for API response
-export const modelToJs = (m) => {
+// Convert inner Kanban Model to JS object
+const innerModelToJs = (m) => {
   const cols = seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c));
   const lanesMap = m.dtor_lanes;
   const wipMap = m.dtor_wip;
@@ -89,6 +100,19 @@ export const modelToJs = (m) => {
   return { cols, lanes, wip, cards, nextId };
 };
 
+// Convert MultiUser Model (with inner, owner, members) to JS object
+export const modelToJs = (m) => {
+  const inner = m.dtor_inner;
+  const owner = dafnyStringToJs(m.dtor_owner);
+  const members = setToArray(m.dtor_members).map(dafnyStringToJs);
+
+  return {
+    ...innerModelToJs(inner),
+    owner,
+    members
+  };
+};
+
 // Helper to parse Place from JSON
 export const placeFromJson = (placeJson) => {
   if (!placeJson || placeJson.type === 'AtEnd') {
@@ -101,8 +125,8 @@ export const placeFromJson = (placeJson) => {
   return KanbanDomain.Place.create_AtEnd();
 };
 
-// Parse action JSON to Dafny Action
-export const actionFromJson = (action) => {
+// Parse action JSON to Dafny Action (inner Kanban action, no actor)
+const innerActionFromJson = (action) => {
   switch (action.type) {
     case 'NoOp':
       return KanbanDomain.Action.create_NoOp();
@@ -134,6 +158,30 @@ export const actionFromJson = (action) => {
       );
     default:
       throw new Error(`Unknown action type: ${action.type}`);
+  }
+};
+
+// Create a wrapped action with actor (used by server to inject authenticated userId)
+export const actionFromJson = (action, actor) => {
+  const actorDafny = _dafny.Seq.UnicodeFromString(actor);
+
+  switch (action.type) {
+    // Membership actions
+    case 'InviteMember':
+      return KanbanMultiUserDomain.Action.create_InviteMember(
+        actorDafny,
+        _dafny.Seq.UnicodeFromString(action.user)
+      );
+    case 'RemoveMember':
+      return KanbanMultiUserDomain.Action.create_RemoveMember(
+        actorDafny,
+        _dafny.Seq.UnicodeFromString(action.user)
+      );
+
+    // Board actions (wrapped with actor)
+    default:
+      const innerAction = innerActionFromJson(action);
+      return KanbanMultiUserDomain.Action.create_InnerAction(actorDafny, innerAction);
   }
 };
 
