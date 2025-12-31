@@ -20,7 +20,7 @@ This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, 
 │  Supabase                                                        │
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐  │
-│  │  Auth (JWT)  │  │  Database    │  │  Edge Function        │  │
+│  │     Auth     │  │  Database    │  │  Edge Function        │  │
 │  │              │  │  + RLS       │  │  /dispatch            │  │
 │  │  - Sign up   │  │              │  │                       │  │
 │  │  - Sign in   │  │  - projects  │  │  - Loads state        │  │
@@ -220,7 +220,7 @@ serve(async (req) => {
       })
     }
 
-    // Create Supabase client with user's JWT (for RLS)
+    // Create Supabase client (support for RLS)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -442,7 +442,7 @@ function MyApp({ projectId }) {
 
 ### What's Enforced by Supabase
 
-- Authentication (JWT validation)
+- Authentication
 - Authorization (RLS policies)
 - Data persistence integrity
 

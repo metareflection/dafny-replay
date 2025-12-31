@@ -1,2 +1,2 @@
 [functions.dispatch]
-verify_jwt = true
+verify_jwt = false
