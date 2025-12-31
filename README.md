@@ -384,4 +384,5 @@ This is an experimental methodology that ensures **correctness by construction**
 * ✔ JavaScript compilation
 * ✔ React integration
 * ✔ Supabase integration
+* ✖ Streamlined integration
 
