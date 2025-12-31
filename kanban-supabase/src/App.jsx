@@ -558,6 +558,8 @@ function KanbanBoard({ user, onSignOut }) {
         Dafny-verified domain invariants and offline support.
         <br />
         Actions queue locally while offline, flush on reconnect.
+        <br />
+        created with &lt;3 with <a href="https://github.com/metareflection/dafny-replay" target="_blank" rel="noopener noreferrer">dafny-replay</a>
       </p>
     </>
   )
