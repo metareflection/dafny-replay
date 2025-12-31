@@ -712,7 +712,7 @@ function KanbanBoard({ user, onSignOut, devUserId }) {
           >
             {isFlushing ? 'Flushing...' : isOffline ? 'Go Online' : 'Go Offline'}
           </button>
-          <button onClick={sync} disabled={isOffline || isFlushing}>Sync</button>
+          <button onClick={() => sync()} disabled={isOffline || isFlushing}>Sync</button>
         </div>
       </div>
 
