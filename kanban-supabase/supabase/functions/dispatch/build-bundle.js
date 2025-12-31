@@ -320,48 +320,190 @@ export const rebaseThroughSuffix = (suffix: Action[], actionJson: Action): Actio
 };
 
 // ============================================================================
-// Dispatch (MultiCollaboration pattern using Dafny code)
+// ServerState conversion (for verified Dispatch)
+// ============================================================================
+
+interface ServerStateJson {
+  present: Model;
+  appliedLog: Action[];
+  auditLog?: AuditRecord[];
+}
+
+interface AuditRecord {
+  baseVersion: number;
+  orig: Action;
+  rebased: Action;
+  chosen: Action;
+  outcome: {
+    type: 'accepted' | 'rejected';
+    applied?: Action;
+    noChange?: boolean;
+    reason?: string;
+  };
+}
+
+// deno-lint-ignore no-explicit-any
+export const serverStateFromJson = (json: ServerStateJson): any => {
+  const present = modelFromJson(json.present);
+
+  // Convert appliedLog: Action[] -> Dafny seq<Action>
+  const appliedActions = (json.appliedLog || []).map(actionFromJson);
+  const appliedLog = _dafny.Seq.of(...appliedActions);
+
+  // Convert auditLog: AuditRecord[] -> Dafny seq<RequestRecord>
+  const auditRecords = (json.auditLog || []).map((rec: AuditRecord) => {
+    const outcome = rec.outcome.type === 'accepted'
+      ? KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(
+          actionFromJson(rec.outcome.applied!),
+          rec.outcome.noChange || false
+        )
+      : KanbanMultiCollaboration.RequestOutcome.create_AuditRejected(
+          KanbanMultiCollaboration.RejectReason.create_DomainInvalid(),
+          actionFromJson(rec.outcome.applied || rec.rebased)
+        );
+
+    return KanbanMultiCollaboration.RequestRecord.create_Req(
+      new BigNumber(rec.baseVersion),
+      actionFromJson(rec.orig),
+      actionFromJson(rec.rebased),
+      actionFromJson(rec.chosen),
+      outcome
+    );
+  });
+  const auditLog = _dafny.Seq.of(...auditRecords);
+
+  return KanbanMultiCollaboration.ServerState.create_ServerState(
+    present,
+    appliedLog,
+    auditLog
+  );
+};
+
+// deno-lint-ignore no-explicit-any
+export const serverStateToJson = (s: any): ServerStateJson => {
+  const present = modelToJson(s.dtor_present);
+
+  // Convert appliedLog: Dafny seq<Action> -> Action[]
+  const appliedLog = seqToArray(s.dtor_appliedLog).map(actionToJson);
+
+  // Convert auditLog: Dafny seq<RequestRecord> -> AuditRecord[]
+  const auditLog = seqToArray(s.dtor_auditLog).map((rec: any) => {
+    const outcome = rec.dtor_outcome;
+    return {
+      baseVersion: toNumber(rec.dtor_baseVersion),
+      orig: actionToJson(rec.dtor_orig),
+      rebased: actionToJson(rec.dtor_rebased),
+      chosen: actionToJson(rec.dtor_chosen),
+      outcome: outcome.is_AuditAccepted
+        ? {
+            type: 'accepted' as const,
+            applied: actionToJson(outcome.dtor_applied),
+            noChange: outcome.dtor_noChange
+          }
+        : {
+            type: 'rejected' as const,
+            reason: 'DomainInvalid',
+            applied: actionToJson(outcome.dtor_rebased)
+          }
+    };
+  });
+
+  return { present, appliedLog, auditLog };
+};
+
+// ============================================================================
+// Verified Dispatch (uses KanbanMultiCollaboration.Dispatch directly)
 // ============================================================================
 
 export interface DispatchResult {
   status: 'accepted' | 'rejected';
   state?: Model;
   appliedAction?: Action;
+  newVersion?: number;
+  noChange?: boolean;
+  appliedLog?: Action[];
+  auditLog?: AuditRecord[];
   reason?: string;
 }
 
+/**
+ * Dispatch using the VERIFIED Dafny MultiCollaboration.Dispatch function.
+ *
+ * This replaces the previous unverified TypeScript orchestration with a single
+ * call to the Dafny-verified Dispatch function, which handles:
+ * - Rebasing through the suffix
+ * - Generating candidates
+ * - Choosing the first valid candidate
+ * - Preserving invariants (proven)
+ */
 export function dispatch(
   stateJson: Model,
   appliedLog: Action[],
   baseVersion: number,
-  actionJson: Action
+  actionJson: Action,
+  auditLog?: AuditRecord[]
 ): DispatchResult {
-  // 1. Rebase through suffix using Dafny's Rebase
-  const suffix = appliedLog.slice(baseVersion);
-  const rebased = rebaseThroughSuffix(suffix, actionJson);
+  // Build ServerState from JSON
+  const serverState = serverStateFromJson({
+    present: stateJson,
+    appliedLog: appliedLog,
+    auditLog: auditLog || []
+  });
 
-  // 2. Get candidates using Dafny's Candidates
-  const model = modelFromJson(stateJson);
-  const rebasedAction = actionFromJson(rebased);
-  const candidatesDafny = KanbanDomain.__default.Candidates(model, rebasedAction);
-  const candidates = seqToArray(candidatesDafny);
+  // Call VERIFIED Dispatch
+  const action = actionFromJson(actionJson);
+  const result = KanbanMultiCollaboration.__default.Dispatch(
+    serverState,
+    new BigNumber(baseVersion),
+    action
+  );
 
-  // 3. Try each candidate using Dafny's TryStep
-  for (const candidate of candidates) {
-    const result = KanbanDomain.__default.TryStep(model, candidate);
-    if (result.is_Ok) {
-      return {
-        status: 'accepted',
-        state: modelToJson(result.dtor_value),
-        appliedAction: actionToJson(candidate)
-      };
-    }
+  // Result is a tuple: [newServerState, reply]
+  const newServerState = result[0];
+  const reply = result[1];
+
+  // Extract new state
+  const newStateJson = serverStateToJson(newServerState);
+
+  // Check reply type using KanbanAppCore helpers
+  if (KanbanAppCore.__default.IsAccepted(reply)) {
+    return {
+      status: 'accepted',
+      state: newStateJson.present,
+      newVersion: toNumber(reply.dtor_newVersion),
+      appliedAction: actionToJson(reply.dtor_applied),
+      noChange: reply.dtor_noChange,
+      appliedLog: newStateJson.appliedLog,
+      auditLog: newStateJson.auditLog
+    };
+  } else {
+    // Rejected
+    return {
+      status: 'rejected',
+      reason: 'DomainInvalid',
+      // Include the rebased action for debugging
+      appliedAction: actionToJson(reply.dtor_rebased)
+    };
   }
+}
 
-  // 4. All candidates failed
+// ============================================================================
+// Legacy dispatch (for backwards compatibility during migration)
+// Uses the same verified Dispatch but with simpler interface
+// ============================================================================
+
+export function dispatchSimple(
+  stateJson: Model,
+  appliedLog: Action[],
+  baseVersion: number,
+  actionJson: Action
+): { status: 'accepted' | 'rejected'; state?: Model; appliedAction?: Action; reason?: string } {
+  const result = dispatch(stateJson, appliedLog, baseVersion, actionJson);
   return {
-    status: 'rejected',
-    reason: 'No valid interpretation of action'
+    status: result.status,
+    state: result.state,
+    appliedAction: result.appliedAction,
+    reason: result.reason
   };
 }
 `;
@@ -370,7 +512,9 @@ export function dispatch(
 const outputPath = join(__dirname, 'dafny-bundle.ts');
 writeFileSync(outputPath, bundle);
 console.log(`Generated ${outputPath}`);
-console.log('The bundle uses the actual compiled Dafny code for:');
-console.log('  - KanbanDomain.TryStep');
-console.log('  - KanbanDomain.Rebase');
-console.log('  - KanbanDomain.Candidates');
+console.log('');
+console.log('The bundle uses VERIFIED Dafny code:');
+console.log('  - KanbanMultiCollaboration.Dispatch (full verified reconciliation)');
+console.log('  - KanbanAppCore.IsAccepted/IsRejected (reply inspection)');
+console.log('');
+console.log('Trust boundary: Only JSON conversion is unverified.');

@@ -685,3 +685,225 @@ This pattern provides:
 5. **Reusable infrastructure**: Same tables, RLS, and hook for any domain
 
 The key insight: let each system do what it's best at. Dafny verifies domain properties. Supabase handles auth, persistence, and realtime. The Edge Function is the thin bridge that runs verified logic server-side.
+
+---
+
+## Pending: Verified Dispatch Architecture
+
+> **Status**: This section describes an improved architecture that is being implemented.
+> The current implementation manually orchestrates Dafny primitives in TypeScript, which
+> introduces soundness concerns. The new architecture uses the verified `Dispatch` directly.
+
+### The Problem with Current Implementation
+
+The current `dispatch()` function in `dafny-bundle.ts` manually re-implements the reconciliation algorithm in unverified TypeScript:
+
+```typescript
+// CURRENT (unverified orchestration)
+export function dispatch(stateJson, appliedLog, baseVersion, actionJson) {
+  const suffix = appliedLog.slice(baseVersion);
+  const rebased = rebaseThroughSuffix(suffix, actionJson);  // ← Unverified
+  const candidates = KanbanDomain.__default.Candidates(model, rebasedAction);
+  for (const candidate of candidates) {                      // ← Unverified loop
+    const result = KanbanDomain.__default.TryStep(model, candidate);
+    if (result.is_Ok) { return { status: 'accepted', ... }; }
+  }
+  return { status: 'rejected' };
+}
+```
+
+While individual Dafny functions (`TryStep`, `Candidates`, `Rebase`) are verified, the **orchestration** is not. This creates risks:
+
+| Component | Verified? | Risk |
+|-----------|-----------|------|
+| `TryStep`, `Candidates`, `Rebase` | ✅ Dafny | None |
+| `rebaseThroughSuffix` iteration | ❌ TypeScript | Order could be wrong |
+| `for (candidate of candidates)` | ❌ TypeScript | Selection could differ from `ChooseCandidate` |
+| JSON ↔ Dafny conversion | ❌ TypeScript | Serialization bugs |
+| Invariant enforcement | ❌ Lost | DB corruption goes undetected |
+
+### The Solution: Use Verified `Dispatch` Directly
+
+The Dafny `MultiCollaboration.Dispatch` function is **fully verified**:
+
+```dafny
+function Dispatch(s: ServerState, baseVersion: nat, orig: D.Action): (ServerState, Reply)
+  requires baseVersion <= Version(s)
+  requires D.Inv(s.present)
+  ensures  D.Inv(Dispatch(s, baseVersion, orig).0.present)  // ← PROVEN
+{
+  var suffix := s.appliedLog[baseVersion..];
+  var rebased := D.RebaseThroughSuffix(suffix, orig);
+  var cs := D.Candidates(s.present, rebased);
+  match ChooseCandidate(s.present, cs)
+    case Ok(pair) => ...  // Accepted
+    case Err(_) => ...    // Rejected
+}
+```
+
+Instead of re-implementing this in TypeScript, we compile and use it directly.
+
+### New Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Client (Browser)                                                   │
+│  ┌───────────────────────────────────────────────────────────────┐ │
+│  │  ClientState (Dafny-verified)                                 │ │
+│  │  - baseVersion: nat                                           │ │
+│  │  - model: Model (optimistic, includes pending applied)        │ │
+│  │  - pending: seq<Action>  ← FULL OFFLINE QUEUE                 │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+│       │                                           ▲                 │
+│       │ ClientLocalDispatch                       │ Realtime        │
+│       │ (verified optimistic update)              │ subscription    │
+│       ▼                                           │                 │
+│  ┌──────────┐                              ┌──────────────┐         │
+│  │ flush()  │ ───POST /dispatch───────────▶│ Supabase     │         │
+│  │          │                              │ Realtime     │         │
+│  └──────────┘                              └──────────────┘         │
+└─────────────────────────────────────────────────────────────────────┘
+                              │                      │
+                              ▼                      │
+┌─────────────────────────────────────────────────────────────────────┐
+│  Edge Function                                                      │
+│  ┌───────────────────────────────────────────────────────────────┐ │
+│  │  KanbanMultiCollaboration.Dispatch (Dafny-VERIFIED)           │ │
+│  │                                                               │ │
+│  │  1. Load ServerState from DB (JSON → Dafny at boundary)       │ │
+│  │  2. Call VERIFIED Dispatch(serverState, baseVersion, action)  │ │
+│  │  3. Save new ServerState to DB (Dafny → JSON at boundary)     │ │
+│  └───────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  PostgreSQL                                                         │
+│  - present (JSONB)       ← Current model                            │
+│  - appliedLog (JSONB[])  ← For rebasing                             │
+│  - auditLog (JSONB[])    ← Optional, for debugging                  │
+│  - version (INT)         ← Optimistic lock                          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### What Changes
+
+#### Server-Side (Edge Function)
+
+**Before**: Manual orchestration of `TryStep`, `Candidates`, `Rebase`
+**After**: Single call to `KanbanMultiCollaboration.__default.Dispatch`
+
+```typescript
+// NEW (verified dispatch)
+import { KanbanMultiCollaboration } from './dafny-bundle.ts'
+
+// Load ServerState from DB
+const serverState = serverStateFromJson({
+  present: project.state,
+  appliedLog: project.applied_log,
+  auditLog: project.audit_log || []
+});
+
+// Call VERIFIED Dispatch
+const [newServerState, reply] = KanbanMultiCollaboration.__default.Dispatch(
+  serverState,
+  BigNumber(baseVersion),
+  actionFromJson(action)
+);
+
+// Check reply and persist
+if (KanbanAppCore.__default.IsAccepted(reply)) {
+  // Save newServerState to DB
+}
+```
+
+#### Client-Side (React Hook)
+
+**Before**: Simple counter `pending: number`
+**After**: Full Dafny `ClientState` with pending queue
+
+```typescript
+// NEW (verified client state)
+import { KanbanAppCore } from './dafny/app.js'
+
+const [clientState, setClientState] = useState<ClientState | null>(null);
+
+// Optimistic local dispatch (verified)
+const localDispatch = (action: Action) => {
+  setClientState(prev =>
+    KanbanAppCore.__default.ClientLocalDispatch(prev, action)
+  );
+};
+
+// Flush pending to server
+const flush = async () => {
+  const pending = KanbanAppCore.__default.GetPendingActions(clientState);
+  for (const action of pending) {
+    await dispatchToServer(action);
+  }
+};
+
+// Reinitialize from server sync
+const onSync = (version: number, model: Model) => {
+  setClientState(KanbanAppCore.__default.InitClient(version, model));
+};
+```
+
+### Benefits
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| **Dispatch orchestration** | Unverified TypeScript | Verified Dafny |
+| **Offline queue** | Counter only | Full action queue |
+| **Invariant preservation** | Not enforced | Proven by Dafny |
+| **Trust boundary** | Includes TypeScript dispatch | Only JSON conversion |
+| **Code reuse** | Different from multi-collaboration | Shares Dafny code |
+
+### Trust Boundary Comparison
+
+**Before (current)**:
+```
+Trusted: TryStep, Candidates, Rebase (Dafny)
+Untrusted: rebaseThroughSuffix, candidate loop, JSON conversion
+```
+
+**After (new)**:
+```
+Trusted: Dispatch, ClientLocalDispatch, InitClient (Dafny)
+Untrusted: JSON conversion only
+```
+
+### Offline Support (Free!)
+
+The Dafny `ClientState` provides verified offline support:
+
+1. **Queue actions locally**: `ClientLocalDispatch` adds to `pending` queue
+2. **Apply optimistically**: Updates local `model` with pending applied
+3. **Show pending count**: `GetPendingCount(clientState)`
+4. **Flush on reconnect**: Iterate `GetPendingActions` and send to server
+5. **Reconcile on sync**: `InitClient(newVersion, newModel)` resets state
+
+This is the same offline model as `kanban-multi-collaboration`, now available in Supabase.
+
+### Realtime Still Works
+
+Supabase Realtime is orthogonal to the dispatch mechanism:
+
+- **Push updates**: Subscribe to `projects` table changes
+- **On update**: Call `InitClient(newVersion, newModel)` to reset client state
+- **Pending handling**: If pending queue is non-empty, may need to re-apply or warn user
+
+### Implementation Plan
+
+1. **Part A: Edge Function** - Use `KanbanMultiCollaboration.Dispatch` directly
+2. **Part B: Client Hook** - Use `ClientState` with pending queue and offline support
+
+### Database Schema Update
+
+Add optional `audit_log` column (the verified `Dispatch` produces audit records):
+
+```sql
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS audit_log JSONB DEFAULT '[]';
+```
+
+This stores the full audit trail from `Dispatch`, useful for debugging and compliance.

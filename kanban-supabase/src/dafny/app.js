@@ -255,12 +255,55 @@ export const kanbanDomain = {
 // ============================================================================
 
 const App = {
+  // -------------------------------------------------------------------------
+  // ClientState management (for offline support)
+  // Uses Dafny-verified KanbanAppCore.ClientState
+  // -------------------------------------------------------------------------
+
+  // Initialize a new client state from server sync response
+  // Model structure: { cols: [], lanes: {}, wip: {}, cards: {}, nextId }
+  InitClient: (version, modelJson) => {
+    const model = modelFromJson(modelJson);
+    return KanbanAppCore.ClientState.create_ClientState(
+      new BigNumber(version),
+      model,
+      _dafny.Seq.of()  // Empty pending queue
+    );
+  },
+
+  // Client-side local dispatch (optimistic update)
+  // Adds action to pending queue and applies optimistically
+  LocalDispatch: (client, action) => {
+    return KanbanAppCore.__default.ClientLocalDispatch(client, action);
+  },
+
+  // Get pending actions count
+  GetPendingCount: (client) => toNumber(KanbanAppCore.__default.PendingCount(client)),
+
+  // Get client base version
+  GetBaseVersion: (client) => toNumber(KanbanAppCore.__default.ClientVersion(client)),
+
+  // Get client present model (with pending actions applied)
+  GetPresent: (client) => KanbanAppCore.__default.ClientModel(client),
+
+  // Get pending actions as array
+  GetPendingActions: (client) => {
+    const pending = client.dtor_pending;
+    return seqToArray(pending);
+  },
+
+  // -------------------------------------------------------------------------
   // Place constructors
+  // -------------------------------------------------------------------------
+
   AtEnd: () => KanbanDomain.Place.create_AtEnd(),
   Before: (anchorId) => KanbanDomain.Place.create_Before(new BigNumber(anchorId)),
   After: (anchorId) => KanbanDomain.Place.create_After(new BigNumber(anchorId)),
 
+  // -------------------------------------------------------------------------
   // Action constructors
+  // -------------------------------------------------------------------------
+
   NoOp: () => KanbanDomain.Action.create_NoOp(),
 
   AddColumn: (col, limit) => KanbanDomain.Action.create_AddColumn(
@@ -289,7 +332,10 @@ const App = {
     _dafny.Seq.UnicodeFromString(title)
   ),
 
+  // -------------------------------------------------------------------------
   // Model accessors
+  // -------------------------------------------------------------------------
+
   GetCols: (m) => seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c)),
 
   GetLane: (m, col) => {
@@ -318,7 +364,10 @@ const App = {
 
   GetNextId: (m) => toNumber(m.dtor_nextId),
 
+  // -------------------------------------------------------------------------
   // Action serialization
+  // -------------------------------------------------------------------------
+
   actionToJson,
   actionFromJson,
 };

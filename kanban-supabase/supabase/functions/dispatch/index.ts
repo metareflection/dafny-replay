@@ -1,6 +1,9 @@
 // Supabase Edge Function: dispatch
-// Runs Dafny reconciliation logic server-side (MultiCollaboration pattern)
+// Runs VERIFIED Dafny MultiCollaboration.Dispatch server-side
 // JWT verified at gateway level
+//
+// Trust boundary: Only JSON conversion is unverified.
+// The dispatch function uses KanbanMultiCollaboration.__default.Dispatch directly.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -86,10 +89,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Load current project state
+    // Load current project state (including audit_log if available)
     const { data: project, error: loadError } = await supabaseAdmin
       .from('projects')
-      .select('state, version, applied_log')
+      .select('state, version, applied_log, audit_log')
       .eq('id', projectId)
       .single()
 
@@ -100,7 +103,7 @@ serve(async (req) => {
       })
     }
 
-    // Validate baseVersion
+    // Validate baseVersion (Dafny requires baseVersion <= version)
     if (baseVersion > project.version) {
       return new Response(JSON.stringify({ error: 'Invalid base version' }), {
         status: 400,
@@ -109,14 +112,15 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // Run Dafny dispatch (MultiCollaboration pattern)
+    // Run VERIFIED Dafny MultiCollaboration.Dispatch
     // ========================================================================
 
     const result = dispatch(
       project.state,
       project.applied_log || [],
       baseVersion,
-      action
+      action,
+      project.audit_log || []  // Pass audit log for full ServerState
     )
 
     if (result.status === 'rejected') {
@@ -129,16 +133,17 @@ serve(async (req) => {
       })
     }
 
-    // Persist new state (with optimistic concurrency)
-    const newVersion = project.version + 1
-    const newAppliedLog = [...(project.applied_log || []), result.appliedAction]
+    // Persist new state from verified Dispatch result
+    // Use newVersion from Dafny (should equal project.version + 1)
+    const newVersion = result.newVersion!
 
     const { error: updateError } = await supabaseAdmin
       .from('projects')
       .update({
         state: result.state,
         version: newVersion,
-        applied_log: newAppliedLog,
+        applied_log: result.appliedLog,  // Full log from Dafny ServerState
+        audit_log: result.auditLog,      // Audit trail from Dafny ServerState
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
@@ -156,11 +161,12 @@ serve(async (req) => {
       })
     }
 
-    // Return success
+    // Return success with version from verified Dispatch
     return new Response(JSON.stringify({
       status: 'accepted',
       version: newVersion,
-      state: result.state
+      state: result.state,
+      noChange: result.noChange  // Useful for client to know if state actually changed
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

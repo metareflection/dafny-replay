@@ -23,10 +23,17 @@ CREATE TABLE IF NOT EXISTS projects (
   -- For reconciliation (MultiCollaboration pattern)
   version INT NOT NULL DEFAULT 0,
   applied_log JSONB NOT NULL DEFAULT '[]',
+  audit_log JSONB NOT NULL DEFAULT '[]',  -- Full audit trail from verified Dispatch
 
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- ============================================================================
+-- Migration: Add audit_log column to existing databases
+-- Run this if you have an existing projects table without audit_log:
+-- ============================================================================
+-- ALTER TABLE projects ADD COLUMN IF NOT EXISTS audit_log JSONB DEFAULT '[]';
 
 -- Project members: who can access which project
 CREATE TABLE IF NOT EXISTS project_members (
