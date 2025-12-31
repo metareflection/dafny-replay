@@ -91,6 +91,8 @@ module AppCore {
 
   // State transitions
   function Dispatch(h: K.History, a: D.Action): K.History requires K.HistInv(h) { K.Do(h, a) }
+  function Preview(h: K.History, a: D.Action): K.History requires K.HistInv(h) { K.Preview(h, a) }
+  function CommitFrom(h: K.History, baseline: D.Model): K.History { K.CommitFrom(h, baseline) }
   function Undo(h: K.History): K.History { K.Undo(h) }
   function Redo(h: K.History): K.History { K.Redo(h) }
 

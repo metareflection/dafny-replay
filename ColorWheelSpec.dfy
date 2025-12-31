@@ -34,7 +34,11 @@ module ColorWheelSpec {
     harmony: Harmony,
     colors: seq<Color>,              // Always exactly 5 colors
     adjustmentMode: AdjustmentMode,
-    contrastPair: (int, int)         // (foreground index, background index)
+    contrastPair: (int, int),        // (foreground index, background index)
+    // Cumulative palette adjustments (for UI slider display)
+    adjustmentH: int,                // Cumulative hue adjustment
+    adjustmentS: int,                // Cumulative saturation adjustment
+    adjustmentL: int                 // Cumulative lightness adjustment
   )
 
   datatype Action =
@@ -228,7 +232,7 @@ module ColorWheelSpec {
     var mood := Vibrant;
     var harmony := Complementary;
     var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
-    Model(baseHue, mood, harmony, colors, Independent, (0, 1))
+    Model(baseHue, mood, harmony, colors, Independent, (0, 1), 0, 0, 0)
   }
 
   // ============================================================================
@@ -291,7 +295,8 @@ module ColorWheelSpec {
       if !ValidBaseHue(baseHue) || !ValidRandomSeeds(randomSeeds) then m
       else
         var colors := GeneratePaletteColors(baseHue, mood, harmony, randomSeeds);
-        m.(baseHue := baseHue, mood := mood, harmony := harmony, colors := colors)
+        m.(baseHue := baseHue, mood := mood, harmony := harmony, colors := colors,
+           adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
 
     case AdjustColor(index, deltaH, deltaS, deltaL) =>
       if index < 0 || index >= 5 || |m.colors| != 5 then m
@@ -302,7 +307,10 @@ module ColorWheelSpec {
 
     // AdjustPalette: Always linked, regardless of adjustmentMode
     case AdjustPalette(deltaH, deltaS, deltaL) =>
-      ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL)
+      var adjusted := ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL);
+      adjusted.(adjustmentH := m.adjustmentH + deltaH,
+                adjustmentS := m.adjustmentS + deltaS,
+                adjustmentL := m.adjustmentL + deltaL)
 
     case SetAdjustmentMode(mode) =>
       m.(adjustmentMode := mode)
@@ -321,19 +329,19 @@ module ColorWheelSpec {
       if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, mood, m.harmony, randomSeeds);
-        m.(mood := mood, colors := colors)
+        m.(mood := mood, colors := colors, adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
 
     case RegenerateHarmony(harmony, randomSeeds) =>
       if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, m.mood, harmony, randomSeeds);
-        m.(harmony := harmony, colors := colors)
+        m.(harmony := harmony, colors := colors, adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
 
     case RandomizeBaseHue(newBaseHue, randomSeeds) =>
       if !ValidBaseHue(newBaseHue) || !ValidRandomSeeds(randomSeeds) then m
       else
         var colors := GeneratePaletteColors(newBaseHue, m.mood, m.harmony, randomSeeds);
-        m.(baseHue := newBaseHue, colors := colors)
+        m.(baseHue := newBaseHue, colors := colors, adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
   }
 
   // ============================================================================

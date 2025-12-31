@@ -1481,6 +1481,12 @@ let DelegationAuthKernel = (function() {
     static Do(h, a) {
       return DelegationAuthKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of((h).dtor_present)), DelegationAuthKernel.__default.Step((h).dtor_present, a), _dafny.Seq.of());
     };
+    static Preview(h, a) {
+      return DelegationAuthKernel.History.create_History((h).dtor_past, DelegationAuthKernel.__default.Step((h).dtor_present, a), (h).dtor_future);
+    };
+    static CommitFrom(h, baseline) {
+      return DelegationAuthKernel.History.create_History(_dafny.Seq.Concat((h).dtor_past, _dafny.Seq.of(baseline)), (h).dtor_present, _dafny.Seq.of());
+    };
     static Undo(h) {
       if ((new BigNumber(((h).dtor_past).length)).isEqualTo(_dafny.ZERO)) {
         return h;

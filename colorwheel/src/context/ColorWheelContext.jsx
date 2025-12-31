@@ -94,6 +94,9 @@ const convertModel = (dafnyModel) => {
     colors,
     adjustmentMode: dafnyModel.dtor_adjustmentMode,
     contrastPair,
+    adjustmentH: toNum(dafnyModel.dtor_adjustmentH),
+    adjustmentS: toNum(dafnyModel.dtor_adjustmentS),
+    adjustmentL: toNum(dafnyModel.dtor_adjustmentL),
   };
 };
 
@@ -114,6 +117,20 @@ export function ColorWheelProvider({ children }) {
     setH(newH);
   };
 
+  const preview = (action) => {
+    const newH = App.Preview(hRef.current, action);
+    hRef.current = newH;
+    setH(newH);
+  };
+
+  const commitFrom = (baseline) => {
+    const newH = App.CommitFrom(hRef.current, baseline);
+    hRef.current = newH;
+    setH(newH);
+  };
+
+  const getRawPresent = () => App.Present(hRef.current);
+
   const undo = () => {
     const newH = App.Undo(hRef.current);
     hRef.current = newH;
@@ -130,6 +147,9 @@ export function ColorWheelProvider({ children }) {
   const value = {
     model,
     dispatch,
+    preview,
+    commitFrom,
+    getRawPresent,
     undo,
     redo,
     canUndo,

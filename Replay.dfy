@@ -39,6 +39,18 @@ abstract module {:compile false} Kernel {
     History(h.past + [h.present], Step(h.present, a), [])
   }
 
+  // Apply action without recording to history (for live preview during drag)
+  function Preview(h: History, a: D.Action): History
+  requires D.Inv(h.present)
+  {
+    History(h.past, Step(h.present, a), h.future)
+  }
+
+  // Commit current state, recording baseline to history (for end of drag)
+  function CommitFrom(h: History, baseline: D.Model): History {
+    History(h.past + [baseline], h.present, [])
+  }
+
   function Undo(h: History): History {
     if |h.past| == 0 then h
     else
@@ -88,6 +100,20 @@ abstract module {:compile false} Kernel {
     ensures  HistInv(Do(h, a))
   {
     D.StepPreservesInv(h.present, a);
+  }
+
+  lemma PreviewPreservesHistInv(h: History, a: D.Action)
+    requires HistInv(h)
+    ensures  HistInv(Preview(h, a))
+  {
+    D.StepPreservesInv(h.present, a);
+  }
+
+  lemma CommitFromPreservesHistInv(h: History, baseline: D.Model)
+    requires HistInv(h)
+    requires D.Inv(baseline)
+    ensures  HistInv(CommitFrom(h, baseline))
+  {
   }
 
   // proxy for linear undo: after a new action, there is no redo branch
