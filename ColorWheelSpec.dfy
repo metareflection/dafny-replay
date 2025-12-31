@@ -326,13 +326,13 @@ module ColorWheelSpec {
         ApplySetColorDirect(m, index, color)
 
     case RegenerateMood(mood, randomSeeds) =>
-      if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
+      if !ValidRandomSeeds(randomSeeds) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, mood, m.harmony, randomSeeds);
         m.(mood := mood, colors := colors, adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
 
     case RegenerateHarmony(harmony, randomSeeds) =>
-      if !ValidRandomSeeds(randomSeeds) || !ValidBaseHue(m.baseHue) then m
+      if !ValidRandomSeeds(randomSeeds) then m
       else
         var colors := GeneratePaletteColors(m.baseHue, m.mood, harmony, randomSeeds);
         m.(harmony := harmony, colors := colors, adjustmentH := 0, adjustmentS := 0, adjustmentL := 0)
@@ -365,18 +365,12 @@ module ColorWheelSpec {
          AdjustColorSL(m.colors[3], newHues[3], deltaS, deltaL),
          AdjustColorSL(m.colors[4], newHues[4], deltaS, deltaL)]
       else (
-        // Custom harmony: keep existing hues, just adjust S/L
-        // Help Dafny see that hues are valid
-        assert ValidColor(m.colors[0]);
-        assert ValidColor(m.colors[1]);
-        assert ValidColor(m.colors[2]);
-        assert ValidColor(m.colors[3]);
-        assert ValidColor(m.colors[4]);
-        [AdjustColorSL(m.colors[0], m.colors[0].h, deltaS, deltaL),
-         AdjustColorSL(m.colors[1], m.colors[1].h, deltaS, deltaL),
-         AdjustColorSL(m.colors[2], m.colors[2].h, deltaS, deltaL),
-         AdjustColorSL(m.colors[3], m.colors[3].h, deltaS, deltaL),
-         AdjustColorSL(m.colors[4], m.colors[4].h, deltaS, deltaL)]
+        // Custom harmony: shift each color's hue by deltaH, adjust S/L
+        [AdjustColorSL(m.colors[0], NormalizeHue(m.colors[0].h + deltaH), deltaS, deltaL),
+         AdjustColorSL(m.colors[1], NormalizeHue(m.colors[1].h + deltaH), deltaS, deltaL),
+         AdjustColorSL(m.colors[2], NormalizeHue(m.colors[2].h + deltaH), deltaS, deltaL),
+         AdjustColorSL(m.colors[3], NormalizeHue(m.colors[3].h + deltaH), deltaS, deltaL),
+         AdjustColorSL(m.colors[4], NormalizeHue(m.colors[4].h + deltaH), deltaS, deltaL)]
       );
 
     // Check if any color breaks mood bounds

@@ -318,4 +318,191 @@ module ColorWheelProof {
     // If harmony is Custom, HuesMatchHarmony is trivially true
     // Otherwise, Normalize verifies hues match or switches to Custom
   }
+
+  // ============================================================================
+  // Behavioral Property: AdjustPalette shifts all hues by deltaH
+  // This lemma would have caught the bug where Custom harmony didn't shift hues
+  // ============================================================================
+
+  lemma AdjustPaletteShiftsHues(m: Model, deltaH: int, deltaS: int, deltaL: int)
+    requires Inv(m)
+    ensures var m' := Apply(m, AdjustPalette(deltaH, deltaS, deltaL));
+            forall i | 0 <= i < 5 ::
+              m'.colors[i].h == NormalizeHue(m.colors[i].h + deltaH)
+  {
+    var m' := Apply(m, AdjustPalette(deltaH, deltaS, deltaL));
+    var newBaseHue := NormalizeHue(m.baseHue + deltaH);
+    var newHues := AllHarmonyHues(newBaseHue, m.harmony);
+
+    if |newHues| == 5 {
+      // Non-Custom harmony: hues come from harmony pattern
+      // The harmony hues are shifted versions of the original harmony hues
+      AdjustPaletteShiftsHuesHarmony(m, deltaH, deltaS, deltaL);
+    } else {
+      // Custom harmony: each hue is shifted individually
+      // This is the case that was broken before the fix
+      forall i | 0 <= i < 5
+        ensures m'.colors[i].h == NormalizeHue(m.colors[i].h + deltaH)
+      {
+        NormalizeHueValid(m.colors[i].h + deltaH);
+      }
+    }
+  }
+
+  // Helper: For non-Custom harmony, shifted harmony hues equal original hues + deltaH
+  lemma AdjustPaletteShiftsHuesHarmony(m: Model, deltaH: int, deltaS: int, deltaL: int)
+    requires Inv(m)
+    requires |AllHarmonyHues(NormalizeHue(m.baseHue + deltaH), m.harmony)| == 5
+    ensures var m' := Apply(m, AdjustPalette(deltaH, deltaS, deltaL));
+            forall i | 0 <= i < 5 ::
+              m'.colors[i].h == NormalizeHue(m.colors[i].h + deltaH)
+  {
+    var newBaseHue := NormalizeHue(m.baseHue + deltaH);
+    var oldHues := AllHarmonyHues(m.baseHue, m.harmony);
+    var newHues := AllHarmonyHues(newBaseHue, m.harmony);
+
+    // Key insight: harmony hues are computed from baseHue
+    // So newHues[i] = NormalizeHue(oldHues[i] + deltaH) for each i
+    HarmonyHuesShift(m.baseHue, m.harmony, deltaH);
+
+    // Since Inv(m) holds, m.colors[i].h == oldHues[i] (from HuesMatchHarmony)
+    assert HuesMatchHarmony(m.colors, m.baseHue, m.harmony);
+  }
+
+  // Helper: Shifting baseHue shifts all harmony hues by the same amount
+  lemma HarmonyHuesShift(baseHue: int, harmony: Harmony, deltaH: int)
+    requires 0 <= baseHue < 360
+    requires harmony != Harmony.Custom
+    requires |AllHarmonyHues(baseHue, harmony)| == 5
+    ensures var oldHues := AllHarmonyHues(baseHue, harmony);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), harmony);
+            |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    var oldHues := AllHarmonyHues(baseHue, harmony);
+    var newHues := AllHarmonyHues(newBaseHue, harmony);
+
+    // Each harmony type shifts all hues uniformly
+    match harmony {
+      case Complementary =>
+        HarmonyHuesShiftComplementary(baseHue, deltaH);
+      case Triadic =>
+        HarmonyHuesShiftTriadic(baseHue, deltaH);
+      case Analogous =>
+        HarmonyHuesShiftAnalogous(baseHue, deltaH);
+      case SplitComplement =>
+        HarmonyHuesShiftSplitComplement(baseHue, deltaH);
+      case Square =>
+        HarmonyHuesShiftSquare(baseHue, deltaH);
+      case Custom =>
+        // Unreachable due to requires
+    }
+  }
+
+  lemma HarmonyHuesShiftComplementary(baseHue: int, deltaH: int)
+    requires 0 <= baseHue < 360
+    ensures var oldHues := AllHarmonyHues(baseHue, Complementary);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), Complementary);
+            |oldHues| == 5 && |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    NormalizeHueShiftLemma(baseHue, deltaH);
+    NormalizeHueShiftLemma(baseHue + 180, deltaH);
+    NormalizeHueShiftLemma(baseHue + HueSpread, deltaH);
+    NormalizeHueShiftLemma(baseHue + 180 + HueSpread, deltaH);
+    NormalizeHueShiftLemma(baseHue - HueSpread, deltaH);
+  }
+
+  lemma HarmonyHuesShiftTriadic(baseHue: int, deltaH: int)
+    requires 0 <= baseHue < 360
+    ensures var oldHues := AllHarmonyHues(baseHue, Triadic);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), Triadic);
+            |oldHues| == 5 && |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    NormalizeHueShiftLemma(baseHue, deltaH);
+    NormalizeHueShiftLemma(baseHue + 120, deltaH);
+    NormalizeHueShiftLemma(baseHue + 240, deltaH);
+    NormalizeHueShiftLemma(baseHue + HueSpread, deltaH);
+    NormalizeHueShiftLemma(baseHue + 120 - HueSpread, deltaH);
+  }
+
+  lemma HarmonyHuesShiftAnalogous(baseHue: int, deltaH: int)
+    requires 0 <= baseHue < 360
+    ensures var oldHues := AllHarmonyHues(baseHue, Analogous);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), Analogous);
+            |oldHues| == 5 && |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    NormalizeHueShiftLemma(baseHue - 30, deltaH);
+    NormalizeHueShiftLemma(baseHue - 15, deltaH);
+    NormalizeHueShiftLemma(baseHue, deltaH);
+    NormalizeHueShiftLemma(baseHue + 15, deltaH);
+    NormalizeHueShiftLemma(baseHue + 30, deltaH);
+  }
+
+  lemma HarmonyHuesShiftSplitComplement(baseHue: int, deltaH: int)
+    requires 0 <= baseHue < 360
+    ensures var oldHues := AllHarmonyHues(baseHue, SplitComplement);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), SplitComplement);
+            |oldHues| == 5 && |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    NormalizeHueShiftLemma(baseHue, deltaH);
+    NormalizeHueShiftLemma(baseHue + 150, deltaH);
+    NormalizeHueShiftLemma(baseHue + 210, deltaH);
+    NormalizeHueShiftLemma(baseHue + HueSpread, deltaH);
+    NormalizeHueShiftLemma(baseHue + 150 - HueSpread, deltaH);
+  }
+
+  lemma HarmonyHuesShiftSquare(baseHue: int, deltaH: int)
+    requires 0 <= baseHue < 360
+    ensures var oldHues := AllHarmonyHues(baseHue, Square);
+            var newHues := AllHarmonyHues(NormalizeHue(baseHue + deltaH), Square);
+            |oldHues| == 5 && |newHues| == 5 &&
+            forall i | 0 <= i < 5 :: newHues[i] == NormalizeHue(oldHues[i] + deltaH)
+  {
+    var newBaseHue := NormalizeHue(baseHue + deltaH);
+    NormalizeHueShiftLemma(baseHue, deltaH);
+    NormalizeHueShiftLemma(baseHue + 90, deltaH);
+    NormalizeHueShiftLemma(baseHue + 180, deltaH);
+    NormalizeHueShiftLemma(baseHue + 270, deltaH);
+    NormalizeHueShiftLemma(baseHue + 45, deltaH);
+  }
+
+  // Key arithmetic lemma: NormalizeHue(NormalizeHue(a) + b) == NormalizeHue(a + b)
+  lemma NormalizeHueShiftLemma(a: int, b: int)
+    ensures NormalizeHue(NormalizeHue(a) + b) == NormalizeHue(a + b)
+  {
+    // Both sides normalize (a + b) mod 360 to [0, 360)
+    var left := NormalizeHue(a) + b;
+    var right := a + b;
+
+    // NormalizeHue(a) ≡ a (mod 360)
+    // So left ≡ a + b ≡ right (mod 360)
+    // Therefore NormalizeHue(left) == NormalizeHue(right)
+    NormalizeHueModEquiv(a, NormalizeHue(a));
+    assert NormalizeHue(a) % 360 == a % 360 || (NormalizeHue(a) % 360 - a % 360) % 360 == 0;
+  }
+
+  // Helper: NormalizeHue(x) ≡ x (mod 360)
+  lemma NormalizeHueModEquiv(x: int, nx: int)
+    requires nx == NormalizeHue(x)
+    ensures (nx - x) % 360 == 0
+  {
+    var normalized := x % 360;
+    if normalized < 0 {
+      assert nx == normalized + 360;
+      assert nx - x == (normalized + 360) - x;
+      assert (normalized + 360) - x == (x % 360 + 360) - x;
+    } else {
+      assert nx == normalized;
+      assert nx - x == (x % 360) - x;
+    }
+  }
 }

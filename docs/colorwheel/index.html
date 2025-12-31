@@ -1523,7 +1523,7 @@ let ColorWheelSpec = (function() {
         if (_source0.is_RegenerateMood) {
           let _34_mood = (_source0).mood;
           let _35_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_35_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          if (!(ColorWheelSpec.__default.ValidRandomSeeds(_35_randomSeeds))) {
             return m;
           } else {
             let _36_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, _34_mood, (m).dtor_harmony, _35_randomSeeds);
@@ -1541,7 +1541,7 @@ let ColorWheelSpec = (function() {
         if (_source0.is_RegenerateHarmony) {
           let _43_harmony = (_source0).harmony;
           let _44_randomSeeds = (_source0).randomSeeds;
-          if ((!(ColorWheelSpec.__default.ValidRandomSeeds(_44_randomSeeds))) || (!(ColorWheelSpec.__default.ValidBaseHue((m).dtor_baseHue)))) {
+          if (!(ColorWheelSpec.__default.ValidRandomSeeds(_44_randomSeeds))) {
             return m;
           } else {
             let _45_colors = ColorWheelSpec.__default.GeneratePaletteColors((m).dtor_baseHue, (m).dtor_mood, _43_harmony, _44_randomSeeds);
@@ -1575,7 +1575,7 @@ let ColorWheelSpec = (function() {
     static ApplyLinkedAdjustment(m, deltaH, deltaS, deltaL) {
       let _0_newBaseHue = ColorWheelSpec.__default.NormalizeHue(((m).dtor_baseHue).plus(deltaH));
       let _1_newHues = ColorWheelSpec.__default.AllHarmonyHues(_0_newBaseHue, (m).dtor_harmony);
-      let _2_adjustedColors = (((new BigNumber((_1_newHues).length)).isEqualTo(new BigNumber(5))) ? (_dafny.Seq.of(ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ZERO], (_1_newHues)[_dafny.ZERO], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ONE], (_1_newHues)[_dafny.ONE], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(2)], (_1_newHues)[new BigNumber(2)], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(3)], (_1_newHues)[new BigNumber(3)], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(4)], (_1_newHues)[new BigNumber(4)], deltaS, deltaL))) : (_dafny.Seq.of(ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ZERO], (((m).dtor_colors)[_dafny.ZERO]).dtor_h, deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ONE], (((m).dtor_colors)[_dafny.ONE]).dtor_h, deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(2)], (((m).dtor_colors)[new BigNumber(2)]).dtor_h, deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(3)], (((m).dtor_colors)[new BigNumber(3)]).dtor_h, deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(4)], (((m).dtor_colors)[new BigNumber(4)]).dtor_h, deltaS, deltaL))));
+      let _2_adjustedColors = (((new BigNumber((_1_newHues).length)).isEqualTo(new BigNumber(5))) ? (_dafny.Seq.of(ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ZERO], (_1_newHues)[_dafny.ZERO], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ONE], (_1_newHues)[_dafny.ONE], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(2)], (_1_newHues)[new BigNumber(2)], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(3)], (_1_newHues)[new BigNumber(3)], deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(4)], (_1_newHues)[new BigNumber(4)], deltaS, deltaL))) : (_dafny.Seq.of(ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ZERO], ColorWheelSpec.__default.NormalizeHue(((((m).dtor_colors)[_dafny.ZERO]).dtor_h).plus(deltaH)), deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[_dafny.ONE], ColorWheelSpec.__default.NormalizeHue(((((m).dtor_colors)[_dafny.ONE]).dtor_h).plus(deltaH)), deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(2)], ColorWheelSpec.__default.NormalizeHue(((((m).dtor_colors)[new BigNumber(2)]).dtor_h).plus(deltaH)), deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(3)], ColorWheelSpec.__default.NormalizeHue(((((m).dtor_colors)[new BigNumber(3)]).dtor_h).plus(deltaH)), deltaS, deltaL), ColorWheelSpec.__default.AdjustColorSL(((m).dtor_colors)[new BigNumber(4)], ColorWheelSpec.__default.NormalizeHue(((((m).dtor_colors)[new BigNumber(4)]).dtor_h).plus(deltaH)), deltaS, deltaL))));
       let _3_moodBroken = (!_dafny.areEqual((m).dtor_mood, ColorWheelSpec.Mood.create_Custom())) && (_dafny.Quantifier(_dafny.IntegerRange(_dafny.ZERO, new BigNumber(5)), false, function (_exists_var_0) {
         let _4_i = _exists_var_0;
         return (((_dafny.ZERO).isLessThanOrEqualTo(_4_i)) && ((_4_i).isLessThan(new BigNumber(5)))) && (!(ColorWheelSpec.__default.ColorSatisfiesMood((_2_adjustedColors)[_4_i], (m).dtor_mood)));
