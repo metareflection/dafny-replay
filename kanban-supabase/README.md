@@ -8,10 +8,10 @@ See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Supabase                                               │
-│  ┌─────────────┐  ┌─────────────┐  ┌────────────────┐  │
-│  │    Auth     │  │ RLS Policies│  │ Edge Function  │  │
-│  │             │  │ (read-only) │  │ /dispatch      │  │
-│  └─────────────┘  └─────────────┘  └────────────────┘  │
+│  ┌─────────────┐  ┌─────────────┐  ┌────────────────┐   │
+│  │    Auth     │  │ RLS Policies│  │ Edge Function  │   │
+│  │             │  │ (read-only) │  │ /dispatch      │   │
+│  └─────────────┘  └─────────────┘  └────────────────┘   │
 │                                           │             │
 │                                    Reconciliation       │
 │                                    (rebase + candidates)│
