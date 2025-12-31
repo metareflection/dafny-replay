@@ -113,53 +113,51 @@ CREATE INDEX idx_project_members_user ON project_members(user_id);
 
 ### Row-Level Security Policies
 
+Use `SECURITY DEFINER` functions to avoid infinite recursion when policies reference each other:
+
 ```sql
--- Enable RLS
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 
--- Projects: members can read, but writes go through Edge Function
+-- Helper functions (SECURITY DEFINER bypasses RLS to avoid recursion)
+CREATE OR REPLACE FUNCTION is_project_member(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM project_members
+    WHERE project_id = p_project_id AND user_id = auth.uid()
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION is_project_owner(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM projects
+    WHERE id = p_project_id AND owner_id = auth.uid()
+  )
+$$;
+
+-- Projects: members can read (writes go through Edge Function)
 CREATE POLICY "members can read projects"
   ON projects FOR SELECT
-  USING (
-    id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid()
-    )
-  );
-
--- No direct INSERT/UPDATE/DELETE on projects from client
--- All mutations go through the Edge Function
+  USING (is_project_member(id));
 
 -- Project members: members can see other members
 CREATE POLICY "members can view membership"
   ON project_members FOR SELECT
-  USING (
-    project_id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  USING (is_project_member(project_id));
 
 -- Only owner can manage membership
-CREATE POLICY "owner can manage members"
+CREATE POLICY "owner can add members"
   ON project_members FOR INSERT
-  USING (
-    project_id IN (
-      SELECT id FROM projects
-      WHERE owner_id = auth.uid()
-    )
-  );
+  WITH CHECK (is_project_owner(project_id));
 
 CREATE POLICY "owner can remove members"
   ON project_members FOR DELETE
-  USING (
-    project_id IN (
-      SELECT id FROM projects
-      WHERE owner_id = auth.uid()
-    )
-    AND user_id != auth.uid()  -- Can't remove self if owner
-  );
+  USING (is_project_owner(project_id) AND user_id != auth.uid());
 ```
 
 ### Helper Functions

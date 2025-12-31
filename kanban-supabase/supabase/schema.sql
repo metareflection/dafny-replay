@@ -48,45 +48,57 @@ CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(projec
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to check membership (SECURITY DEFINER bypasses RLS)
+CREATE OR REPLACE FUNCTION is_project_member(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM project_members
+    WHERE project_id = p_project_id
+    AND user_id = auth.uid()
+  )
+$$;
+
+-- Helper function to check ownership
+CREATE OR REPLACE FUNCTION is_project_owner(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM projects
+    WHERE id = p_project_id
+    AND owner_id = auth.uid()
+  )
+$$;
+
 -- Projects: members can read
 -- (Writes go through Edge Function which uses service role)
 CREATE POLICY "members can read projects"
   ON projects FOR SELECT
-  USING (
-    id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  USING (is_project_member(id));
 
--- Project members: members can see other members
+-- Project members: members can see other members in their projects
 CREATE POLICY "members can view membership"
   ON project_members FOR SELECT
-  USING (
-    project_id IN (
-      SELECT project_id FROM project_members
-      WHERE user_id = auth.uid()
-    )
-  );
+  USING (is_project_member(project_id));
 
 -- Only owner can add members
 CREATE POLICY "owner can add members"
   ON project_members FOR INSERT
-  WITH CHECK (
-    project_id IN (
-      SELECT id FROM projects
-      WHERE owner_id = auth.uid()
-    )
-  );
+  WITH CHECK (is_project_owner(project_id));
 
 -- Only owner can remove members (but not themselves)
 CREATE POLICY "owner can remove members"
   ON project_members FOR DELETE
   USING (
-    project_id IN (
-      SELECT id FROM projects
-      WHERE owner_id = auth.uid()
-    )
+    is_project_owner(project_id)
     AND user_id != auth.uid()
   );
 
