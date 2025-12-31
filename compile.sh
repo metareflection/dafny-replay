@@ -33,6 +33,12 @@ echo "Copying to kanban-multi-collaboration project..."
 cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
 cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
 
+echo "Copying to kanban-supabase project..."
+cp generated/KanbanMulti.js kanban-supabase/src/dafny/KanbanMulti.cjs
+
+echo "Building Deno bundle for kanban-supabase Edge Function..."
+(cd kanban-supabase/supabase/functions/dispatch && node build-bundle.js)
+
 echo "Compiling ClearSplit to JavaScript..."
 dafny translate js --no-verify -o generated/ClearSplit --include-runtime ClearSplit.dfy
 
