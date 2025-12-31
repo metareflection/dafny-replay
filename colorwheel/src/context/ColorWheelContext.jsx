@@ -31,12 +31,6 @@ export const getHarmonyName = (harmony) => {
   return 'Custom';
 };
 
-// Helper to get adjustment mode name
-export const getAdjustmentModeName = (mode) => {
-  if (!mode || mode.$tag === undefined) return 'Unknown';
-  return mode.$tag === 0 ? 'Linked' : 'Independent';
-};
-
 // Map mood tag to App.Mood object
 export const getMoodByTag = (tag) => {
   switch (tag) {
@@ -92,7 +86,6 @@ const convertModel = (dafnyModel) => {
     mood: dafnyModel.dtor_mood,
     harmony: dafnyModel.dtor_harmony,
     colors,
-    adjustmentMode: dafnyModel.dtor_adjustmentMode,
     contrastPair,
     adjustmentH: toNum(dafnyModel.dtor_adjustmentH),
     adjustmentS: toNum(dafnyModel.dtor_adjustmentS),

@@ -19,10 +19,6 @@ export function Palette({ contrastFg, contrastBg }) {
       // Clicking same color closes the editor
       setEditingIndex(null);
     } else {
-      // Switch to Independent mode for direct edits
-      if (model.adjustmentMode?.$tag !== 1) {
-        dispatch(App.SetAdjustmentMode(App.AdjustmentMode.Independent));
-      }
       // Initialize sliders with current color values
       const color = model.colors[index];
       setEditH(color.h);
