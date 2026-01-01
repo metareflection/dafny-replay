@@ -1,8 +1,11 @@
 // RealtimeCollaboration.dfy
 // Models the coordination between flush and realtime updates
 // Based on the JavaScript fix: skip realtime updates while flushing
+//
+// This is an ABSTRACT module - refine it with a concrete MultiCollaboration
+// See KanbanRealtimeCollaboration.dfy for an example
 
-include "KanbanMultiCollaboration.dfy"
+include "MultiCollaboration.dfy"
 
 abstract module RealtimeCollaboration {
   import MC : MultiCollaboration
@@ -274,12 +277,4 @@ abstract module RealtimeCollaboration {
   {
     // Follows from ExitFlushMode calling Sync
   }
-}
-
-// ==========================================================================
-// Kanban-specific instantiation
-// ==========================================================================
-
-module KanbanRealtimeCollaboration refines RealtimeCollaboration {
-  import MC = KanbanMultiCollaboration
 }

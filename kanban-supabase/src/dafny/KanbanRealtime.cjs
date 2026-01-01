@@ -1,4 +1,4 @@
-// Dafny program RealtimeCollaboration.dfy compiled into JavaScript
+// Dafny program KanbanRealtimeCollaboration.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
