@@ -532,6 +532,7 @@ Only JSON conversion is unverified. Everything else uses Dafny-verified code:
 |-----------|----------|
 | `Dispatch` (server reconciliation) | ✅ Dafny |
 | `ClientLocalDispatch` (optimistic update) | ✅ Dafny |
+| `HandleRealtimeUpdate` (pending preservation) | ✅ Dafny |
 | `InitClient` (sync from server) | ✅ Dafny |
 | JSON ↔ Dafny conversion | ❌ TypeScript |
 
@@ -585,4 +586,4 @@ function KanbanBoard({ projectId }) {
 2. **Work offline** - cards/columns work normally, pending count shows
 3. Click **"Go Online"** - `flush()` sends pending actions sequentially to server
 
-Supabase Realtime continues to work - when updates arrive from other clients, `InitClient` resets the client state.
+Supabase Realtime continues to work - when updates arrive from other clients, the verified `HandleRealtimeUpdate` function preserves pending actions by re-applying them to the new server model.

@@ -55,8 +55,21 @@ The domain provides:
 * `StepPreservesInv`: success preserves invariant
 * `Rebase(remote, local)` (total)
 * `Candidates(m,a)` (finite)
-* `Explains(orig,cand)` (ghost, semantics of “meaning-preserving”)
+* `Explains(orig,cand)` (ghost, semantics of "meaning-preserving")
 * `CandidatesComplete`: completeness of candidates w.r.t. the intent envelope
+
+The kernel provides both **server-side** and **client-side** operations:
+
+**Server-side** (`ServerState`, `Dispatch`):
+* `present: Model`
+* `appliedLog: seq<Action>`
+* `auditLog: seq<RequestRecord>`
+
+**Client-side** (`ClientState`, verified optimistic updates):
+* `ClientLocalDispatch`: optimistic update + pending queue
+* `HandleRealtimeUpdate`: preserves pending actions when server updates arrive
+* `ReapplyPending`: re-applies pending actions to new server model
+* `FlushOne`, `FlushAll`: send pending actions to server
 
 The server maintains:
 

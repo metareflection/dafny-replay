@@ -264,7 +264,7 @@ const App = {
   // Model structure: { cols: [], lanes: {}, wip: {}, cards: {}, nextId }
   InitClient: (version, modelJson) => {
     const model = modelFromJson(modelJson);
-    return KanbanAppCore.ClientState.create_ClientState(
+    return KanbanAppCore.__default.MakeClientState(
       new BigNumber(version),
       model,
       _dafny.Seq.of()  // Empty pending queue
@@ -275,6 +275,13 @@ const App = {
   // Adds action to pending queue and applies optimistically
   LocalDispatch: (client, action) => {
     return KanbanAppCore.__default.ClientLocalDispatch(client, action);
+  },
+
+  // Handle realtime update from server - preserves pending actions
+  // Uses VERIFIED Dafny code for pending preservation
+  HandleRealtimeUpdate: (client, serverVersion, serverModelJson) => {
+    const serverModel = modelFromJson(serverModelJson);
+    return KanbanAppCore.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel);
   },
 
   // Get pending actions count

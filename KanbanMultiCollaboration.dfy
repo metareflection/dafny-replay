@@ -1531,20 +1531,22 @@ module KanbanMultiCollaboration refines MultiCollaboration {
 }
 
 // =============================================================================
-// AppCore: Client-side state management (compiled, JS-friendly)
+// AppCore: JS-friendly wrappers around MultiCollaboration client operations
 // =============================================================================
 module KanbanAppCore {
   import K = KanbanDomain
   import MC = KanbanMultiCollaboration
 
   // -------------------------------------------------------------------------
-  // Client state
+  // Re-export ClientState from MultiCollaboration
   // -------------------------------------------------------------------------
-  datatype ClientState = ClientState(
-    baseVersion: nat,           // last synced server version
-    present: K.Model,           // current local model (optimistic)
-    pending: seq<K.Action>      // actions waiting to be flushed
-  )
+  type ClientState = MC.ClientState
+
+  // Constructor wrapper for JS
+  function MakeClientState(baseVersion: nat, present: K.Model, pending: seq<K.Action>): ClientState
+  {
+    MC.ClientState(baseVersion, present, pending)
+  }
 
   // -------------------------------------------------------------------------
   // Initialization
@@ -1566,99 +1568,26 @@ module KanbanAppCore {
   // Create client state synced to server
   function InitClientFromServer(server: MC.ServerState): ClientState
   {
-    ClientState(MC.Version(server), server.present, [])
+    MC.InitClientFromServer(server)
   }
 
   // -------------------------------------------------------------------------
-  // Client local dispatch (optimistic update)
+  // Client operations (delegated to MultiCollaboration)
   // -------------------------------------------------------------------------
 
-  // Policy: optimistic apply if TryStep succeeds, always enqueue
   function ClientLocalDispatch(client: ClientState, action: K.Action): ClientState
   {
-    // Try to apply optimistically
-    var result := K.TryStep(client.present, action);
-    match result
-      case Ok(newModel) =>
-        // Optimistic success: update local model and enqueue
-        ClientState(client.baseVersion, newModel, client.pending + [action])
-      case Err(_) =>
-        // Optimistic failure: still enqueue (server might accept with fallback)
-        ClientState(client.baseVersion, client.present, client.pending + [action])
+    MC.ClientLocalDispatch(client, action)
   }
 
-  // -------------------------------------------------------------------------
-  // Flush: send pending actions to server
-  // -------------------------------------------------------------------------
-
-  datatype FlushResult = FlushResult(
-    server: MC.ServerState,
-    client: ClientState,
-    reply: MC.Reply
-  )
-
-  // Flush one pending action to server
-  function FlushOne(server: MC.ServerState, client: ClientState): K.Option<FlushResult>
-    requires client.baseVersion <= MC.Version(server)
-    requires K.Inv(server.present)  // Server must maintain invariant
+  function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: K.Model): ClientState
   {
-    if |client.pending| == 0 then K.None
-    else
-      var action := client.pending[0];
-      var rest := client.pending[1..];
-
-      var (newServer, reply) := MC.Dispatch(server, client.baseVersion, action);
-
-      match reply
-        case Accepted(newVersion, newPresent, applied, noChange) =>
-          // Update client to match server
-          var newClient := ClientState(newVersion, newPresent, rest);
-          K.Some(FlushResult(newServer, newClient, reply))
-
-        case Rejected(reason, rebased) =>
-          // Drop the action and sync to server state
-          var newClient := ClientState(MC.Version(server), server.present, rest);
-          K.Some(FlushResult(newServer, newClient, reply))
+    MC.HandleRealtimeUpdate(client, serverVersion, serverModel)
   }
 
-  datatype FlushAllResult = FlushAllResult(
-    server: MC.ServerState,
-    client: ClientState,
-    replies: seq<MC.Reply>
-  )
-
-  // Flush all pending actions
-  // Note: we use a ghost ensures to track that invariant is preserved
-  function FlushAll(server: MC.ServerState, client: ClientState): FlushAllResult
-    requires client.baseVersion <= MC.Version(server)
-    requires K.Inv(server.present)  // Server must maintain invariant
-    ensures K.Inv(FlushAll(server, client).server.present)
-    decreases |client.pending|
-  {
-    if |client.pending| == 0 then
-      FlushAllResult(server, client, [])
-    else
-      var flushResult := FlushOne(server, client);
-      if flushResult.None? then
-        FlushAllResult(server, client, [])
-      else
-        var result := flushResult.value;
-        // Dispatch preserves invariant (by MC.Dispatch ensures)
-        // Version only increases by 0 or 1, so we need to check the bound
-        if result.client.baseVersion <= MC.Version(result.server) then
-          var rest := FlushAll(result.server, result.client);
-          FlushAllResult(rest.server, rest.client, [result.reply] + rest.replies)
-        else
-          // Should not happen, but be safe
-          FlushAllResult(result.server, result.client, [result.reply])
-  }
-
-  // -------------------------------------------------------------------------
-  // Sync: pull server state (discard pending, full reset)
-  // -------------------------------------------------------------------------
   function Sync(server: MC.ServerState): ClientState
   {
-    ClientState(MC.Version(server), server.present, [])
+    MC.Sync(server)
   }
 
   // -------------------------------------------------------------------------
@@ -1682,17 +1611,17 @@ module KanbanAppCore {
 
   function PendingCount(client: ClientState): nat
   {
-    |client.pending|
+    MC.PendingCount(client)
   }
 
   function ClientModel(client: ClientState): K.Model
   {
-    client.present
+    MC.ClientModel(client)
   }
 
   function ClientVersion(client: ClientState): nat
   {
-    client.baseVersion
+    MC.ClientVersion(client)
   }
 
   // Check if reply was accepted

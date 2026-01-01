@@ -370,19 +370,11 @@ export function useCollaborativeProjectOffline(projectId) {
 
             // Use functional setState to get current clientState (avoids stale closure)
             setClientState(currentClientState => {
-              // Preserve pending actions (matches RealtimeCollaboration.dfy)
-              const pendingActions = currentClientState ? App.GetPendingActions(currentClientState) : []
-
-              // Initialize from server state
-              const newClient = App.InitClient(payload.new.version, payload.new.state)
-
-              // Re-apply pending actions to preserve them
-              let clientWithPending = newClient
-              for (const action of pendingActions) {
-                clientWithPending = App.LocalDispatch(clientWithPending, action)
+              if (!currentClientState) {
+                return App.InitClient(payload.new.version, payload.new.state)
               }
-
-              return clientWithPending
+              // Use VERIFIED HandleRealtimeUpdate - preserves pending actions automatically
+              return App.HandleRealtimeUpdate(currentClientState, payload.new.version, payload.new.state)
             })
             setServerVersion(payload.new.version)
 

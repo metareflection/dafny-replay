@@ -84,7 +84,7 @@ const App = {
       new BigNumber(model.nextId || 0)
     );
 
-    return KanbanAppCore.ClientState.create_ClientState(
+    return KanbanAppCore.__default.MakeClientState(
       new BigNumber(version),
       dafnyModel,
       _dafny.Seq.of()

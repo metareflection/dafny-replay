@@ -2,7 +2,9 @@
 // Models the coordination between flush and realtime updates
 // Based on the JavaScript fix: skip realtime updates while flushing
 //
-// This module is just a model, for the proofs.
+// This module EXTENDS MultiCollaboration with mode-aware client state.
+// It uses MC.ReapplyPending and MC.HandleRealtimeUpdate for the core logic,
+// adding mode awareness (Normal | Flushing | Offline) on top.
 
 include "MultiCollaboration.dfy"
 
@@ -17,17 +19,21 @@ abstract module RealtimeCollaboration {
   datatype Option<T> = None | Some(value: T)
 
   // ==========================================================================
-  // Client state with flush mode
+  // Client state with flush mode (extends MC.ClientState)
   // ==========================================================================
 
   datatype ClientMode = Normal | Flushing | Offline
 
+  // Extended client state: wraps MC.ClientState + mode
   datatype ClientState = ClientState(
-    baseVersion: nat,           // last synced server version
-    present: Model,             // current local model (optimistic)
-    pending: seq<Action>,       // actions waiting to be flushed
-    mode: ClientMode            // Normal or Flushing
+    base: MC.ClientState,       // Core client state (version, model, pending)
+    mode: ClientMode            // Normal, Flushing, or Offline
   )
+
+  // Accessors that delegate to base
+  function BaseVersion(client: ClientState): nat { client.base.baseVersion }
+  function Present(client: ClientState): Model { client.base.present }
+  function Pending(client: ClientState): seq<Action> { client.base.pending }
 
   // ==========================================================================
   // Client initialization
@@ -35,12 +41,12 @@ abstract module RealtimeCollaboration {
 
   function InitClient(version: nat, model: Model): ClientState
   {
-    ClientState(version, model, [], Normal)
+    ClientState(MC.InitClient(version, model), Normal)
   }
 
   function Sync(server: MC.ServerState): ClientState
   {
-    ClientState(MC.Version(server), server.present, [], Normal)
+    ClientState(MC.Sync(server), Normal)
   }
 
   // ==========================================================================
@@ -49,36 +55,19 @@ abstract module RealtimeCollaboration {
 
   function LocalDispatch(client: ClientState, action: Action): ClientState
   {
-    var result := MC.D.TryStep(client.present, action);
-    match result
-      case Ok(newModel) =>
-        ClientState(client.baseVersion, newModel, client.pending + [action], client.mode)
-      case Err(_) =>
-        ClientState(client.baseVersion, client.present, client.pending + [action], client.mode)
+    // Delegate to MC.ClientLocalDispatch, preserve mode
+    var newBase := MC.ClientLocalDispatch(client.base, action);
+    ClientState(newBase, client.mode)
   }
 
   // ==========================================================================
   // Realtime update handling - THE KEY FIX
   // ==========================================================================
 
-  // Re-apply pending actions to a model
-  function ReapplyPending(model: Model, pending: seq<Action>): Model
-    decreases |pending|
-  {
-    if |pending| == 0 then model
-    else
-      var action := pending[0];
-      var result := MC.D.TryStep(model, action);
-      var newModel := match result
-        case Ok(m) => m
-        case Err(_) => model;
-      ReapplyPending(newModel, pending[1..])
-  }
-
   // Handle a realtime update from the server
   // KEY PROPERTIES:
   // - Skip when flushing or offline
-  // - Preserve pending actions by re-applying to new server model
+  // - Preserve pending actions by re-applying to new server model (via MC.HandleRealtimeUpdate)
   function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: Model): ClientState
   {
     if client.mode == Flushing || client.mode == Offline then
@@ -86,14 +75,10 @@ abstract module RealtimeCollaboration {
       // - Flushing: we'll sync at the end
       // - Offline: user doesn't expect to see network updates
       client
-    else if serverVersion > client.baseVersion then
-      // Accept update from other clients, but KEEP pending actions
-      // Re-apply pending to get correct optimistic view
-      var newPresent := ReapplyPending(serverModel, client.pending);
-      ClientState(serverVersion, newPresent, client.pending, Normal)
     else
-      // Stale update, ignore
-      client
+      // Delegate to MC.HandleRealtimeUpdate for the actual logic
+      var newBase := MC.HandleRealtimeUpdate(client.base, serverVersion, serverModel);
+      ClientState(newBase, Normal)
   }
 
   // ==========================================================================
@@ -103,7 +88,7 @@ abstract module RealtimeCollaboration {
   // Enter flushing mode
   function EnterFlushMode(client: ClientState): ClientState
   {
-    ClientState(client.baseVersion, client.present, client.pending, Flushing)
+    ClientState(client.base, Flushing)
   }
 
   // Exit flushing mode (after sync)
@@ -120,23 +105,25 @@ abstract module RealtimeCollaboration {
 
   // Flush one pending action
   function FlushOne(server: MC.ServerState, client: ClientState): Option<FlushOneResult>
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
   {
-    if |client.pending| == 0 then None
+    if |Pending(client)| == 0 then None
     else
-      var action := client.pending[0];
-      var rest := client.pending[1..];
+      var action := Pending(client)[0];
+      var rest := Pending(client)[1..];
 
-      var (newServer, reply) := MC.Dispatch(server, client.baseVersion, action);
+      var (newServer, reply) := MC.Dispatch(server, BaseVersion(client), action);
 
       match reply
         case Accepted(newVersion, newPresent, applied, noChange) =>
-          var newClient := ClientState(newVersion, newPresent, rest, client.mode);
+          var newBase := MC.ClientState(newVersion, newPresent, rest);
+          var newClient := ClientState(newBase, client.mode);
           Some(FlushOneResult(newServer, newClient, reply))
 
         case Rejected(reason, rebased) =>
-          var newClient := ClientState(MC.Version(server), server.present, rest, client.mode);
+          var newBase := MC.ClientState(MC.Version(server), server.present, rest);
+          var newClient := ClientState(newBase, client.mode);
           Some(FlushOneResult(newServer, newClient, reply))
   }
 
@@ -148,16 +135,16 @@ abstract module RealtimeCollaboration {
 
   // Flush all pending actions (recursive)
   function FlushAll(server: MC.ServerState, client: ClientState): FlushAllResult
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
     requires client.mode == Flushing
     ensures MC.D.Inv(FlushAll(server, client).server.present)
     ensures FlushAll(server, client).client.mode == Flushing
-    ensures |FlushAll(server, client).replies| == |client.pending|  // no silent data loss
-    ensures FlushAll(server, client).client.pending == []  // all actions processed
-    decreases |client.pending|
+    ensures |FlushAll(server, client).replies| == |Pending(client)|  // no silent data loss
+    ensures Pending(FlushAll(server, client).client) == []  // all actions processed
+    decreases |Pending(client)|
   {
-    if |client.pending| == 0 then
+    if |Pending(client)| == 0 then
       FlushAllResult(server, client, [])
     else
       var flushResult := FlushOne(server, client);
@@ -165,7 +152,7 @@ abstract module RealtimeCollaboration {
         FlushAllResult(server, client, [])
       else
         var result := flushResult.value;
-        if result.client.baseVersion <= MC.Version(result.server) then
+        if BaseVersion(result.client) <= MC.Version(result.server) then
           var rest := FlushAll(result.server, result.client);
           FlushAllResult(rest.server, rest.client, [result.reply] + rest.replies)
         else
@@ -183,11 +170,11 @@ abstract module RealtimeCollaboration {
   )
 
   function FlushCycle(server: MC.ServerState, client: ClientState): FlushCycleResult
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
     ensures MC.D.Inv(FlushCycle(server, client).server.present)
     ensures FlushCycle(server, client).client.mode == Normal
-    ensures FlushCycle(server, client).client.pending == []
+    ensures Pending(FlushCycle(server, client).client) == []
   {
     // 1. Enter flushing mode
     var flushingClient := EnterFlushMode(client);
@@ -218,11 +205,11 @@ abstract module RealtimeCollaboration {
     client: ClientState,
     events: seq<RealtimeEvent>
   ): FlushCycleResult
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
     ensures MC.D.Inv(FlushWithRealtimeEvents(server, client, events).server.present)
     ensures FlushWithRealtimeEvents(server, client, events).client.mode == Normal
-    ensures FlushWithRealtimeEvents(server, client, events).client.pending == []
+    ensures Pending(FlushWithRealtimeEvents(server, client, events).client) == []
   {
     // 1. Enter flushing mode
     var flushingClient := EnterFlushMode(client);
@@ -275,7 +262,7 @@ abstract module RealtimeCollaboration {
     client: ClientState,
     events: seq<RealtimeEvent>
   )
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
     ensures FlushWithRealtimeEvents(server, client, events) == FlushCycle(server, client)
   {
@@ -290,11 +277,11 @@ abstract module RealtimeCollaboration {
   // ==========================================================================
 
   lemma FlushCycleClientSynced(server: MC.ServerState, client: ClientState)
-    requires client.baseVersion <= MC.Version(server)
+    requires BaseVersion(client) <= MC.Version(server)
     requires MC.D.Inv(server.present)
     ensures var result := FlushCycle(server, client);
-            result.client.present == result.server.present &&
-            result.client.baseVersion == MC.Version(result.server)
+            Present(result.client) == result.server.present &&
+            BaseVersion(result.client) == MC.Version(result.server)
   {
     // Follows from ExitFlushMode calling Sync
   }

@@ -165,7 +165,157 @@ abstract module {:compile false} MultiCollaboration {
          Rejected(DomainInvalid, rebased))
   }
 
-  // ---- Kernel theorem stubs (statements only) ----
+  // ===========================================================================
+  // Client-side state management
+  // ===========================================================================
+
+  datatype ClientState = ClientState(
+    baseVersion: nat,           // last synced server version
+    present: D.Model,           // current local model (optimistic)
+    pending: seq<D.Action>      // actions waiting to be flushed
+  )
+
+  // Initialize client from version and model
+  function InitClient(version: nat, model: D.Model): ClientState
+  {
+    ClientState(version, model, [])
+  }
+
+  // Create client state synced to server
+  function InitClientFromServer(server: ServerState): ClientState
+  {
+    ClientState(Version(server), server.present, [])
+  }
+
+  // Sync: reset client to server state (discard pending)
+  function Sync(server: ServerState): ClientState
+  {
+    ClientState(Version(server), server.present, [])
+  }
+
+  // Local dispatch (optimistic update)
+  // Policy: apply optimistically if TryStep succeeds, always enqueue
+  function ClientLocalDispatch(client: ClientState, action: D.Action): ClientState
+  {
+    var result := D.TryStep(client.present, action);
+    match result
+      case Ok(newModel) =>
+        // Optimistic success: update local model and enqueue
+        ClientState(client.baseVersion, newModel, client.pending + [action])
+      case Err(_) =>
+        // Optimistic failure: still enqueue (server might accept with fallback)
+        ClientState(client.baseVersion, client.present, client.pending + [action])
+  }
+
+  // Re-apply pending actions to a model (used after realtime update)
+  function ReapplyPending(model: D.Model, pending: seq<D.Action>): D.Model
+    decreases |pending|
+  {
+    if |pending| == 0 then model
+    else
+      var result := D.TryStep(model, pending[0]);
+      var newModel := match result
+        case Ok(m) => m
+        case Err(_) => model;
+      ReapplyPending(newModel, pending[1..])
+  }
+
+  // Handle realtime update from server - preserves pending actions
+  function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: D.Model): ClientState
+  {
+    if serverVersion > client.baseVersion then
+      // Accept update, re-apply pending to get correct optimistic view
+      var newPresent := ReapplyPending(serverModel, client.pending);
+      ClientState(serverVersion, newPresent, client.pending)
+    else
+      // Stale update, ignore
+      client
+  }
+
+  // ===========================================================================
+  // Flush: send pending actions to server
+  // ===========================================================================
+
+  datatype FlushResult = FlushResult(
+    server: ServerState,
+    client: ClientState,
+    reply: Reply
+  )
+
+  datatype FlushAllResult = FlushAllResult(
+    server: ServerState,
+    client: ClientState,
+    replies: seq<Reply>
+  )
+
+  // Flush one pending action to server
+  function FlushOne(server: ServerState, client: ClientState): D.Result<FlushResult, D.Err>
+    requires client.baseVersion <= Version(server)
+    requires D.Inv(server.present)
+  {
+    if |client.pending| == 0 then D.Err(D.RejectErr())
+    else
+      var action := client.pending[0];
+      var rest := client.pending[1..];
+
+      var (newServer, reply) := Dispatch(server, client.baseVersion, action);
+
+      match reply
+        case Accepted(newVersion, newPresent, applied, noChange) =>
+          // Update client to match server
+          var newClient := ClientState(newVersion, newPresent, rest);
+          D.Ok(FlushResult(newServer, newClient, reply))
+
+        case Rejected(reason, rebased) =>
+          // Drop the action and sync to server state
+          var newClient := ClientState(Version(server), server.present, rest);
+          D.Ok(FlushResult(newServer, newClient, reply))
+  }
+
+  // Flush all pending actions
+  function FlushAll(server: ServerState, client: ClientState): FlushAllResult
+    requires client.baseVersion <= Version(server)
+    requires D.Inv(server.present)
+    ensures D.Inv(FlushAll(server, client).server.present)
+    decreases |client.pending|
+  {
+    if |client.pending| == 0 then
+      FlushAllResult(server, client, [])
+    else
+      var flushResult := FlushOne(server, client);
+      match flushResult
+        case Err(_) =>
+          FlushAllResult(server, client, [])
+        case Ok(result) =>
+          if result.client.baseVersion <= Version(result.server) then
+            var rest := FlushAll(result.server, result.client);
+            FlushAllResult(rest.server, rest.client, [result.reply] + rest.replies)
+          else
+            FlushAllResult(result.server, result.client, [result.reply])
+  }
+
+  // ===========================================================================
+  // Client state accessors
+  // ===========================================================================
+
+  function PendingCount(client: ClientState): nat
+  {
+    |client.pending|
+  }
+
+  function ClientModel(client: ClientState): D.Model
+  {
+    client.present
+  }
+
+  function ClientVersion(client: ClientState): nat
+  {
+    client.baseVersion
+  }
+
+  // ===========================================================================
+  // Kernel theorems
+  // ===========================================================================
 
   lemma DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
     requires baseVersion <= Version(s)
