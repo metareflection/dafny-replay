@@ -36,6 +36,12 @@ cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
 echo "Copying to kanban-supabase project..."
 cp generated/KanbanMulti.js kanban-supabase/src/dafny/KanbanMulti.cjs
 
+echo "Compiling KanbanRealtimeCollaboration to JavaScript..."
+dafny translate js --no-verify -o generated/KanbanRealtime --include-runtime RealtimeCollaboration.dfy
+
+echo "Copying to kanban-supabase project..."
+cp generated/KanbanRealtime.js kanban-supabase/src/dafny/KanbanRealtime.cjs
+
 echo "Building Deno bundle for kanban-supabase Edge Function..."
 (cd kanban-supabase/supabase/functions/dispatch && node build-bundle.js)
 
