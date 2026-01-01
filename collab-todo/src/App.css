@@ -1,0 +1,672 @@
+#root {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 3rem;
+}
+
+/* Auth Form */
+.auth-container {
+  max-width: 400px;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.auth-form {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-top: 1rem;
+}
+
+.auth-form h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.auth-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-form input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.auth-form button[type="submit"] {
+  margin-top: 0.5rem;
+}
+
+.auth-error {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.auth-toggle {
+  margin-top: 1rem;
+  color: #888;
+}
+
+.auth-toggle button {
+  background: none;
+  border: none;
+  color: #646cff;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.5rem;
+}
+
+.google-btn {
+  margin-top: 1rem;
+  background: #4285f4 !important;
+  color: white;
+  border: none;
+}
+
+.google-btn:hover {
+  background: #357abd !important;
+}
+
+.dev-warning {
+  color: #ff9800;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.subtitle {
+  color: #888;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-email {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.sign-out-btn {
+  background: transparent;
+  border: 1px solid #666;
+  color: #888;
+  font-size: 0.85rem;
+  padding: 0.4em 0.8em;
+}
+
+.sign-out-btn:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controls .offline-btn {
+  background: #ff9800;
+  border-color: #ff9800;
+  color: #000;
+}
+
+.controls .offline-btn:hover {
+  background: #f57c00;
+  border-color: #f57c00;
+}
+
+.controls .online-btn {
+  background: transparent;
+  border-color: #666;
+  color: #888;
+}
+
+.controls .online-btn:hover {
+  border-color: #ff9800;
+  color: #ff9800;
+}
+
+/* Status Bar */
+.status-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.status-bar .status {
+  color: #4caf50;
+}
+
+.status-bar .status.error {
+  color: #ff6b6b;
+}
+
+.status-bar .status.offline {
+  color: #ff9800;
+}
+
+.pending-badge {
+  background: #ff9800;
+  color: #000;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.error-banner {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+/* Main Layout */
+.main-content {
+  display: flex;
+  gap: 1.5rem;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.project-selector,
+.member-list {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.project-selector h4,
+.member-list h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.project-header h4 {
+  margin: 0;
+}
+
+.refresh-btn {
+  background: transparent;
+  border: none;
+  padding: 0.25em 0.5em;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.project-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem 0;
+}
+
+.project-list li {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.project-list li:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.project-list li.selected {
+  background: rgba(100, 108, 255, 0.2);
+}
+
+.project-name {
+  font-size: 0.9rem;
+}
+
+.owner-badge,
+.member-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.owner-badge {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.member-badge {
+  background: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+}
+
+.you-badge {
+  font-size: 0.7rem;
+  color: #888;
+  margin-left: 0.5rem;
+}
+
+.no-projects {
+  color: #666;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.new-project-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed #444;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.new-project-btn:hover {
+  border-color: #646cff;
+  color: #646cff;
+}
+
+.new-project-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.new-project-form input {
+  font-size: 0.85rem;
+  padding: 0.5rem;
+}
+
+.new-project-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.new-project-buttons button {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.4em 0.8em;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid #444;
+}
+
+/* Member List */
+.member-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem 0;
+}
+
+.member-list li {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-list li.owner {
+  font-weight: 500;
+}
+
+.remove-btn {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  padding: 0.2em 0.4em;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.invite-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.invite-form input {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+}
+
+.invite-form button {
+  font-size: 0.8rem;
+  padding: 0.4em 0.8em;
+}
+
+/* Members Panel */
+.members-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.members-header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.members-error {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.members-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem 0;
+}
+
+.members-list li {
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-email {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-member-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1rem;
+  padding: 0 0.3em;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.remove-member-btn:hover {
+  color: #ff6b6b;
+}
+
+.no-members {
+  color: #666;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem 0;
+  margin: 0;
+}
+
+.invite-error {
+  color: #ff6b6b;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+/* Board Section */
+.board-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-column-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.add-column-form input {
+  flex: 1;
+  max-width: 200px;
+}
+
+.add-column-form input[type="number"] {
+  max-width: 80px;
+}
+
+.board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+  min-height: 400px;
+}
+
+.column {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.column-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.wip-badge {
+  font-size: 0.8rem;
+  color: #888;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.wip-badge.at-limit {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: grab;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.card.dragging {
+  opacity: 0.5;
+}
+
+.card-id {
+  font-size: 0.7rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.card-title {
+  font-size: 0.95rem;
+  cursor: text;
+}
+
+.card-edit-form {
+  margin: 0;
+}
+
+.card-edit-form input {
+  width: 100%;
+  font-size: 0.95rem;
+  padding: 0.25rem;
+  border: 1px solid #646cff;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.add-card-form {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-card-form input {
+  flex: 1;
+  box-sizing: border-box;
+}
+
+.add-card-form button {
+  padding: 0.6em 1em;
+}
+
+.empty-board {
+  text-align: center;
+  color: #666;
+  padding: 3rem;
+}
+
+.info {
+  color: #888;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 152, 0, 0.95);
+  color: #000;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  z-index: 1000;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  .header {
+    border-bottom-color: #ddd;
+  }
+  .status-bar {
+    background: #f5f5f5;
+  }
+  .auth-form {
+    background: #f5f5f5;
+  }
+  .sidebar > div,
+  .project-selector,
+  .members-panel {
+    background: #f5f5f5;
+  }
+  .column {
+    background: #f5f5f5;
+  }
+  .column-header {
+    border-bottom-color: #ddd;
+  }
+  .wip-badge {
+    background: #e0e0e0;
+    color: #666;
+  }
+  .card {
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
