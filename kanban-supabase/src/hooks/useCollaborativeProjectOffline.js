@@ -356,6 +356,13 @@ export function useCollaborativeProjectOffline(projectId) {
           filter: `id=eq.${projectId}`
         },
         (payload) => {
+          // Skip realtime updates while flushing - we're handling our own actions
+          // and will sync at the end. This avoids visual churn during replay.
+          if (isFlushing) {
+            console.log('Realtime update skipped (flushing):', payload.new.version)
+            return
+          }
+
           // Only update if this is a newer version (from another client)
           if (payload.new.version > serverVersion) {
             console.log('Realtime update:', payload.new.version)
@@ -378,7 +385,7 @@ export function useCollaborativeProjectOffline(projectId) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [projectId, serverVersion, isOffline])
+  }, [projectId, serverVersion, isOffline, isFlushing])
 
   // ============================================================================
   // Derived state
