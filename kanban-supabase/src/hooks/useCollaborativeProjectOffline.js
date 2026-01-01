@@ -356,10 +356,11 @@ export function useCollaborativeProjectOffline(projectId) {
           filter: `id=eq.${projectId}`
         },
         (payload) => {
-          // Skip realtime updates while flushing - we're handling our own actions
-          // and will sync at the end. This avoids visual churn during replay.
-          if (isFlushing) {
-            console.log('Realtime update skipped (flushing):', payload.new.version)
+          // Skip realtime updates while flushing or offline
+          // - Flushing: we're handling our own actions, will sync at end
+          // - Offline: user doesn't expect to see network updates
+          if (isFlushing || isOffline) {
+            console.log('Realtime update skipped (flushing/offline):', payload.new.version)
             return
           }
 
@@ -367,16 +368,31 @@ export function useCollaborativeProjectOffline(projectId) {
           if (payload.new.version > serverVersion) {
             console.log('Realtime update:', payload.new.version)
 
-            // Re-initialize client state from server
-            // This clears pending queue - if user has pending actions,
-            // they may need to be re-applied or warned about
-            const newClient = App.InitClient(payload.new.version, payload.new.state)
-            setClientState(newClient)
+            // Use functional setState to get current clientState (avoids stale closure)
+            setClientState(currentClientState => {
+              // Preserve pending actions (matches RealtimeCollaboration.dfy)
+              const pendingActions = currentClientState ? App.GetPendingActions(currentClientState) : []
+
+              // Initialize from server state
+              const newClient = App.InitClient(payload.new.version, payload.new.state)
+
+              // Re-apply pending actions to preserve them
+              let clientWithPending = newClient
+              for (const action of pendingActions) {
+                clientWithPending = App.LocalDispatch(clientWithPending, action)
+              }
+
+              return clientWithPending
+            })
             setServerVersion(payload.new.version)
 
-            if (!isOffline && App.GetPendingCount(newClient) === 0) {
-              setStatus('synced')
-            }
+            // Check pending count after state update
+            setClientState(current => {
+              if (!isOffline && current && App.GetPendingCount(current) === 0) {
+                setStatus('synced')
+              }
+              return current
+            })
           }
         }
       )

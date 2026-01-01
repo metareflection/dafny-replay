@@ -62,15 +62,16 @@ abstract module RealtimeCollaboration {
   // ==========================================================================
 
   // Handle a realtime update from the server
-  // KEY PROPERTY: Skip updates while flushing
+  // KEY PROPERTY: Preserve pending actions
   function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: Model): ClientState
   {
     if client.mode == Flushing then
       // Skip realtime updates while flushing - we'll sync at the end
       client
     else if serverVersion > client.baseVersion then
-      // Accept update from other clients
-      ClientState(serverVersion, serverModel, [], Normal)
+      // Accept update from other clients, but KEEP pending actions
+      // The pending actions will be rebased by the server when we flush
+      ClientState(serverVersion, serverModel, client.pending, Normal)
     else
       // Stale update, ignore
       client
