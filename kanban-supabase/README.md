@@ -22,7 +22,7 @@ See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 ┌────────────────────────────────────────────────────────┐
 │  React Client                                          │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ useCollaborativeProject(projectId, domain)      │   │
+│  │ useCollaborativeProjectOffline(projectId)       │   │
 │  └─────────────────────────────────────────────────┘   │
 │                          │                             │
 │                          ▼                             │
@@ -37,6 +37,7 @@ See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 
 - **Dafny-verified domain logic** - WIP limits, card partition invariants
 - **MultiCollaboration pattern** - Rebasing, candidate fallback, minimal rejection
+- **Verified realtime handling** - Skip-during-flush proven correct by `FlushWithRealtimeEventsEquivalent` theorem
 - **Supabase Auth** - Email/password, OAuth (Google)
 - **Row Level Security** - Members can read, owner manages membership
 - **Realtime sync** - See changes from other clients instantly
@@ -95,14 +96,18 @@ From the project root:
 ```
 
 This:
-1. Compiles `KanbanMultiCollaboration.dfy` to JavaScript
-2. Copies to `kanban-supabase/src/dafny/KanbanMulti.cjs` (client-side)
+1. Compiles `KanbanMultiCollaboration.dfy` → `KanbanMulti.cjs` (for Edge Function dispatch)
+2. Compiles `KanbanRealtimeCollaboration.dfy` → `KanbanRealtime.cjs` (for client realtime handling)
 3. Generates `supabase/functions/dispatch/dafny-bundle.ts` (Edge Function)
 
-The Edge Function bundle includes the actual compiled Dafny code for:
+The Edge Function uses verified Dafny code for:
 - `KanbanDomain.TryStep` - Domain logic
 - `KanbanDomain.Rebase` - Intent-aware rebasing
 - `KanbanDomain.Candidates` - Candidate fallback
+
+The client uses `KanbanRealtimeCollaboration` for verified realtime handling:
+- `HandleRealtimeUpdate` - Skips updates when flushing (proven safe)
+- `EnterFlushMode` / `Sync` - Mode transitions
 
 ### 6. Run the App
 
@@ -156,19 +161,23 @@ Dispatch(state, baseVersion, action):
 ```
 kanban-supabase/
 ├── src/
-│   ├── App.jsx              # Main React app
-│   ├── App.css              # Styles
-│   ├── supabase.js          # Supabase client
+│   ├── App.jsx                    # Main React app
+│   ├── App.css                    # Styles
+│   ├── supabase.js                # Supabase client
 │   ├── hooks/
-│   │   └── useCollaborativeProject.js  # Collaboration hook
+│   │   ├── useCollaborativeProject.js      # Projects/members hooks
+│   │   └── useCollaborativeProjectOffline.js  # Main collaboration hook (verified)
 │   └── dafny/
-│       ├── app.js           # Domain adapter
-│       └── KanbanMulti.cjs  # Compiled Dafny
+│       ├── app.js                 # Domain adapter (uses KanbanRealtime)
+│       ├── KanbanMulti.cjs        # Compiled Dafny (for Edge Function)
+│       └── KanbanRealtime.cjs     # Compiled Dafny (verified realtime)
 ├── supabase/
-│   ├── schema.sql           # Database schema
+│   ├── schema.sql                 # Database schema
 │   └── functions/
 │       └── dispatch/
-│           └── index.ts     # Edge Function
+│           ├── index.ts           # Edge Function
+│           ├── build-bundle.js    # Deno bundle generator
+│           └── dafny-bundle.ts    # Auto-generated Dafny bundle
 ├── package.json
 ├── vite.config.js
 └── .env.example

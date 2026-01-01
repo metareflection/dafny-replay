@@ -1,5 +1,6 @@
-// Dafny Kanban Domain Adapter
-// Wraps compiled Dafny code with JSON conversion helpers
+// Dafny Kanban Domain Adapter with VERIFIED Realtime Handling
+// Uses KanbanRealtimeCollaboration for flush/realtime coordination
+// The key theorem: realtime events during flush don't affect final state
 
 import BigNumber from 'bignumber.js';
 
@@ -7,7 +8,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import kanbanCode from './KanbanMulti.cjs?raw';
+import kanbanCode from './KanbanRealtime.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -18,16 +19,15 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${kanbanCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanRealtimeCollaboration };
 `);
 
-const { _dafny, KanbanDomain, KanbanAppCore } = initDafny(require);
+const { _dafny, KanbanDomain, KanbanRealtimeCollaboration } = initDafny(require);
 
 // ============================================================================
 // Helpers
 // ============================================================================
 
-// Convert Dafny seq to JS array
 const seqToArray = (seq) => {
   const arr = [];
   for (let i = 0; i < seq.length; i++) {
@@ -36,7 +36,6 @@ const seqToArray = (seq) => {
   return arr;
 };
 
-// Convert BigNumber to JS number
 const toNumber = (bn) => {
   if (bn && typeof bn.toNumber === 'function') {
     return bn.toNumber();
@@ -44,7 +43,6 @@ const toNumber = (bn) => {
   return bn;
 };
 
-// Convert Dafny string to JS string
 const dafnyStringToJs = (seq) => {
   if (typeof seq === 'string') return seq;
   if (seq.toVerbatimString) return seq.toVerbatimString(false);
@@ -55,7 +53,6 @@ const dafnyStringToJs = (seq) => {
 // Model Conversion
 // ============================================================================
 
-// Convert JSON model to Dafny Model
 const modelFromJson = (json) => {
   const cols = _dafny.Seq.of(
     ...(json.cols || []).map(c => _dafny.Seq.UnicodeFromString(c))
@@ -90,7 +87,6 @@ const modelFromJson = (json) => {
   );
 };
 
-// Convert Dafny Model to JSON
 const modelToJson = (m) => {
   const cols = seqToArray(m.dtor_cols).map(c => dafnyStringToJs(c));
 
@@ -135,7 +131,6 @@ const modelToJson = (m) => {
 // Action Conversion
 // ============================================================================
 
-// Convert JSON action to Dafny Action
 const actionFromJson = (json) => {
   switch (json.type) {
     case 'NoOp':
@@ -176,7 +171,6 @@ const actionFromJson = (json) => {
   }
 };
 
-// Convert Dafny Action to JSON
 const actionToJson = (action) => {
   if (action.is_NoOp) {
     return { type: 'NoOp' };
@@ -234,7 +228,6 @@ const actionToJson = (action) => {
 // ============================================================================
 
 export const kanbanDomain = {
-  // Try applying an action to a model
   TryStep: (model, action) => {
     const result = KanbanDomain.__default.TryStep(model, action);
     return {
@@ -242,8 +235,6 @@ export const kanbanDomain = {
       dtor_value: result.is_Ok ? result.dtor_value : null
     };
   },
-
-  // JSON conversion
   modelFromJson,
   modelToJson,
   actionToJson,
@@ -251,46 +242,69 @@ export const kanbanDomain = {
 };
 
 // ============================================================================
-// Client-Side API (for optimistic updates and UI)
+// Client-Side API with VERIFIED Realtime Handling
+// Uses KanbanRealtimeCollaboration - the flush/realtime fix is PROVEN correct
 // ============================================================================
+
+const RC = KanbanRealtimeCollaboration;
 
 const App = {
   // -------------------------------------------------------------------------
-  // ClientState management (for offline support)
-  // Uses Dafny-verified KanbanAppCore.ClientState
+  // ClientState management with VERIFIED mode handling
+  // ClientState now has 4 fields: baseVersion, present, pending, mode
   // -------------------------------------------------------------------------
 
-  // Initialize a new client state from server sync response
-  // Model structure: { cols: [], lanes: {}, wip: {}, cards: {}, nextId }
+  // Initialize a new client state (mode = Normal)
   InitClient: (version, modelJson) => {
     const model = modelFromJson(modelJson);
-    return KanbanAppCore.ClientState.create_ClientState(
-      new BigNumber(version),
-      model,
-      _dafny.Seq.of()  // Empty pending queue
-    );
+    return RC.__default.InitClient(new BigNumber(version), model);
   },
 
   // Client-side local dispatch (optimistic update)
-  // Adds action to pending queue and applies optimistically
   LocalDispatch: (client, action) => {
-    return KanbanAppCore.__default.ClientLocalDispatch(client, action);
+    return RC.__default.LocalDispatch(client, action);
   },
 
-  // Get pending actions count
-  GetPendingCount: (client) => toNumber(KanbanAppCore.__default.PendingCount(client)),
+  // -------------------------------------------------------------------------
+  // VERIFIED Realtime Handling - The key fix is now in Dafny!
+  // -------------------------------------------------------------------------
 
-  // Get client base version
-  GetBaseVersion: (client) => toNumber(KanbanAppCore.__default.ClientVersion(client)),
-
-  // Get client present model (with pending actions applied)
-  GetPresent: (client) => KanbanAppCore.__default.ClientModel(client),
-
-  // Get pending actions as array
-  GetPendingActions: (client) => {
-    const pending = client.dtor_pending;
-    return seqToArray(pending);
+  // Handle a realtime update from the server
+  // KEY: Skips updates when mode == Flushing (proven equivalent to processing them)
+  HandleRealtimeUpdate: (client, serverVersion, serverModelJson) => {
+    const serverModel = modelFromJson(serverModelJson);
+    return RC.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel);
   },
+
+  // Enter flushing mode (before starting flush loop)
+  EnterFlushMode: (client) => {
+    return RC.__default.EnterFlushMode(client);
+  },
+
+  // Sync client to server state (call at end of flush)
+  Sync: (version, modelJson) => {
+    const model = modelFromJson(modelJson);
+    return RC.__default.InitClient(new BigNumber(version), model);
+  },
+
+  // Check if client is in flushing mode
+  IsFlushing: (client) => {
+    return client.dtor_mode.is_Flushing;
+  },
+
+  // -------------------------------------------------------------------------
+  // State accessors
+  // -------------------------------------------------------------------------
+
+  GetPendingCount: (client) => toNumber(client.dtor_pending.length),
+
+  GetBaseVersion: (client) => toNumber(client.dtor_baseVersion),
+
+  GetPresent: (client) => client.dtor_present,
+
+  GetPendingActions: (client) => seqToArray(client.dtor_pending),
+
+  GetMode: (client) => client.dtor_mode.is_Flushing ? 'flushing' : 'normal',
 
   // -------------------------------------------------------------------------
   // Place constructors

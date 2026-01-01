@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import App from './dafny/appRealtime.js'
+import App from './dafny/app.js'
 import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
 import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
-import { useCollaborativeProjectRealtime } from './hooks/useCollaborativeProjectRealtime.js'
+import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
 import './App.css'
 
 // ============================================================================
@@ -461,7 +461,7 @@ function KanbanBoard({ user, onSignOut }) {
     isOffline,
     toggleOffline,
     isFlushing
-  } = useCollaborativeProjectRealtime(currentProjectId)
+  } = useCollaborativeProjectOffline(currentProjectId)
 
   const handleAddColumn = (e) => {
     e.preventDefault()

@@ -1,41 +1,21 @@
-// useCollaborativeProjectOffline: React hook with VERIFIED offline support
-// Uses Dafny ClientState for pending queue management
-// Uses Supabase for persistence + realtime, Edge Function for verified dispatch
+// useCollaborativeProjectRealtime: React hook with VERIFIED realtime handling
+// Uses Dafny KanbanRealtimeCollaboration for flush/realtime coordination
+// The skip-during-flush logic is PROVEN correct by FlushWithRealtimeEventsEquivalent theorem
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
 import App from '../dafny/app.js'
 
 /**
- * Hook for managing a collaborative project with Dafny-verified state and offline support.
+ * Hook for managing a collaborative project with VERIFIED realtime handling.
  *
- * Uses Dafny's verified ClientState which maintains:
- * - baseVersion: Last synced server version
- * - model: Current local model (with pending actions applied optimistically)
- * - pending: Full queue of actions waiting to be sent to server
- *
- * Offline support:
- * - Auto-detects offline state via navigator.onLine and browser events
- * - Automatically switches to offline mode on network errors
- * - Auto-flushes pending actions when network is restored
- * - Manual toggle also available for testing
- *
- * @param {string|null} projectId - The project ID to load
- * @returns {object} Hook result with:
- *   - model: Current Dafny Model (optimistic, includes pending)
- *   - version: Server version at last sync
- *   - dispatch(action): Queue action locally and send to server
- *   - sync(): Force re-sync with server
- *   - pendingCount: Number of pending actions
- *   - pendingActions: Array of pending actions (for debugging)
- *   - error: Error message or null
- *   - status: 'syncing' | 'synced' | 'pending' | 'offline' | 'flushing' | 'error'
- *   - isOffline: Whether offline mode is active (auto-detected or manual)
- *   - toggleOffline(): Manual toggle for offline mode (flushes on go-online)
- *   - flush(): Manually flush pending actions to server
+ * KEY DIFFERENCE from useCollaborativeProjectOffline:
+ * - The flush/realtime coordination logic is now in VERIFIED Dafny code
+ * - ClientState has a `mode` field (Normal | Flushing) managed by Dafny
+ * - HandleRealtimeUpdate skips updates when mode == Flushing (proven safe)
+ * - No more React state for isFlushing - it's in the verified ClientState
  */
 export function useCollaborativeProjectOffline(projectId) {
-  // Client state is the Dafny-verified ClientState datatype
   const [clientState, setClientState] = useState(null)
   const [serverVersion, setServerVersion] = useState(0)
   const [error, setError] = useState(null)
@@ -43,11 +23,8 @@ export function useCollaborativeProjectOffline(projectId) {
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   )
-  const [isFlushing, setIsFlushing] = useState(false)
 
-  // Ref to track if we're currently dispatching (to avoid race conditions)
   const dispatchingRef = useRef(false)
-  // Ref for flush function to avoid stale closures in event handlers
   const flushRef = useRef(null)
 
   // ============================================================================
@@ -67,7 +44,7 @@ export function useCollaborativeProjectOffline(projectId) {
 
       if (fetchError) throw fetchError
 
-      // Initialize Dafny ClientState from server response
+      // Initialize with VERIFIED Dafny ClientState (mode = Normal)
       const newClientState = App.InitClient(data.version, data.state)
       setClientState(newClientState)
       setServerVersion(data.version)
@@ -87,20 +64,16 @@ export function useCollaborativeProjectOffline(projectId) {
   const dispatch = useCallback(async (action) => {
     if (!projectId || !clientState || !isSupabaseConfigured()) return
 
-    // 1. Optimistic local update using VERIFIED ClientLocalDispatch
-    //    This adds the action to the pending queue and applies it optimistically
+    // Optimistic local update using VERIFIED LocalDispatch
     const newClientState = App.LocalDispatch(clientState, action)
     setClientState(newClientState)
 
-    // If offline, just keep the optimistic update
     if (isOffline) {
       setStatus('offline')
       return
     }
 
-    // Avoid concurrent dispatches
     if (dispatchingRef.current) {
-      // Action is queued in pending, will be flushed later
       return
     }
 
@@ -108,10 +81,8 @@ export function useCollaborativeProjectOffline(projectId) {
     setStatus('pending')
 
     try {
-      // Get base version from the PREVIOUS client state (before local dispatch)
       const baseVersion = App.GetBaseVersion(clientState)
 
-      // 2. Send to server via Edge Function (which uses VERIFIED Dispatch)
       const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
         body: {
           projectId,
@@ -120,28 +91,20 @@ export function useCollaborativeProjectOffline(projectId) {
         }
       })
 
-      if (invokeError) {
-        console.error('Invoke error:', invokeError)
-        throw invokeError
-      }
+      if (invokeError) throw invokeError
 
       if (data.status === 'accepted') {
-        // 3. Re-initialize client from server state
-        //    This clears the pending queue for this action since it's now confirmed
         setServerVersion(data.version)
         const syncedClient = App.InitClient(data.version, data.state)
         setClientState(syncedClient)
         setStatus('synced')
         setError(null)
       } else if (data.status === 'conflict') {
-        // Concurrent modification - resync
         console.warn('Conflict detected, resyncing...')
         await sync()
       } else if (data.status === 'rejected') {
-        // Domain rejected
         console.warn('Action rejected:', data.reason)
         setError(`Action rejected: ${data.reason || 'Unknown'}`)
-        // Resync to recover consistent state
         await sync()
       } else if (data.error) {
         throw new Error(data.error)
@@ -149,17 +112,14 @@ export function useCollaborativeProjectOffline(projectId) {
     } catch (e) {
       console.error('Dispatch error:', e)
 
-      // Check if this is a network error - switch to offline mode
       if (e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine) {
         console.log('Network error detected, switching to offline mode')
         setIsOffline(true)
         setStatus('offline')
         setError(null)
-        // Action is already in pending queue from optimistic update
       } else {
         setError(e.message)
         setStatus('error')
-        // Resync to recover
         await sync()
       }
     } finally {
@@ -168,7 +128,8 @@ export function useCollaborativeProjectOffline(projectId) {
   }, [projectId, clientState, isOffline, sync])
 
   // ============================================================================
-  // Flush: Send all pending actions to server (for going back online)
+  // Flush: Send all pending actions to server
+  // Uses VERIFIED EnterFlushMode/Sync from Dafny
   // ============================================================================
 
   const flush = useCallback(async () => {
@@ -180,10 +141,11 @@ export function useCollaborativeProjectOffline(projectId) {
       return
     }
 
-    setIsFlushing(true)
+    // VERIFIED: Enter flushing mode - realtime updates will be skipped
+    let currentClient = App.EnterFlushMode(clientState)
+    setClientState(currentClient)
     setStatus('flushing')
 
-    let currentClient = clientState
     let acceptedCount = 0
     let rejectedCount = 0
     let actionIndex = 0
@@ -202,20 +164,21 @@ export function useCollaborativeProjectOffline(projectId) {
           }
         })
 
-        if (invokeError) {
-          console.error('Flush invoke error:', invokeError)
-          throw invokeError
-        }
+        if (invokeError) throw invokeError
 
         if (data.status === 'accepted') {
           setServerVersion(data.version)
-          // Update client to new server state with empty pending
-          currentClient = App.InitClient(data.version, data.state)
+          // Update client to new server state (still in flushing mode conceptually,
+          // but we re-init to clear pending for this action)
+          currentClient = App.Sync(data.version, data.state)
+          // Re-enter flush mode for remaining actions
+          if (actionIndex < pendingActions.length - 1) {
+            currentClient = App.EnterFlushMode(currentClient)
+          }
           acceptedCount++
           consecutiveConflicts = 0
           actionIndex++
         } else if (data.status === 'conflict') {
-          // Concurrent modification - fetch fresh state and retry same action
           consecutiveConflicts++
           if (consecutiveConflicts >= maxConflictRetries) {
             console.error('Max conflict retries exceeded, aborting flush')
@@ -224,7 +187,6 @@ export function useCollaborativeProjectOffline(projectId) {
           }
           console.warn(`Conflict during flush (attempt ${consecutiveConflicts}), fetching fresh state...`)
 
-          // Fetch fresh state directly (don't use sync() which affects React state)
           const { data: freshProject, error: fetchError } = await supabase
             .from('projects')
             .select('state, version')
@@ -236,26 +198,22 @@ export function useCollaborativeProjectOffline(projectId) {
             break
           }
 
-          // Update currentClient with fresh state, then retry (don't increment actionIndex)
-          currentClient = App.InitClient(freshProject.version, freshProject.state)
+          currentClient = App.Sync(freshProject.version, freshProject.state)
+          currentClient = App.EnterFlushMode(currentClient)
           setServerVersion(freshProject.version)
-          // Loop continues with same actionIndex to retry
         } else {
-          // Action rejected by domain - move on
           rejectedCount++
-          const actionJson = App.actionToJson(action)
-          console.warn('Action rejected during flush:', actionJson)
+          console.warn('Action rejected during flush:', App.actionToJson(action))
           consecutiveConflicts = 0
           actionIndex++
         }
       } catch (e) {
         console.error('Flush error:', e)
-        // Network error during flush - go back to offline mode
         if (e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine) {
           console.log('Network error during flush, staying offline')
           setIsOffline(true)
           setStatus('offline')
-          setIsFlushing(false)
+          setClientState(currentClient)
           return
         }
         setError('Failed to flush action')
@@ -263,17 +221,15 @@ export function useCollaborativeProjectOffline(projectId) {
       }
     }
 
-    // Final sync to get clean state
+    // Final sync to get clean state (exits flushing mode)
     try {
       await sync()
     } catch (e) {
-      // If sync fails due to network, stay offline
       if (!navigator.onLine) {
         setIsOffline(true)
         setStatus('offline')
       }
     }
-    setIsFlushing(false)
 
     if (rejectedCount > 0) {
       setError(`Flushed: ${acceptedCount} accepted, ${rejectedCount} rejected`)
@@ -286,17 +242,14 @@ export function useCollaborativeProjectOffline(projectId) {
 
   const toggleOffline = useCallback(async () => {
     if (isOffline) {
-      // Going online - flush pending actions
       setIsOffline(false)
       await flush()
     } else {
-      // Going offline
       setIsOffline(true)
       setStatus('offline')
     }
   }, [isOffline, flush])
 
-  // Keep flushRef updated for use in event handlers
   flushRef.current = flush
 
   // ============================================================================
@@ -313,7 +266,6 @@ export function useCollaborativeProjectOffline(projectId) {
     const handleOnline = () => {
       console.log('Browser came online, flushing pending actions...')
       setIsOffline(false)
-      // Use ref to get latest flush function
       if (flushRef.current) {
         flushRef.current()
       }
@@ -339,7 +291,8 @@ export function useCollaborativeProjectOffline(projectId) {
   }, [projectId, sync])
 
   // ============================================================================
-  // Realtime subscription for updates from other clients
+  // Realtime subscription - NOW USING VERIFIED HandleRealtimeUpdate
+  // The skip-during-flush is PROVEN correct by the Dafny theorem
   // ============================================================================
 
   useEffect(() => {
@@ -356,28 +309,31 @@ export function useCollaborativeProjectOffline(projectId) {
           filter: `id=eq.${projectId}`
         },
         (payload) => {
-          // Skip realtime updates while flushing - we're handling our own actions
-          // and will sync at the end. This avoids visual churn during replay.
-          if (isFlushing) {
-            console.log('Realtime update skipped (flushing):', payload.new.version)
-            return
-          }
+          // Use VERIFIED HandleRealtimeUpdate from Dafny
+          // This automatically skips updates when mode == Flushing
+          // The theorem FlushWithRealtimeEventsEquivalent proves this is safe
+          setClientState(prev => {
+            if (!prev) return prev
 
-          // Only update if this is a newer version (from another client)
-          if (payload.new.version > serverVersion) {
-            console.log('Realtime update:', payload.new.version)
+            const newClient = App.HandleRealtimeUpdate(
+              prev,
+              payload.new.version,
+              payload.new.state
+            )
 
-            // Re-initialize client state from server
-            // This clears pending queue - if user has pending actions,
-            // they may need to be re-applied or warned about
-            const newClient = App.InitClient(payload.new.version, payload.new.state)
-            setClientState(newClient)
-            setServerVersion(payload.new.version)
-
-            if (!isOffline && App.GetPendingCount(newClient) === 0) {
-              setStatus('synced')
+            // Log whether update was applied or skipped
+            if (App.IsFlushing(prev)) {
+              console.log('Realtime update skipped (flushing - VERIFIED):', payload.new.version)
+            } else if (payload.new.version > App.GetBaseVersion(prev)) {
+              console.log('Realtime update applied:', payload.new.version)
+              setServerVersion(payload.new.version)
+              if (!isOffline) {
+                setStatus('synced')
+              }
             }
-          }
+
+            return newClient
+          })
         }
       )
       .subscribe()
@@ -385,7 +341,7 @@ export function useCollaborativeProjectOffline(projectId) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [projectId, serverVersion, isOffline, isFlushing])
+  }, [projectId, isOffline])
 
   // ============================================================================
   // Derived state
@@ -396,6 +352,8 @@ export function useCollaborativeProjectOffline(projectId) {
   const pendingActions = clientState
     ? App.GetPendingActions(clientState).map(a => App.actionToJson(a))
     : []
+  // isFlushing now comes from VERIFIED Dafny state
+  const isFlushing = clientState ? App.IsFlushing(clientState) : false
 
   return {
     model,
@@ -409,6 +367,6 @@ export function useCollaborativeProjectOffline(projectId) {
     isOffline,
     toggleOffline,
     flush,
-    isFlushing
+    isFlushing  // Now from verified Dafny ClientState.mode
   }
 }
