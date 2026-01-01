@@ -2,8 +2,7 @@
 // Models the coordination between flush and realtime updates
 // Based on the JavaScript fix: skip realtime updates while flushing
 //
-// This is an ABSTRACT module - refine it with a concrete MultiCollaboration
-// See KanbanRealtimeCollaboration.dfy for an example
+// This module is just a model, for the proofs.
 
 include "MultiCollaboration.dfy"
 
