@@ -134,6 +134,8 @@ abstract module RealtimeCollaboration {
     requires client.mode == Flushing
     ensures MC.D.Inv(FlushAll(server, client).server.present)
     ensures FlushAll(server, client).client.mode == Flushing
+    ensures |FlushAll(server, client).replies| == |client.pending|  // no silent data loss
+    ensures FlushAll(server, client).client.pending == []  // all actions processed
     decreases |client.pending|
   {
     if |client.pending| == 0 then
