@@ -87,7 +87,8 @@ module TodoDomain refines Domain {
     assignees: set<UserId>,    // Who is this task assigned to? (multiple)
     tags: set<TagId>,          // Tags attached to this task
     deleted: bool,             // Soft delete flag
-    deletedBy: Option<UserId>  // Who deleted it (for restore notification)
+    deletedBy: Option<UserId>, // Who deleted it (for restore notification)
+    deletedFromList: Option<ListId>  // Which list it was in (for restore)
   )
 
   // Tag data (just a name for now)
@@ -318,6 +319,22 @@ module TodoDomain refines Domain {
     Get(m.tasks, l, [])
   }
 
+  // Find which list contains a task (returns None if not found)
+  function FindListForTask(m: Model, taskId: TaskId): Option<ListId>
+  {
+    FindListForTaskHelper(m.lists, m.tasks, taskId)
+  }
+
+  function FindListForTaskHelper(lists: seq<ListId>, tasks: map<ListId, seq<TaskId>>, taskId: TaskId): Option<ListId>
+  {
+    if |lists| == 0 then None
+    else
+      var l := lists[0];
+      var lane := if l in tasks then tasks[l] else [];
+      if SeqContains(lane, taskId) then Some(l)
+      else FindListForTaskHelper(lists[1..], tasks, taskId)
+  }
+
   // Count occurrences of taskId across all lists
   function CountInLists(m: Model, id: TaskId): nat
   {
@@ -366,7 +383,7 @@ module TodoDomain refines Domain {
     map id | id in taskData ::
       var t := taskData[id];
       Task(t.title, t.notes, t.completed, t.starred, t.dueDate, t.assignees,
-           t.tags - {tagId}, t.deleted, t.deletedBy)
+           t.tags - {tagId}, t.deleted, t.deletedBy, t.deletedFromList)
   }
 
   // Remove assignee from all tasks (when member is removed)
@@ -375,7 +392,7 @@ module TodoDomain refines Domain {
     map id | id in taskData ::
       var t := taskData[id];
       Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-           t.assignees - {userId}, t.tags, t.deleted, t.deletedBy)
+           t.assignees - {userId}, t.tags, t.deleted, t.deletedBy, t.deletedFromList)
   }
 
   // ===========================================================================
@@ -447,7 +464,7 @@ module TodoDomain refines Domain {
         if !SeqContains(m.lists, listId) then Err(MissingList)
         else
           var id := m.nextTaskId;
-          var newTask := Task(title, "", false, false, None, {}, {}, false, None);
+          var newTask := Task(title, "", false, false, None, {}, {}, false, None, None);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames,
             m.tasks[listId := TaskList(m, listId) + [id]],
@@ -462,7 +479,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(title, notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -473,10 +490,11 @@ module TodoDomain refines Domain {
         if !(taskId in m.taskData) then Ok(m)  // Idempotent
         else if m.taskData[taskId].deleted then Ok(m)  // Already deleted
         else
-          // Soft delete: mark as deleted, remove from list, keep in taskData
+          // Soft delete: mark as deleted, record which list, remove from list
           var t := m.taskData[taskId];
+          var fromList := FindListForTask(m, taskId);
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags, true, Some(userId));
+                              t.assignees, t.tags, true, Some(userId), fromList);
           var newTasks := map l | l in m.tasks :: RemoveFirst(m.tasks[l], taskId);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, newTasks,
@@ -487,21 +505,23 @@ module TodoDomain refines Domain {
       case RestoreTask(taskId) =>
         if !(taskId in m.taskData) then Err(MissingTask)
         else if !m.taskData[taskId].deleted then Ok(m)  // Not deleted, idempotent
+        else if |m.lists| == 0 then Err(MissingList)  // No lists to restore to
         else
-          // Restore: clear deleted flag, add back to first list (or could be parameterized)
+          // Restore: clear deleted flag, add back to original list (or first if original gone)
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags, false, None);
-          // Add to first list if one exists, otherwise fail
-          if |m.lists| == 0 then Err(MissingList)
-          else
-            var targetList := m.lists[0];
-            Ok(Model(
-              m.mode, m.owner, m.members, m.lists, m.listNames,
-              m.tasks[targetList := TaskList(m, targetList) + [taskId]],
-              m.taskData[taskId := updated], m.tags,
-              m.nextListId, m.nextTaskId, m.nextTagId
-            ))
+                              t.assignees, t.tags, false, None, None);
+          // Try original list first, fall back to first list
+          var targetList :=
+            if t.deletedFromList.Some? && SeqContains(m.lists, t.deletedFromList.value)
+            then t.deletedFromList.value
+            else m.lists[0];
+          Ok(Model(
+            m.mode, m.owner, m.members, m.lists, m.listNames,
+            m.tasks[targetList := TaskList(m, targetList) + [taskId]],
+            m.taskData[taskId := updated], m.tags,
+            m.nextListId, m.nextTaskId, m.nextTagId
+          ))
 
       case MoveTask(taskId, toList, taskPlace) =>
         if !(taskId in m.taskData) then Err(MissingTask)
@@ -531,7 +551,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, true, t.starred, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -544,7 +564,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, false, t.starred, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -557,7 +577,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, true, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -570,7 +590,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, false, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -588,7 +608,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy);
+                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -606,7 +626,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees + {userId}, t.tags, t.deleted, t.deletedBy);
+                              t.assignees + {userId}, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -619,7 +639,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees - {userId}, t.tags, t.deleted, t.deletedBy);
+                              t.assignees - {userId}, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -637,7 +657,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags + {tagId}, t.deleted, t.deletedBy);
+                              t.assignees, t.tags + {tagId}, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,
@@ -650,7 +670,7 @@ module TodoDomain refines Domain {
         else
           var t := m.taskData[taskId];
           var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags - {tagId}, t.deleted, t.deletedBy);
+                              t.assignees, t.tags - {tagId}, t.deleted, t.deletedBy, t.deletedFromList);
           Ok(Model(
             m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
             m.taskData[taskId := updated], m.tags,

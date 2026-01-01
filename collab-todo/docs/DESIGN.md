@@ -31,6 +31,7 @@ This document describes the verified domain specification for the collaborative 
   - **tags** (set of TagIds) - links to project-level tags
   - **deleted** (boolean) - soft delete flag
   - **deletedBy** (optional UserId) - who deleted it
+  - **deletedFromList** (optional ListId) - which list it was in before deletion
 
 ### Tags
 - Tags are project-scoped (not global)
@@ -57,8 +58,8 @@ This document describes the verified domain specification for the collaborative 
 ### Task CRUD
 - **AddTask(listId, title)** - Creates task at end of list
 - **EditTask(taskId, title, notes)** - Updates title and notes
-- **DeleteTask(taskId, userId)** - Soft deletes (marks deleted, records who)
-- **RestoreTask(taskId)** - Restores to first list
+- **DeleteTask(taskId, userId)** - Soft deletes (marks deleted, records who and which list)
+- **RestoreTask(taskId)** - Restores to original list (or first list if original was deleted)
 - **MoveTask(taskId, toList, place)** - Moves between/within lists
 
 ### Task Status
@@ -133,19 +134,43 @@ This document describes the verified domain specification for the collaborative 
 
 ## Soft Delete Semantics
 
-- DeleteTask marks task as `deleted: true` and records `deletedBy`
+- DeleteTask marks task as `deleted: true`, records `deletedBy` and `deletedFromList`
 - Deleted tasks are removed from their list but stay in taskData
-- RestoreTask clears the deleted flag and adds task to first list
+- RestoreTask clears the deleted flag and adds task back to original list
+- If original list was deleted, falls back to first available list
 - This enables conflict notification and undo functionality
 - Permanent deletion (cleanup) is a separate concern (not in spec)
 
 ---
 
-## Open Questions / Future Considerations
+## Conflict Detection (App Layer)
 
-1. **RestoreTask target** - Currently restores to first list. Could parameterize target list.
-2. **Ownership transfer** - Currently owner is immutable. May add TransferOwnership later.
-3. **DeleteList behavior** - Currently hard-deletes tasks. Could soft-delete instead.
-4. **Archived tasks** - Could add archive as separate from complete.
-5. **Activity log** - Could track who made each change for audit.
-6. **Permissions per action** - Could restrict some actions to owner only.
+The app layer detects conflicts by comparing actions in the dispatch result:
+
+1. **Compare orig vs rebased** - If rebased != orig, the action was transformed
+2. **Check for NoOp** - If rebased == NoOp && orig != NoOp, a conflict caused the action to be dropped
+
+### Actions that become NoOp on conflict:
+- **DeleteTask + local op** - Task was deleted by another user
+- **RemoveMember + AssignTask** - Member was removed by another user
+- **MoveList + MoveList** - Same list moved by another user (remote wins)
+
+### App layer responsibilities:
+- Detect when rebased != orig
+- Show notification to user explaining what happened
+- For soft-deleted tasks, offer restore option
+- DeleteList should warn user that tasks will be permanently deleted
+
+---
+
+## Resolved Decisions
+
+1. **RestoreTask target** - Restores to original list (tracked in deletedFromList), falls back to first list if original was deleted
+2. **DeleteList warning** - App layer warns user that tasks will be permanently deleted (not soft-deleted)
+3. **Conflict notifications** - App layer detects and notifies; spec provides data via orig/rebased comparison
+
+---
+
+## See Also
+
+- [LATER.md](LATER.md) - Future specs and enhancements to be added later
