@@ -1,3 +1,82 @@
+/*
+ColorWheelSanity.dfy - Complete Enumeration of NoOp Cases
+
+This module proves that we have identified ALL cases where Apply(m, a) == m.
+A NoOp occurs when an action leaves the model unchanged.
+
+== Invalid Input Cases (guard failures) ==
+
+NoOpGeneratePaletteInvalid:
+  GeneratePalette does nothing if baseHue is out of range or randomSeeds
+  has wrong length/values.
+
+NoOpAdjustColorInvalidIndex:
+  AdjustColor does nothing if the color index is out of bounds.
+
+NoOpSelectContrastPairInvalid:
+  SelectContrastPair does nothing if either index is out of bounds.
+
+NoOpSetColorDirectInvalidIndex:
+  SetColorDirect does nothing if the color index is out of bounds.
+
+NoOpRegenerateMoodInvalid:
+  RegenerateMood does nothing if randomSeeds is invalid.
+
+NoOpRegenerateHarmonyInvalid:
+  RegenerateHarmony does nothing if randomSeeds is invalid.
+
+NoOpRandomizeBaseHueInvalid:
+  RandomizeBaseHue does nothing if baseHue or randomSeeds is invalid.
+
+== Zero-Effect Cases (operation produces identical result) ==
+
+NoOpAdjustColorZeroDeltas:
+  AdjustColor with deltaH=0, deltaS=0, deltaL=0 does nothing.
+
+NoOpAdjustPaletteZeroDeltas:
+  AdjustPalette with deltaH=0, deltaS=0, deltaL=0 does nothing.
+
+NoOpSelectContrastPairSame:
+  SelectContrastPair does nothing if selecting the current pair.
+
+NoOpSetColorDirectSameColor:
+  SetColorDirect does nothing if the new color (after clamping) equals the
+  existing color and mood/harmony are preserved.
+
+NoOpAdjustColorClampedSame:
+  AdjustColor does nothing if the deltas are absorbed by clamping (e.g.,
+  S=100 with deltaS=+10 stays at S=100) and mood/harmony are preserved.
+
+== Coincidental Match Cases (regeneration produces identical result) ==
+
+NoOpGeneratePaletteCoincidental:
+  GeneratePalette does nothing if it happens to produce the exact same
+  model (same colors, same settings, adjustments already at zero).
+
+NoOpRegenerateMoodCoincidental:
+  RegenerateMood does nothing if it produces the same colors and the mood
+  matches, with adjustments already at zero.
+
+NoOpRegenerateHarmonyCoincidental:
+  RegenerateHarmony does nothing if it produces the same colors and the
+  harmony matches, with adjustments already at zero.
+
+NoOpRandomizeBaseHueCoincidental:
+  RandomizeBaseHue does nothing if it produces the same colors and baseHue,
+  with adjustments already at zero.
+
+== Main Theorems ==
+
+IsNoOp:
+  Predicate combining all NoOp cases.
+
+CheckNoOps:
+  If Apply(m, a) == m, then IsNoOp(m, a). (Completeness: we found all cases)
+
+NoOpImpliesUnchanged:
+  If IsNoOp(m, a), then Apply(m, a) == m. (Soundness: each case is correct)
+*/
+
 include "ColorWheelSpec.dfy"
 
 module ColorWheelSanity {

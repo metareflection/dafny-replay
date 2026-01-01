@@ -1,3 +1,56 @@
+/*
+ColorWheelProps.dfy - Commutativity and Idempotence Properties
+
+StepPreservesInv:
+  Any action on a valid model produces a valid model.
+
+== Commutativity with SelectContrastPair ==
+
+SelectContrastPairCommutesWithAdjustColor:
+  Selecting a contrast pair and adjusting a color can be done in either
+  order -- the result is the same.
+
+SelectContrastPairCommutesWithAdjustPalette:
+  Selecting a contrast pair and adjusting the entire palette can be done
+  in either order -- the result is the same.
+
+SelectContrastPairCommutesWithSetColorDirect:
+  Selecting a contrast pair and setting a color directly can be done in
+  either order -- the result is the same.
+
+SelectContrastPairIdempotent:
+  Selecting the same contrast pair twice is the same as selecting it once.
+
+== AdjustColor Commutativity ==
+
+AdjustColorCommutes:
+  Adjusting two different colors can be done in either order -- the result
+  is the same.
+
+AdjustColorIndependentColors:
+  When adjusting two different colors, the final color values are the same
+  regardless of order.
+
+AdjustColorMoodMonotonic:
+  When adjusting two different colors, the final mood is the same regardless
+  of order. (If either adjustment breaks the mood to Custom, both paths end
+  up at Custom.)
+
+AdjustColorHarmonyMonotonic:
+  When adjusting two different colors, the final harmony is the same
+  regardless of order. (If either adjustment breaks the harmony to Custom,
+  both paths end up at Custom.)
+
+== GeneratePalette Properties ==
+
+GeneratePaletteResetsAdjustments:
+  Generating a new palette resets all cumulative adjustments (H, S, L) to zero.
+
+GeneratePaletteIdempotent:
+  Generating a palette with the same parameters twice in a row produces the
+  same result as doing it once.
+*/
+
 include "ColorWheelSpec.dfy"
 include "ColorWheelProof.dfy"
 
