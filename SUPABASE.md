@@ -542,6 +542,7 @@ Only JSON conversion is unverified. Everything else uses Dafny-verified code:
 | `HandleRealtimeUpdate` (skip during flush) | ✅ Dafny |
 | `EnterFlushMode` / `Sync` (mode transitions) | ✅ Dafny |
 | `FlushWithRealtimeEventsEquivalent` (theorem) | ✅ Dafny |
+| `FlushAll` no silent data loss (postcondition) | ✅ Dafny |
 | JSON ↔ Dafny conversion | ❌ TypeScript |
 
 ### Using the Offline Hook

@@ -38,6 +38,7 @@ See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 - **Dafny-verified domain logic** - WIP limits, card partition invariants
 - **MultiCollaboration pattern** - Rebasing, candidate fallback, minimal rejection
 - **Verified realtime handling** - Skip-during-flush proven correct by `FlushWithRealtimeEventsEquivalent` theorem
+- **No silent data loss** - Every pending action gets a reply (accepted or rejected), proven by `FlushAll` postconditions
 - **Supabase Auth** - Email/password, OAuth (Google)
 - **Row Level Security** - Members can read, owner manages membership
 - **Realtime sync** - See changes from other clients instantly
