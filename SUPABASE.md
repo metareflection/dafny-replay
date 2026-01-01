@@ -526,7 +526,7 @@ The Edge Function uses the Dafny-verified `KanbanMultiCollaboration.Dispatch` di
 
 ### Trust Boundary
 
-Only JSON conversion is unverified. Everything else uses Dafny-verified code:
+The core state transitions are verified in Dafny. The realtime/offline orchestration logic remains in JavaScript.
 
 | Component | Verified |
 |-----------|----------|
@@ -534,7 +534,11 @@ Only JSON conversion is unverified. Everything else uses Dafny-verified code:
 | `ClientLocalDispatch` (optimistic update) | ✅ Dafny |
 | `HandleRealtimeUpdate` (pending preservation) | ✅ Dafny |
 | `InitClient` (sync from server) | ✅ Dafny |
-| JSON ↔ Dafny conversion | ❌ TypeScript |
+| JSON ↔ Dafny conversion | ❌ JS |
+| Realtime subscription orchestration | ❌ JS |
+| Flush loop with conflict/retry handling | ❌ JS |
+| Network error detection, offline mode | ❌ JS |
+| React state management | ❌ JS |
 
 ### Using the Offline Hook
 
