@@ -186,8 +186,12 @@ export function useCollaborativeProjectOffline(projectId) {
     let currentClient = clientState
     let acceptedCount = 0
     let rejectedCount = 0
+    let actionIndex = 0
+    let consecutiveConflicts = 0
+    const maxConflictRetries = 5
 
-    for (const action of pendingActions) {
+    while (actionIndex < pendingActions.length) {
+      const action = pendingActions[actionIndex]
       try {
         const baseVersion = App.GetBaseVersion(currentClient)
         const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
@@ -208,16 +212,41 @@ export function useCollaborativeProjectOffline(projectId) {
           // Update client to new server state with empty pending
           currentClient = App.InitClient(data.version, data.state)
           acceptedCount++
+          consecutiveConflicts = 0
+          actionIndex++
         } else if (data.status === 'conflict') {
-          // Concurrent modification - sync and retry remaining
-          console.warn('Conflict during flush, resyncing...')
-          await sync()
-          break
+          // Concurrent modification - fetch fresh state and retry same action
+          consecutiveConflicts++
+          if (consecutiveConflicts >= maxConflictRetries) {
+            console.error('Max conflict retries exceeded, aborting flush')
+            setError('Too many conflicts, please try again')
+            break
+          }
+          console.warn(`Conflict during flush (attempt ${consecutiveConflicts}), fetching fresh state...`)
+
+          // Fetch fresh state directly (don't use sync() which affects React state)
+          const { data: freshProject, error: fetchError } = await supabase
+            .from('projects')
+            .select('state, version')
+            .eq('id', projectId)
+            .single()
+
+          if (fetchError || !freshProject) {
+            console.error('Failed to fetch fresh state:', fetchError)
+            break
+          }
+
+          // Update currentClient with fresh state, then retry (don't increment actionIndex)
+          currentClient = App.InitClient(freshProject.version, freshProject.state)
+          setServerVersion(freshProject.version)
+          // Loop continues with same actionIndex to retry
         } else {
-          // Action rejected
+          // Action rejected by domain - move on
           rejectedCount++
           const actionJson = App.actionToJson(action)
           console.warn('Action rejected during flush:', actionJson)
+          consecutiveConflicts = 0
+          actionIndex++
         }
       } catch (e) {
         console.error('Flush error:', e)
@@ -327,20 +356,43 @@ export function useCollaborativeProjectOffline(projectId) {
           filter: `id=eq.${projectId}`
         },
         (payload) => {
+          // Skip realtime updates while flushing or offline
+          // - Flushing: we're handling our own actions, will sync at end
+          // - Offline: user doesn't expect to see network updates
+          if (isFlushing || isOffline) {
+            console.log('Realtime update skipped (flushing/offline):', payload.new.version)
+            return
+          }
+
           // Only update if this is a newer version (from another client)
           if (payload.new.version > serverVersion) {
             console.log('Realtime update:', payload.new.version)
 
-            // Re-initialize client state from server
-            // This clears pending queue - if user has pending actions,
-            // they may need to be re-applied or warned about
-            const newClient = App.InitClient(payload.new.version, payload.new.state)
-            setClientState(newClient)
+            // Use functional setState to get current clientState (avoids stale closure)
+            setClientState(currentClientState => {
+              // Preserve pending actions (matches RealtimeCollaboration.dfy)
+              const pendingActions = currentClientState ? App.GetPendingActions(currentClientState) : []
+
+              // Initialize from server state
+              const newClient = App.InitClient(payload.new.version, payload.new.state)
+
+              // Re-apply pending actions to preserve them
+              let clientWithPending = newClient
+              for (const action of pendingActions) {
+                clientWithPending = App.LocalDispatch(clientWithPending, action)
+              }
+
+              return clientWithPending
+            })
             setServerVersion(payload.new.version)
 
-            if (!isOffline && App.GetPendingCount(newClient) === 0) {
-              setStatus('synced')
-            }
+            // Check pending count after state update
+            setClientState(current => {
+              if (!isOffline && current && App.GetPendingCount(current) === 0) {
+                setStatus('synced')
+              }
+              return current
+            })
           }
         }
       )
@@ -349,7 +401,7 @@ export function useCollaborativeProjectOffline(projectId) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [projectId, serverVersion, isOffline])
+  }, [projectId, serverVersion, isOffline, isFlushing])
 
   // ============================================================================
   // Derived state

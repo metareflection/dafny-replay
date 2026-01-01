@@ -117,6 +117,16 @@
   opacity: 0.5;
 }
 
+.card.drop-before {
+  border-top: 3px solid #4ade80;
+  margin-top: -3px;
+}
+
+.card.drop-after {
+  border-bottom: 3px solid #4ade80;
+  margin-bottom: -3px;
+}
+
 .card-id {
   font-size: 0.7rem;
   color: #666;

@@ -22,7 +22,7 @@ See [SUPABASE.md](../SUPABASE.md) for more on the Supabase integration pattern.
 ┌────────────────────────────────────────────────────────┐
 │  React Client                                          │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ useCollaborativeProject(projectId, domain)      │   │
+│  │ useCollaborativeProjectOffline(projectId)       │   │
 │  └─────────────────────────────────────────────────┘   │
 │                          │                             │
 │                          ▼                             │
@@ -96,10 +96,10 @@ From the project root:
 
 This:
 1. Compiles `KanbanMultiCollaboration.dfy` to JavaScript
-2. Copies to `kanban-supabase/src/dafny/KanbanMulti.cjs` (client-side)
+2. Copies to `kanban-supabase/src/dafny/KanbanMulti.cjs`
 3. Generates `supabase/functions/dispatch/dafny-bundle.ts` (Edge Function)
 
-The Edge Function bundle includes the actual compiled Dafny code for:
+The Edge Function uses verified Dafny code for:
 - `KanbanDomain.TryStep` - Domain logic
 - `KanbanDomain.Rebase` - Intent-aware rebasing
 - `KanbanDomain.Candidates` - Candidate fallback
@@ -156,19 +156,22 @@ Dispatch(state, baseVersion, action):
 ```
 kanban-supabase/
 ├── src/
-│   ├── App.jsx              # Main React app
-│   ├── App.css              # Styles
-│   ├── supabase.js          # Supabase client
+│   ├── App.jsx                    # Main React app
+│   ├── App.css                    # Styles
+│   ├── supabase.js                # Supabase client
 │   ├── hooks/
-│   │   └── useCollaborativeProject.js  # Collaboration hook
+│   │   ├── useCollaborativeProject.js      # Projects/members hooks
+│   │   └── useCollaborativeProjectOffline.js  # Main collaboration hook
 │   └── dafny/
-│       ├── app.js           # Domain adapter
-│       └── KanbanMulti.cjs  # Compiled Dafny
+│       ├── app.js                 # Domain adapter
+│       └── KanbanMulti.cjs        # Compiled Dafny
 ├── supabase/
-│   ├── schema.sql           # Database schema
+│   ├── schema.sql                 # Database schema
 │   └── functions/
 │       └── dispatch/
-│           └── index.ts     # Edge Function
+│           ├── index.ts           # Edge Function
+│           ├── build-bundle.js    # Deno bundle generator
+│           └── dafny-bundle.ts    # Auto-generated Dafny bundle
 ├── package.json
 ├── vite.config.js
 └── .env.example

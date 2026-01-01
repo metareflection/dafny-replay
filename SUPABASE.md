@@ -2,7 +2,7 @@
 
 This document describes a pattern for building multi-user collaborative applications where:
 
-- **Dafny** verifies domain invariants and reconciliation logic (server-side dispatch + client-side offline queue)
+- **Dafny** verifies domain invariants and reconciliation logic
 - **Supabase** handles authentication, authorization (RLS), persistence, and realtime
 - **Edge Functions** run the verified `KanbanMultiCollaboration.Dispatch` server-side
 - **Offline support** is built-in via Dafny's verified `ClientState` with pending action queue

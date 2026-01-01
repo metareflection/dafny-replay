@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+mkdir -p generated
+
 echo "Compiling CounterDomain to JavaScript..."
 dafny translate js --no-verify -o generated/Counter --include-runtime CounterDomain.dfy
 
