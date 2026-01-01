@@ -2,13 +2,12 @@
 
 This document describes a pattern for building multi-user collaborative applications where:
 
-- **Dafny** verifies domain invariants, reconciliation logic, and realtime handling
+- **Dafny** verifies domain invariants and reconciliation logic
 - **Supabase** handles authentication, authorization (RLS), persistence, and realtime
 - **Edge Functions** run the verified `KanbanMultiCollaboration.Dispatch` server-side
-- **Verified Realtime** uses `KanbanRealtimeCollaboration` with proven skip-during-flush logic
 - **Offline support** is built-in via Dafny's verified `ClientState` with pending action queue
 
-This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, minimal rejection) with verified realtime handling.
+This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, minimal rejection) with automatic offline handling.
 
 **Reference Implementation**: See `kanban-supabase/` for a complete working example.
 
@@ -48,18 +47,16 @@ This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, 
 │  │  - dispatch(action): queue locally + send to server        │ │
 │  │  - pendingCount: actions waiting to be confirmed           │ │
 │  │  - isOffline: auto-detected or manual                      │ │
-│  │  - isFlushing: from verified ClientState.mode              │ │
 │  │  - flush(): send pending actions on reconnect              │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
 │                              ▼                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  KanbanRealtimeCollaboration (Dafny-VERIFIED)              │ │
+│  │  Dafny ClientState (verified)                              │ │
 │  │                                                            │ │
-│  │  - ClientState with mode: Normal | Flushing                │ │
-│  │  - HandleRealtimeUpdate: skips when Flushing (PROVEN)      │ │
-│  │  - EnterFlushMode / Sync: mode transitions                 │ │
-│  │  - FlushWithRealtimeEventsEquivalent: correctness theorem  │ │
+│  │  - ClientLocalDispatch: optimistic update + queue          │ │
+│  │  - InitClient: reset from server sync                      │ │
+│  │  - GetPendingActions: for flush                            │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -329,14 +326,11 @@ The `dispatch` function from `dafny-bundle.ts` uses the **actual compiled Dafny 
 ## React Client
 
 The `useCollaborativeProjectOffline` hook provides:
-- Dafny-verified `ClientState` with mode (Normal | Flushing) and pending queue
-- **Verified realtime handling**: `HandleRealtimeUpdate` skips updates during flush (proven safe)
+- Dafny-verified `ClientState` with full pending action queue
 - Auto-detection of offline state via browser events
 - Automatic offline mode on network errors
 - Auto-flush when network is restored
 - Supabase Realtime subscription for updates from other clients
-
-The key theorem `FlushWithRealtimeEventsEquivalent` proves that skipping realtime updates during flush produces the same result as processing them.
 
 See the "Verified Dispatch & Offline Support" section below for the full hook API and usage examples.
 
@@ -485,7 +479,7 @@ The key insight: let each system do what it's best at. Dafny verifies domain pro
 
 ## Verified Dispatch & Offline Support
 
-The Edge Function uses the Dafny-verified `KanbanMultiCollaboration.Dispatch` directly, and the client uses `KanbanRealtimeCollaboration.ClientState` for offline support with verified realtime handling.
+The Edge Function uses the Dafny-verified `KanbanMultiCollaboration.Dispatch` directly, and the client uses `ClientState` for offline support with a full pending action queue.
 
 ### Architecture
 
@@ -493,11 +487,10 @@ The Edge Function uses the Dafny-verified `KanbanMultiCollaboration.Dispatch` di
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Client (Browser)                                                   │
 │  ┌───────────────────────────────────────────────────────────────┐ │
-│  │  ClientState (Dafny-verified via KanbanRealtimeCollaboration) │ │
+│  │  ClientState (Dafny-verified)                                 │ │
 │  │  - baseVersion: nat                                           │ │
 │  │  - model: Model (optimistic, includes pending applied)        │ │
 │  │  - pending: seq<Action>  ← FULL OFFLINE QUEUE                 │ │
-│  │  - mode: Normal | Flushing  ← VERIFIED REALTIME HANDLING      │ │
 │  └───────────────────────────────────────────────────────────────┘ │
 │       │                                           ▲                 │
 │       │ ClientLocalDispatch                       │ Realtime        │
@@ -538,11 +531,8 @@ Only JSON conversion is unverified. Everything else uses Dafny-verified code:
 | Component | Verified |
 |-----------|----------|
 | `Dispatch` (server reconciliation) | ✅ Dafny |
-| `LocalDispatch` (optimistic update) | ✅ Dafny |
-| `HandleRealtimeUpdate` (skip during flush) | ✅ Dafny |
-| `EnterFlushMode` / `Sync` (mode transitions) | ✅ Dafny |
-| `FlushWithRealtimeEventsEquivalent` (theorem) | ✅ Dafny |
-| `FlushAll` no silent data loss (postcondition) | ✅ Dafny |
+| `ClientLocalDispatch` (optimistic update) | ✅ Dafny |
+| `InitClient` (sync from server) | ✅ Dafny |
 | JSON ↔ Dafny conversion | ❌ TypeScript |
 
 ### Using the Offline Hook
