@@ -1,8 +1,5 @@
 /*
-ColorWheelProps.dfy - Commutativity and Idempotence Properties
-
-StepPreservesInv:
-  Any action on a valid model produces a valid model.
+ColorWheelProps.dfy - Behavioral Properties of the ColorWheel Spec
 
 == Commutativity with SelectContrastPair ==
 
@@ -49,6 +46,49 @@ GeneratePaletteResetsAdjustments:
 GeneratePaletteIdempotent:
   Generating a palette with the same parameters twice in a row produces the
   same result as doing it once.
+
+== Monotonicity of Degradation ==
+
+MoodOnlyDegradesToCustom:
+  AdjustColor can only change mood from a named mood to Custom, never the
+  reverse. Once mood is Custom, AdjustColor keeps it Custom.
+
+HarmonyOnlyDegradesToCustom:
+  AdjustColor can only change harmony from a named harmony to Custom, never
+  the reverse. Once harmony is Custom, AdjustColor keeps it Custom.
+
+== Reachability ==
+
+CanReachAnyColor:
+  From any valid model, any valid color can be set at any index using
+  SetColorDirect (though this may degrade mood/harmony to Custom).
+
+CanRecoverMood:
+  From any model (even with Custom mood), any named mood can be restored
+  using RegenerateMood with appropriate seeds.
+
+CanRecoverHarmony:
+  From any model (even with Custom harmony), any named harmony can be
+  restored using RegenerateHarmony with appropriate seeds.
+
+== Field Independence ==
+
+ContrastPairIndependentOfColors:
+  AdjustColor, AdjustPalette, and SetColorDirect never change contrastPair.
+
+ColorsIndependentOfContrastPair:
+  SelectContrastPair never changes colors, mood, harmony, or baseHue.
+
+== Domain-Specific: Harmony Geometry ==
+
+ComplementaryAre180Apart:
+  When harmony is Complementary, the first two base hues differ by exactly 180 degrees.
+
+TriadicAre120Apart:
+  When harmony is Triadic, the three base hues are 120 degrees apart.
+
+AnalogousWithin30:
+  When harmony is Analogous, all five hues are within 30 degrees of baseHue.
 */
 
 include "ColorWheelSpec.dfy"
@@ -274,5 +314,139 @@ module ColorWheelProps {
             Step(m', GeneratePalette(baseHue, mood, harmony, seeds)) == m'
   {
     StepPreservesInv(m, GeneratePalette(baseHue, mood, harmony, seeds));
+  }
+
+  // ============================================================================
+  // Monotonicity of Degradation
+  // ============================================================================
+
+  // AdjustColor can only degrade mood to Custom, never restore it
+  lemma MoodOnlyDegradesToCustom(m: Model, idx: int, dH: int, dS: int, dL: int)
+    requires Inv(m)
+    requires 0 <= idx < 5
+    ensures var m' := Step(m, AdjustColor(idx, dH, dS, dL));
+            m.mood == Mood.Custom ==> m'.mood == Mood.Custom
+    ensures var m' := Step(m, AdjustColor(idx, dH, dS, dL));
+            m'.mood != Mood.Custom ==> m'.mood == m.mood
+  {
+    StepPreservesInv(m, AdjustColor(idx, dH, dS, dL));
+  }
+
+  // AdjustColor can only degrade harmony to Custom, never restore it
+  lemma HarmonyOnlyDegradesToCustom(m: Model, idx: int, dH: int, dS: int, dL: int)
+    requires Inv(m)
+    requires 0 <= idx < 5
+    ensures var m' := Step(m, AdjustColor(idx, dH, dS, dL));
+            m.harmony == Harmony.Custom ==> m'.harmony == Harmony.Custom
+    ensures var m' := Step(m, AdjustColor(idx, dH, dS, dL));
+            m'.harmony != Harmony.Custom ==> m'.harmony == m.harmony
+  {
+    StepPreservesInv(m, AdjustColor(idx, dH, dS, dL));
+  }
+
+  // ============================================================================
+  // Reachability
+  // ============================================================================
+
+  // Any valid color can be set at any index
+  lemma CanReachAnyColor(m: Model, idx: int, target: Color)
+    requires Inv(m)
+    requires 0 <= idx < 5
+    requires ValidColor(target)
+    ensures Step(m, SetColorDirect(idx, target)).colors[idx] == target
+  {
+    StepPreservesInv(m, SetColorDirect(idx, target));
+  }
+
+  // Any mood can be restored via RegenerateMood
+  lemma CanRecoverMood(m: Model, targetMood: Mood, seeds: seq<int>)
+    requires Inv(m)
+    requires ValidRandomSeeds(seeds)
+    ensures Step(m, RegenerateMood(targetMood, seeds)).mood == targetMood
+  {
+    StepPreservesInv(m, RegenerateMood(targetMood, seeds));
+  }
+
+  // Any harmony can be restored via RegenerateHarmony
+  lemma CanRecoverHarmony(m: Model, targetHarmony: Harmony, seeds: seq<int>)
+    requires Inv(m)
+    requires ValidRandomSeeds(seeds)
+    ensures Step(m, RegenerateHarmony(targetHarmony, seeds)).harmony == targetHarmony
+  {
+    StepPreservesInv(m, RegenerateHarmony(targetHarmony, seeds));
+  }
+
+  // ============================================================================
+  // Field Independence
+  // ============================================================================
+
+  // AdjustColor never changes contrastPair
+  lemma AdjustColorPreservesContrastPair(m: Model, idx: int, dH: int, dS: int, dL: int)
+    requires Inv(m)
+    ensures Step(m, AdjustColor(idx, dH, dS, dL)).contrastPair == m.contrastPair
+  {
+  }
+
+  // AdjustPalette never changes contrastPair
+  lemma AdjustPalettePreservesContrastPair(m: Model, dH: int, dS: int, dL: int)
+    requires Inv(m)
+    ensures Step(m, AdjustPalette(dH, dS, dL)).contrastPair == m.contrastPair
+  {
+  }
+
+  // SetColorDirect never changes contrastPair
+  lemma SetColorDirectPreservesContrastPair(m: Model, idx: int, c: Color)
+    requires Inv(m)
+    ensures Step(m, SetColorDirect(idx, c)).contrastPair == m.contrastPair
+  {
+  }
+
+  // SelectContrastPair never changes colors
+  lemma SelectContrastPairPreservesColors(m: Model, fg: int, bg: int)
+    requires Inv(m)
+    requires 0 <= fg < 5 && 0 <= bg < 5
+    ensures Step(m, SelectContrastPair(fg, bg)).colors == m.colors
+    ensures Step(m, SelectContrastPair(fg, bg)).mood == m.mood
+    ensures Step(m, SelectContrastPair(fg, bg)).harmony == m.harmony
+    ensures Step(m, SelectContrastPair(fg, bg)).baseHue == m.baseHue
+  {
+  }
+
+  // ============================================================================
+  // Domain-Specific: Harmony Geometry
+  // ============================================================================
+
+  // Complementary harmony: first two base hues are 180° apart
+  lemma ComplementaryAre180Apart(m: Model)
+    requires Inv(m)
+    requires m.harmony == Harmony.Complementary
+    ensures var hues := BaseHarmonyHues(m.baseHue, m.harmony);
+            |hues| >= 2 && hues[1] == NormalizeHue(hues[0] + 180)
+  {
+  }
+
+  // Triadic harmony: base hues are 120° apart
+  lemma TriadicAre120Apart(m: Model)
+    requires Inv(m)
+    requires m.harmony == Harmony.Triadic
+    ensures var hues := BaseHarmonyHues(m.baseHue, m.harmony);
+            |hues| >= 3 &&
+            hues[1] == NormalizeHue(hues[0] + 120) &&
+            hues[2] == NormalizeHue(hues[0] + 240)
+  {
+  }
+
+  // Analogous harmony: all hues within 30° of baseHue
+  lemma AnalogousWithin30(m: Model)
+    requires Inv(m)
+    requires m.harmony == Harmony.Analogous
+    ensures var hues := AllHarmonyHues(m.baseHue, m.harmony);
+            |hues| == 5 &&
+            hues[0] == NormalizeHue(m.baseHue - 30) &&
+            hues[1] == NormalizeHue(m.baseHue - 15) &&
+            hues[2] == m.baseHue &&
+            hues[3] == NormalizeHue(m.baseHue + 15) &&
+            hues[4] == NormalizeHue(m.baseHue + 30)
+  {
   }
 }
