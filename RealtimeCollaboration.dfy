@@ -20,7 +20,7 @@ abstract module RealtimeCollaboration {
   // Client state with flush mode
   // ==========================================================================
 
-  datatype ClientMode = Normal | Flushing
+  datatype ClientMode = Normal | Flushing | Offline
 
   datatype ClientState = ClientState(
     baseVersion: nat,           // last synced server version
@@ -61,17 +61,36 @@ abstract module RealtimeCollaboration {
   // Realtime update handling - THE KEY FIX
   // ==========================================================================
 
+  // Re-apply pending actions to a model
+  function ReapplyPending(model: Model, pending: seq<Action>): Model
+    decreases |pending|
+  {
+    if |pending| == 0 then model
+    else
+      var action := pending[0];
+      var result := MC.D.TryStep(model, action);
+      var newModel := match result
+        case Ok(m) => m
+        case Err(_) => model;
+      ReapplyPending(newModel, pending[1..])
+  }
+
   // Handle a realtime update from the server
-  // KEY PROPERTY: Preserve pending actions
+  // KEY PROPERTIES:
+  // - Skip when flushing or offline
+  // - Preserve pending actions by re-applying to new server model
   function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: Model): ClientState
   {
-    if client.mode == Flushing then
-      // Skip realtime updates while flushing - we'll sync at the end
+    if client.mode == Flushing || client.mode == Offline then
+      // Skip realtime updates while flushing or offline
+      // - Flushing: we'll sync at the end
+      // - Offline: user doesn't expect to see network updates
       client
     else if serverVersion > client.baseVersion then
       // Accept update from other clients, but KEEP pending actions
-      // The pending actions will be rebased by the server when we flush
-      ClientState(serverVersion, serverModel, client.pending, Normal)
+      // Re-apply pending to get correct optimistic view
+      var newPresent := ReapplyPending(serverModel, client.pending);
+      ClientState(serverVersion, newPresent, client.pending, Normal)
     else
       // Stale update, ignore
       client
