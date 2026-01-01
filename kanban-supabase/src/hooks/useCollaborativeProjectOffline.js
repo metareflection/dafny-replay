@@ -1,19 +1,16 @@
-// useCollaborativeProjectRealtime: React hook with VERIFIED realtime handling
-// Uses Dafny KanbanRealtimeCollaboration for flush/realtime coordination
-// The skip-during-flush logic is PROVEN correct by FlushWithRealtimeEventsEquivalent theorem
+// useCollaborativeProjectOffline: React hook with verified offline + realtime handling
+// Uses Dafny KanbanRealtimeCollaboration for client state management
+// Skip-during-flush proven correct by FlushWithRealtimeEventsEquivalent theorem
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
 import App from '../dafny/app.js'
 
 /**
- * Hook for managing a collaborative project with VERIFIED realtime handling.
+ * Hook for managing a collaborative project with verified Dafny state management.
  *
- * KEY DIFFERENCE from useCollaborativeProjectOffline:
- * - The flush/realtime coordination logic is now in VERIFIED Dafny code
- * - ClientState has a `mode` field (Normal | Flushing) managed by Dafny
- * - HandleRealtimeUpdate skips updates when mode == Flushing (proven safe)
- * - No more React state for isFlushing - it's in the verified ClientState
+ * Uses isFlushing React state + effect dependency to skip realtime updates during flush.
+ * The Dafny ClientState.mode mirrors this for formal verification.
  */
 export function useCollaborativeProjectOffline(projectId) {
   const [clientState, setClientState] = useState(null)
@@ -23,6 +20,7 @@ export function useCollaborativeProjectOffline(projectId) {
   const [isOffline, setIsOffline] = useState(() =>
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   )
+  const [isFlushing, setIsFlushing] = useState(false)
 
   const dispatchingRef = useRef(false)
   const flushRef = useRef(null)
@@ -141,7 +139,8 @@ export function useCollaborativeProjectOffline(projectId) {
       return
     }
 
-    // VERIFIED: Enter flushing mode - realtime updates will be skipped
+    // Enter flushing mode - realtime updates will be skipped
+    setIsFlushing(true)
     let currentClient = App.EnterFlushMode(clientState)
     setClientState(currentClient)
     setStatus('flushing')
@@ -211,6 +210,7 @@ export function useCollaborativeProjectOffline(projectId) {
         console.error('Flush error:', e)
         if (e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine) {
           console.log('Network error during flush, staying offline')
+          setIsFlushing(false)
           setIsOffline(true)
           setStatus('offline')
           setClientState(currentClient)
@@ -229,6 +229,8 @@ export function useCollaborativeProjectOffline(projectId) {
         setIsOffline(true)
         setStatus('offline')
       }
+    } finally {
+      setIsFlushing(false)
     }
 
     if (rejectedCount > 0) {
@@ -309,9 +311,17 @@ export function useCollaborativeProjectOffline(projectId) {
           filter: `id=eq.${projectId}`
         },
         (payload) => {
+          // Skip if offline or flushing
+          if (isOffline) {
+            console.log('Realtime update skipped (offline):', payload.new.version)
+            return
+          }
+          if (isFlushing) {
+            console.log('Realtime update skipped (flushing):', payload.new.version)
+            return
+          }
+
           // Use VERIFIED HandleRealtimeUpdate from Dafny
-          // This automatically skips updates when mode == Flushing
-          // The theorem FlushWithRealtimeEventsEquivalent proves this is safe
           setClientState(prev => {
             if (!prev) return prev
 
@@ -321,15 +331,10 @@ export function useCollaborativeProjectOffline(projectId) {
               payload.new.state
             )
 
-            // Log whether update was applied or skipped
-            if (App.IsFlushing(prev)) {
-              console.log('Realtime update skipped (flushing - VERIFIED):', payload.new.version)
-            } else if (payload.new.version > App.GetBaseVersion(prev)) {
+            if (payload.new.version > App.GetBaseVersion(prev)) {
               console.log('Realtime update applied:', payload.new.version)
               setServerVersion(payload.new.version)
-              if (!isOffline) {
-                setStatus('synced')
-              }
+              setStatus('synced')
             }
 
             return newClient
@@ -341,7 +346,7 @@ export function useCollaborativeProjectOffline(projectId) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [projectId, isOffline])
+  }, [projectId, isOffline, isFlushing])
 
   // ============================================================================
   // Derived state
@@ -352,8 +357,6 @@ export function useCollaborativeProjectOffline(projectId) {
   const pendingActions = clientState
     ? App.GetPendingActions(clientState).map(a => App.actionToJson(a))
     : []
-  // isFlushing now comes from VERIFIED Dafny state
-  const isFlushing = clientState ? App.IsFlushing(clientState) : false
 
   return {
     model,
