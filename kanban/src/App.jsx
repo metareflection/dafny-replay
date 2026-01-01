@@ -2,13 +2,24 @@ import { useState, useRef } from 'react'
 import App from './dafny/app.js'
 import './App.css'
 
-function Card({ id, title, onDragStart, onDragEnd }) {
+function Card({ id, title, onDragStart, onDragEnd, onDragOver, onDragLeave, dropPosition }) {
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midpoint = rect.top + rect.height / 2
+    const position = e.clientY < midpoint ? 'before' : 'after'
+    onDragOver(id, position)
+  }
+
   return (
     <div
-      className="card"
+      className={`card ${dropPosition === 'before' ? 'drop-before' : ''} ${dropPosition === 'after' ? 'drop-after' : ''}`}
       draggable
       onDragStart={(e) => onDragStart(e, id)}
       onDragEnd={onDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={onDragLeave}
     >
       <div className="card-id">#{id}</div>
       <div className="card-title">{title}</div>
@@ -18,6 +29,7 @@ function Card({ id, title, onDragStart, onDragEnd }) {
 
 function Column({ name, cards, wip, model, onAddCard, onDrop }) {
   const [newCardTitle, setNewCardTitle] = useState('')
+  const [dropTarget, setDropTarget] = useState(null) // { cardId, position: 'before' | 'after' }
   const count = cards.length
   const atLimit = count >= wip
 
@@ -36,8 +48,36 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
   const handleDrop = (e) => {
     e.preventDefault()
     const cardId = parseInt(e.dataTransfer.getData('cardId'), 10)
-    // Drop at end of column
-    onDrop(cardId, name, cards.length)
+
+    let pos
+    if (dropTarget) {
+      const targetIndex = cards.indexOf(dropTarget.cardId)
+      if (dropTarget.position === 'before') {
+        pos = targetIndex
+      } else {
+        pos = targetIndex + 1
+      }
+    } else {
+      pos = cards.length
+    }
+
+    onDrop(cardId, name, pos)
+    setDropTarget(null)
+  }
+
+  const handleCardDragOver = (cardId, position) => {
+    setDropTarget({ cardId, position })
+  }
+
+  const handleCardDragLeave = () => {
+    // Don't clear immediately - let dragover on another card set new target
+  }
+
+  const handleColumnDragLeave = (e) => {
+    // Only clear if leaving the column entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget(null)
+    }
   }
 
   return (
@@ -45,6 +85,7 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
       className="column"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onDragLeave={handleColumnDragLeave}
     >
       <div className="column-header">
         <h3>{name}</h3>
@@ -64,7 +105,11 @@ function Column({ name, cards, wip, model, onAddCard, onDrop }) {
             }}
             onDragEnd={(e) => {
               e.target.classList.remove('dragging')
+              setDropTarget(null)
             }}
+            onDragOver={handleCardDragOver}
+            onDragLeave={handleCardDragLeave}
+            dropPosition={dropTarget?.cardId === cardId ? dropTarget.position : null}
           />
         ))}
       </div>

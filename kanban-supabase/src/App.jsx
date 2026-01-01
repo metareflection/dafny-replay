@@ -98,7 +98,7 @@ function AuthForm() {
 // Kanban Components
 // ============================================================================
 
-function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
+function Card({ id, title, onDragStart, onDragEnd, onDragOver, onDragLeave, onEditTitle, dropPosition }) {
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(title)
 
@@ -121,12 +121,23 @@ function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
     }
   }
 
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midpoint = rect.top + rect.height / 2
+    const position = e.clientY < midpoint ? 'before' : 'after'
+    onDragOver(id, position)
+  }
+
   return (
     <div
-      className="card"
+      className={`card ${dropPosition === 'before' ? 'drop-before' : ''} ${dropPosition === 'after' ? 'drop-after' : ''}`}
       draggable={!editing}
       onDragStart={(e) => onDragStart(e, id)}
       onDragEnd={onDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={onDragLeave}
     >
       <div className="card-id">#{id}</div>
       {editing ? (
@@ -149,6 +160,7 @@ function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
 
 function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle }) {
   const [newCardTitle, setNewCardTitle] = useState('')
+  const [dropTarget, setDropTarget] = useState(null) // { cardId, position: 'before' | 'after' }
   const count = cards.length
   const atLimit = wip > 0 && count >= wip
 
@@ -167,7 +179,35 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle })
   const handleDrop = (e) => {
     e.preventDefault()
     const cardId = parseInt(e.dataTransfer.getData('cardId'), 10)
-    onMoveCard(cardId, name, App.AtEnd())
+
+    let place
+    if (dropTarget) {
+      if (dropTarget.position === 'before') {
+        place = App.Before(dropTarget.cardId)
+      } else {
+        place = App.After(dropTarget.cardId)
+      }
+    } else {
+      place = App.AtEnd()
+    }
+
+    onMoveCard(cardId, name, place)
+    setDropTarget(null)
+  }
+
+  const handleCardDragOver = (cardId, position) => {
+    setDropTarget({ cardId, position })
+  }
+
+  const handleCardDragLeave = () => {
+    // Don't clear immediately - let dragover on another card set new target
+  }
+
+  const handleColumnDragLeave = (e) => {
+    // Only clear if leaving the column entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget(null)
+    }
   }
 
   return (
@@ -175,6 +215,7 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle })
       className="column"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onDragLeave={handleColumnDragLeave}
     >
       <div className="column-header">
         <h3>{name}</h3>
@@ -194,8 +235,12 @@ function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle })
             }}
             onDragEnd={(e) => {
               e.target.classList.remove('dragging')
+              setDropTarget(null)
             }}
+            onDragOver={handleCardDragOver}
+            onDragLeave={handleCardDragLeave}
             onEditTitle={onEditTitle}
+            dropPosition={dropTarget?.cardId === cardId ? dropTarget.position : null}
           />
         ))}
       </div>
