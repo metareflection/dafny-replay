@@ -349,6 +349,15 @@ abstract module EffectStateMachine {
     // ClientLocalDispatch always appends action to pending
   }
 
+  // Property 12: UserAction appends the exact action (strongest form)
+  lemma UserActionAppendsExact(es: EffectState, action: Action)
+    requires Inv(es)
+    ensures var (es', _) := Step(es, UserAction(action));
+            Pending(es') == Pending(es) + [action]  // Exact sequence
+  {
+    // ClientLocalDispatch does: client.pending + [action] in both Ok and Err cases
+  }
+
   // ===========================================================================
   // Progress Property (Liveness)
   // ===========================================================================
