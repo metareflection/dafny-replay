@@ -466,6 +466,7 @@
 
 .task-list__content {
   padding: var(--space-xs) 0;
+  padding-left: var(--space-xl);
 }
 
 .task-list__items {
