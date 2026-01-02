@@ -622,8 +622,6 @@ const App = {
   actionFromJson: actionFromJson,
   certificateToJson: certificateToJson,
   certificateFromJson: certificateFromJson,
-  actionToJson: actionToJson,
-  actionFromJson: actionFromJson,
   rejectreasonToJson: rejectreasonToJson,
   rejectreasonFromJson: rejectreasonFromJson,
   replyToJson: replyToJson,
