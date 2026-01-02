@@ -2076,6 +2076,89 @@ let KanbanMultiCollaboration = (function() {
         return _dafny.Tuple.of(KanbanMultiCollaboration.ServerState.create_ServerState((s).dtor_present, (s).dtor_appliedLog, _11_newAudit), KanbanMultiCollaboration.Reply.create_Rejected(KanbanMultiCollaboration.RejectReason.create_DomainInvalid(), _1_rebased));
       }
     };
+    static InitClient(version, model) {
+      return KanbanMultiCollaboration.ClientState.create_ClientState(version, model, _dafny.Seq.of());
+    };
+    static InitClientFromServer(server) {
+      return KanbanMultiCollaboration.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
+    };
+    static Sync(server) {
+      return KanbanMultiCollaboration.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
+    };
+    static ClientLocalDispatch(client, action) {
+      let _0_result = KanbanDomain.__default.TryStep((client).dtor_present, action);
+      let _source0 = _0_result;
+      {
+        if (_source0.is_Ok) {
+          let _1_newModel = (_source0).value;
+          return KanbanMultiCollaboration.ClientState.create_ClientState((client).dtor_baseVersion, _1_newModel, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
+        }
+      }
+      {
+        return KanbanMultiCollaboration.ClientState.create_ClientState((client).dtor_baseVersion, (client).dtor_present, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
+      }
+    };
+    static ReapplyPending(model, pending) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((pending).length)).isEqualTo(_dafny.ZERO)) {
+          return model;
+        } else {
+          let _0_result = KanbanDomain.__default.TryStep(model, (pending)[_dafny.ZERO]);
+          let _1_newModel = function () {
+            let _source0 = _0_result;
+            {
+              if (_source0.is_Ok) {
+                let _2_m = (_source0).value;
+                return _2_m;
+              }
+            }
+            {
+              return model;
+            }
+          }();
+          let _in0 = _1_newModel;
+          let _in1 = (pending).slice(_dafny.ONE);
+          model = _in0;
+          pending = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static HandleRealtimeUpdate(client, serverVersion, serverModel) {
+      if (((client).dtor_baseVersion).isLessThan(serverVersion)) {
+        let _0_newPresent = KanbanMultiCollaboration.__default.ReapplyPending(serverModel, (client).dtor_pending);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(serverVersion, _0_newPresent, (client).dtor_pending);
+      } else {
+        return client;
+      }
+    };
+    static ClientAcceptReply(client, newVersion, newPresent) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, newPresent, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = KanbanMultiCollaboration.__default.ReapplyPending(newPresent, _0_rest);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
+    static ClientRejectReply(client, freshVersion, freshModel) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, freshModel, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = KanbanMultiCollaboration.__default.ReapplyPending(freshModel, _0_rest);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
+    static PendingCount(client) {
+      return new BigNumber(((client).dtor_pending).length);
+    };
+    static ClientModel(client) {
+      return (client).dtor_present;
+    };
+    static ClientVersion(client) {
+      return (client).dtor_baseVersion;
+    };
   };
 
   $module.RejectReason = class RejectReason {
@@ -2322,114 +2405,6 @@ let KanbanMultiCollaboration = (function() {
       };
     }
   }
-  return $module;
-})(); // end of module KanbanMultiCollaboration
-let KanbanAppCore = (function() {
-  let $module = {};
-
-  $module.__default = class __default {
-    constructor () {
-      this._tname = "KanbanAppCore._default";
-    }
-    _parentTraits() {
-      return [];
-    }
-    static Init() {
-      return KanbanMultiCollaboration.__default.InitServer();
-    };
-    static InitServerWithModel(initModel) {
-      return KanbanMultiCollaboration.ServerState.create_ServerState(initModel, _dafny.Seq.of(), _dafny.Seq.of());
-    };
-    static InitClientFromServer(server) {
-      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
-    };
-    static ClientLocalDispatch(client, action) {
-      let _0_result = KanbanDomain.__default.TryStep((client).dtor_present, action);
-      let _source0 = _0_result;
-      {
-        if (_source0.is_Ok) {
-          let _1_newModel = (_source0).value;
-          return KanbanAppCore.ClientState.create_ClientState((client).dtor_baseVersion, _1_newModel, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
-        }
-      }
-      {
-        return KanbanAppCore.ClientState.create_ClientState((client).dtor_baseVersion, (client).dtor_present, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
-      }
-    };
-    static FlushOne(server, client) {
-      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
-        return KanbanDomain.Option.create_None();
-      } else {
-        let _0_action = ((client).dtor_pending)[_dafny.ZERO];
-        let _1_rest = ((client).dtor_pending).slice(_dafny.ONE);
-        let _let_tmp_rhs0 = KanbanMultiCollaboration.__default.Dispatch(server, (client).dtor_baseVersion, _0_action);
-        let _2_newServer = (_let_tmp_rhs0)[0];
-        let _3_reply = (_let_tmp_rhs0)[1];
-        let _source0 = _3_reply;
-        {
-          if (_source0.is_Accepted) {
-            let _4_newVersion = (_source0).newVersion;
-            let _5_newPresent = (_source0).newPresent;
-            let _6_applied = (_source0).applied;
-            let _7_noChange = (_source0).noChange;
-            let _8_newClient = KanbanAppCore.ClientState.create_ClientState(_4_newVersion, _5_newPresent, _1_rest);
-            return KanbanDomain.Option.create_Some(KanbanAppCore.FlushResult.create_FlushResult(_2_newServer, _8_newClient, _3_reply));
-          }
-        }
-        {
-          let _9_reason = (_source0).reason;
-          let _10_rebased = (_source0).rebased;
-          let _11_newClient = KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _1_rest);
-          return KanbanDomain.Option.create_Some(KanbanAppCore.FlushResult.create_FlushResult(_2_newServer, _11_newClient, _3_reply));
-        }
-      }
-    };
-    static FlushAll(server, client) {
-      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
-        return KanbanAppCore.FlushAllResult.create_FlushAllResult(server, client, _dafny.Seq.of());
-      } else {
-        let _0_flushResult = KanbanAppCore.__default.FlushOne(server, client);
-        if ((_0_flushResult).is_None) {
-          return KanbanAppCore.FlushAllResult.create_FlushAllResult(server, client, _dafny.Seq.of());
-        } else {
-          let _1_result = (_0_flushResult).dtor_value;
-          if ((((_1_result).dtor_client).dtor_baseVersion).isLessThanOrEqualTo(KanbanMultiCollaboration.__default.Version((_1_result).dtor_server))) {
-            let _2_rest = KanbanAppCore.__default.FlushAll((_1_result).dtor_server, (_1_result).dtor_client);
-            return KanbanAppCore.FlushAllResult.create_FlushAllResult((_2_rest).dtor_server, (_2_rest).dtor_client, _dafny.Seq.Concat(_dafny.Seq.of((_1_result).dtor_reply), (_2_rest).dtor_replies));
-          } else {
-            return KanbanAppCore.FlushAllResult.create_FlushAllResult((_1_result).dtor_server, (_1_result).dtor_client, _dafny.Seq.of((_1_result).dtor_reply));
-          }
-        }
-      }
-    };
-    static Sync(server) {
-      return KanbanAppCore.ClientState.create_ClientState(KanbanMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
-    };
-    static ServerVersion(server) {
-      return KanbanMultiCollaboration.__default.Version(server);
-    };
-    static ServerModel(server) {
-      return (server).dtor_present;
-    };
-    static AuditLength(server) {
-      return new BigNumber(((server).dtor_auditLog).length);
-    };
-    static PendingCount(client) {
-      return new BigNumber(((client).dtor_pending).length);
-    };
-    static ClientModel(client) {
-      return (client).dtor_present;
-    };
-    static ClientVersion(client) {
-      return (client).dtor_baseVersion;
-    };
-    static IsAccepted(reply) {
-      return (reply).is_Accepted;
-    };
-    static IsRejected(reply) {
-      return (reply).is_Rejected;
-    };
-  };
 
   $module.ClientState = class ClientState {
     constructor(tag) {
@@ -2448,7 +2423,7 @@ let KanbanAppCore = (function() {
     get dtor_pending() { return this.pending; }
     toString() {
       if (this.$tag === 0) {
-        return "KanbanAppCore.ClientState.ClientState" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.pending) + ")";
+        return "KanbanMultiCollaboration.ClientState.ClientState" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.pending) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -2463,7 +2438,7 @@ let KanbanAppCore = (function() {
       }
     }
     static Default() {
-      return KanbanAppCore.ClientState.create_ClientState(_dafny.ZERO, KanbanDomain.Model.Default(), _dafny.Seq.of());
+      return KanbanMultiCollaboration.ClientState.create_ClientState(_dafny.ZERO, KanbanDomain.Model.Default(), _dafny.Seq.of());
     }
     static Rtd() {
       return class {
@@ -2473,92 +2448,67 @@ let KanbanAppCore = (function() {
       };
     }
   }
+  return $module;
+})(); // end of module KanbanMultiCollaboration
+let KanbanAppCore = (function() {
+  let $module = {};
 
-  $module.FlushResult = class FlushResult {
-    constructor(tag) {
-      this.$tag = tag;
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "KanbanAppCore._default";
     }
-    static create_FlushResult(server, client, reply) {
-      let $dt = new FlushResult(0);
-      $dt.server = server;
-      $dt.client = client;
-      $dt.reply = reply;
-      return $dt;
+    _parentTraits() {
+      return [];
     }
-    get is_FlushResult() { return this.$tag === 0; }
-    get dtor_server() { return this.server; }
-    get dtor_client() { return this.client; }
-    get dtor_reply() { return this.reply; }
-    toString() {
-      if (this.$tag === 0) {
-        return "KanbanAppCore.FlushResult.FlushResult" + "(" + _dafny.toString(this.server) + ", " + _dafny.toString(this.client) + ", " + _dafny.toString(this.reply) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.server, other.server) && _dafny.areEqual(this.client, other.client) && _dafny.areEqual(this.reply, other.reply);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return KanbanAppCore.FlushResult.create_FlushResult(KanbanMultiCollaboration.ServerState.Default(), KanbanAppCore.ClientState.Default(), KanbanMultiCollaboration.Reply.Default());
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return FlushResult.Default();
-        }
-      };
-    }
-  }
-
-  $module.FlushAllResult = class FlushAllResult {
-    constructor(tag) {
-      this.$tag = tag;
-    }
-    static create_FlushAllResult(server, client, replies) {
-      let $dt = new FlushAllResult(0);
-      $dt.server = server;
-      $dt.client = client;
-      $dt.replies = replies;
-      return $dt;
-    }
-    get is_FlushAllResult() { return this.$tag === 0; }
-    get dtor_server() { return this.server; }
-    get dtor_client() { return this.client; }
-    get dtor_replies() { return this.replies; }
-    toString() {
-      if (this.$tag === 0) {
-        return "KanbanAppCore.FlushAllResult.FlushAllResult" + "(" + _dafny.toString(this.server) + ", " + _dafny.toString(this.client) + ", " + _dafny.toString(this.replies) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.$tag === 0) {
-        return other.$tag === 0 && _dafny.areEqual(this.server, other.server) && _dafny.areEqual(this.client, other.client) && _dafny.areEqual(this.replies, other.replies);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return KanbanAppCore.FlushAllResult.create_FlushAllResult(KanbanMultiCollaboration.ServerState.Default(), KanbanAppCore.ClientState.Default(), _dafny.Seq.of());
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return FlushAllResult.Default();
-        }
-      };
-    }
-  }
+    static MakeClientState(baseVersion, present, pending) {
+      return KanbanMultiCollaboration.ClientState.create_ClientState(baseVersion, present, pending);
+    };
+    static Init() {
+      return KanbanMultiCollaboration.__default.InitServer();
+    };
+    static InitServerWithModel(initModel) {
+      return KanbanMultiCollaboration.ServerState.create_ServerState(initModel, _dafny.Seq.of(), _dafny.Seq.of());
+    };
+    static InitClientFromServer(server) {
+      return KanbanMultiCollaboration.__default.InitClientFromServer(server);
+    };
+    static ClientLocalDispatch(client, action) {
+      return KanbanMultiCollaboration.__default.ClientLocalDispatch(client, action);
+    };
+    static HandleRealtimeUpdate(client, serverVersion, serverModel) {
+      return KanbanMultiCollaboration.__default.HandleRealtimeUpdate(client, serverVersion, serverModel);
+    };
+    static ClientAcceptReply(client, newVersion, newPresent) {
+      return KanbanMultiCollaboration.__default.ClientAcceptReply(client, newVersion, newPresent);
+    };
+    static Sync(server) {
+      return KanbanMultiCollaboration.__default.Sync(server);
+    };
+    static ServerVersion(server) {
+      return KanbanMultiCollaboration.__default.Version(server);
+    };
+    static ServerModel(server) {
+      return (server).dtor_present;
+    };
+    static AuditLength(server) {
+      return new BigNumber(((server).dtor_auditLog).length);
+    };
+    static PendingCount(client) {
+      return KanbanMultiCollaboration.__default.PendingCount(client);
+    };
+    static ClientModel(client) {
+      return KanbanMultiCollaboration.__default.ClientModel(client);
+    };
+    static ClientVersion(client) {
+      return KanbanMultiCollaboration.__default.ClientVersion(client);
+    };
+    static IsAccepted(reply) {
+      return (reply).is_Accepted;
+    };
+    static IsRejected(reply) {
+      return (reply).is_Rejected;
+    };
+  };
   return $module;
 })(); // end of module KanbanAppCore
 let _module = (function() {

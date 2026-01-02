@@ -6,6 +6,7 @@ This guide walks through creating a React app with a Dafny-verified state machin
 
 - [Dafny](https://dafny.org/) installed and available in PATH
 - Node.js and npm
+- The `dafny2js` tool (included in this repo)
 
 ## Step 1: The Replay Framework
 
@@ -107,76 +108,75 @@ export default defineConfig({
 })
 ```
 
-## Step 6: Compile Dafny to JavaScript
+## Step 6: Compile Dafny to JavaScript and Generate app.js
+
+The `dafny2js` tool automates the generation of the integration layer:
 
 ```bash
-mkdir -p generated
+# Create output directories
+mkdir -p generated my-app/src/dafny
+
+# Compile Dafny to JavaScript
 dafny translate js --no-verify -o generated/MyApp --include-runtime MyAppDomain.dfy
-```
 
-Copy the generated JavaScript to the React app:
-
-```bash
-mkdir -p my-app/src/dafny
+# Copy the generated JavaScript
 cp generated/MyApp.js my-app/src/dafny/MyApp.cjs
+
+# Generate the app.js integration layer
+dotnet run --project dafny2js -- \
+  --file MyAppDomain.dfy \
+  --app-core AppCore \
+  --cjs-name MyApp.cjs \
+  --output my-app/src/dafny/app.js
 ```
 
-## Step 7: Create the Integration Layer
+The generated `app.js` provides:
+- Proper ESM imports for the Dafny runtime
+- Type converters (`toJson`/`fromJson`) for all datatypes
+- Action constructors that accept JS values and convert to Dafny types
+- Model accessors that return JS-friendly values
+- All functions from `AppCore` wrapped for easy calling
 
-Create `my-app/src/dafny/app.js`:
+## Step 7: Customize with app-extras.js (Optional)
+
+If you need to customize the API beyond what `dafny2js` generates, create `my-app/src/dafny/app-extras.js`:
 
 ```js
-// ESM wrapper for Dafny-generated AppCore
-// Provides a clean API for React without modifying generated code
+// App-specific convenience wrappers
+import GeneratedApp from './app.js';
 
-import BigNumber from 'bignumber.js';
-
-// Configure BigNumber as Dafny expects
-BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
-
-// Import the generated code as raw text
-import myAppCode from './MyApp.cjs?raw';
-
-// Set up the environment and evaluate the Dafny code
-const require = (mod) => {
-  if (mod === 'bignumber.js') return BigNumber;
-  throw new Error(`Unknown module: ${mod}`);
-};
-
-// Create a function that evaluates the code with proper scope
-const initDafny = new Function('require', `
-  ${myAppCode}
-  return { _dafny, MyAppDomain, MyAppKernel, AppCore };
-`);
-
-const { AppCore } = initDafny(require);
-
-// Create a clean API wrapper
 const App = {
-  // Initialize a new history
-  Init: () => AppCore.__default.Init(),
+  ...GeneratedApp,
 
-  // Action constructors
-  Inc: () => AppCore.__default.Inc(),
-  Dec: () => AppCore.__default.Dec(),
-
-  // State transitions
-  Dispatch: (h, a) => AppCore.__default.Dispatch(h, a),
-  Undo: (h) => AppCore.__default.Undo(h),
-  Redo: (h) => AppCore.__default.Redo(h),
-
-  // Selectors
-  Present: (h) => {
-    const val = AppCore.__default.Present(h);
-    // Convert BigNumber to JavaScript number for display
-    return val.toNumber();
+  // Override Init to return {ok, model} instead of raw Result
+  Init: (initialValue) => {
+    const result = GeneratedApp.Init(initialValue);
+    if (result.is_Ok) {
+      return { ok: true, model: result.dtor_value };
+    } else {
+      return { ok: false, error: GeneratedApp.errToJson(result.dtor_error) };
+    }
   },
-  CanUndo: (h) => AppCore.__default.CanUndo(h),
-  CanRedo: (h) => AppCore.__default.CanRedo(h),
+
+  // Add convenience method that derives parameters
+  DoSomething: (a, b) => {
+    const derived = computeSomething(a, b);
+    return GeneratedApp.DoSomething(a, b, derived);
+  },
 };
 
 export default App;
 ```
+
+Then import from `app-extras.js` in your React code instead of `app.js`.
+
+**When to use app-extras.js:**
+- Wrap Result types to return `{ok, model}` objects
+- Derive parameters automatically (e.g., derive `shareKeys` from `shares` object)
+- Provide alternative accessor patterns (e.g., `App.Mood.Vibrant` instead of `App.Vibrant()`)
+- Add JSON-accepting wrappers for server communication
+
+**Important:** Always delegate to `GeneratedApp` functions for type conversion. Don't bypass the generated converters or you may pass raw JS strings where Dafny expects `seq<char>`.
 
 ## Step 8: Create the React Component
 
@@ -184,7 +184,7 @@ Replace `my-app/src/App.jsx`:
 
 ```jsx
 import { useState } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app.js'  // or './dafny/app-extras.js' if customized
 import './App.css'
 
 function MyApp() {
@@ -255,10 +255,16 @@ MyAppDomain.dfy          # Verified state machine
 dafny translate js       # Compile to JavaScript
     |
     v
-MyApp.cjs               # Generated code (don't edit)
+MyApp.cjs               # Generated Dafny code (don't edit)
     |
     v
-app.js                  # Integration wrapper
+dafny2js                # Generate integration layer
+    |
+    v
+app.js                  # Generated API wrapper (don't edit)
+    |
+    v
+app-extras.js           # Optional customizations
     |
     v
 App.jsx                 # React component
@@ -269,3 +275,5 @@ Key points:
 - **React owns rendering**: React state holds the Dafny `History` object
 - **Invariants verified at compile time**: The `Inv` predicate is proven to hold for all reachable states
 - **Undo/Redo built-in**: The `Kernel` module provides history management for free
+- **app.js is auto-generated**: Use `dafny2js` to regenerate after Dafny changes
+- **Customize via app-extras.js**: Layer customizations on top, don't modify generated code

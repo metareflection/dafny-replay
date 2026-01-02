@@ -160,11 +160,13 @@ kanban-supabase/
 │   ├── App.css                    # Styles
 │   ├── supabase.js                # Supabase client
 │   ├── hooks/
+│   │   ├── EffectManager.js       # Verified state machine + I/O
 │   │   ├── useCollaborativeProject.js      # Projects/members hooks
-│   │   └── useCollaborativeProjectOffline.js  # Main collaboration hook
+│   │   └── useCollaborativeProjectOffline.js  # Thin React wrapper
 │   └── dafny/
-│       ├── app.js                 # Domain adapter
-│       └── KanbanMulti.cjs        # Compiled Dafny
+│       ├── app.js                 # Generated (from KanbanEffectAppCore)
+│       ├── app-extras.js          # JS convenience wrappers
+│       └── KanbanEffect.cjs       # Compiled Dafny (includes EffectStateMachine)
 ├── supabase/
 │   ├── schema.sql                 # Database schema
 │   └── functions/
@@ -209,6 +211,45 @@ supabase functions serve dispatch
 ```bash
 supabase functions logs dispatch
 ```
+
+## Client Architecture
+
+The React client uses a two-layer architecture with a **verified effect state machine**:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  useCollaborativeProjectOffline (React hook)                │
+│  - Thin wrapper using useSyncExternalStore                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  EffectManager                                              │
+│                                                             │
+│  State: EffectState (Dafny datatype)                        │
+│    - network: Online | Offline                              │
+│    - mode: Idle | Dispatching(retries)                      │
+│    - client: ClientState (pending queue)                    │
+│    - serverVersion: nat                                     │
+│                                                             │
+│  All transitions via VERIFIED Step function:                │
+│    Step(state, event) → (newState, command)                 │
+│                                                             │
+│  JS only handles I/O: execute commands, convert to events   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Verified in Dafny** (EffectStateMachine + MultiCollaboration):
+- `EffectStep`: entire effect state machine (dispatch, retry, offline)
+- `ClientLocalDispatch`: optimistic update, add to pending queue
+- `ClientAcceptReply`: accept server reply, preserve remaining pending
+- `HandleRealtimeUpdate`: re-apply pending on updates from other clients
+- Bounded retries (no infinite loops), correct pending preservation
+
+**Unverified** (JS - I/O only):
+- Network calls (supabase.functions.invoke)
+- Browser events (online/offline)
+- React binding (useSyncExternalStore)
 
 ## Security Notes
 

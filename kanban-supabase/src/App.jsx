@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app-extras.js'
 import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
 import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'

@@ -2,9 +2,160 @@
 
 This document describes patterns for integrating Dafny-generated JavaScript with client (React/Vite) and server (Node.js/Express) code.
 
-## Essential Patterns
+## The dafny2js Tool
 
-These patterns are always needed when integrating Dafny-generated JavaScript.
+The `dafny2js` tool automatically generates an `app.js` integration layer from your Dafny sources:
+
+```bash
+dotnet run --project dafny2js -- \
+  --file MyAppDomain.dfy \
+  --app-core AppCore \
+  --cjs-name MyApp.cjs \
+  --output my-app/src/dafny/app.js
+```
+
+**What it generates:**
+- ESM boilerplate for loading the Dafny runtime
+- `toJson`/`fromJson` converters for all datatypes
+- Action constructors that accept JS values
+- Model accessors that return JS-friendly values
+- Wrapped `AppCore` functions
+
+**What it exports:**
+```js
+const App = {
+  // Datatype constructors
+  Inc: () => ...,
+  Add: (n) => ...,
+
+  // Action constructors (from Action datatype)
+  AddExpense: (expense) => ...,
+
+  // Model accessors (from Model datatype fields)
+  GetMembers: (m) => [...],
+  GetExpenses: (m) => [...],
+
+  // AppCore functions
+  Init: () => ...,
+  Dispatch: (h, a) => ...,
+
+  // Conversion functions
+  actionToJson, actionFromJson,
+  modelToJson, modelFromJson,
+
+  // Internals for app-extras.js
+  _internal: { _dafny, DomainModule, AppCore }
+};
+```
+
+---
+
+## The app-extras.js Pattern
+
+When you need to customize the API beyond what `dafny2js` generates, create `app-extras.js`:
+
+```js
+import GeneratedApp from './app.js';
+
+const { _dafny, ClearSplitAppCore } = GeneratedApp._internal;
+
+const App = {
+  ...GeneratedApp,  // Inherit everything from generated
+
+  // Override or add methods here
+};
+
+export default App;
+```
+
+### Common Customization Patterns
+
+**1. Wrap Result types to return `{ok, model}` objects:**
+
+```js
+Init: (members) => {
+  const memberSeq = _dafny.Seq.of(...members.map(m =>
+    _dafny.Seq.UnicodeFromString(m)
+  ));
+  const result = ClearSplitAppCore.__default.Init(memberSeq);
+  if (result.is_Ok) {
+    return { ok: true, model: result.dtor_value };
+  } else {
+    return { ok: false, error: GeneratedApp.errToJson(result.dtor_error) };
+  }
+},
+```
+
+**2. Derive parameters automatically:**
+
+```js
+// Generated requires: MakeExpense(paidBy, amount, shares, shareKeys)
+// App wants simpler: MakeExpense(paidBy, amount, shares)
+MakeExpense: (paidBy, amountCents, shares) => {
+  const shareKeys = Object.keys(shares);
+  return GeneratedApp.MakeExpense(paidBy, amountCents, shares, shareKeys);
+},
+```
+
+**3. Provide object-style enum access:**
+
+```js
+// Instead of: App.Vibrant()
+// Allow: App.Mood.Vibrant
+Mood: {
+  Vibrant: ColorWheelSpec.Mood.create_Vibrant(),
+  Pastel: ColorWheelSpec.Mood.create_Pastel(),
+  // ...
+},
+```
+
+**4. Return all map entries instead of single lookup:**
+
+```js
+// Generated: GetDelegations(m, key) returns single delegation
+// App needs: GetDelegations(m) returns all delegations
+GetDelegations: (m) => {
+  const delegations = m.dtor_delegations;
+  const result = [];
+  for (const key of delegations.Keys.Elements) {
+    const deleg = delegations.get(key);
+    result.push({
+      id: key.toNumber(),
+      from: dafnyStringToJs(deleg.dtor_from),
+      to: dafnyStringToJs(deleg.dtor_to),
+    });
+  }
+  return result;
+},
+```
+
+**5. Accept JSON for server communication:**
+
+```js
+InitClient: (version, modelJson) => {
+  const model = GeneratedApp.modelFromJson(modelJson);
+  return GeneratedApp.MakeClientState(version, model, []);
+},
+```
+
+### Why Use GeneratedApp Functions
+
+The generated `app.js` handles type conversion between JavaScript and Dafny. When writing `app-extras.js`, call `GeneratedApp` functions rather than `AppCore.__default` directly:
+
+```js
+// In app-extras.js - this works correctly:
+MakeExpense: (paidBy, amount, shares) => {
+  return GeneratedApp.MakeExpense(paidBy, amount, shares, Object.keys(shares));
+},
+```
+
+`GeneratedApp.MakeExpense` internally converts `paidBy` from a JS string to a Dafny string (`seq<char>`) using `_dafny.Seq.UnicodeFromString()`. If you call `AppCore.__default.MakeExpense()` directly with a raw JS string, it will fail because Dafny expects its own string type.
+
+---
+
+## Essential Patterns (Reference)
+
+These patterns are used internally by `dafny2js` and may be useful if you need to write custom code.
 
 ### Loading Dafny Code
 
@@ -80,6 +231,8 @@ _dafny.Seq.UnicodeFromString("hello")
 
 // Dafny → JS
 seq.toVerbatimString(false)
+// or
+Array.from(seq).join('')
 ```
 
 ### Sequences
@@ -93,6 +246,16 @@ const arr = [];
 for (let i = 0; i < seq.length; i++) {
   arr.push(seq[i]);
 }
+```
+
+### Sets
+
+```js
+// JS array → Dafny set
+_dafny.Set.fromElements(...jsArray)
+
+// Dafny set → JS array
+Array.from(set.Elements)
 ```
 
 ### Maps
@@ -150,9 +313,9 @@ If your Dafny code defines `Result<T, E>`:
 
 ```js
 if (result.is_Ok) {
-  const value = result.value;
+  const value = result.dtor_value;
 } else {
-  const error = result.error;
+  const error = result.dtor_error;
 }
 ```
 
@@ -188,21 +351,16 @@ serverState = newState;
 
 ### JSON Serialization
 
-If you need to send Dafny types over the wire:
+The generated `app.js` includes `toJson`/`fromJson` for all datatypes:
 
 ```js
-// Dafny → JSON
-const actionToJson = (action) => {
-  if (action.is_Inc) return { type: 'Inc' };
-  if (action.is_Add) return { type: 'Add', n: action.dtor_n.toNumber() };
-};
+// Serialize action for network
+const json = App.actionToJson(action);
 
-// JSON → Dafny
-const actionFromJson = (json) => {
-  switch (json.type) {
-    case 'Inc': return Module.Action.create_Inc();
-    case 'Add': return Module.Action.create_Add(new BigNumber(json.n));
-  }
-};
+// Deserialize on server
+const action = App.actionFromJson(json);
+
+// Full model serialization
+const modelJson = App.modelToJson(model);
+const model = App.modelFromJson(modelJson);
 ```
-

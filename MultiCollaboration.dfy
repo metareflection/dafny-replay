@@ -165,7 +165,131 @@ abstract module {:compile false} MultiCollaboration {
          Rejected(DomainInvalid, rebased))
   }
 
-  // ---- Kernel theorem stubs (statements only) ----
+  // ===========================================================================
+  // Client-side state management
+  // ===========================================================================
+
+  datatype ClientState = ClientState(
+    baseVersion: nat,           // last synced server version
+    present: D.Model,           // current local model (optimistic)
+    pending: seq<D.Action>      // actions waiting to be flushed
+  )
+
+  // Initialize client from version and model
+  function InitClient(version: nat, model: D.Model): ClientState
+  {
+    ClientState(version, model, [])
+  }
+
+  // Create client state synced to server
+  function InitClientFromServer(server: ServerState): ClientState
+  {
+    ClientState(Version(server), server.present, [])
+  }
+
+  // Sync: reset client to server state (discard pending)
+  function Sync(server: ServerState): ClientState
+  {
+    ClientState(Version(server), server.present, [])
+  }
+
+  // Local dispatch (optimistic update)
+  // Policy: apply optimistically if TryStep succeeds, always enqueue
+  function ClientLocalDispatch(client: ClientState, action: D.Action): ClientState
+  {
+    var result := D.TryStep(client.present, action);
+    match result
+      case Ok(newModel) =>
+        // Optimistic success: update local model and enqueue
+        ClientState(client.baseVersion, newModel, client.pending + [action])
+      case Err(_) =>
+        // Optimistic failure: still enqueue (server might accept with fallback)
+        ClientState(client.baseVersion, client.present, client.pending + [action])
+  }
+
+  // Re-apply pending actions to a model (used after realtime update)
+  function ReapplyPending(model: D.Model, pending: seq<D.Action>): D.Model
+    decreases |pending|
+  {
+    if |pending| == 0 then model
+    else
+      var result := D.TryStep(model, pending[0]);
+      var newModel := match result
+        case Ok(m) => m
+        case Err(_) => model;
+      ReapplyPending(newModel, pending[1..])
+  }
+
+  // Handle realtime update from server - preserves pending actions
+  function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: D.Model): ClientState
+  {
+    if serverVersion > client.baseVersion then
+      // Accept update, re-apply pending to get correct optimistic view
+      var newPresent := ReapplyPending(serverModel, client.pending);
+      ClientState(serverVersion, newPresent, client.pending)
+    else
+      // Stale update, ignore
+      client
+  }
+
+  // ===========================================================================
+  // Client reply handling
+  // ===========================================================================
+
+  // Handle accepted reply from server - removes the dispatched action and preserves the rest
+  // Used when a dispatch succeeds and we need to update the client state while keeping
+  // any actions that were added to pending while the dispatch was in progress
+  function ClientAcceptReply(client: ClientState, newVersion: nat, newPresent: D.Model): ClientState
+  {
+    if |client.pending| == 0 then
+      // No pending actions (shouldn't happen in normal flow, but handle gracefully)
+      ClientState(newVersion, newPresent, [])
+    else
+      // Remove the first pending action (the one that was just dispatched)
+      // and re-apply the remaining pending actions on top of the new server state
+      var rest := client.pending[1..];
+      var reappliedPresent := ReapplyPending(newPresent, rest);
+      ClientState(newVersion, reappliedPresent, rest)
+  }
+
+  // Handle rejected reply from server - drops the rejected action but preserves the rest
+  // Used when a dispatch is rejected by the domain and we need to sync to server state
+  // while keeping any other pending actions
+  function ClientRejectReply(client: ClientState, freshVersion: nat, freshModel: D.Model): ClientState
+  {
+    if |client.pending| == 0 then
+      // No pending actions (shouldn't happen in normal flow, but handle gracefully)
+      ClientState(freshVersion, freshModel, [])
+    else
+      // Drop the first pending action (the rejected one)
+      // and re-apply the remaining pending actions on top of the fresh server state
+      var rest := client.pending[1..];
+      var reappliedPresent := ReapplyPending(freshModel, rest);
+      ClientState(freshVersion, reappliedPresent, rest)
+  }
+
+  // ===========================================================================
+  // Client state accessors
+  // ===========================================================================
+
+  function PendingCount(client: ClientState): nat
+  {
+    |client.pending|
+  }
+
+  function ClientModel(client: ClientState): D.Model
+  {
+    client.present
+  }
+
+  function ClientVersion(client: ClientState): nat
+  {
+    client.baseVersion
+  }
+
+  // ===========================================================================
+  // Kernel theorems
+  // ===========================================================================
 
   lemma DispatchPreservesInv(s: ServerState, baseVersion: nat, orig: D.Action)
     requires baseVersion <= Version(s)
