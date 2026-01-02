@@ -306,6 +306,10 @@ export function useCollaborativeProjectOffline(projectId) {
   useEffect(() => {
     if (projectId) {
       sync()
+    } else {
+      // No project selected - reset to idle state
+      setStatus('synced')
+      setClientState(null)
     }
   }, [projectId, sync])
 

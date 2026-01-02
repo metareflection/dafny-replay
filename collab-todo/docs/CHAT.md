@@ -670,3 +670,91 @@ src/
 3. Add keyboard shortcuts
 4. (Optional) Drag-and-drop for task reordering
 5. (Optional) Members panel in sidebar
+
+---
+
+## Session #10 - UI Polish & Cleanup
+
+**Date:** 2026-01-02
+
+### Goals
+Clean up the UI to be less cluttered and more polished:
+1. Move "New List" from TopBar to Project area in sidebar
+2. Add subtle rounded corners
+3. Remove divider lines between tasks
+4. Fix non-functional UI elements
+5. Replace "Add Task" input with inline + button
+
+### Changes Made
+
+**1. TopBar Cleanup:**
+- Removed "New List" input form from TopBar
+- TopBar now only contains: sync status, network toggle, sync button, user info
+
+**2. Project List Enhancement:**
+- Added + button next to expanded projects for adding new lists
+- Inline input form appears when clicking +
+- Form supports Enter to submit, Escape to cancel, blur to dismiss
+
+**3. Rounded Corners:**
+- Updated CSS variables from `0` to subtle values:
+  - `--radius-sm: 4px`
+  - `--radius-md: 6px`
+  - `--radius-lg: 8px`
+
+**4. Removed Divider Lines:**
+- Removed `border-bottom` from `.task-input`
+- Removed `border-bottom` from `.task-item`
+- Removed `border-bottom` from `.task-list__header`
+
+**5. Fixed Non-functional Elements:**
+- Removed 3-dots menu button from ProjectHeader (did nothing)
+- TaskItem 3-dots menu retained (has Move/Delete functionality)
+
+**6. Inline Add Task:**
+- Replaced separate TaskInput component with + button in list header
+- + button is always visible (not hidden on hover like other actions)
+- Clicking + shows inline input below header
+- Input supports Enter to submit, Escape to cancel
+
+**7. Bug Fix - "Syncing..." Stuck:**
+- Fixed hook to set status to 'synced' when no project selected
+- Previously stayed stuck on 'syncing' because sync() returned early
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/layout/TopBar.jsx` | Removed add-list form, simplified props |
+| `src/components/layout/Sidebar.jsx` | Added `onAddList` prop passthrough |
+| `src/components/sidebar/ProjectList.jsx` | Added + button and inline list form |
+| `src/components/sidebar/sidebar.css` | Added styles for add-list button/form |
+| `src/components/tasks/TaskList.jsx` | Replaced TaskInput with inline + button |
+| `src/components/tasks/tasks.css` | Removed borders, added add-form styles |
+| `src/components/project/ProjectHeader.jsx` | Removed non-functional 3-dots button |
+| `src/styles/variables.css` | Added subtle rounded corners |
+| `src/hooks/useCollaborativeProjectOffline.js` | Fixed status when no project selected |
+| `src/App.jsx` | Updated props, fixed empty state message |
+
+### UI Behavior Summary
+
+**Adding a List:**
+1. Expand a project in sidebar (click chevron)
+2. Click + button that appears next to project name
+3. Type list name and press Enter
+
+**Adding a Task:**
+1. Click + button in list header (always visible)
+2. Type task title and press Enter
+3. Press Escape or click away to cancel
+
+### Verification
+- Vite dev server starts successfully
+- No compile errors
+- "Syncing..." no longer stuck on initial load
+
+### Open Items
+1. Test with actual Supabase data
+2. Add keyboard shortcuts
+3. (Optional) Drag-and-drop for task/list reordering
+4. (Optional) Members panel in sidebar
