@@ -160,10 +160,13 @@ kanban-supabase/
 │   ├── App.css                    # Styles
 │   ├── supabase.js                # Supabase client
 │   ├── hooks/
+│   │   ├── ClientStateStore.js    # Verified state transitions
+│   │   ├── EffectManager.js       # Network I/O, subscriptions
 │   │   ├── useCollaborativeProject.js      # Projects/members hooks
-│   │   └── useCollaborativeProjectOffline.js  # Main collaboration hook
+│   │   └── useCollaborativeProjectOffline.js  # Thin React wrapper
 │   └── dafny/
-│       ├── app.js                 # Domain adapter
+│       ├── app.js                 # Generated domain adapter
+│       ├── app-extras.js          # JS convenience wrappers
 │       └── KanbanMulti.cjs        # Compiled Dafny
 ├── supabase/
 │   ├── schema.sql                 # Database schema
@@ -209,6 +212,36 @@ supabase functions serve dispatch
 ```bash
 supabase functions logs dispatch
 ```
+
+## Client Architecture
+
+The React client uses a three-layer architecture that separates concerns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  useCollaborativeProjectOffline (React hook)                │
+│  - Thin wrapper using useSyncExternalStore                  │
+│  - No stale closures, no complex state management           │
+└─────────────────────────────────────────────────────────────┘
+         │                              │
+         ▼                              ▼
+┌──────────────────────┐     ┌──────────────────────────────┐
+│  ClientStateStore    │     │  EffectManager               │
+│                      │◄────│                              │
+│  All state changes   │     │  - Flush pending to server   │
+│  via Dafny-verified  │     │  - Realtime subscriptions    │
+│  functions           │     │  - Offline detection         │
+└──────────────────────┘     └──────────────────────────────┘
+```
+
+**Verified functions** (in Dafny):
+- `ClientLocalDispatch`: optimistic update, add to pending queue
+- `ClientAcceptReply`: accept server reply, preserve remaining pending
+- `HandleRealtimeUpdate`: re-apply pending on updates from other clients
+
+**Unverified** (in JS):
+- Network I/O, retry logic, offline detection (EffectManager)
+- React binding (useSyncExternalStore)
 
 ## Security Notes
 

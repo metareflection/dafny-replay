@@ -42,21 +42,26 @@ This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, 
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐ │
 │  │  useCollaborativeProjectOffline(projectId)                 │ │
-│  │                                                            │ │
-│  │  - model: current state (optimistic)                       │ │
-│  │  - dispatch(action): queue locally + send to server        │ │
-│  │  - pendingCount: actions waiting to be confirmed           │ │
-│  │  - isOffline: auto-detected or manual                      │ │
-│  │  - flush(): send pending actions on reconnect              │ │
+│  │  Thin React wrapper using useSyncExternalStore             │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
-│                              ▼                                   │
+│            ┌─────────────────┴─────────────────┐                 │
+│            ▼                                   ▼                 │
+│  ┌──────────────────────┐           ┌──────────────────────┐    │
+│  │  ClientStateStore    │           │  EffectManager       │    │
+│  │  (verified core)     │◄──────────│  (network I/O)       │    │
+│  │                      │           │                      │    │
+│  │  All transitions via │           │  - Flush pending     │    │
+│  │  Dafny functions     │           │  - Realtime sub      │    │
+│  └──────────────────────┘           │  - Offline detect    │    │
+│            │                        └──────────────────────┘    │
+│            ▼                                                     │
 │  ┌────────────────────────────────────────────────────────────┐ │
 │  │  Dafny ClientState (verified)                              │ │
 │  │                                                            │ │
 │  │  - ClientLocalDispatch: optimistic update + queue          │ │
-│  │  - InitClient: reset from server sync                      │ │
-│  │  - GetPendingActions: for flush                            │ │
+│  │  - ClientAcceptReply: accept reply, preserve pending       │ │
+│  │  - HandleRealtimeUpdate: re-apply pending on remote update │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -532,13 +537,14 @@ The core state transitions are verified in Dafny. The realtime/offline orchestra
 |-----------|----------|
 | `Dispatch` (server reconciliation) | ✅ Dafny |
 | `ClientLocalDispatch` (optimistic update) | ✅ Dafny |
+| `ClientAcceptReply` (accept + preserve pending) | ✅ Dafny |
 | `HandleRealtimeUpdate` (pending preservation) | ✅ Dafny |
 | `InitClient` (sync from server) | ✅ Dafny |
 | JSON ↔ Dafny conversion | ❌ JS |
-| Realtime subscription orchestration | ❌ JS |
-| Flush loop with conflict/retry handling | ❌ JS |
-| Network error detection, offline mode | ❌ JS |
-| React state management | ❌ JS |
+| Realtime subscription orchestration | ❌ JS (EffectManager) |
+| Flush loop with conflict/retry handling | ❌ JS (EffectManager) |
+| Network error detection, offline mode | ❌ JS (EffectManager) |
+| React state management | ❌ JS (useSyncExternalStore) |
 
 ### Using the Offline Hook
 
