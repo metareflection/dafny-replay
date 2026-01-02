@@ -85,7 +85,7 @@ export function TaskList({
             </h3>
           )}
 
-          <span className="task-list__count">{completedCount}/{totalCount}</span>
+          <div className="task-list__spacer" />
 
           <div className="task-list__actions">
             {showAddTask && (
@@ -112,6 +112,8 @@ export function TaskList({
               <X size={12} />
             </button>
           </div>
+
+          <span className="task-list__count">{completedCount}/{totalCount}</span>
         </div>
       )}
 

@@ -358,7 +358,6 @@
 }
 
 .task-list__name {
-  flex: 1;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
@@ -369,13 +368,8 @@
   color: var(--color-accent);
 }
 
-.task-list__count {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-  font-weight: var(--font-weight-medium);
-  background: var(--color-bg-tertiary);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
+.task-list__spacer {
+  flex: 1;
 }
 
 .task-list__actions {
@@ -387,6 +381,15 @@
 
 .task-list__header:hover .task-list__actions {
   opacity: 1;
+}
+
+.task-list__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-tertiary);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
 }
 
 .task-list__action-btn {
