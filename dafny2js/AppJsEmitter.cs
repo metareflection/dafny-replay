@@ -75,11 +75,79 @@ public class AppJsEmitter
 
     var referencedTypes = CollectReferencedDatatypes();
 
-    var additionalTypes = _datatypes
+    // Find types from other modules that match referenced type names
+    var candidateAdditionalTypes = _datatypes
       .Where(dt => dt.ModuleName != _domainModule && referencedTypes.Contains(dt.Name))
       .ToList();
 
+    // Check for duplicate-named types and handle them
+    var domainTypesByName = domainTypes.ToDictionary(dt => dt.Name);
+    var additionalTypes = new List<DatatypeInfo>();
+
+    foreach (var candidate in candidateAdditionalTypes)
+    {
+      if (domainTypesByName.TryGetValue(candidate.Name, out var domainType))
+      {
+        // Duplicate name found - check if structurally identical
+        if (!AreStructurallyIdentical(domainType, candidate))
+        {
+          throw new InvalidOperationException(
+            $"Error: Duplicate datatype name '{candidate.Name}' found in modules " +
+            $"'{domainType.ModuleName}' and '{candidate.ModuleName}' with different structures. " +
+            $"This is not supported. Consider renaming one of the types.");
+        }
+        // Structurally identical - skip the duplicate, use domain module's version
+        Console.Error.WriteLine(
+          $"Note: Skipping duplicate type '{candidate.ModuleName}.{candidate.Name}' " +
+          $"(identical to '{domainType.ModuleName}.{candidate.Name}')");
+      }
+      else
+      {
+        // No duplicate - add to additional types
+        additionalTypes.Add(candidate);
+      }
+    }
+
     return domainTypes.Concat(additionalTypes).ToList();
+  }
+
+  /// <summary>
+  /// Check if two datatypes are structurally identical (same constructors with same fields).
+  /// </summary>
+  bool AreStructurallyIdentical(DatatypeInfo a, DatatypeInfo b)
+  {
+    if (a.Constructors.Count != b.Constructors.Count)
+      return false;
+
+    for (int i = 0; i < a.Constructors.Count; i++)
+    {
+      var ctorA = a.Constructors[i];
+      var ctorB = b.Constructors[i];
+
+      if (ctorA.Name != ctorB.Name)
+        return false;
+
+      if (ctorA.Fields.Count != ctorB.Fields.Count)
+        return false;
+
+      for (int j = 0; j < ctorA.Fields.Count; j++)
+      {
+        var fieldA = ctorA.Fields[j];
+        var fieldB = ctorB.Fields[j];
+
+        if (fieldA.Name != fieldB.Name)
+          return false;
+
+        // Compare types by name (both will be the base type name)
+        if (fieldA.Type.Name != fieldB.Type.Name)
+          return false;
+
+        if (fieldA.Type.Kind != fieldB.Type.Kind)
+          return false;
+      }
+    }
+
+    return true;
   }
 
   void GenerateDatatypeConversions(List<DatatypeInfo> allTypesToGenerate)
