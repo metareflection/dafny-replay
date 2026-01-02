@@ -1,4 +1,5 @@
 include "MultiCollaboration.dfy"
+include "EffectStateMachine.dfy"
 
 module KanbanDomain refines Domain {
   type CardId = nat
@@ -1640,4 +1641,14 @@ module KanbanAppCore {
   {
     reply.Rejected?
   }
+}
+
+// =============================================================================
+// Kanban Effect State Machine
+// =============================================================================
+// Concrete refinement of EffectStateMachine for the Kanban domain.
+// This verifies the client-side effect orchestration logic.
+
+module KanbanEffectStateMachine refines EffectStateMachine {
+  import MC = KanbanMultiCollaboration
 }
