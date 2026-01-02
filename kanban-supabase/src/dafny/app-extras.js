@@ -4,7 +4,7 @@
 import GeneratedApp from './app.js';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, KanbanDomain, KanbanAppCore } = GeneratedApp._internal;
+const { _dafny, KanbanDomain, KanbanEffectAppCore, KanbanEffectStateMachine } = GeneratedApp._internal;
 
 // Helper to convert seq to array
 const seqToArray = (seq) => {
@@ -45,7 +45,7 @@ const App = {
   // InitClient: create client state from JSON model
   InitClient: (version, modelJson) => {
     const model = GeneratedApp.modelFromJson(modelJson);
-    return KanbanAppCore.__default.MakeClientState(
+    return KanbanEffectAppCore.__default.MakeClientState(
       new BigNumber(version),
       model,
       _dafny.Seq.of()
@@ -58,7 +58,7 @@ const App = {
   // HandleRealtimeUpdate: takes JSON model
   HandleRealtimeUpdate: (client, serverVersion, serverModelJson) => {
     const serverModel = GeneratedApp.modelFromJson(serverModelJson);
-    return KanbanAppCore.__default.HandleRealtimeUpdate(
+    return KanbanEffectAppCore.__default.HandleRealtimeUpdate(
       client,
       new BigNumber(serverVersion),
       serverModel
@@ -69,7 +69,7 @@ const App = {
   // Removes the first pending action (the dispatched one) and re-applies the rest
   ClientAcceptReply: (client, newVersion, newPresentJson) => {
     const newPresent = GeneratedApp.modelFromJson(newPresentJson);
-    return KanbanAppCore.__default.ClientAcceptReply(
+    return KanbanEffectAppCore.__default.ClientAcceptReply(
       client,
       new BigNumber(newVersion),
       newPresent
@@ -102,6 +102,75 @@ const App = {
       }
     }
     return '';
+  },
+
+  // =========================================================================
+  // Effect State Machine (VERIFIED)
+  // =========================================================================
+
+  // Initialize effect state from server response
+  EffectInit: (version, modelJson) => {
+    const model = GeneratedApp.modelFromJson(modelJson);
+    return KanbanEffectAppCore.__default.EffectInit(new BigNumber(version), model);
+  },
+
+  // Step function - the core verified state machine
+  // Returns [newEffectState, command]
+  EffectStep: (effectState, event) => {
+    const result = KanbanEffectAppCore.__default.EffectStep(effectState, event);
+    return [result[0], result[1]];
+  },
+
+  // Event constructors (using AppCore wrappers)
+  EffectEvent: {
+    UserAction: (action) =>
+      KanbanEffectAppCore.__default.EffectUserAction(action),
+
+    DispatchAccepted: (version, modelJson) => {
+      const model = GeneratedApp.modelFromJson(modelJson);
+      return KanbanEffectAppCore.__default.EffectDispatchAccepted(
+        new BigNumber(version), model
+      );
+    },
+
+    DispatchConflict: (version, modelJson) => {
+      const model = GeneratedApp.modelFromJson(modelJson);
+      return KanbanEffectAppCore.__default.EffectDispatchConflict(
+        new BigNumber(version), model
+      );
+    },
+
+    DispatchRejected: (version, modelJson) => {
+      const model = GeneratedApp.modelFromJson(modelJson);
+      return KanbanEffectAppCore.__default.EffectDispatchRejected(
+        new BigNumber(version), model
+      );
+    },
+
+    NetworkError: () => KanbanEffectAppCore.__default.EffectNetworkError(),
+    NetworkRestored: () => KanbanEffectAppCore.__default.EffectNetworkRestored(),
+    ManualGoOffline: () => KanbanEffectAppCore.__default.EffectManualGoOffline(),
+    ManualGoOnline: () => KanbanEffectAppCore.__default.EffectManualGoOnline(),
+    Tick: () => KanbanEffectAppCore.__default.EffectTick(),
+  },
+
+  // Command inspection (using AppCore wrappers)
+  EffectCommand: {
+    isNoOp: (cmd) => KanbanEffectAppCore.__default.EffectIsNoOp(cmd),
+    isSendDispatch: (cmd) => KanbanEffectAppCore.__default.EffectIsSendDispatch(cmd),
+    getBaseVersion: (cmd) => KanbanEffectAppCore.__default.EffectGetBaseVersion(cmd).toNumber(),
+    getAction: (cmd) => KanbanEffectAppCore.__default.EffectGetAction(cmd),
+  },
+
+  // EffectState accessors (using AppCore wrappers)
+  EffectState: {
+    getClient: (es) => KanbanEffectAppCore.__default.EffectGetClient(es),
+    getServerVersion: (es) => KanbanEffectAppCore.__default.EffectGetServerVersion(es).toNumber(),
+    isOnline: (es) => KanbanEffectAppCore.__default.EffectIsOnline(es),
+    isIdle: (es) => KanbanEffectAppCore.__default.EffectIsIdle(es),
+    isDispatching: (es) => es.dtor_mode.is_Dispatching,
+    hasPending: (es) => KanbanEffectAppCore.__default.EffectHasPending(es),
+    getPendingCount: (es) => KanbanEffectAppCore.__default.EffectPendingCount(es).toNumber(),
   },
 };
 

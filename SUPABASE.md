@@ -45,23 +45,19 @@ This preserves the MultiCollaboration guarantees (rebasing, candidate fallback, 
 │  │  Thin React wrapper using useSyncExternalStore             │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
-│            ┌─────────────────┴─────────────────┐                 │
-│            ▼                                   ▼                 │
-│  ┌──────────────────────┐           ┌──────────────────────┐    │
-│  │  ClientStateStore    │           │  EffectManager       │    │
-│  │  (verified core)     │◄──────────│  (network I/O)       │    │
-│  │                      │           │                      │    │
-│  │  All transitions via │           │  - Flush pending     │    │
-│  │  Dafny functions     │           │  - Realtime sub      │    │
-│  └──────────────────────┘           │  - Offline detect    │    │
-│            │                        └──────────────────────┘    │
-│            ▼                                                     │
+│                              ▼                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Dafny ClientState (verified)                              │ │
+│  │  EffectManager (uses VERIFIED EffectStateMachine)          │ │
 │  │                                                            │ │
-│  │  - ClientLocalDispatch: optimistic update + queue          │ │
-│  │  - ClientAcceptReply: accept reply, preserve pending       │ │
-│  │  - HandleRealtimeUpdate: re-apply pending on remote update │ │
+│  │  State: EffectState (Dafny datatype)                       │ │
+│  │    - network: Online | Offline                             │ │
+│  │    - mode: Idle | Dispatching(retries)                     │ │
+│  │    - client: ClientState (pending queue)                   │ │
+│  │                                                            │ │
+│  │  All transitions via verified Step(state, event):          │ │
+│  │    → (newState, Command)                                   │ │
+│  │                                                            │ │
+│  │  JS only: execute Command (network I/O), convert to Event  │ │
 │  └────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -531,19 +527,21 @@ The Edge Function uses the Dafny-verified `KanbanMultiCollaboration.Dispatch` di
 
 ### Trust Boundary
 
-The core state transitions are verified in Dafny. The realtime/offline orchestration logic remains in JavaScript.
+The entire effect state machine is now verified in Dafny. The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
 
 | Component | Verified |
 |-----------|----------|
 | `Dispatch` (server reconciliation) | ✅ Dafny |
+| `EffectStep` (dispatch/retry state machine) | ✅ Dafny |
 | `ClientLocalDispatch` (optimistic update) | ✅ Dafny |
 | `ClientAcceptReply` (accept + preserve pending) | ✅ Dafny |
 | `HandleRealtimeUpdate` (pending preservation) | ✅ Dafny |
+| Bounded retries, no infinite loops | ✅ Dafny |
 | `InitClient` (sync from server) | ✅ Dafny |
 | JSON ↔ Dafny conversion | ❌ JS |
+| Execute Command (network I/O) | ❌ JS (EffectManager) |
+| Convert response to Event | ❌ JS (EffectManager) |
 | Realtime subscription orchestration | ❌ JS (EffectManager) |
-| Flush loop with conflict/retry handling | ❌ JS (EffectManager) |
-| Network error detection, offline mode | ❌ JS (EffectManager) |
 | React state management | ❌ JS (useSyncExternalStore) |
 
 ### Using the Offline Hook

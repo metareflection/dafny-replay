@@ -60,8 +60,14 @@ echo "Generating kanban-multi-collaboration app.js..."
 echo "Copying to kanban-supabase project..."
 cp generated/KanbanMulti.js kanban-supabase/src/dafny/KanbanMulti.cjs
 
+echo "Compiling KanbanEffectStateMachine to JavaScript..."
+dafny translate js --no-verify -o generated/KanbanEffect --include-runtime KanbanEffectStateMachine.dfy
+
 echo "Generating kanban-supabase app.js..."
-(cd dafny2js && dotnet run --no-build -- --file ../KanbanMultiCollaboration.dfy --app-core KanbanAppCore --cjs-name KanbanMulti.cjs --output ../kanban-supabase/src/dafny/app.js)
+(cd dafny2js && dotnet run --no-build -- --file ../KanbanEffectStateMachine.dfy --app-core KanbanEffectAppCore --cjs-name KanbanEffect.cjs --output ../kanban-supabase/src/dafny/app.js)
+
+echo "Copying KanbanEffectStateMachine to kanban-supabase project..."
+cp generated/KanbanEffect.js kanban-supabase/src/dafny/KanbanEffect.cjs
 
 echo "Building Deno bundle for kanban-supabase Edge Function..."
 (cd kanban-supabase/supabase/functions/dispatch && node build-bundle.js)

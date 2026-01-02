@@ -7,7 +7,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import dafnyCode from './KanbanMulti.cjs?raw';
+import dafnyCode from './KanbanEffect.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -18,10 +18,10 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${dafnyCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanEffectStateMachine, KanbanEffectAppCore };
 `);
 
-const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require);
+const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanEffectStateMachine, KanbanEffectAppCore } = initDafny(require);
 
 
 // ============================================================================
@@ -453,6 +453,174 @@ const clientstateToJson = (value) => {
   };
 };
 
+const networkstatusFromJson = (json) => {
+  switch (json) {
+    case 'Online':
+      return KanbanEffectStateMachine.NetworkStatus.create_Online();
+    case 'Offline':
+      return KanbanEffectStateMachine.NetworkStatus.create_Offline();
+    default:
+      throw new Error(`Unknown NetworkStatus: ${json}`);
+  }
+};
+
+const networkstatusToJson = (value) => {
+  if (value.is_Online) {
+    return 'Online';
+  } else if (value.is_Offline) {
+    return 'Offline';
+  }
+  return 'Unknown';
+};
+
+const effectmodeFromJson = (json) => {
+  switch (json.type) {
+    case 'Idle':
+      return KanbanEffectStateMachine.EffectMode.create_Idle();
+    case 'Dispatching':
+      return KanbanEffectStateMachine.EffectMode.create_Dispatching(
+        new BigNumber(json.retries)
+      );
+    default:
+      throw new Error(`Unknown EffectMode type: ${json.type}`);
+  }
+};
+
+const effectmodeToJson = (value) => {
+  if (value.is_Idle) {
+    return { type: 'Idle' };
+  } else if (value.is_Dispatching) {
+    return {
+      type: 'Dispatching',
+      retries: toNumber(value.dtor_retries)
+    };
+  }
+  return { type: 'Unknown' };
+};
+
+const effectstateFromJson = (json) => {
+  return KanbanEffectStateMachine.EffectState.create_EffectState(
+    networkstatusFromJson(json.network),
+    effectmodeFromJson(json.mode),
+    clientstateFromJson(json.client),
+    new BigNumber(json.serverVersion)
+  );
+};
+
+const effectstateToJson = (value) => {
+  return {
+    network: networkstatusToJson(value.dtor_network),
+    mode: effectmodeToJson(value.dtor_mode),
+    client: clientstateToJson(value.dtor_client),
+    serverVersion: toNumber(value.dtor_serverVersion)
+  };
+};
+
+const eventFromJson = (json) => {
+  switch (json.type) {
+    case 'UserAction':
+      return KanbanEffectStateMachine.Event.create_UserAction(
+        actionFromJson(json.action)
+      );
+    case 'DispatchAccepted':
+      return KanbanEffectStateMachine.Event.create_DispatchAccepted(
+        new BigNumber(json.newVersion),
+        modelFromJson(json.newModel)
+      );
+    case 'DispatchConflict':
+      return KanbanEffectStateMachine.Event.create_DispatchConflict(
+        new BigNumber(json.freshVersion),
+        modelFromJson(json.freshModel)
+      );
+    case 'DispatchRejected':
+      return KanbanEffectStateMachine.Event.create_DispatchRejected(
+        new BigNumber(json.freshVersion),
+        modelFromJson(json.freshModel)
+      );
+    case 'NetworkError':
+      return KanbanEffectStateMachine.Event.create_NetworkError();
+    case 'NetworkRestored':
+      return KanbanEffectStateMachine.Event.create_NetworkRestored();
+    case 'ManualGoOffline':
+      return KanbanEffectStateMachine.Event.create_ManualGoOffline();
+    case 'ManualGoOnline':
+      return KanbanEffectStateMachine.Event.create_ManualGoOnline();
+    case 'Tick':
+      return KanbanEffectStateMachine.Event.create_Tick();
+    default:
+      throw new Error(`Unknown Event type: ${json.type}`);
+  }
+};
+
+const eventToJson = (value) => {
+  if (value.is_UserAction) {
+    return {
+      type: 'UserAction',
+      action: actionToJson(value.dtor_action)
+    };
+  } else if (value.is_DispatchAccepted) {
+    return {
+      type: 'DispatchAccepted',
+      newVersion: toNumber(value.dtor_newVersion),
+      newModel: modelToJson(value.dtor_newModel)
+    };
+  } else if (value.is_DispatchConflict) {
+    return {
+      type: 'DispatchConflict',
+      freshVersion: toNumber(value.dtor_freshVersion),
+      freshModel: modelToJson(value.dtor_freshModel)
+    };
+  } else if (value.is_DispatchRejected) {
+    return {
+      type: 'DispatchRejected',
+      freshVersion: toNumber(value.dtor_freshVersion),
+      freshModel: modelToJson(value.dtor_freshModel)
+    };
+  } else if (value.is_NetworkError) {
+    return { type: 'NetworkError' };
+  } else if (value.is_NetworkRestored) {
+    return { type: 'NetworkRestored' };
+  } else if (value.is_ManualGoOffline) {
+    return { type: 'ManualGoOffline' };
+  } else if (value.is_ManualGoOnline) {
+    return { type: 'ManualGoOnline' };
+  } else if (value.is_Tick) {
+    return { type: 'Tick' };
+  }
+  return { type: 'Unknown' };
+};
+
+const commandFromJson = (json) => {
+  switch (json.type) {
+    case 'NoOp':
+      return KanbanEffectStateMachine.Command.create_NoOp();
+    case 'SendDispatch':
+      return KanbanEffectStateMachine.Command.create_SendDispatch(
+        new BigNumber(json.baseVersion),
+        actionFromJson(json.action)
+      );
+    case 'FetchFreshState':
+      return KanbanEffectStateMachine.Command.create_FetchFreshState();
+    default:
+      throw new Error(`Unknown Command type: ${json.type}`);
+  }
+};
+
+const commandToJson = (value) => {
+  if (value.is_NoOp) {
+    return { type: 'NoOp' };
+  } else if (value.is_SendDispatch) {
+    return {
+      type: 'SendDispatch',
+      baseVersion: toNumber(value.dtor_baseVersion),
+      action: actionToJson(value.dtor_action)
+    };
+  } else if (value.is_FetchFreshState) {
+    return { type: 'FetchFreshState' };
+  }
+  return { type: 'Unknown' };
+};
+
 // ============================================================================
 // API Wrapper
 // ============================================================================
@@ -518,22 +686,43 @@ const App = {
   GetNextId: (m) => toNumber(m.dtor_nextId),
 
   // AppCore functions
-  MakeClientState: (baseVersion, present, pending) => KanbanAppCore.__default.MakeClientState(new BigNumber(baseVersion), present, _dafny.Seq.of(...(pending || []).map(x => actionFromJson(x)))),
-  Init: () => KanbanAppCore.__default.Init(),
-  InitServerWithModel: (initModel) => KanbanAppCore.__default.InitServerWithModel(initModel),
-  InitClientFromServer: (server) => KanbanAppCore.__default.InitClientFromServer(server),
-  ClientLocalDispatch: (client, action) => KanbanAppCore.__default.ClientLocalDispatch(client, action),
-  HandleRealtimeUpdate: (client, serverVersion, serverModel) => KanbanAppCore.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel),
-  ClientAcceptReply: (client, newVersion, newPresent) => KanbanAppCore.__default.ClientAcceptReply(client, new BigNumber(newVersion), newPresent),
-  Sync: (server) => KanbanAppCore.__default.Sync(server),
-  ServerVersion: (server) => toNumber(KanbanAppCore.__default.ServerVersion(server)),
-  ServerModel: (server) => KanbanAppCore.__default.ServerModel(server),
-  AuditLength: (server) => toNumber(KanbanAppCore.__default.AuditLength(server)),
-  PendingCount: (client) => toNumber(KanbanAppCore.__default.PendingCount(client)),
-  ClientModel: (client) => KanbanAppCore.__default.ClientModel(client),
-  ClientVersion: (client) => toNumber(KanbanAppCore.__default.ClientVersion(client)),
-  IsAccepted: (reply) => KanbanAppCore.__default.IsAccepted(reply),
-  IsRejected: (reply) => KanbanAppCore.__default.IsRejected(reply),
+  EffectInit: (version, model) => KanbanEffectAppCore.__default.EffectInit(new BigNumber(version), model),
+  EffectStep: (es, event) => KanbanEffectAppCore.__default.EffectStep(es, event),
+  EffectIsOnline: (es) => KanbanEffectAppCore.__default.EffectIsOnline(es),
+  EffectIsIdle: (es) => KanbanEffectAppCore.__default.EffectIsIdle(es),
+  EffectHasPending: (es) => KanbanEffectAppCore.__default.EffectHasPending(es),
+  EffectPendingCount: (es) => toNumber(KanbanEffectAppCore.__default.EffectPendingCount(es)),
+  EffectGetClient: (es) => KanbanEffectAppCore.__default.EffectGetClient(es),
+  EffectGetServerVersion: (es) => toNumber(KanbanEffectAppCore.__default.EffectGetServerVersion(es)),
+  EffectUserAction: (action) => KanbanEffectAppCore.__default.EffectUserAction(action),
+  EffectDispatchAccepted: (version, model) => KanbanEffectAppCore.__default.EffectDispatchAccepted(new BigNumber(version), model),
+  EffectDispatchConflict: (version, model) => KanbanEffectAppCore.__default.EffectDispatchConflict(new BigNumber(version), model),
+  EffectDispatchRejected: (version, model) => KanbanEffectAppCore.__default.EffectDispatchRejected(new BigNumber(version), model),
+  EffectNetworkError: () => KanbanEffectAppCore.__default.EffectNetworkError(),
+  EffectNetworkRestored: () => KanbanEffectAppCore.__default.EffectNetworkRestored(),
+  EffectManualGoOffline: () => KanbanEffectAppCore.__default.EffectManualGoOffline(),
+  EffectManualGoOnline: () => KanbanEffectAppCore.__default.EffectManualGoOnline(),
+  EffectTick: () => KanbanEffectAppCore.__default.EffectTick(),
+  EffectIsNoOp: (cmd) => KanbanEffectAppCore.__default.EffectIsNoOp(cmd),
+  EffectIsSendDispatch: (cmd) => KanbanEffectAppCore.__default.EffectIsSendDispatch(cmd),
+  EffectGetBaseVersion: (cmd) => toNumber(KanbanEffectAppCore.__default.EffectGetBaseVersion(cmd)),
+  EffectGetAction: (cmd) => KanbanEffectAppCore.__default.EffectGetAction(cmd),
+  MakeClientState: (baseVersion, present, pending) => KanbanEffectAppCore.__default.MakeClientState(new BigNumber(baseVersion), present, _dafny.Seq.of(...(pending || []).map(x => actionFromJson(x)))),
+  Init: () => KanbanEffectAppCore.__default.Init(),
+  InitServerWithModel: (initModel) => KanbanEffectAppCore.__default.InitServerWithModel(initModel),
+  InitClientFromServer: (server) => KanbanEffectAppCore.__default.InitClientFromServer(server),
+  ClientLocalDispatch: (client, action) => KanbanEffectAppCore.__default.ClientLocalDispatch(client, action),
+  HandleRealtimeUpdate: (client, serverVersion, serverModel) => KanbanEffectAppCore.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel),
+  ClientAcceptReply: (client, newVersion, newPresent) => KanbanEffectAppCore.__default.ClientAcceptReply(client, new BigNumber(newVersion), newPresent),
+  Sync: (server) => KanbanEffectAppCore.__default.Sync(server),
+  ServerVersion: (server) => toNumber(KanbanEffectAppCore.__default.ServerVersion(server)),
+  ServerModel: (server) => KanbanEffectAppCore.__default.ServerModel(server),
+  AuditLength: (server) => toNumber(KanbanEffectAppCore.__default.AuditLength(server)),
+  PendingCount: (client) => toNumber(KanbanEffectAppCore.__default.PendingCount(client)),
+  ClientModel: (client) => KanbanEffectAppCore.__default.ClientModel(client),
+  ClientVersion: (client) => toNumber(KanbanEffectAppCore.__default.ClientVersion(client)),
+  IsAccepted: (reply) => KanbanEffectAppCore.__default.IsAccepted(reply),
+  IsRejected: (reply) => KanbanEffectAppCore.__default.IsRejected(reply),
 
   // Conversion functions
   cardToJson: cardToJson,
@@ -562,9 +751,19 @@ const App = {
   serverstateFromJson: serverstateFromJson,
   clientstateToJson: clientstateToJson,
   clientstateFromJson: clientstateFromJson,
+  networkstatusToJson: networkstatusToJson,
+  networkstatusFromJson: networkstatusFromJson,
+  effectmodeToJson: effectmodeToJson,
+  effectmodeFromJson: effectmodeFromJson,
+  effectstateToJson: effectstateToJson,
+  effectstateFromJson: effectstateFromJson,
+  eventToJson: eventToJson,
+  eventFromJson: eventFromJson,
+  commandToJson: commandToJson,
+  commandFromJson: commandFromJson,
 };
 
 // Export internals for custom extensions
-App._internal = { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+App._internal = { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanEffectStateMachine, KanbanEffectAppCore };
 
 export default App;
