@@ -141,7 +141,7 @@ abstract module EffectStateMachine {
             if HasPending(newState) then
               (newState, SendDispatch(freshVersion, FirstPendingAction(newState)))
             else
-              // Somehow pending is empty after resync (shouldn't happen normally)
+              // Dead code: proved unreachable by ConflictNeverEmptiesPending
               (newState.(mode := Idle), NoOp)
         else
           (es, NoOp)
@@ -340,6 +340,17 @@ abstract module EffectStateMachine {
             Pending(es') == Pending(es)  // Exact sequence equality - nothing removed
   {
     // HandleRealtimeUpdate preserves pending exactly
+  }
+
+  // Property 10b: Conflict never empties pending (the "else" branch in Step is dead code)
+  lemma ConflictNeverEmptiesPending(es: EffectState, freshVersion: nat, freshModel: Model)
+    requires Inv(es)
+    requires es.mode.Dispatching?
+    ensures var (es', _) := Step(es, DispatchConflict(freshVersion, freshModel));
+            HasPending(es')
+  {
+    // Follows from ConflictPreservesPendingExactly + ModeConsistent (Dispatching => HasPending)
+    ConflictPreservesPendingExactly(es, freshVersion, freshModel);
   }
 
   // Property 11: UserAction always appends exactly one action
