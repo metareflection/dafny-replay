@@ -341,6 +341,116 @@ describe('EffectStateMachine', () => {
   });
 });
 
+describe('Rejection Mid-Flush', () => {
+  it('should continue executing remaining actions after one is rejected', () => {
+    // This tests the critical bug scenario:
+    // - Queue many pending actions while offline
+    // - One action in the middle gets rejected (e.g., WIP exceeded)
+    // - The remaining actions should still execute
+
+    const server = new TestServer();
+    const { version: v0, model: m0 } = server.sync();
+    let es = EffectInit(v0, m0);
+    let cmd;
+
+    // Setup: Create columns with WIP limits while online
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddColumn', col: 'Todo', limit: 10 }));
+    let result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddColumn', col: 'Done', limit: 2 })); // WIP limit of 2!
+    result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    // Add initial cards to Done (filling it to limit)
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Done', title: 'Done1' }));
+    result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Done', title: 'Done2' }));
+    result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    // Done column now has 2 cards (at WIP limit)
+    let state = server.sync();
+    assert.strictEqual(state.model.lanes['Done'].length, 2, 'Done should have 2 cards');
+
+    // NOW GO OFFLINE and queue multiple actions
+    [es] = EffectStep(es, EffectEvent.ManualGoOffline());
+
+    // Action 1: Add card to Todo (should succeed)
+    [es] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'TodoTask1' }));
+
+    // Action 2: Add card to Done (WILL BE REJECTED - WIP exceeded!)
+    [es] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Done', title: 'WillFail' }));
+
+    // Action 3: Add another card to Todo (should succeed AFTER rejection)
+    [es] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'TodoTask2' }));
+
+    // Action 4: Add yet another card to Todo (should succeed)
+    [es] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'TodoTask3' }));
+
+    assert.strictEqual(EffectState.getPendingCount(es), 4, 'Should have 4 pending actions');
+
+    // COME BACK ONLINE - this should start flushing
+    [es, cmd] = EffectStep(es, EffectEvent.ManualGoOnline());
+    assert.strictEqual(EffectState.isDispatching(es), true);
+
+    // Track results
+    const results = [];
+    let iterations = 0;
+    const maxIterations = 10; // Safety limit
+
+    // Flush all pending actions
+    while (EffectCommand.isSendDispatch(cmd) && iterations < maxIterations) {
+      iterations++;
+      const action = actionToJson(EffectCommand.getAction(cmd));
+      const baseVer = EffectCommand.getBaseVersion(cmd);
+      const dispatchResult = server.dispatch(baseVer, action);
+
+      results.push({ action: action.type, title: action.title, status: dispatchResult.status });
+
+      if (dispatchResult.status === 'accepted') {
+        [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(
+          dispatchResult.version,
+          dispatchResult.model
+        ));
+      } else {
+        // REJECTED - fetch fresh state and continue
+        const fresh = server.sync();
+        [es, cmd] = EffectStep(es, EffectEvent.DispatchRejected(fresh.version, fresh.model));
+      }
+    }
+
+    // Verify we processed all actions
+    assert.strictEqual(EffectState.isIdle(es), true, 'Should be idle after flush');
+    assert.strictEqual(EffectState.hasPending(es), false, 'Should have no pending actions');
+
+    // Check results: 1 rejected, 3 accepted
+    const accepted = results.filter(r => r.status === 'accepted');
+    const rejected = results.filter(r => r.status === 'rejected');
+
+    assert.strictEqual(rejected.length, 1, 'Exactly 1 action should be rejected');
+    assert.strictEqual(rejected[0].title, 'WillFail', 'The WIP-exceeding action should be rejected');
+
+    assert.strictEqual(accepted.length, 3, '3 actions should be accepted');
+
+    // Verify final server state
+    const finalState = server.sync();
+    assert.strictEqual(finalState.model.lanes['Todo'].length, 3, 'Todo should have 3 cards');
+    assert.strictEqual(finalState.model.lanes['Done'].length, 2, 'Done should still have 2 cards (WIP respected)');
+
+    // Verify the correct cards are in Todo
+    const todoTitles = finalState.model.lanes['Todo'].map(id => finalState.model.cards[id].title);
+    assert.ok(todoTitles.includes('TodoTask1'), 'TodoTask1 should be in Todo');
+    assert.ok(todoTitles.includes('TodoTask2'), 'TodoTask2 should be in Todo (after rejection!)');
+    assert.ok(todoTitles.includes('TodoTask3'), 'TodoTask3 should be in Todo');
+
+    console.log('Results:', results);
+    console.log('Final Todo:', todoTitles);
+  });
+});
+
 describe('Full Client-Server Simulation', () => {
   it('should handle complete offline-online cycle', () => {
     const server = new TestServer();
