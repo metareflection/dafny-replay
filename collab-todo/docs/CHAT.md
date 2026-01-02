@@ -894,3 +894,146 @@ lemma CountMatchesTasksAlways(vs: ViewState, smartList: SmartListType)
 2. Update `src/dafny/app.js` adapter to expose view layer functions
 3. Rewrite React hooks to use Dafny ViewState
 4. Remove all filtering/counting logic from React components
+
+---
+
+## Session #12 - EffectStateMachine Integration & dafny2js Improvements
+
+**Date:** 2026-01-02
+
+### Goals
+Integrate the verified EffectStateMachine pattern (from kanban-supabase) into collab-todo for proper dispatch/retry/offline logic.
+
+### Work Completed
+
+**1. TodoEffectStateMachine.dfy Created:**
+```dafny
+module TodoEffectStateMachine refines EffectStateMachine {
+  import MC = TodoMultiCollaboration
+}
+
+module TodoEffectAppCore refines TodoAppCore {
+  import E = TodoEffectStateMachine
+
+  function EffectInit(version: nat, model: K.Model): EffectState
+  function EffectStep(es: EffectState, event: EffectEvent): (EffectState, EffectCommand)
+  // ... state accessors, event constructors, command inspection
+}
+```
+
+**2. compile.sh Updated:**
+- Compile `TodoEffectStateMachine.dfy` to JavaScript
+- Generate `app.js` from `TodoEffectAppCore` (not `TodoAppCore`)
+- Copy `TodoEffect.cjs` to project
+- Build Deno bundle for Edge Function
+
+**3. EffectManager.js Created:**
+- Uses verified `Step` function for all state transitions
+- Handles network I/O (dispatch, sync, realtime)
+- Exposes `subscribe`/`getSnapshot` for `useSyncExternalStore`
+
+**4. useCollaborativeProjectOffline.js Simplified:**
+- Reduced from ~380 lines to ~75 lines
+- Now just wraps EffectManager via `useSyncExternalStore`
+
+**5. app-extras.js Updated:**
+- Added `EffectInit`, `EffectStep` (JSON-accepting wrappers)
+- Added `EffectEvent.*` constructors
+- Added `EffectCommand.*` inspection functions
+- Added `EffectState.*` accessors
+
+### Bug Fix: Invalid Date Display
+
+**Problem:** Due dates showed "Invalid Date" in the UI.
+
+**Root Cause:** Generated `optionToJson` returned `{ type: 'Some', value: <raw Dafny Date> }` but UI expected `{ year, month, day }` or `null`.
+
+**Initial Fix:** Custom `taskToPlainJs` that manually converted nested types.
+
+**Better Fix (by user):** Enhanced dafny2js to handle recursive type conversion with generics. Now `taskToJson` properly converts `Option<Date>` recursively.
+
+**Final app-extras.js:**
+```javascript
+const taskToPlainJs = (dafnyTask) => {
+  const json = GeneratedApp.taskToJson(dafnyTask);
+  return {
+    ...json,
+    dueDate: taggedOptionToNull(json.dueDate),
+    deletedBy: taggedOptionToNull(json.deletedBy),
+    deletedFromList: taggedOptionToNull(json.deletedFromList)
+  };
+};
+```
+
+Only need to convert tagged-union to null-based; recursive Date conversion now handled by generated code.
+
+### JSON Conversion Wishlist Created
+
+Documented remaining issues in `org/JSON_CONVERSION_WISHLIST.md`:
+
+1. **Option serialization format** - Tagged (`{ type: 'Some', value: x }`) vs null-based (`null` / `x`)
+2. **Nested types** - Now fixed with recursive generics
+3. **Custom field names** - Minor, not addressed
+4. **Unknown types** - Fail silently, could be better
+5. **Generated accessors** - Use generated toJson, need overrides
+
+**Decision:** Keep tagged-union format in dafny2js (exhaustive, type-safe). Use thin `taggedOptionToNull` adapter in app-extras.js for UI needs.
+
+### Files Created/Modified
+
+| File | Changes |
+|------|---------|
+| `TodoEffectStateMachine.dfy` | Created - verified effect state machine |
+| `compile.sh` | Updated for TodoEffectStateMachine |
+| `src/hooks/EffectManager.js` | Created - JS wrapper for verified Step |
+| `src/hooks/useCollaborativeProjectOffline.js` | Simplified to use EffectManager |
+| `src/dafny/app-extras.js` | Added Effect wrappers, fixed date handling |
+| `org/JSON_CONVERSION_WISHLIST.md` | Created - documented JSON issues |
+| `dafny2js/AppJsEmitter.cs` | Fixed duplicate detection, added recursive generic support |
+
+### Verification Status
+- TodoEffectStateMachine.dfy verifies successfully
+- All Dafny guarantees now apply to client-side state machine
+
+### Key Benefits of EffectStateMachine
+
+The verified `Step` function guarantees:
+- No infinite retry loops (bounded retries)
+- Pending actions preserved correctly across network failures
+- Proper state transitions (Idle → Dispatching → Idle)
+- Correct handling of conflict/rejected responses
+
+### Architecture After This Session
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         React UI                                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              useCollaborativeProjectOffline                     │
+│              (75 lines, wraps EffectManager)                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      EffectManager.js                           │
+│  - Calls VERIFIED EffectStep for all transitions                │
+│  - Handles I/O (network, realtime, browser events)              │
+│  - useSyncExternalStore integration                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Compiled Dafny (TodoEffect.cjs)                    │
+│  - TodoEffectStateMachine.Step (VERIFIED)                       │
+│  - TodoMultiCollaboration.Dispatch (VERIFIED)                   │
+│  - All state transitions provably correct                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Open Items
+1. Test end-to-end with Supabase
+2. Implement remaining UI features (due dates, tags, assignees)
+3. (Optional) Prove remaining axioms in proof file
