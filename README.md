@@ -383,6 +383,5 @@ This is an experimental methodology that ensures **correctness by construction**
 * ✔ Generic multi-collaboration kernel for client–server architectures proved
 * ✔ JavaScript compilation
 * ✔ React integration
-* ✔ Supabase integration
-* ✖ Streamlined integration
+* ✔ Supabase integration (experimental)
 
