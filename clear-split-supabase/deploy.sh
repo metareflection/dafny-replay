@@ -6,4 +6,4 @@ export $(grep -v '^#' .env | xargs)
 
 # Build and deploy
 npm run build
-npx wrangler pages deploy dist --project-name=kanban-supabase
+npx wrangler pages deploy dist --project-name=clear-split-supabase
