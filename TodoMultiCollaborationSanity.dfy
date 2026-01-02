@@ -92,9 +92,38 @@ NoOpImpliesUnchanged:
 */
 
 include "TodoMultiCollaboration.dfy"
+include "TodoMultiCollaborationProof.dfy"
 
 module TodoMultiCollaborationSanity {
   import opened TD = TodoDomain
+  import opened TDP = TodoMultiCollaborationProof
+
+  // ============================================================================
+  // Helper Lemmas
+  // ============================================================================
+
+  // If x is not in s, RemoveFirst returns s unchanged
+  lemma RemoveFirstNoOp<T>(s: seq<T>, x: T)
+    requires !SeqContains(s, x)
+    ensures RemoveFirst(s, x) == s
+    decreases |s|
+  {
+    if |s| == 0 {
+    } else {
+      assert s[0] != x;  // Since x not in s
+      RemoveFirstNoOp(s[1..], x);
+      assert RemoveFirst(s[1..], x) == s[1..];
+    }
+  }
+
+  // InsertAt increases length by 1
+  lemma InsertAtLength<T>(s: seq<T>, i: nat, x: T)
+    requires i <= |s|
+    ensures |InsertAt(s, i, x)| == |s| + 1
+  {
+    // InsertAt(s, i, x) == s[..i] + [x] + s[i..]
+    // |s[..i]| + 1 + |s[i..]| == i + 1 + (|s| - i) == |s| + 1
+  }
 
   // ============================================================================
   // NoOp Case Predicates
@@ -677,11 +706,58 @@ module TodoMultiCollaborationSanity {
     } else if NoOpRenameListSameName(m, a) {
       assert m.listNames[a.listId := a.newName] == m.listNames;
     } else if NoOpEditTaskSameContent(m, a) {
-      var t := m.taskData[a.taskId];
+      var taskId := a.taskId;
+      var t := m.taskData[taskId];
+
+      // The task exists, is not deleted, and has the same title/notes
+      assert taskId in m.taskData && !t.deleted;
+      assert t.title == a.title && t.notes == a.notes;
+
+      // Find the list containing this task
+      var currentList := FindListForTask(m, taskId);
+
+      // EqIgnoreCase is reflexive for equal strings
+      assert EqIgnoreCase(t.title, a.title);
+
+      // By invariant D, non-deleted tasks are in exactly one list
+      FindListForTaskIsSome(m, taskId);
+      assert currentList.Some?;
+
+      // By invariant N, no other non-deleted task in the same list has the same title
+      // Therefore TaskTitleExistsInList (which excludes taskId) must be false
+      var listId := currentList.value;
+      // Use lemma to show listId is in m.lists and task is in the list
+      FindListForTaskInList(m, taskId, listId);
+      assert SeqContains(m.lists, listId);
+      assert listId in m.tasks;
+      assert SeqContains(m.tasks[listId], taskId);
+
+      {
+        // For any other task t2 in the same list that is not deleted and not taskId,
+        // by invariant N: !EqIgnoreCase(m.taskData[t2].title, m.taskData[taskId].title)
+        // Since a.title == t.title, this means !EqIgnoreCase(m.taskData[t2].title, a.title)
+        // Therefore there is no such t2, so TaskTitleExistsInList returns false
+        forall t2 | t2 in m.taskData && SeqContains(m.tasks[listId], t2) &&
+                    !m.taskData[t2].deleted && t2 != taskId
+          ensures !EqIgnoreCase(m.taskData[t2].title, a.title)
+        {
+          // By invariant N applied to taskId and t2
+          assert SeqContains(m.tasks[listId], taskId);
+        }
+        assert !TaskTitleExistsInList(m, listId, a.title, Some(taskId));
+      }
+
+      // Build the updated task (same as original since title/notes unchanged)
       var updated := Task(a.title, a.notes, t.completed, t.starred, t.dueDate,
                           t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
       assert updated == t;
-      assert m.taskData[a.taskId := updated] == m.taskData;
+      assert m.taskData[taskId := updated] == m.taskData;
+
+      // Build the result model
+      var m2 := Model(m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
+                      m.taskData[taskId := updated], m.tags,
+                      m.nextListId, m.nextTaskId, m.nextTagId);
+      assert m2 == m;
     } else if NoOpSetDueDateSame(m, a) {
       var t := m.taskData[a.taskId];
       var updated := Task(t.title, t.notes, t.completed, t.starred, a.dueDate,
@@ -744,8 +820,69 @@ module TodoMultiCollaborationSanity {
       assert m.taskData[a.taskId := updated] == m.taskData;
     } else if NoOpMoveListSamePosition(m, a) {
       // Position unchanged means result == m
+      var listId := a.listId;
+      var lists1 := RemoveFirst(m.lists, listId);
+      var pos := PosFromListPlace(lists1, a.listPlace);
+      var k := ClampPos(pos, |lists1|);
+      assert InsertAt(lists1, k, listId) == m.lists;
+      var m2 := Model(m.mode, m.owner, m.members,
+                      InsertAt(lists1, k, listId),
+                      m.listNames, m.tasks, m.taskData, m.tags,
+                      m.nextListId, m.nextTaskId, m.nextTagId);
+      assert m2.lists == m.lists;
+      assert m2 == m;
     } else if NoOpMoveTaskSamePosition(m, a) {
       // Position unchanged means result == m
+      var taskId := a.taskId;
+      var toList := a.toList;
+
+      // From predicate: task exists, not deleted, toList exists
+      assert taskId in m.taskData && !m.taskData[taskId].deleted;
+      assert SeqContains(m.lists, toList);
+      assert toList in m.tasks;
+
+      // Compute the intermediate and final task maps
+      var tasks1 := map l | l in m.tasks :: RemoveFirst(m.tasks[l], taskId);
+      var tgt := Get(tasks1, toList, []);
+      var pos := PosFromPlace(tgt, a.taskPlace);
+      var k := ClampPos(pos, |tgt|);
+
+      // From predicate: position is valid and result equals original
+      assert pos >= 0;
+      assert tasks1[toList := InsertAt(tgt, k, taskId)] == m.tasks;
+
+      // For the equality to hold, taskId must be in m.tasks[toList]
+      // Proof: If taskId is not in m.tasks[toList], then RemoveFirst returns the same seq
+      // Then InsertAt adds an element, so |InsertAt(tgt, k, taskId)| = |tgt| + 1 = |m.tasks[toList]| + 1
+      // But we need InsertAt(tgt, k, taskId) == m.tasks[toList], contradiction on length
+      assert tgt == RemoveFirst(m.tasks[toList], taskId);
+      if !SeqContains(m.tasks[toList], taskId) {
+        RemoveFirstNoOp(m.tasks[toList], taskId);
+        assert tgt == m.tasks[toList];
+        InsertAtLength(tgt, k, taskId);
+        assert |InsertAt(tgt, k, taskId)| == |tgt| + 1;
+        assert InsertAt(tgt, k, taskId) == m.tasks[toList];
+        assert |m.tasks[toList]| + 1 == |m.tasks[toList]|;  // Contradiction
+        assert false;
+      }
+      assert SeqContains(m.tasks[toList], taskId);
+
+      // By invariant N, no other non-deleted task in toList has the same title
+      var title := m.taskData[taskId].title;
+      forall t2 | t2 in m.taskData && SeqContains(m.tasks[toList], t2) &&
+                  !m.taskData[t2].deleted && t2 != taskId
+        ensures !EqIgnoreCase(m.taskData[t2].title, title)
+      {
+        // By invariant N
+      }
+      assert !TaskTitleExistsInList(m, toList, title, Some(taskId));
+
+      // TryStep returns Ok with the computed model
+      var m2 := Model(m.mode, m.owner, m.members, m.lists, m.listNames,
+                      tasks1[toList := InsertAt(tgt, k, taskId)], m.taskData, m.tags,
+                      m.nextListId, m.nextTaskId, m.nextTagId);
+      assert m2.tasks == m.tasks;
+      assert m2 == m;
     }
   }
 }
