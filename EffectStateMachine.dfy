@@ -130,7 +130,9 @@ abstract module EffectStateMachine {
         if es.mode.Dispatching? then
           var retries := es.mode.retries;
           if retries >= MaxRetries then
-            // Give up, go idle (action stays in pending for manual retry)
+            // Pause dispatch: go idle, action stays in pending.
+            // Next Tick will retry with fresh retries=0.
+            // This provides bounded immediate retries + eventual persistent retry.
             (es.(mode := Idle), NoOp)
           else
             // Resync and retry with incremented retry count
