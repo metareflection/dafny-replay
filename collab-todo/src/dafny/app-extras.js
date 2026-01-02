@@ -48,6 +48,30 @@ const jsToOption = (val, converter = (x) => x) => {
   return TodoDomain.Option.create_Some(converter(val));
 };
 
+// Convert Dafny Date to plain JS object
+const dateToJs = (dafnyDate) => ({
+  year: toNumber(dafnyDate.dtor_year),
+  month: toNumber(dafnyDate.dtor_month),
+  day: toNumber(dafnyDate.dtor_day)
+});
+
+// Convert Option<Date> to JS (None -> null, Some -> { year, month, day })
+const dateOptionToJs = (opt) => optionToJs(opt, dateToJs);
+
+// Convert task from Dafny to plain JS with proper date handling
+const taskToPlainJs = (dafnyTask) => ({
+  title: dafnyStringToJs(dafnyTask.dtor_title),
+  notes: dafnyStringToJs(dafnyTask.dtor_notes),
+  completed: dafnyTask.dtor_completed,
+  starred: dafnyTask.dtor_starred,
+  dueDate: dateOptionToJs(dafnyTask.dtor_dueDate),
+  assignees: Array.from(dafnyTask.dtor_assignees.Elements).map(x => dafnyStringToJs(x)),
+  tags: Array.from(dafnyTask.dtor_tags.Elements).map(x => toNumber(x)),
+  deleted: dafnyTask.dtor_deleted,
+  deletedBy: optionToJs(dafnyTask.dtor_deletedBy, dafnyStringToJs),
+  deletedFromList: optionToJs(dafnyTask.dtor_deletedFromList, toNumber)
+});
+
 // Preprocess model JSON: convert null Option fields to { type: 'None' } format
 // so the generated modelFromJson can handle them
 const preprocessModelJson = (json) => {
@@ -136,8 +160,14 @@ const App = {
   // Get tasks in a list (alias for GetTasks)
   GetTasksInList: (m, listId) => GeneratedApp.GetTasks(m, listId) || [],
 
-  // Get task data by ID (alias for GetTaskData)
-  GetTask: (m, taskId) => GeneratedApp.GetTaskData(m, taskId),
+  // Get task data by ID (with proper date conversion)
+  GetTask: (m, taskId) => {
+    const dafnyKey = new BigNumber(taskId);
+    if (m.dtor_taskData.contains(dafnyKey)) {
+      return taskToPlainJs(m.dtor_taskData.get(dafnyKey));
+    }
+    return null;
+  },
 
   // Get tag name by ID
   GetTagName: (m, tagId) => {
