@@ -10,7 +10,41 @@ public record DatatypeInfo(
   string Name,
   string FullName,
   List<ConstructorInfo> Constructors
-);
+)
+{
+  /// <summary>
+  /// Check if this datatype has any type parameters (is generic).
+  /// </summary>
+  public bool HasTypeParams => GetTypeParams().Count > 0;
+
+  /// <summary>
+  /// Get all unique type parameter names used in this datatype.
+  /// </summary>
+  public List<string> GetTypeParams()
+  {
+    var result = new HashSet<string>();
+    foreach (var ctor in Constructors)
+    {
+      foreach (var field in ctor.Fields)
+      {
+        CollectTypeParams(field.Type, result);
+      }
+    }
+    return result.ToList();
+  }
+
+  private static void CollectTypeParams(TypeRef type, HashSet<string> result)
+  {
+    if (type.Kind == TypeKind.TypeParam)
+    {
+      result.Add(type.Name);
+    }
+    foreach (var arg in type.TypeArgs)
+    {
+      CollectTypeParams(arg, result);
+    }
+  }
+};
 
 /// <summary>
 /// Represents a constructor of a Dafny datatype.

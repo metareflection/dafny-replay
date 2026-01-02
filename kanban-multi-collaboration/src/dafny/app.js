@@ -159,26 +159,26 @@ const errToJson = (value) => {
   return 'Unknown';
 };
 
-const optionFromJson = (json) => {
+const optionFromJson = (json, T_fromJson) => {
   switch (json.type) {
     case 'None':
       return KanbanDomain.Option.create_None();
     case 'Some':
       return KanbanDomain.Option.create_Some(
-        json.value
+        T_fromJson(json.value)
       );
     default:
       throw new Error(`Unknown Option type: ${json.type}`);
   }
 };
 
-const optionToJson = (value) => {
+const optionToJson = (value, T_toJson) => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
     return {
       type: 'Some',
-      value: value.dtor_value
+      value: T_toJson(value.dtor_value)
     };
   }
   return { type: 'Unknown' };
@@ -291,31 +291,31 @@ const actionToJson = (value) => {
   return { type: 'Unknown' };
 };
 
-const resultFromJson = (json) => {
+const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
     case 'Ok':
       return KanbanDomain.Result.create_Ok(
-        json.value
+        T_fromJson(json.value)
       );
     case 'Err':
       return KanbanDomain.Result.create_Err(
-        json.error
+        E_fromJson(json.error)
       );
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
 };
 
-const resultToJson = (value) => {
+const resultToJson = (value, T_toJson, E_toJson) => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
-      value: value.dtor_value
+      value: T_toJson(value.dtor_value)
     };
   } else if (value.is_Err) {
     return {
       type: 'Err',
-      error: value.dtor_error
+      error: E_toJson(value.dtor_error)
     };
   }
   return { type: 'Unknown' };
