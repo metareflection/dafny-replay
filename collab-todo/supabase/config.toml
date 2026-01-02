@@ -1,2 +1,5 @@
 [functions.dispatch]
 verify_jwt = false
+
+[functions.multi-dispatch]
+verify_jwt = false

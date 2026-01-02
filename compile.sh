@@ -135,7 +135,10 @@ cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEff
 echo "Generating collab-todo app.js (multi-project)..."
 (cd dafny2js && dotnet run --no-build -- --file ../TodoMultiProjectEffectStateMachine.dfy --app-core TodoMultiProjectEffectAppCore --cjs-name TodoMultiProjectEffect.cjs --output ../collab-todo/src/dafny/app.js)
 
-echo "Building Deno bundle for collab-todo Edge Function..."
+echo "Building Deno bundle for collab-todo dispatch Edge Function..."
 (cd collab-todo/supabase/functions/dispatch && node build-bundle.js)
+
+echo "Building Deno bundle for collab-todo multi-dispatch Edge Function..."
+(cd collab-todo/supabase/functions/multi-dispatch && node build-bundle.js)
 
 echo "Done."

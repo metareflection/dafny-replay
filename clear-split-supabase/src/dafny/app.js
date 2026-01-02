@@ -123,14 +123,16 @@ const modelToJson = (value) => {
 
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
-    case 'Ok':
+    case 'Ok': {
       return ClearSplit.Result.create_Ok(
         T_fromJson(json.value)
       );
-    case 'Error':
+    }
+    case 'Error': {
       return ClearSplit.Result.create_Error(
         E_fromJson(json.error)
       );
+    }
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
@@ -153,14 +155,17 @@ const resultToJson = (value, T_toJson, E_toJson) => {
 
 const errFromJson = (json) => {
   switch (json.type) {
-    case 'NotMember':
+    case 'NotMember': {
       return ClearSplit.Err.create_NotMember(
         _dafny.Seq.UnicodeFromString(json.p)
       );
-    case 'BadExpense':
+    }
+    case 'BadExpense': {
       return ClearSplit.Err.create_BadExpense();
-    case 'BadSettlement':
+    }
+    case 'BadSettlement': {
       return ClearSplit.Err.create_BadSettlement();
+    }
     default:
       throw new Error(`Unknown Err type: ${json.type}`);
   }
@@ -182,14 +187,16 @@ const errToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'AddExpense':
+    case 'AddExpense': {
       return ClearSplit.Action.create_AddExpense(
         expenseFromJson(json.e)
       );
-    case 'AddSettlement':
+    }
+    case 'AddSettlement': {
       return ClearSplit.Action.create_AddSettlement(
         settlementFromJson(json.s)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }
@@ -238,18 +245,20 @@ const rejectreasonToJson = (value) => {
 
 const replyFromJson = (json) => {
   switch (json.type) {
-    case 'Accepted':
+    case 'Accepted': {
       return ClearSplitMultiCollaboration.Reply.create_Accepted(
         new BigNumber(json.newVersion),
         modelFromJson(json.newPresent),
         actionFromJson(json.applied),
         json.noChange
       );
-    case 'Rejected':
+    }
+    case 'Rejected': {
       return ClearSplitMultiCollaboration.Reply.create_Rejected(
         rejectreasonFromJson(json.reason),
         actionFromJson(json.rebased)
       );
+    }
     default:
       throw new Error(`Unknown Reply type: ${json.type}`);
   }
@@ -276,16 +285,18 @@ const replyToJson = (value) => {
 
 const requestoutcomeFromJson = (json) => {
   switch (json.type) {
-    case 'AuditAccepted':
+    case 'AuditAccepted': {
       return ClearSplitMultiCollaboration.RequestOutcome.create_AuditAccepted(
         actionFromJson(json.applied),
         json.noChange
       );
-    case 'AuditRejected':
+    }
+    case 'AuditRejected': {
       return ClearSplitMultiCollaboration.RequestOutcome.create_AuditRejected(
         rejectreasonFromJson(json.reason),
         actionFromJson(json.rebased)
       );
+    }
     default:
       throw new Error(`Unknown RequestOutcome type: ${json.type}`);
   }
@@ -382,12 +393,14 @@ const networkstatusToJson = (value) => {
 
 const effectmodeFromJson = (json) => {
   switch (json.type) {
-    case 'Idle':
+    case 'Idle': {
       return ClearSplitEffectStateMachine.EffectMode.create_Idle();
-    case 'Dispatching':
+    }
+    case 'Dispatching': {
       return ClearSplitEffectStateMachine.EffectMode.create_Dispatching(
         new BigNumber(json.retries)
       );
+    }
     default:
       throw new Error(`Unknown EffectMode type: ${json.type}`);
   }
@@ -425,35 +438,44 @@ const effectstateToJson = (value) => {
 
 const eventFromJson = (json) => {
   switch (json.type) {
-    case 'UserAction':
+    case 'UserAction': {
       return ClearSplitEffectStateMachine.Event.create_UserAction(
         actionFromJson(json.action)
       );
-    case 'DispatchAccepted':
+    }
+    case 'DispatchAccepted': {
       return ClearSplitEffectStateMachine.Event.create_DispatchAccepted(
         new BigNumber(json.newVersion),
         modelFromJson(json.newModel)
       );
-    case 'DispatchConflict':
+    }
+    case 'DispatchConflict': {
       return ClearSplitEffectStateMachine.Event.create_DispatchConflict(
         new BigNumber(json.freshVersion),
         modelFromJson(json.freshModel)
       );
-    case 'DispatchRejected':
+    }
+    case 'DispatchRejected': {
       return ClearSplitEffectStateMachine.Event.create_DispatchRejected(
         new BigNumber(json.freshVersion),
         modelFromJson(json.freshModel)
       );
-    case 'NetworkError':
+    }
+    case 'NetworkError': {
       return ClearSplitEffectStateMachine.Event.create_NetworkError();
-    case 'NetworkRestored':
+    }
+    case 'NetworkRestored': {
       return ClearSplitEffectStateMachine.Event.create_NetworkRestored();
-    case 'ManualGoOffline':
+    }
+    case 'ManualGoOffline': {
       return ClearSplitEffectStateMachine.Event.create_ManualGoOffline();
-    case 'ManualGoOnline':
+    }
+    case 'ManualGoOnline': {
       return ClearSplitEffectStateMachine.Event.create_ManualGoOnline();
-    case 'Tick':
+    }
+    case 'Tick': {
       return ClearSplitEffectStateMachine.Event.create_Tick();
+    }
     default:
       throw new Error(`Unknown Event type: ${json.type}`);
   }
@@ -499,15 +521,18 @@ const eventToJson = (value) => {
 
 const commandFromJson = (json) => {
   switch (json.type) {
-    case 'NoOp':
+    case 'NoOp': {
       return ClearSplitEffectStateMachine.Command.create_NoOp();
-    case 'SendDispatch':
+    }
+    case 'SendDispatch': {
       return ClearSplitEffectStateMachine.Command.create_SendDispatch(
         new BigNumber(json.baseVersion),
         actionFromJson(json.action)
       );
-    case 'FetchFreshState':
+    }
+    case 'FetchFreshState': {
       return ClearSplitEffectStateMachine.Command.create_FetchFreshState();
+    }
     default:
       throw new Error(`Unknown Command type: ${json.type}`);
   }

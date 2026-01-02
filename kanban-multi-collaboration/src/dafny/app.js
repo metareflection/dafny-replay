@@ -161,12 +161,14 @@ const errToJson = (value) => {
 
 const optionFromJson = (json, T_fromJson) => {
   switch (json.type) {
-    case 'None':
+    case 'None': {
       return KanbanDomain.Option.create_None();
-    case 'Some':
+    }
+    case 'Some': {
       return KanbanDomain.Option.create_Some(
         T_fromJson(json.value)
       );
+    }
     default:
       throw new Error(`Unknown Option type: ${json.type}`);
   }
@@ -186,16 +188,19 @@ const optionToJson = (value, T_toJson) => {
 
 const placeFromJson = (json) => {
   switch (json.type) {
-    case 'AtEnd':
+    case 'AtEnd': {
       return KanbanDomain.Place.create_AtEnd();
-    case 'Before':
+    }
+    case 'Before': {
       return KanbanDomain.Place.create_Before(
         new BigNumber(json.anchor)
       );
-    case 'After':
+    }
+    case 'After': {
       return KanbanDomain.Place.create_After(
         new BigNumber(json.anchor)
       );
+    }
     default:
       throw new Error(`Unknown Place type: ${json.type}`);
   }
@@ -220,34 +225,40 @@ const placeToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'NoOp':
+    case 'NoOp': {
       return KanbanDomain.Action.create_NoOp();
-    case 'AddColumn':
+    }
+    case 'AddColumn': {
       return KanbanDomain.Action.create_AddColumn(
         _dafny.Seq.UnicodeFromString(json.col),
         new BigNumber(json.limit)
       );
-    case 'SetWip':
+    }
+    case 'SetWip': {
       return KanbanDomain.Action.create_SetWip(
         _dafny.Seq.UnicodeFromString(json.col),
         new BigNumber(json.limit)
       );
-    case 'AddCard':
+    }
+    case 'AddCard': {
       return KanbanDomain.Action.create_AddCard(
         _dafny.Seq.UnicodeFromString(json.col),
         _dafny.Seq.UnicodeFromString(json.title)
       );
-    case 'MoveCard':
+    }
+    case 'MoveCard': {
       return KanbanDomain.Action.create_MoveCard(
         new BigNumber(json.id),
         _dafny.Seq.UnicodeFromString(json.toCol),
         placeFromJson(json.place)
       );
-    case 'EditTitle':
+    }
+    case 'EditTitle': {
       return KanbanDomain.Action.create_EditTitle(
         new BigNumber(json.id),
         _dafny.Seq.UnicodeFromString(json.title)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }
@@ -293,14 +304,16 @@ const actionToJson = (value) => {
 
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
-    case 'Ok':
+    case 'Ok': {
       return KanbanDomain.Result.create_Ok(
         T_fromJson(json.value)
       );
-    case 'Err':
+    }
+    case 'Err': {
       return KanbanDomain.Result.create_Err(
         E_fromJson(json.error)
       );
+    }
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
@@ -331,18 +344,20 @@ const rejectreasonToJson = (value) => {
 
 const replyFromJson = (json) => {
   switch (json.type) {
-    case 'Accepted':
+    case 'Accepted': {
       return KanbanMultiCollaboration.Reply.create_Accepted(
         new BigNumber(json.newVersion),
         modelFromJson(json.newPresent),
         actionFromJson(json.applied),
         json.noChange
       );
-    case 'Rejected':
+    }
+    case 'Rejected': {
       return KanbanMultiCollaboration.Reply.create_Rejected(
         rejectreasonFromJson(json.reason),
         actionFromJson(json.rebased)
       );
+    }
     default:
       throw new Error(`Unknown Reply type: ${json.type}`);
   }
@@ -369,16 +384,18 @@ const replyToJson = (value) => {
 
 const requestoutcomeFromJson = (json) => {
   switch (json.type) {
-    case 'AuditAccepted':
+    case 'AuditAccepted': {
       return KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(
         actionFromJson(json.applied),
         json.noChange
       );
-    case 'AuditRejected':
+    }
+    case 'AuditRejected': {
       return KanbanMultiCollaboration.RequestOutcome.create_AuditRejected(
         rejectreasonFromJson(json.reason),
         actionFromJson(json.rebased)
       );
+    }
     default:
       throw new Error(`Unknown RequestOutcome type: ${json.type}`);
   }

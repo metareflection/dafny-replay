@@ -176,51 +176,59 @@ const modelToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'GeneratePalette':
+    case 'GeneratePalette': {
       return ColorWheelSpec.Action.create_GeneratePalette(
         new BigNumber(json.baseHue),
         moodFromJson(json.mood),
         harmonyFromJson(json.harmony),
         _dafny.Seq.of(...(json.randomSeeds || []).map(x => new BigNumber(x)))
       );
-    case 'AdjustColor':
+    }
+    case 'AdjustColor': {
       return ColorWheelSpec.Action.create_AdjustColor(
         new BigNumber(json.index),
         new BigNumber(json.deltaH),
         new BigNumber(json.deltaS),
         new BigNumber(json.deltaL)
       );
-    case 'AdjustPalette':
+    }
+    case 'AdjustPalette': {
       return ColorWheelSpec.Action.create_AdjustPalette(
         new BigNumber(json.deltaH),
         new BigNumber(json.deltaS),
         new BigNumber(json.deltaL)
       );
-    case 'SelectContrastPair':
+    }
+    case 'SelectContrastPair': {
       return ColorWheelSpec.Action.create_SelectContrastPair(
         new BigNumber(json.fg),
         new BigNumber(json.bg)
       );
-    case 'SetColorDirect':
+    }
+    case 'SetColorDirect': {
       return ColorWheelSpec.Action.create_SetColorDirect(
         new BigNumber(json.index),
         colorFromJson(json.color)
       );
-    case 'RegenerateMood':
+    }
+    case 'RegenerateMood': {
       return ColorWheelSpec.Action.create_RegenerateMood(
         moodFromJson(json.mood),
         _dafny.Seq.of(...(json.randomSeeds || []).map(x => new BigNumber(x)))
       );
-    case 'RegenerateHarmony':
+    }
+    case 'RegenerateHarmony': {
       return ColorWheelSpec.Action.create_RegenerateHarmony(
         harmonyFromJson(json.harmony),
         _dafny.Seq.of(...(json.randomSeeds || []).map(x => new BigNumber(x)))
       );
-    case 'RandomizeBaseHue':
+    }
+    case 'RandomizeBaseHue': {
       return ColorWheelSpec.Action.create_RandomizeBaseHue(
         new BigNumber(json.newBaseHue),
         _dafny.Seq.of(...(json.randomSeeds || []).map(x => new BigNumber(x)))
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }

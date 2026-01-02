@@ -129,27 +129,31 @@ const modelToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'AddColumn':
+    case 'AddColumn': {
       return KanbanDomain.Action.create_AddColumn(
         _dafny.Seq.UnicodeFromString(json.col),
         new BigNumber(json.limit)
       );
-    case 'SetWip':
+    }
+    case 'SetWip': {
       return KanbanDomain.Action.create_SetWip(
         _dafny.Seq.UnicodeFromString(json.col),
         new BigNumber(json.limit)
       );
-    case 'AddCard':
+    }
+    case 'AddCard': {
       return KanbanDomain.Action.create_AddCard(
         _dafny.Seq.UnicodeFromString(json.col),
         _dafny.Seq.UnicodeFromString(json.title)
       );
-    case 'MoveCard':
+    }
+    case 'MoveCard': {
       return KanbanDomain.Action.create_MoveCard(
         new BigNumber(json.id),
         _dafny.Seq.UnicodeFromString(json.toCol),
         new BigNumber(json.pos)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }

@@ -7,7 +7,7 @@ import BigNumber from 'bignumber.js';
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
 
 // Import the generated code as raw text
-import dafnyCode from './TodoEffect.cjs?raw';
+import dafnyCode from './TodoMultiProjectEffect.cjs?raw';
 
 // Set up the environment and evaluate the Dafny code
 const require = (mod) => {
@@ -18,10 +18,10 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${dafnyCode}
-  return { _dafny, TodoDomain, TodoMultiCollaboration, TodoEffectStateMachine, TodoEffectAppCore };
+  return { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore };
 `);
 
-const { _dafny, TodoDomain, TodoMultiCollaboration, TodoEffectStateMachine, TodoEffectAppCore } = initDafny(require);
+const { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore } = initDafny(require);
 
 
 // ============================================================================
@@ -58,12 +58,14 @@ const dafnyStringToJs = (seq) => {
 
 const optionFromJson = (json, T_fromJson) => {
   switch (json.type) {
-    case 'None':
+    case 'None': {
       return TodoDomain.Option.create_None();
-    case 'Some':
+    }
+    case 'Some': {
       return TodoDomain.Option.create_Some(
         T_fromJson(json.value)
       );
+    }
     default:
       throw new Error(`Unknown Option type: ${json.type}`);
   }
@@ -317,16 +319,19 @@ const errToJson = (value) => {
 
 const placeFromJson = (json) => {
   switch (json.type) {
-    case 'AtEnd':
+    case 'AtEnd': {
       return TodoDomain.Place.create_AtEnd();
-    case 'Before':
+    }
+    case 'Before': {
       return TodoDomain.Place.create_Before(
         new BigNumber(json.anchor)
       );
-    case 'After':
+    }
+    case 'After': {
       return TodoDomain.Place.create_After(
         new BigNumber(json.anchor)
       );
+    }
     default:
       throw new Error(`Unknown Place type: ${json.type}`);
   }
@@ -351,16 +356,19 @@ const placeToJson = (value) => {
 
 const listplaceFromJson = (json) => {
   switch (json.type) {
-    case 'ListAtEnd':
+    case 'ListAtEnd': {
       return TodoDomain.ListPlace.create_ListAtEnd();
-    case 'ListBefore':
+    }
+    case 'ListBefore': {
       return TodoDomain.ListPlace.create_ListBefore(
         new BigNumber(json.anchor)
       );
-    case 'ListAfter':
+    }
+    case 'ListAfter': {
       return TodoDomain.ListPlace.create_ListAfter(
         new BigNumber(json.anchor)
       );
+    }
     default:
       throw new Error(`Unknown ListPlace type: ${json.type}`);
   }
@@ -385,116 +393,141 @@ const listplaceToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'NoOp':
+    case 'NoOp': {
       return TodoDomain.Action.create_NoOp();
-    case 'AddList':
+    }
+    case 'AddList': {
       return TodoDomain.Action.create_AddList(
         _dafny.Seq.UnicodeFromString(json.name)
       );
-    case 'RenameList':
+    }
+    case 'RenameList': {
       return TodoDomain.Action.create_RenameList(
         new BigNumber(json.listId),
         _dafny.Seq.UnicodeFromString(json.newName)
       );
-    case 'DeleteList':
+    }
+    case 'DeleteList': {
       return TodoDomain.Action.create_DeleteList(
         new BigNumber(json.listId)
       );
-    case 'MoveList':
+    }
+    case 'MoveList': {
       return TodoDomain.Action.create_MoveList(
         new BigNumber(json.listId),
         listplaceFromJson(json.listPlace)
       );
-    case 'AddTask':
+    }
+    case 'AddTask': {
       return TodoDomain.Action.create_AddTask(
         new BigNumber(json.listId),
         _dafny.Seq.UnicodeFromString(json.title)
       );
-    case 'EditTask':
+    }
+    case 'EditTask': {
       return TodoDomain.Action.create_EditTask(
         new BigNumber(json.taskId),
         _dafny.Seq.UnicodeFromString(json.title),
         _dafny.Seq.UnicodeFromString(json.notes)
       );
-    case 'DeleteTask':
+    }
+    case 'DeleteTask': {
       return TodoDomain.Action.create_DeleteTask(
         new BigNumber(json.taskId),
         _dafny.Seq.UnicodeFromString(json.userId)
       );
-    case 'RestoreTask':
+    }
+    case 'RestoreTask': {
       return TodoDomain.Action.create_RestoreTask(
         new BigNumber(json.taskId)
       );
-    case 'MoveTask':
+    }
+    case 'MoveTask': {
       return TodoDomain.Action.create_MoveTask(
         new BigNumber(json.taskId),
         new BigNumber(json.toList),
         placeFromJson(json.taskPlace)
       );
-    case 'CompleteTask':
+    }
+    case 'CompleteTask': {
       return TodoDomain.Action.create_CompleteTask(
         new BigNumber(json.taskId)
       );
-    case 'UncompleteTask':
+    }
+    case 'UncompleteTask': {
       return TodoDomain.Action.create_UncompleteTask(
         new BigNumber(json.taskId)
       );
-    case 'StarTask':
+    }
+    case 'StarTask': {
       return TodoDomain.Action.create_StarTask(
         new BigNumber(json.taskId)
       );
-    case 'UnstarTask':
+    }
+    case 'UnstarTask': {
       return TodoDomain.Action.create_UnstarTask(
         new BigNumber(json.taskId)
       );
-    case 'SetDueDate':
+    }
+    case 'SetDueDate': {
       return TodoDomain.Action.create_SetDueDate(
         new BigNumber(json.taskId),
         optionFromJson(json.dueDate, dateFromJson)
       );
-    case 'AssignTask':
+    }
+    case 'AssignTask': {
       return TodoDomain.Action.create_AssignTask(
         new BigNumber(json.taskId),
         _dafny.Seq.UnicodeFromString(json.userId)
       );
-    case 'UnassignTask':
+    }
+    case 'UnassignTask': {
       return TodoDomain.Action.create_UnassignTask(
         new BigNumber(json.taskId),
         _dafny.Seq.UnicodeFromString(json.userId)
       );
-    case 'AddTagToTask':
+    }
+    case 'AddTagToTask': {
       return TodoDomain.Action.create_AddTagToTask(
         new BigNumber(json.taskId),
         new BigNumber(json.tagId)
       );
-    case 'RemoveTagFromTask':
+    }
+    case 'RemoveTagFromTask': {
       return TodoDomain.Action.create_RemoveTagFromTask(
         new BigNumber(json.taskId),
         new BigNumber(json.tagId)
       );
-    case 'CreateTag':
+    }
+    case 'CreateTag': {
       return TodoDomain.Action.create_CreateTag(
         _dafny.Seq.UnicodeFromString(json.name)
       );
-    case 'RenameTag':
+    }
+    case 'RenameTag': {
       return TodoDomain.Action.create_RenameTag(
         new BigNumber(json.tagId),
         _dafny.Seq.UnicodeFromString(json.newName)
       );
-    case 'DeleteTag':
+    }
+    case 'DeleteTag': {
       return TodoDomain.Action.create_DeleteTag(
         new BigNumber(json.tagId)
       );
-    case 'MakeCollaborative':
+    }
+    case 'MakeCollaborative': {
       return TodoDomain.Action.create_MakeCollaborative();
-    case 'AddMember':
+    }
+    case 'AddMember': {
       return TodoDomain.Action.create_AddMember(
         _dafny.Seq.UnicodeFromString(json.userId)
       );
-    case 'RemoveMember':
+    }
+    case 'RemoveMember': {
       return TodoDomain.Action.create_RemoveMember(
         _dafny.Seq.UnicodeFromString(json.userId)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }
@@ -719,21 +752,25 @@ const taggedtaskidToJson = (value) => {
 
 const sidebarselectionFromJson = (json) => {
   switch (json.type) {
-    case 'NoSelection':
+    case 'NoSelection': {
       return TodoDomain.SidebarSelection.create_NoSelection();
-    case 'SmartListSelected':
+    }
+    case 'SmartListSelected': {
       return TodoDomain.SidebarSelection.create_SmartListSelected(
         smartlisttypeFromJson(json.smartList)
       );
-    case 'ProjectSelected':
+    }
+    case 'ProjectSelected': {
       return TodoDomain.SidebarSelection.create_ProjectSelected(
         _dafny.Seq.UnicodeFromString(json.projectId)
       );
-    case 'ListSelected':
+    }
+    case 'ListSelected': {
       return TodoDomain.SidebarSelection.create_ListSelected(
         _dafny.Seq.UnicodeFromString(json.projectId),
         new BigNumber(json.listId)
       );
+    }
     default:
       throw new Error(`Unknown SidebarSelection type: ${json.type}`);
   }
@@ -780,14 +817,16 @@ const viewstateToJson = (value) => {
 
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
-    case 'Ok':
+    case 'Ok': {
       return TodoDomain.Result.create_Ok(
         T_fromJson(json.value)
       );
-    case 'Err':
+    }
+    case 'Err': {
       return TodoDomain.Result.create_Err(
         E_fromJson(json.error)
       );
+    }
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
@@ -808,106 +847,143 @@ const resultToJson = (value, T_toJson, E_toJson) => {
   return { type: 'Unknown' };
 };
 
-const rejectreasonFromJson = (json) => {
-  return TodoMultiCollaboration.RejectReason.create_DomainInvalid();
-};
-
-const rejectreasonToJson = (value) => {
-  return {};
-};
-
-const requestoutcomeFromJson = (json) => {
+const multiactionFromJson = (json) => {
   switch (json.type) {
-    case 'AuditAccepted':
-      return TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
-        actionFromJson(json.applied),
-        json.noChange
+    case 'Single': {
+      return TodoMultiProjectDomain.MultiAction.create_Single(
+        _dafny.Seq.UnicodeFromString(json.project),
+        actionFromJson(json.action)
       );
-    case 'AuditRejected':
-      return TodoMultiCollaboration.RequestOutcome.create_AuditRejected(
-        rejectreasonFromJson(json.reason),
-        actionFromJson(json.rebased)
+    }
+    case 'MoveTaskTo': {
+      return TodoMultiProjectDomain.MultiAction.create_MoveTaskTo(
+        _dafny.Seq.UnicodeFromString(json.srcProject),
+        _dafny.Seq.UnicodeFromString(json.dstProject),
+        new BigNumber(json.taskId),
+        new BigNumber(json.dstList),
+        placeFromJson(json.anchor)
       );
+    }
+    case 'CopyTaskTo': {
+      return TodoMultiProjectDomain.MultiAction.create_CopyTaskTo(
+        _dafny.Seq.UnicodeFromString(json.srcProject),
+        _dafny.Seq.UnicodeFromString(json.dstProject),
+        new BigNumber(json.taskId),
+        new BigNumber(json.dstList)
+      );
+    }
     default:
-      throw new Error(`Unknown RequestOutcome type: ${json.type}`);
+      throw new Error(`Unknown MultiAction type: ${json.type}`);
   }
 };
 
-const requestoutcomeToJson = (value) => {
-  if (value.is_AuditAccepted) {
+const multiactionToJson = (value) => {
+  if (value.is_Single) {
     return {
-      type: 'AuditAccepted',
-      applied: actionToJson(value.dtor_applied),
-      noChange: value.dtor_noChange
+      type: 'Single',
+      project: dafnyStringToJs(value.dtor_project),
+      action: actionToJson(value.dtor_action)
     };
-  } else if (value.is_AuditRejected) {
+  } else if (value.is_MoveTaskTo) {
     return {
-      type: 'AuditRejected',
-      reason: rejectreasonToJson(value.dtor_reason),
-      rebased: actionToJson(value.dtor_rebased)
+      type: 'MoveTaskTo',
+      srcProject: dafnyStringToJs(value.dtor_srcProject),
+      dstProject: dafnyStringToJs(value.dtor_dstProject),
+      taskId: toNumber(value.dtor_taskId),
+      dstList: toNumber(value.dtor_dstList),
+      anchor: placeToJson(value.dtor_anchor)
+    };
+  } else if (value.is_CopyTaskTo) {
+    return {
+      type: 'CopyTaskTo',
+      srcProject: dafnyStringToJs(value.dtor_srcProject),
+      dstProject: dafnyStringToJs(value.dtor_dstProject),
+      taskId: toNumber(value.dtor_taskId),
+      dstList: toNumber(value.dtor_dstList)
     };
   }
   return { type: 'Unknown' };
 };
 
-const requestrecordFromJson = (json) => {
-  return TodoMultiCollaboration.RequestRecord.create_Req(
-    new BigNumber(json.baseVersion),
-    actionFromJson(json.orig),
-    actionFromJson(json.rebased),
-    actionFromJson(json.chosen),
-    requestoutcomeFromJson(json.outcome)
+const multierrFromJson = (json) => {
+  switch (json.type) {
+    case 'MissingProject': {
+      return TodoMultiProjectDomain.MultiErr.create_MissingProject(
+        _dafny.Seq.UnicodeFromString(json.projectId)
+      );
+    }
+    case 'SingleProjectError': {
+      return TodoMultiProjectDomain.MultiErr.create_SingleProjectError(
+        _dafny.Seq.UnicodeFromString(json.projectId),
+        errFromJson(json.err)
+      );
+    }
+    case 'CrossProjectError': {
+      return TodoMultiProjectDomain.MultiErr.create_CrossProjectError(
+        _dafny.Seq.UnicodeFromString(json.message)
+      );
+    }
+    default:
+      throw new Error(`Unknown MultiErr type: ${json.type}`);
+  }
+};
+
+const multierrToJson = (value) => {
+  if (value.is_MissingProject) {
+    return {
+      type: 'MissingProject',
+      projectId: dafnyStringToJs(value.dtor_projectId)
+    };
+  } else if (value.is_SingleProjectError) {
+    return {
+      type: 'SingleProjectError',
+      projectId: dafnyStringToJs(value.dtor_projectId),
+      err: errToJson(value.dtor_err)
+    };
+  } else if (value.is_CrossProjectError) {
+    return {
+      type: 'CrossProjectError',
+      message: dafnyStringToJs(value.dtor_message)
+    };
+  }
+  return { type: 'Unknown' };
+};
+
+const multiclientstateFromJson = (json) => {
+  let __baseVersions = _dafny.Map.Empty;
+  for (const [k, v] of Object.entries(json.baseVersions || {})) {
+    const key = _dafny.Seq.UnicodeFromString(k);
+    const val = new BigNumber(v);
+    __baseVersions = __baseVersions.update(key, val);
+  }
+  return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(
+    __baseVersions,
+    multimodelFromJson(json.present),
+    _dafny.Seq.of(...(json.pending || []).map(x => multiactionFromJson(x)))
   );
 };
 
-const requestrecordToJson = (value) => {
+const multiclientstateToJson = (value) => {
+  const __baseVersionsJson = {};
+  if (value.dtor_baseVersions && value.dtor_baseVersions.Keys) {
+    for (const k of value.dtor_baseVersions.Keys.Elements) {
+      const v = value.dtor_baseVersions.get(k);
+      __baseVersionsJson[dafnyStringToJs(k)] = toNumber(v);
+    }
+  }
   return {
-    baseVersion: toNumber(value.dtor_baseVersion),
-    orig: actionToJson(value.dtor_orig),
-    rebased: actionToJson(value.dtor_rebased),
-    chosen: actionToJson(value.dtor_chosen),
-    outcome: requestoutcomeToJson(value.dtor_outcome)
-  };
-};
-
-const serverstateFromJson = (json) => {
-  return TodoMultiCollaboration.ServerState.create_ServerState(
-    modelFromJson(json.present),
-    _dafny.Seq.of(...(json.appliedLog || []).map(x => actionFromJson(x))),
-    _dafny.Seq.of(...(json.auditLog || []).map(x => requestrecordFromJson(x)))
-  );
-};
-
-const serverstateToJson = (value) => {
-  return {
-    present: modelToJson(value.dtor_present),
-    appliedLog: seqToArray(value.dtor_appliedLog).map(x => actionToJson(x)),
-    auditLog: seqToArray(value.dtor_auditLog).map(x => requestrecordToJson(x))
-  };
-};
-
-const clientstateFromJson = (json) => {
-  return TodoMultiCollaboration.ClientState.create_ClientState(
-    new BigNumber(json.baseVersion),
-    modelFromJson(json.present),
-    _dafny.Seq.of(...(json.pending || []).map(x => actionFromJson(x)))
-  );
-};
-
-const clientstateToJson = (value) => {
-  return {
-    baseVersion: toNumber(value.dtor_baseVersion),
-    present: modelToJson(value.dtor_present),
-    pending: seqToArray(value.dtor_pending).map(x => actionToJson(x))
+    baseVersions: __baseVersionsJson,
+    present: multimodelToJson(value.dtor_present),
+    pending: seqToArray(value.dtor_pending).map(x => multiactionToJson(x))
   };
 };
 
 const networkstatusFromJson = (json) => {
   switch (json) {
     case 'Online':
-      return TodoEffectStateMachine.NetworkStatus.create_Online();
+      return TodoMultiProjectEffectStateMachine.NetworkStatus.create_Online();
     case 'Offline':
-      return TodoEffectStateMachine.NetworkStatus.create_Offline();
+      return TodoMultiProjectEffectStateMachine.NetworkStatus.create_Offline();
     default:
       throw new Error(`Unknown NetworkStatus: ${json}`);
   }
@@ -924,12 +1000,14 @@ const networkstatusToJson = (value) => {
 
 const effectmodeFromJson = (json) => {
   switch (json.type) {
-    case 'Idle':
-      return TodoEffectStateMachine.EffectMode.create_Idle();
-    case 'Dispatching':
-      return TodoEffectStateMachine.EffectMode.create_Dispatching(
+    case 'Idle': {
+      return TodoMultiProjectEffectStateMachine.EffectMode.create_Idle();
+    }
+    case 'Dispatching': {
+      return TodoMultiProjectEffectStateMachine.EffectMode.create_Dispatching(
         new BigNumber(json.retries)
       );
+    }
     default:
       throw new Error(`Unknown EffectMode type: ${json.type}`);
   }
@@ -948,11 +1026,10 @@ const effectmodeToJson = (value) => {
 };
 
 const effectstateFromJson = (json) => {
-  return TodoEffectStateMachine.EffectState.create_EffectState(
+  return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
-    clientstateFromJson(json.client),
-    new BigNumber(json.serverVersion)
+    multiclientstateFromJson(json.client)
   );
 };
 
@@ -960,42 +1037,86 @@ const effectstateToJson = (value) => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
-    client: clientstateToJson(value.dtor_client),
-    serverVersion: toNumber(value.dtor_serverVersion)
+    client: multiclientstateToJson(value.dtor_client)
   };
 };
 
 const eventFromJson = (json) => {
   switch (json.type) {
-    case 'UserAction':
-      return TodoEffectStateMachine.Event.create_UserAction(
-        actionFromJson(json.action)
+    case 'UserAction': {
+      return TodoMultiProjectEffectStateMachine.Event.create_UserAction(
+        multiactionFromJson(json.action)
       );
-    case 'DispatchAccepted':
-      return TodoEffectStateMachine.Event.create_DispatchAccepted(
-        new BigNumber(json.newVersion),
-        modelFromJson(json.newModel)
+    }
+    case 'DispatchAccepted': {
+      let __newVersions = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.newVersions || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = new BigNumber(v);
+        __newVersions = __newVersions.update(key, val);
+      }
+      let __newModels = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.newModels || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = modelFromJson(v);
+        __newModels = __newModels.update(key, val);
+      }
+      return TodoMultiProjectEffectStateMachine.Event.create_DispatchAccepted(
+        __newVersions,
+        __newModels
       );
-    case 'DispatchConflict':
-      return TodoEffectStateMachine.Event.create_DispatchConflict(
-        new BigNumber(json.freshVersion),
-        modelFromJson(json.freshModel)
+    }
+    case 'DispatchConflict': {
+      let __freshVersions = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.freshVersions || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = new BigNumber(v);
+        __freshVersions = __freshVersions.update(key, val);
+      }
+      let __freshModels = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.freshModels || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = modelFromJson(v);
+        __freshModels = __freshModels.update(key, val);
+      }
+      return TodoMultiProjectEffectStateMachine.Event.create_DispatchConflict(
+        __freshVersions,
+        __freshModels
       );
-    case 'DispatchRejected':
-      return TodoEffectStateMachine.Event.create_DispatchRejected(
-        new BigNumber(json.freshVersion),
-        modelFromJson(json.freshModel)
+    }
+    case 'DispatchRejected': {
+      let __freshVersions = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.freshVersions || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = new BigNumber(v);
+        __freshVersions = __freshVersions.update(key, val);
+      }
+      let __freshModels = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.freshModels || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = modelFromJson(v);
+        __freshModels = __freshModels.update(key, val);
+      }
+      return TodoMultiProjectEffectStateMachine.Event.create_DispatchRejected(
+        __freshVersions,
+        __freshModels
       );
-    case 'NetworkError':
-      return TodoEffectStateMachine.Event.create_NetworkError();
-    case 'NetworkRestored':
-      return TodoEffectStateMachine.Event.create_NetworkRestored();
-    case 'ManualGoOffline':
-      return TodoEffectStateMachine.Event.create_ManualGoOffline();
-    case 'ManualGoOnline':
-      return TodoEffectStateMachine.Event.create_ManualGoOnline();
-    case 'Tick':
-      return TodoEffectStateMachine.Event.create_Tick();
+    }
+    case 'NetworkError': {
+      return TodoMultiProjectEffectStateMachine.Event.create_NetworkError();
+    }
+    case 'NetworkRestored': {
+      return TodoMultiProjectEffectStateMachine.Event.create_NetworkRestored();
+    }
+    case 'ManualGoOffline': {
+      return TodoMultiProjectEffectStateMachine.Event.create_ManualGoOffline();
+    }
+    case 'ManualGoOnline': {
+      return TodoMultiProjectEffectStateMachine.Event.create_ManualGoOnline();
+    }
+    case 'Tick': {
+      return TodoMultiProjectEffectStateMachine.Event.create_Tick();
+    }
     default:
       throw new Error(`Unknown Event type: ${json.type}`);
   }
@@ -1005,25 +1126,67 @@ const eventToJson = (value) => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
-      action: actionToJson(value.dtor_action)
+      action: multiactionToJson(value.dtor_action)
     };
   } else if (value.is_DispatchAccepted) {
+    const __newVersionsJson = {};
+    if (value.dtor_newVersions && value.dtor_newVersions.Keys) {
+      for (const k of value.dtor_newVersions.Keys.Elements) {
+        const v = value.dtor_newVersions.get(k);
+        __newVersionsJson[dafnyStringToJs(k)] = toNumber(v);
+      }
+    }
+    const __newModelsJson = {};
+    if (value.dtor_newModels && value.dtor_newModels.Keys) {
+      for (const k of value.dtor_newModels.Keys.Elements) {
+        const v = value.dtor_newModels.get(k);
+        __newModelsJson[dafnyStringToJs(k)] = modelToJson(v);
+      }
+    }
     return {
       type: 'DispatchAccepted',
-      newVersion: toNumber(value.dtor_newVersion),
-      newModel: modelToJson(value.dtor_newModel)
+      newVersions: __newVersionsJson,
+      newModels: __newModelsJson
     };
   } else if (value.is_DispatchConflict) {
+    const __freshVersionsJson = {};
+    if (value.dtor_freshVersions && value.dtor_freshVersions.Keys) {
+      for (const k of value.dtor_freshVersions.Keys.Elements) {
+        const v = value.dtor_freshVersions.get(k);
+        __freshVersionsJson[dafnyStringToJs(k)] = toNumber(v);
+      }
+    }
+    const __freshModelsJson = {};
+    if (value.dtor_freshModels && value.dtor_freshModels.Keys) {
+      for (const k of value.dtor_freshModels.Keys.Elements) {
+        const v = value.dtor_freshModels.get(k);
+        __freshModelsJson[dafnyStringToJs(k)] = modelToJson(v);
+      }
+    }
     return {
       type: 'DispatchConflict',
-      freshVersion: toNumber(value.dtor_freshVersion),
-      freshModel: modelToJson(value.dtor_freshModel)
+      freshVersions: __freshVersionsJson,
+      freshModels: __freshModelsJson
     };
   } else if (value.is_DispatchRejected) {
+    const __freshVersionsJson = {};
+    if (value.dtor_freshVersions && value.dtor_freshVersions.Keys) {
+      for (const k of value.dtor_freshVersions.Keys.Elements) {
+        const v = value.dtor_freshVersions.get(k);
+        __freshVersionsJson[dafnyStringToJs(k)] = toNumber(v);
+      }
+    }
+    const __freshModelsJson = {};
+    if (value.dtor_freshModels && value.dtor_freshModels.Keys) {
+      for (const k of value.dtor_freshModels.Keys.Elements) {
+        const v = value.dtor_freshModels.get(k);
+        __freshModelsJson[dafnyStringToJs(k)] = modelToJson(v);
+      }
+    }
     return {
       type: 'DispatchRejected',
-      freshVersion: toNumber(value.dtor_freshVersion),
-      freshModel: modelToJson(value.dtor_freshModel)
+      freshVersions: __freshVersionsJson,
+      freshModels: __freshModelsJson
     };
   } else if (value.is_NetworkError) {
     return { type: 'NetworkError' };
@@ -1041,15 +1204,27 @@ const eventToJson = (value) => {
 
 const commandFromJson = (json) => {
   switch (json.type) {
-    case 'NoOp':
-      return TodoEffectStateMachine.Command.create_NoOp();
-    case 'SendDispatch':
-      return TodoEffectStateMachine.Command.create_SendDispatch(
-        new BigNumber(json.baseVersion),
-        actionFromJson(json.action)
+    case 'NoOp': {
+      return TodoMultiProjectEffectStateMachine.Command.create_NoOp();
+    }
+    case 'SendDispatch': {
+      let __baseVersions = _dafny.Map.Empty;
+      for (const [k, v] of Object.entries(json.baseVersions || {})) {
+        const key = _dafny.Seq.UnicodeFromString(k);
+        const val = new BigNumber(v);
+        __baseVersions = __baseVersions.update(key, val);
+      }
+      return TodoMultiProjectEffectStateMachine.Command.create_SendDispatch(
+        _dafny.Set.fromElements(...(json.touchedProjects || []).map(x => _dafny.Seq.UnicodeFromString(x))),
+        __baseVersions,
+        multiactionFromJson(json.action)
       );
-    case 'FetchFreshState':
-      return TodoEffectStateMachine.Command.create_FetchFreshState();
+    }
+    case 'FetchFreshState': {
+      return TodoMultiProjectEffectStateMachine.Command.create_FetchFreshState(
+        _dafny.Set.fromElements(...(json.projects || []).map(x => _dafny.Seq.UnicodeFromString(x)))
+      );
+    }
     default:
       throw new Error(`Unknown Command type: ${json.type}`);
   }
@@ -1059,13 +1234,24 @@ const commandToJson = (value) => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {
+    const __baseVersionsJson = {};
+    if (value.dtor_baseVersions && value.dtor_baseVersions.Keys) {
+      for (const k of value.dtor_baseVersions.Keys.Elements) {
+        const v = value.dtor_baseVersions.get(k);
+        __baseVersionsJson[dafnyStringToJs(k)] = toNumber(v);
+      }
+    }
     return {
       type: 'SendDispatch',
-      baseVersion: toNumber(value.dtor_baseVersion),
-      action: actionToJson(value.dtor_action)
+      touchedProjects: Array.from(value.dtor_touchedProjects.Elements).map(x => dafnyStringToJs(x)),
+      baseVersions: __baseVersionsJson,
+      action: multiactionToJson(value.dtor_action)
     };
   } else if (value.is_FetchFreshState) {
-    return { type: 'FetchFreshState' };
+    return {
+      type: 'FetchFreshState',
+      projects: Array.from(value.dtor_projects.Elements).map(x => dafnyStringToJs(x))
+    };
   }
   return { type: 'Unknown' };
 };
@@ -1215,38 +1401,46 @@ const App = {
   GetNextTagId: (m) => toNumber(m.dtor_nextTagId),
 
   // AppCore functions
-  EffectInit: (version, model) => TodoEffectAppCore.__default.EffectInit(new BigNumber(version), model),
-  EffectStep: (es, event) => TodoEffectAppCore.__default.EffectStep(es, event),
-  EffectIsOnline: (es) => TodoEffectAppCore.__default.EffectIsOnline(es),
-  EffectIsIdle: (es) => TodoEffectAppCore.__default.EffectIsIdle(es),
-  EffectHasPending: (es) => TodoEffectAppCore.__default.EffectHasPending(es),
-  EffectPendingCount: (es) => toNumber(TodoEffectAppCore.__default.EffectPendingCount(es)),
-  EffectGetClient: (es) => TodoEffectAppCore.__default.EffectGetClient(es),
-  EffectGetServerVersion: (es) => toNumber(TodoEffectAppCore.__default.EffectGetServerVersion(es)),
-  EffectIsDispatching: (es) => TodoEffectAppCore.__default.EffectIsDispatching(es),
-  EffectUserAction: (action) => TodoEffectAppCore.__default.EffectUserAction(action),
-  EffectDispatchAccepted: (version, model) => TodoEffectAppCore.__default.EffectDispatchAccepted(new BigNumber(version), model),
-  EffectDispatchConflict: (version, model) => TodoEffectAppCore.__default.EffectDispatchConflict(new BigNumber(version), model),
-  EffectDispatchRejected: (version, model) => TodoEffectAppCore.__default.EffectDispatchRejected(new BigNumber(version), model),
-  EffectNetworkError: () => TodoEffectAppCore.__default.EffectNetworkError(),
-  EffectNetworkRestored: () => TodoEffectAppCore.__default.EffectNetworkRestored(),
-  EffectManualGoOffline: () => TodoEffectAppCore.__default.EffectManualGoOffline(),
-  EffectManualGoOnline: () => TodoEffectAppCore.__default.EffectManualGoOnline(),
-  EffectTick: () => TodoEffectAppCore.__default.EffectTick(),
-  EffectIsNoOp: (cmd) => TodoEffectAppCore.__default.EffectIsNoOp(cmd),
-  EffectIsSendDispatch: (cmd) => TodoEffectAppCore.__default.EffectIsSendDispatch(cmd),
-  EffectGetBaseVersion: (cmd) => toNumber(TodoEffectAppCore.__default.EffectGetBaseVersion(cmd)),
-  EffectGetAction: (cmd) => TodoEffectAppCore.__default.EffectGetAction(cmd),
-  InitServerWithOwner: (mode, ownerId) => TodoEffectAppCore.__default.InitServerWithOwner(mode, _dafny.Seq.UnicodeFromString(ownerId)),
-  InitClientFromServer: (server) => TodoEffectAppCore.__default.InitClientFromServer(server),
-  ClientLocalDispatch: (client, action) => TodoEffectAppCore.__default.ClientLocalDispatch(client, action),
-  ServerVersion: (server) => toNumber(TodoEffectAppCore.__default.ServerVersion(server)),
-  ServerModel: (server) => TodoEffectAppCore.__default.ServerModel(server),
-  ClientModel: (client) => TodoEffectAppCore.__default.ClientModel(client),
-  ClientVersion: (client) => toNumber(TodoEffectAppCore.__default.ClientVersion(client)),
-  PendingCount: (client) => toNumber(TodoEffectAppCore.__default.PendingCount(client)),
-  InitClient: (version, model) => TodoEffectAppCore.__default.InitClient(new BigNumber(version), model),
-  HandleRealtimeUpdate: (client, serverVersion, serverModel) => TodoEffectAppCore.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel),
+  EffectInit: (versions, models) => TodoMultiProjectEffectAppCore.__default.EffectInit(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(versions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(models)),
+  EffectStep: (es, event) => TodoMultiProjectEffectAppCore.__default.EffectStep(es, event),
+  EffectIsOnline: (es) => TodoMultiProjectEffectAppCore.__default.EffectIsOnline(es),
+  EffectIsIdle: (es) => TodoMultiProjectEffectAppCore.__default.EffectIsIdle(es),
+  EffectHasPending: (es) => TodoMultiProjectEffectAppCore.__default.EffectHasPending(es),
+  EffectPendingCount: (es) => toNumber(TodoMultiProjectEffectAppCore.__default.EffectPendingCount(es)),
+  EffectIsDispatching: (es) => TodoMultiProjectEffectAppCore.__default.EffectIsDispatching(es),
+  EffectGetClient: (es) => TodoMultiProjectEffectAppCore.__default.EffectGetClient(es),
+  EffectGetMultiModel: (es) => TodoMultiProjectEffectAppCore.__default.EffectGetMultiModel(es),
+  EffectGetBaseVersions: (es) => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersions(es),
+  EffectGetPending: (es) => seqToArray(TodoMultiProjectEffectAppCore.__default.EffectGetPending(es)).map(x => multiactionToJson(x)),
+  EffectUserAction: (action) => TodoMultiProjectEffectAppCore.__default.EffectUserAction(action),
+  EffectSingleUserAction: (projectId, action) => TodoMultiProjectEffectAppCore.__default.EffectSingleUserAction(_dafny.Seq.UnicodeFromString(projectId), action),
+  EffectDispatchAccepted: (newVersions, newModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchAccepted(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(newVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(newModels)),
+  EffectDispatchConflict: (freshVersions, freshModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchConflict(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
+  EffectDispatchRejected: (freshVersions, freshModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchRejected(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
+  EffectNetworkError: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkError(),
+  EffectNetworkRestored: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkRestored(),
+  EffectManualGoOffline: () => TodoMultiProjectEffectAppCore.__default.EffectManualGoOffline(),
+  EffectManualGoOnline: () => TodoMultiProjectEffectAppCore.__default.EffectManualGoOnline(),
+  EffectTick: () => TodoMultiProjectEffectAppCore.__default.EffectTick(),
+  EffectIsNoOp: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectIsNoOp(cmd),
+  EffectIsSendDispatch: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectIsSendDispatch(cmd),
+  EffectIsFetchFreshState: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectIsFetchFreshState(cmd),
+  EffectGetTouchedProjects: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectGetTouchedProjects(cmd),
+  EffectGetBaseVersionsFromCmd: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersionsFromCmd(cmd),
+  EffectGetMultiAction: (cmd) => TodoMultiProjectEffectAppCore.__default.EffectGetMultiAction(cmd),
+  MakeSingleAction: (projectId, action) => TodoMultiProjectEffectAppCore.__default.MakeSingleAction(_dafny.Seq.UnicodeFromString(projectId), action),
+  MakeMoveTaskTo: (srcProject, dstProject, taskId, dstList, anchor) => TodoMultiProjectEffectAppCore.__default.MakeMoveTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList), anchor),
+  MakeCopyTaskTo: (srcProject, dstProject, taskId, dstList) => TodoMultiProjectEffectAppCore.__default.MakeCopyTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList)),
+  IsSingleAction: (ma) => TodoMultiProjectEffectAppCore.__default.IsSingleAction(ma),
+  IsMoveTaskTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsMoveTaskTo(ma),
+  IsCopyTaskTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
+  GetTouchedProjects: (ma) => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
+  GetProjectModel: (mm, projectId) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(mm, _dafny.Seq.UnicodeFromString(projectId)),
+  HasProject: (mm, projectId) => TodoMultiProjectEffectAppCore.__default.HasProject(mm, _dafny.Seq.UnicodeFromString(projectId)),
+  GetProjectIds: (mm) => TodoMultiProjectEffectAppCore.__default.GetProjectIds(mm),
+  TryMultiStep: (mm, action) => TodoMultiProjectEffectAppCore.__default.TryMultiStep(mm, action),
+  MultiRebase: (projectLogs, baseVersions, action) => TodoMultiProjectEffectAppCore.__default.MultiRebase(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), _dafny.Seq.of(...(v || []).map(x => actionFromJson(x)))); } return m; })(projectLogs), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(baseVersions), action),
+  MultiCandidates: (mm, action) => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(mm, action)).map(x => multiactionToJson(x)),
 
   // Conversion functions
   optionToJson: optionToJson,
@@ -1283,16 +1477,12 @@ const App = {
   viewstateFromJson: viewstateFromJson,
   resultToJson: resultToJson,
   resultFromJson: resultFromJson,
-  rejectreasonToJson: rejectreasonToJson,
-  rejectreasonFromJson: rejectreasonFromJson,
-  requestoutcomeToJson: requestoutcomeToJson,
-  requestoutcomeFromJson: requestoutcomeFromJson,
-  requestrecordToJson: requestrecordToJson,
-  requestrecordFromJson: requestrecordFromJson,
-  serverstateToJson: serverstateToJson,
-  serverstateFromJson: serverstateFromJson,
-  clientstateToJson: clientstateToJson,
-  clientstateFromJson: clientstateFromJson,
+  multiactionToJson: multiactionToJson,
+  multiactionFromJson: multiactionFromJson,
+  multierrToJson: multierrToJson,
+  multierrFromJson: multierrFromJson,
+  multiclientstateToJson: multiclientstateToJson,
+  multiclientstateFromJson: multiclientstateFromJson,
   networkstatusToJson: networkstatusToJson,
   networkstatusFromJson: networkstatusFromJson,
   effectmodeToJson: effectmodeToJson,
@@ -1306,6 +1496,6 @@ const App = {
 };
 
 // Export internals for custom extensions
-App._internal = { _dafny, TodoDomain, TodoMultiCollaboration, TodoEffectStateMachine, TodoEffectAppCore };
+App._internal = { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore };
 
 export default App;
