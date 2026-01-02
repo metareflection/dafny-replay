@@ -465,3 +465,62 @@ Extend uniqueness constraints to task titles (within each list) and tag names (p
 - Restoring deleted task fails if title now conflicts
 - "urgent" and "URGENT" tags are treated as duplicates
 - All comparisons are case-insensitive
+
+---
+
+## Session #8 - UI Coverage Audit & Runtime Check Analysis
+
+**Date:** 2026-01-01
+
+### Goals
+Audit which Dafny spec actions have corresponding UI components, and analyze whether runtime checks in TryStep could be replaced with ghost invariants.
+
+### Work Completed
+
+**UI Coverage Audit:**
+
+Compared all actions in `TodoMultiCollaboration.dfy` against UI components in `src/App.jsx`.
+
+| Status | Count | Actions |
+|--------|-------|---------|
+| Fully Implemented | 13 | AddList, RenameList, DeleteList, AddTask, EditTask, DeleteTask, MoveTask, CompleteTask, UncompleteTask, StarTask, UnstarTask, CreateTag, DeleteTag |
+| Missing UI | 9 | MoveList, RestoreTask, SetDueDate, AssignTask, UnassignTask, AddTagToTask, RemoveTagFromTask, RenameTag, MakeCollaborative |
+| Partial (DB-only) | 2 | AddMember, RemoveMember (via Supabase hooks, not Dafny actions) |
+
+**Display-Only Fields:**
+- Due dates display but can't be set
+- Tags on tasks display but can't be added/removed
+- Assignees display but can't be assigned/unassigned
+
+**Runtime Check Analysis:**
+
+Analyzed all runtime checks in `TryStep` to determine if any could be ghost-only invariants.
+
+**Conclusion: All runtime checks are necessary.**
+
+| Check Category | Examples | Why Runtime Required |
+|----------------|----------|---------------------|
+| Existence | MissingList, MissingTask, MissingTag | User can pass any ID |
+| Uniqueness | DuplicateList, DuplicateTask, DuplicateTag | User can create duplicates |
+| State | TaskDeleted | User can reference deleted items |
+| Validation | InvalidDate | User can pass malformed data |
+| Permission | NotAMember, CannotRemoveOwner | User can attempt unauthorized ops |
+| Anchor | BadAnchor | User can reference moved anchors |
+
+**Key Insight:**
+- **Invariants** validate Model → Model (internal consistency)
+- **Runtime checks** validate Action → Model (user input against state)
+
+Since actions come from untrusted sources (UI, remote collaborators, potentially malicious clients), the server must validate all action parameters at runtime. Invariants guarantee the model stays valid after valid actions, but can't prevent invalid actions from being submitted.
+
+### Files Created
+
+| File | Description |
+|------|-------------|
+| `docs/ACTIONS-UI.md` | Documents which actions have UI, which are missing, priority levels |
+
+### Open Items
+1. Implement missing high-priority UI: SetDueDate, AssignTask, AddTagToTask
+2. Wire AddMember/RemoveMember to dispatch Dafny actions (currently DB-only)
+3. (Optional) MoveList drag-and-drop
+4. (Optional) Trash view for RestoreTask
