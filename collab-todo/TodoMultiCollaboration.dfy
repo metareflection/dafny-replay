@@ -1425,12 +1425,8 @@ module TodoAppCore {
   import K = TodoDomain
   import MC = TodoMultiCollaboration
 
-  // Client state (same pattern as Kanban)
-  datatype ClientState = ClientState(
-    baseVersion: nat,
-    present: K.Model,
-    pending: seq<K.Action>
-  )
+  // Re-export ClientState from MultiCollaboration (like KanbanAppCore)
+  type ClientState = MC.ClientState
 
   // Initialize server with owner
   function InitServerWithOwner(mode: K.ProjectMode, ownerId: K.UserId): MC.ServerState
@@ -1454,24 +1450,28 @@ module TodoAppCore {
   // Create client from server state
   function InitClientFromServer(server: MC.ServerState): ClientState
   {
-    ClientState(MC.Version(server), server.present, [])
+    MC.InitClientFromServer(server)
   }
 
   // Local dispatch (optimistic)
   function ClientLocalDispatch(client: ClientState, action: K.Action): ClientState
   {
-    var result := K.TryStep(client.present, action);
-    match result
-      case Ok(newModel) =>
-        ClientState(client.baseVersion, newModel, client.pending + [action])
-      case Err(_) =>
-        ClientState(client.baseVersion, client.present, client.pending + [action])
+    MC.ClientLocalDispatch(client, action)
   }
 
   // Accessors
   function ServerVersion(server: MC.ServerState): nat { MC.Version(server) }
   function ServerModel(server: MC.ServerState): K.Model { server.present }
-  function ClientModel(client: ClientState): K.Model { client.present }
-  function ClientVersion(client: ClientState): nat { client.baseVersion }
-  function PendingCount(client: ClientState): nat { |client.pending| }
+  function ClientModel(client: ClientState): K.Model { MC.ClientModel(client) }
+  function ClientVersion(client: ClientState): nat { MC.ClientVersion(client) }
+  function PendingCount(client: ClientState): nat { MC.PendingCount(client) }
+
+  // Additional functions needed by EffectStateMachine
+  function InitClient(version: nat, model: K.Model): ClientState {
+    MC.InitClient(version, model)
+  }
+
+  function HandleRealtimeUpdate(client: ClientState, serverVersion: nat, serverModel: K.Model): ClientState {
+    MC.HandleRealtimeUpdate(client, serverVersion, serverModel)
+  }
 }

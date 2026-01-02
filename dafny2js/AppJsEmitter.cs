@@ -83,9 +83,11 @@ public class AppJsEmitter
     // Check for duplicate-named types and handle them
     var domainTypesByName = domainTypes.ToDictionary(dt => dt.Name);
     var additionalTypes = new List<DatatypeInfo>();
+    var additionalTypesByName = new Dictionary<string, DatatypeInfo>();
 
     foreach (var candidate in candidateAdditionalTypes)
     {
+      // First check against domain types
       if (domainTypesByName.TryGetValue(candidate.Name, out var domainType))
       {
         // Duplicate name found - check if structurally identical
@@ -101,10 +103,27 @@ public class AppJsEmitter
           $"Note: Skipping duplicate type '{candidate.ModuleName}.{candidate.Name}' " +
           $"(identical to '{domainType.ModuleName}.{candidate.Name}')");
       }
+      // Then check against other additional types already added
+      else if (additionalTypesByName.TryGetValue(candidate.Name, out var existingAdditional))
+      {
+        // Duplicate name found among additional types
+        if (!AreStructurallyIdentical(existingAdditional, candidate))
+        {
+          throw new InvalidOperationException(
+            $"Error: Duplicate datatype name '{candidate.Name}' found in modules " +
+            $"'{existingAdditional.ModuleName}' and '{candidate.ModuleName}' with different structures. " +
+            $"This is not supported. Consider renaming one of the types.");
+        }
+        // Structurally identical - skip the duplicate
+        Console.Error.WriteLine(
+          $"Note: Skipping duplicate type '{candidate.ModuleName}.{candidate.Name}' " +
+          $"(identical to '{existingAdditional.ModuleName}.{candidate.Name}')");
+      }
       else
       {
         // No duplicate - add to additional types
         additionalTypes.Add(candidate);
+        additionalTypesByName[candidate.Name] = candidate;
       }
     }
 
@@ -506,18 +525,15 @@ public class AppJsEmitter
       }
     }
 
-    // Add conversion functions for all generated datatypes
+    // Add conversion functions for all generated datatypes (deduplicated by name)
     _sb.AppendLine("  // Conversion functions");
-    var domainTypes = _datatypes.Where(dt => dt.ModuleName == _domainModule).ToList();
-    var referencedTypes = CollectReferencedDatatypes();
-    var additionalTypes = _datatypes
-      .Where(dt => dt.ModuleName != _domainModule && referencedTypes.Contains(dt.Name))
-      .ToList();
-    var allConversionTypes = domainTypes.Concat(additionalTypes).ToList();
+    var allTypesToGenerate = GetAllTypesToGenerate();
+    var exportedNames = new HashSet<string>();
 
-    foreach (var dt in allConversionTypes)
+    foreach (var dt in allTypesToGenerate)
     {
       var lower = TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant();
+      if (!exportedNames.Add(lower)) continue; // Skip if already exported
       _sb.AppendLine($"  {lower}ToJson: {lower}ToJson,");
       _sb.AppendLine($"  {lower}FromJson: {lower}FromJson,");
     }

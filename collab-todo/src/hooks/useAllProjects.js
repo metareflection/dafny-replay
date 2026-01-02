@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-import App from '../dafny/app.js'
+import App from '../dafny/app-extras.js'
 
 /**
  * Hook for loading and managing multiple projects simultaneously

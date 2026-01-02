@@ -1500,6 +1500,22 @@ let TodoDomain = (function() {
         return ((((m).dtor_listNames).contains(_0_l)) && (((excludeList).is_None) || (!(_0_l).isEqualTo((excludeList).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase(((m).dtor_listNames).get(_0_l), name));
       });
     };
+    static TaskTitleExistsInList(m, listId, title, excludeTask) {
+      return (((m).dtor_tasks).contains(listId)) && (_dafny.Quantifier(((m).dtor_taskData).Keys.Elements, false, function (_exists_var_0) {
+        let _0_taskId = _exists_var_0;
+        if (_System.nat._Is(_0_taskId)) {
+          return ((((((m).dtor_taskData).contains(_0_taskId)) && (TodoDomain.__default.SeqContains(((m).dtor_tasks).get(listId), _0_taskId))) && (!((((m).dtor_taskData).get(_0_taskId)).dtor_deleted))) && (((excludeTask).is_None) || (!(_0_taskId).isEqualTo((excludeTask).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_taskData).get(_0_taskId)).dtor_title, title));
+        } else {
+          return false;
+        }
+      }));
+    };
+    static TagNameExists(m, name, excludeTag) {
+      return _dafny.Quantifier(((m).dtor_tags).Keys.Elements, false, function (_exists_var_0) {
+        let _0_t = _exists_var_0;
+        return ((((m).dtor_tags).contains(_0_t)) && (((excludeTag).is_None) || (!(_0_t).isEqualTo((excludeTag).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_tags).get(_0_t)), name));
+      });
+    };
     static TryStep(m, a) {
       let _source0 = a;
       {
@@ -1591,6 +1607,8 @@ let TodoDomain = (function() {
           let _19_title = (_source0).title;
           if (!(TodoDomain.__default.SeqContains((m).dtor_lists, _18_listId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingList());
+          } else if (TodoDomain.__default.TaskTitleExistsInList(m, _18_listId, _19_title, TodoDomain.Option.create_None())) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTask());
           } else {
             let _20_id = (m).dtor_nextTaskId;
             let _21_newTask = TodoDomain.Task.create_Task(_19_title, _dafny.Seq.UnicodeFromString(""), false, false, TodoDomain.Option.create_None(), _dafny.Set.fromElements(), _dafny.Set.fromElements(), false, TodoDomain.Option.create_None(), TodoDomain.Option.create_None());
@@ -1608,255 +1626,272 @@ let TodoDomain = (function() {
           } else if ((((m).dtor_taskData).get(_22_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _25_t = ((m).dtor_taskData).get(_22_taskId);
-            let _26_updated = TodoDomain.Task.create_Task(_23_title, _24_notes, (_25_t).dtor_completed, (_25_t).dtor_starred, (_25_t).dtor_dueDate, (_25_t).dtor_assignees, (_25_t).dtor_tags, (_25_t).dtor_deleted, (_25_t).dtor_deletedBy, (_25_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_22_taskId, _26_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _25_currentList = TodoDomain.__default.FindListForTask(m, _22_taskId);
+            if (((_25_currentList).is_Some) && (TodoDomain.__default.TaskTitleExistsInList(m, (_25_currentList).dtor_value, _23_title, TodoDomain.Option.create_Some(_22_taskId)))) {
+              return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTask());
+            } else {
+              let _26_t = ((m).dtor_taskData).get(_22_taskId);
+              let _27_updated = TodoDomain.Task.create_Task(_23_title, _24_notes, (_26_t).dtor_completed, (_26_t).dtor_starred, (_26_t).dtor_dueDate, (_26_t).dtor_assignees, (_26_t).dtor_tags, (_26_t).dtor_deleted, (_26_t).dtor_deletedBy, (_26_t).dtor_deletedFromList);
+              return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_22_taskId, _27_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            }
           }
         }
       }
       {
         if (_source0.is_DeleteTask) {
-          let _27_taskId = (_source0).taskId;
-          let _28_userId = (_source0).userId;
-          if (!(((m).dtor_taskData).contains(_27_taskId))) {
+          let _28_taskId = (_source0).taskId;
+          let _29_userId = (_source0).userId;
+          if (!(((m).dtor_taskData).contains(_28_taskId))) {
             return TodoDomain.Result.create_Ok(m);
-          } else if ((((m).dtor_taskData).get(_27_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_28_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Ok(m);
           } else {
-            let _29_t = ((m).dtor_taskData).get(_27_taskId);
-            let _30_fromList = TodoDomain.__default.FindListForTask(m, _27_taskId);
-            let _31_updated = TodoDomain.Task.create_Task((_29_t).dtor_title, (_29_t).dtor_notes, (_29_t).dtor_completed, (_29_t).dtor_starred, (_29_t).dtor_dueDate, (_29_t).dtor_assignees, (_29_t).dtor_tags, true, TodoDomain.Option.create_Some(_28_userId), _30_fromList);
-            let _32_newTasks = function () {
+            let _30_t = ((m).dtor_taskData).get(_28_taskId);
+            let _31_fromList = TodoDomain.__default.FindListForTask(m, _28_taskId);
+            let _32_updated = TodoDomain.Task.create_Task((_30_t).dtor_title, (_30_t).dtor_notes, (_30_t).dtor_completed, (_30_t).dtor_starred, (_30_t).dtor_dueDate, (_30_t).dtor_assignees, (_30_t).dtor_tags, true, TodoDomain.Option.create_Some(_29_userId), _31_fromList);
+            let _33_newTasks = function () {
               let _coll2 = new _dafny.Map();
               for (const _compr_2 of ((m).dtor_tasks).Keys.Elements) {
-                let _33_l = _compr_2;
-                if (_System.nat._Is(_33_l)) {
-                  if (((m).dtor_tasks).contains(_33_l)) {
-                    _coll2.push([_33_l,TodoDomain.__default.RemoveFirst(((m).dtor_tasks).get(_33_l), _27_taskId)]);
+                let _34_l = _compr_2;
+                if (_System.nat._Is(_34_l)) {
+                  if (((m).dtor_tasks).contains(_34_l)) {
+                    _coll2.push([_34_l,TodoDomain.__default.RemoveFirst(((m).dtor_tasks).get(_34_l), _28_taskId)]);
                   }
                 }
               }
               return _coll2;
             }();
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, _32_newTasks, ((m).dtor_taskData).update(_27_taskId, _31_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, _33_newTasks, ((m).dtor_taskData).update(_28_taskId, _32_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_RestoreTask) {
-          let _34_taskId = (_source0).taskId;
-          if (!(((m).dtor_taskData).contains(_34_taskId))) {
+          let _35_taskId = (_source0).taskId;
+          if (!(((m).dtor_taskData).contains(_35_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if (!((((m).dtor_taskData).get(_34_taskId)).dtor_deleted)) {
+          } else if (!((((m).dtor_taskData).get(_35_taskId)).dtor_deleted)) {
             return TodoDomain.Result.create_Ok(m);
           } else if ((new BigNumber(((m).dtor_lists).length)).isEqualTo(_dafny.ZERO)) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingList());
           } else {
-            let _35_t = ((m).dtor_taskData).get(_34_taskId);
-            let _36_updated = TodoDomain.Task.create_Task((_35_t).dtor_title, (_35_t).dtor_notes, (_35_t).dtor_completed, (_35_t).dtor_starred, (_35_t).dtor_dueDate, (_35_t).dtor_assignees, (_35_t).dtor_tags, false, TodoDomain.Option.create_None(), TodoDomain.Option.create_None());
-            let _37_targetList = (((((_35_t).dtor_deletedFromList).is_Some) && (TodoDomain.__default.SeqContains((m).dtor_lists, ((_35_t).dtor_deletedFromList).dtor_value))) ? (((_35_t).dtor_deletedFromList).dtor_value) : (((m).dtor_lists)[_dafny.ZERO]));
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, ((m).dtor_tasks).update(_37_targetList, _dafny.Seq.Concat(TodoDomain.__default.TaskList(m, _37_targetList), _dafny.Seq.of(_34_taskId))), ((m).dtor_taskData).update(_34_taskId, _36_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _36_t = ((m).dtor_taskData).get(_35_taskId);
+            let _37_targetList = (((((_36_t).dtor_deletedFromList).is_Some) && (TodoDomain.__default.SeqContains((m).dtor_lists, ((_36_t).dtor_deletedFromList).dtor_value))) ? (((_36_t).dtor_deletedFromList).dtor_value) : (((m).dtor_lists)[_dafny.ZERO]));
+            if (TodoDomain.__default.TaskTitleExistsInList(m, _37_targetList, (_36_t).dtor_title, TodoDomain.Option.create_None())) {
+              return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTask());
+            } else {
+              let _38_updated = TodoDomain.Task.create_Task((_36_t).dtor_title, (_36_t).dtor_notes, (_36_t).dtor_completed, (_36_t).dtor_starred, (_36_t).dtor_dueDate, (_36_t).dtor_assignees, (_36_t).dtor_tags, false, TodoDomain.Option.create_None(), TodoDomain.Option.create_None());
+              return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, ((m).dtor_tasks).update(_37_targetList, _dafny.Seq.Concat(TodoDomain.__default.TaskList(m, _37_targetList), _dafny.Seq.of(_35_taskId))), ((m).dtor_taskData).update(_35_taskId, _38_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            }
           }
         }
       }
       {
         if (_source0.is_MoveTask) {
-          let _38_taskId = (_source0).taskId;
-          let _39_toList = (_source0).toList;
-          let _40_taskPlace = (_source0).taskPlace;
-          if (!(((m).dtor_taskData).contains(_38_taskId))) {
+          let _39_taskId = (_source0).taskId;
+          let _40_toList = (_source0).toList;
+          let _41_taskPlace = (_source0).taskPlace;
+          if (!(((m).dtor_taskData).contains(_39_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_38_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_39_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
-          } else if (!(TodoDomain.__default.SeqContains((m).dtor_lists, _39_toList))) {
+          } else if (!(TodoDomain.__default.SeqContains((m).dtor_lists, _40_toList))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingList());
+          } else if (TodoDomain.__default.TaskTitleExistsInList(m, _40_toList, (((m).dtor_taskData).get(_39_taskId)).dtor_title, TodoDomain.Option.create_Some(_39_taskId))) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTask());
           } else {
-            let _41_tasks1 = function () {
+            let _42_tasks1 = function () {
               let _coll3 = new _dafny.Map();
               for (const _compr_3 of ((m).dtor_tasks).Keys.Elements) {
-                let _42_l = _compr_3;
-                if (((m).dtor_tasks).contains(_42_l)) {
-                  _coll3.push([_42_l,TodoDomain.__default.RemoveFirst(((m).dtor_tasks).get(_42_l), _38_taskId)]);
+                let _43_l = _compr_3;
+                if (((m).dtor_tasks).contains(_43_l)) {
+                  _coll3.push([_43_l,TodoDomain.__default.RemoveFirst(((m).dtor_tasks).get(_43_l), _39_taskId)]);
                 }
               }
               return _coll3;
             }();
-            let _43_tgt = TodoDomain.__default.Get(_41_tasks1, _39_toList, _dafny.Seq.of());
-            let _44_pos = TodoDomain.__default.PosFromPlace(_43_tgt, _40_taskPlace);
-            if ((_44_pos).isLessThan(_dafny.ZERO)) {
+            let _44_tgt = TodoDomain.__default.Get(_42_tasks1, _40_toList, _dafny.Seq.of());
+            let _45_pos = TodoDomain.__default.PosFromPlace(_44_tgt, _41_taskPlace);
+            if ((_45_pos).isLessThan(_dafny.ZERO)) {
               return TodoDomain.Result.create_Err(TodoDomain.Err.create_BadAnchor());
             } else {
-              let _45_k = TodoDomain.__default.ClampPos(_44_pos, new BigNumber((_43_tgt).length));
-              let _46_tgt2 = TodoDomain.__default.InsertAt(_43_tgt, _45_k, _38_taskId);
-              return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (_41_tasks1).update(_39_toList, _46_tgt2), (m).dtor_taskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+              let _46_k = TodoDomain.__default.ClampPos(_45_pos, new BigNumber((_44_tgt).length));
+              let _47_tgt2 = TodoDomain.__default.InsertAt(_44_tgt, _46_k, _39_taskId);
+              return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (_42_tasks1).update(_40_toList, _47_tgt2), (m).dtor_taskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
             }
           }
         }
       }
       {
         if (_source0.is_CompleteTask) {
-          let _47_taskId = (_source0).taskId;
-          if (!(((m).dtor_taskData).contains(_47_taskId))) {
+          let _48_taskId = (_source0).taskId;
+          if (!(((m).dtor_taskData).contains(_48_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_47_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_48_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _48_t = ((m).dtor_taskData).get(_47_taskId);
-            let _49_updated = TodoDomain.Task.create_Task((_48_t).dtor_title, (_48_t).dtor_notes, true, (_48_t).dtor_starred, (_48_t).dtor_dueDate, (_48_t).dtor_assignees, (_48_t).dtor_tags, (_48_t).dtor_deleted, (_48_t).dtor_deletedBy, (_48_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_47_taskId, _49_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _49_t = ((m).dtor_taskData).get(_48_taskId);
+            let _50_updated = TodoDomain.Task.create_Task((_49_t).dtor_title, (_49_t).dtor_notes, true, (_49_t).dtor_starred, (_49_t).dtor_dueDate, (_49_t).dtor_assignees, (_49_t).dtor_tags, (_49_t).dtor_deleted, (_49_t).dtor_deletedBy, (_49_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_48_taskId, _50_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_UncompleteTask) {
-          let _50_taskId = (_source0).taskId;
-          if (!(((m).dtor_taskData).contains(_50_taskId))) {
+          let _51_taskId = (_source0).taskId;
+          if (!(((m).dtor_taskData).contains(_51_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_50_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_51_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _51_t = ((m).dtor_taskData).get(_50_taskId);
-            let _52_updated = TodoDomain.Task.create_Task((_51_t).dtor_title, (_51_t).dtor_notes, false, (_51_t).dtor_starred, (_51_t).dtor_dueDate, (_51_t).dtor_assignees, (_51_t).dtor_tags, (_51_t).dtor_deleted, (_51_t).dtor_deletedBy, (_51_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_50_taskId, _52_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _52_t = ((m).dtor_taskData).get(_51_taskId);
+            let _53_updated = TodoDomain.Task.create_Task((_52_t).dtor_title, (_52_t).dtor_notes, false, (_52_t).dtor_starred, (_52_t).dtor_dueDate, (_52_t).dtor_assignees, (_52_t).dtor_tags, (_52_t).dtor_deleted, (_52_t).dtor_deletedBy, (_52_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_51_taskId, _53_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_StarTask) {
-          let _53_taskId = (_source0).taskId;
-          if (!(((m).dtor_taskData).contains(_53_taskId))) {
+          let _54_taskId = (_source0).taskId;
+          if (!(((m).dtor_taskData).contains(_54_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_53_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_54_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _54_t = ((m).dtor_taskData).get(_53_taskId);
-            let _55_updated = TodoDomain.Task.create_Task((_54_t).dtor_title, (_54_t).dtor_notes, (_54_t).dtor_completed, true, (_54_t).dtor_dueDate, (_54_t).dtor_assignees, (_54_t).dtor_tags, (_54_t).dtor_deleted, (_54_t).dtor_deletedBy, (_54_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_53_taskId, _55_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _55_t = ((m).dtor_taskData).get(_54_taskId);
+            let _56_updated = TodoDomain.Task.create_Task((_55_t).dtor_title, (_55_t).dtor_notes, (_55_t).dtor_completed, true, (_55_t).dtor_dueDate, (_55_t).dtor_assignees, (_55_t).dtor_tags, (_55_t).dtor_deleted, (_55_t).dtor_deletedBy, (_55_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_54_taskId, _56_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_UnstarTask) {
-          let _56_taskId = (_source0).taskId;
-          if (!(((m).dtor_taskData).contains(_56_taskId))) {
+          let _57_taskId = (_source0).taskId;
+          if (!(((m).dtor_taskData).contains(_57_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_56_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_57_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _57_t = ((m).dtor_taskData).get(_56_taskId);
-            let _58_updated = TodoDomain.Task.create_Task((_57_t).dtor_title, (_57_t).dtor_notes, (_57_t).dtor_completed, false, (_57_t).dtor_dueDate, (_57_t).dtor_assignees, (_57_t).dtor_tags, (_57_t).dtor_deleted, (_57_t).dtor_deletedBy, (_57_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_56_taskId, _58_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _58_t = ((m).dtor_taskData).get(_57_taskId);
+            let _59_updated = TodoDomain.Task.create_Task((_58_t).dtor_title, (_58_t).dtor_notes, (_58_t).dtor_completed, false, (_58_t).dtor_dueDate, (_58_t).dtor_assignees, (_58_t).dtor_tags, (_58_t).dtor_deleted, (_58_t).dtor_deletedBy, (_58_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_57_taskId, _59_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_SetDueDate) {
-          let _59_taskId = (_source0).taskId;
-          let _60_dueDate = (_source0).dueDate;
-          if (!(((m).dtor_taskData).contains(_59_taskId))) {
+          let _60_taskId = (_source0).taskId;
+          let _61_dueDate = (_source0).dueDate;
+          if (!(((m).dtor_taskData).contains(_60_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_59_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_60_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
-          } else if (((_60_dueDate).is_Some) && (!(TodoDomain.__default.ValidDate((_60_dueDate).dtor_value)))) {
+          } else if (((_61_dueDate).is_Some) && (!(TodoDomain.__default.ValidDate((_61_dueDate).dtor_value)))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_InvalidDate());
           } else {
-            let _61_t = ((m).dtor_taskData).get(_59_taskId);
-            let _62_updated = TodoDomain.Task.create_Task((_61_t).dtor_title, (_61_t).dtor_notes, (_61_t).dtor_completed, (_61_t).dtor_starred, _60_dueDate, (_61_t).dtor_assignees, (_61_t).dtor_tags, (_61_t).dtor_deleted, (_61_t).dtor_deletedBy, (_61_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_59_taskId, _62_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _62_t = ((m).dtor_taskData).get(_60_taskId);
+            let _63_updated = TodoDomain.Task.create_Task((_62_t).dtor_title, (_62_t).dtor_notes, (_62_t).dtor_completed, (_62_t).dtor_starred, _61_dueDate, (_62_t).dtor_assignees, (_62_t).dtor_tags, (_62_t).dtor_deleted, (_62_t).dtor_deletedBy, (_62_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_60_taskId, _63_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_AssignTask) {
-          let _63_taskId = (_source0).taskId;
-          let _64_userId = (_source0).userId;
-          if (!(((m).dtor_taskData).contains(_63_taskId))) {
+          let _64_taskId = (_source0).taskId;
+          let _65_userId = (_source0).userId;
+          if (!(((m).dtor_taskData).contains(_64_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_63_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_64_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
-          } else if (!(((m).dtor_members).contains(_64_userId))) {
+          } else if (!(((m).dtor_members).contains(_65_userId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_NotAMember());
           } else {
-            let _65_t = ((m).dtor_taskData).get(_63_taskId);
-            let _66_updated = TodoDomain.Task.create_Task((_65_t).dtor_title, (_65_t).dtor_notes, (_65_t).dtor_completed, (_65_t).dtor_starred, (_65_t).dtor_dueDate, ((_65_t).dtor_assignees).Union(_dafny.Set.fromElements(_64_userId)), (_65_t).dtor_tags, (_65_t).dtor_deleted, (_65_t).dtor_deletedBy, (_65_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_63_taskId, _66_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _66_t = ((m).dtor_taskData).get(_64_taskId);
+            let _67_updated = TodoDomain.Task.create_Task((_66_t).dtor_title, (_66_t).dtor_notes, (_66_t).dtor_completed, (_66_t).dtor_starred, (_66_t).dtor_dueDate, ((_66_t).dtor_assignees).Union(_dafny.Set.fromElements(_65_userId)), (_66_t).dtor_tags, (_66_t).dtor_deleted, (_66_t).dtor_deletedBy, (_66_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_64_taskId, _67_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_UnassignTask) {
-          let _67_taskId = (_source0).taskId;
-          let _68_userId = (_source0).userId;
-          if (!(((m).dtor_taskData).contains(_67_taskId))) {
+          let _68_taskId = (_source0).taskId;
+          let _69_userId = (_source0).userId;
+          if (!(((m).dtor_taskData).contains(_68_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_67_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_68_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _69_t = ((m).dtor_taskData).get(_67_taskId);
-            let _70_updated = TodoDomain.Task.create_Task((_69_t).dtor_title, (_69_t).dtor_notes, (_69_t).dtor_completed, (_69_t).dtor_starred, (_69_t).dtor_dueDate, ((_69_t).dtor_assignees).Difference(_dafny.Set.fromElements(_68_userId)), (_69_t).dtor_tags, (_69_t).dtor_deleted, (_69_t).dtor_deletedBy, (_69_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_67_taskId, _70_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _70_t = ((m).dtor_taskData).get(_68_taskId);
+            let _71_updated = TodoDomain.Task.create_Task((_70_t).dtor_title, (_70_t).dtor_notes, (_70_t).dtor_completed, (_70_t).dtor_starred, (_70_t).dtor_dueDate, ((_70_t).dtor_assignees).Difference(_dafny.Set.fromElements(_69_userId)), (_70_t).dtor_tags, (_70_t).dtor_deleted, (_70_t).dtor_deletedBy, (_70_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_68_taskId, _71_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_AddTagToTask) {
-          let _71_taskId = (_source0).taskId;
-          let _72_tagId = (_source0).tagId;
-          if (!(((m).dtor_taskData).contains(_71_taskId))) {
+          let _72_taskId = (_source0).taskId;
+          let _73_tagId = (_source0).tagId;
+          if (!(((m).dtor_taskData).contains(_72_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_71_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_72_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
-          } else if (!(((m).dtor_tags).contains(_72_tagId))) {
+          } else if (!(((m).dtor_tags).contains(_73_tagId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTag());
           } else {
-            let _73_t = ((m).dtor_taskData).get(_71_taskId);
-            let _74_updated = TodoDomain.Task.create_Task((_73_t).dtor_title, (_73_t).dtor_notes, (_73_t).dtor_completed, (_73_t).dtor_starred, (_73_t).dtor_dueDate, (_73_t).dtor_assignees, ((_73_t).dtor_tags).Union(_dafny.Set.fromElements(_72_tagId)), (_73_t).dtor_deleted, (_73_t).dtor_deletedBy, (_73_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_71_taskId, _74_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _74_t = ((m).dtor_taskData).get(_72_taskId);
+            let _75_updated = TodoDomain.Task.create_Task((_74_t).dtor_title, (_74_t).dtor_notes, (_74_t).dtor_completed, (_74_t).dtor_starred, (_74_t).dtor_dueDate, (_74_t).dtor_assignees, ((_74_t).dtor_tags).Union(_dafny.Set.fromElements(_73_tagId)), (_74_t).dtor_deleted, (_74_t).dtor_deletedBy, (_74_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_72_taskId, _75_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_RemoveTagFromTask) {
-          let _75_taskId = (_source0).taskId;
-          let _76_tagId = (_source0).tagId;
-          if (!(((m).dtor_taskData).contains(_75_taskId))) {
+          let _76_taskId = (_source0).taskId;
+          let _77_tagId = (_source0).tagId;
+          if (!(((m).dtor_taskData).contains(_76_taskId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTask());
-          } else if ((((m).dtor_taskData).get(_75_taskId)).dtor_deleted) {
+          } else if ((((m).dtor_taskData).get(_76_taskId)).dtor_deleted) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_TaskDeleted());
           } else {
-            let _77_t = ((m).dtor_taskData).get(_75_taskId);
-            let _78_updated = TodoDomain.Task.create_Task((_77_t).dtor_title, (_77_t).dtor_notes, (_77_t).dtor_completed, (_77_t).dtor_starred, (_77_t).dtor_dueDate, (_77_t).dtor_assignees, ((_77_t).dtor_tags).Difference(_dafny.Set.fromElements(_76_tagId)), (_77_t).dtor_deleted, (_77_t).dtor_deletedBy, (_77_t).dtor_deletedFromList);
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_75_taskId, _78_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _78_t = ((m).dtor_taskData).get(_76_taskId);
+            let _79_updated = TodoDomain.Task.create_Task((_78_t).dtor_title, (_78_t).dtor_notes, (_78_t).dtor_completed, (_78_t).dtor_starred, (_78_t).dtor_dueDate, (_78_t).dtor_assignees, ((_78_t).dtor_tags).Difference(_dafny.Set.fromElements(_77_tagId)), (_78_t).dtor_deleted, (_78_t).dtor_deletedBy, (_78_t).dtor_deletedFromList);
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, ((m).dtor_taskData).update(_76_taskId, _79_updated), (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_CreateTag) {
-          let _79_name = (_source0).name;
-          let _80_id = (m).dtor_nextTagId;
-          return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_80_id, _79_name), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
+          let _80_name = (_source0).name;
+          if (TodoDomain.__default.TagNameExists(m, _80_name, TodoDomain.Option.create_None())) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
+          } else {
+            let _81_id = (m).dtor_nextTagId;
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_id, _80_name), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
+          }
         }
       }
       {
         if (_source0.is_RenameTag) {
-          let _81_tagId = (_source0).tagId;
-          let _82_newName = (_source0).newName;
-          if (!(((m).dtor_tags).contains(_81_tagId))) {
+          let _82_tagId = (_source0).tagId;
+          let _83_newName = (_source0).newName;
+          if (!(((m).dtor_tags).contains(_82_tagId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingTag());
+          } else if (TodoDomain.__default.TagNameExists(m, _83_newName, TodoDomain.Option.create_Some(_82_tagId))) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
           } else {
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_tagId, _82_newName), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_82_tagId, _83_newName), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
         if (_source0.is_DeleteTag) {
-          let _83_tagId = (_source0).tagId;
-          if (!(((m).dtor_tags).contains(_83_tagId))) {
+          let _84_tagId = (_source0).tagId;
+          if (!(((m).dtor_tags).contains(_84_tagId))) {
             return TodoDomain.Result.create_Ok(m);
           } else {
-            let _84_newTaskData = TodoDomain.__default.RemoveTagFromAllTasks((m).dtor_taskData, _83_tagId);
-            let _85_newTags = ((m).dtor_tags).Subtract(_dafny.Set.fromElements(_83_tagId));
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, _84_newTaskData, _85_newTags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            let _85_newTaskData = TodoDomain.__default.RemoveTagFromAllTasks((m).dtor_taskData, _84_tagId);
+            let _86_newTags = ((m).dtor_tags).Subtract(_dafny.Set.fromElements(_84_tagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, _85_newTaskData, _86_newTags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
@@ -1871,25 +1906,25 @@ let TodoDomain = (function() {
       }
       {
         if (_source0.is_AddMember) {
-          let _86_userId = (_source0).userId;
+          let _87_userId = (_source0).userId;
           if (((m).dtor_mode).is_Personal) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_PersonalProject());
-          } else if (((m).dtor_members).contains(_86_userId)) {
+          } else if (((m).dtor_members).contains(_87_userId)) {
             return TodoDomain.Result.create_Ok(m);
           } else {
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, ((m).dtor_members).Union(_dafny.Set.fromElements(_86_userId)), (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, ((m).dtor_members).Union(_dafny.Set.fromElements(_87_userId)), (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
       {
-        let _87_userId = (_source0).userId;
-        if (_dafny.areEqual(_87_userId, (m).dtor_owner)) {
+        let _88_userId = (_source0).userId;
+        if (_dafny.areEqual(_88_userId, (m).dtor_owner)) {
           return TodoDomain.Result.create_Err(TodoDomain.Err.create_CannotRemoveOwner());
-        } else if (!(((m).dtor_members).contains(_87_userId))) {
+        } else if (!(((m).dtor_members).contains(_88_userId))) {
           return TodoDomain.Result.create_Ok(m);
         } else {
-          let _88_newTaskData = TodoDomain.__default.ClearAssigneeFromAllTasks((m).dtor_taskData, _87_userId);
-          return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, ((m).dtor_members).Difference(_dafny.Set.fromElements(_87_userId)), (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, _88_newTaskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+          let _89_newTaskData = TodoDomain.__default.ClearAssigneeFromAllTasks((m).dtor_taskData, _88_userId);
+          return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, ((m).dtor_members).Difference(_dafny.Set.fromElements(_88_userId)), (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, _89_newTaskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
         }
       }
     };
@@ -2284,6 +2319,338 @@ let TodoDomain = (function() {
         return _dafny.Seq.of(a);
       }
     };
+    static IsPriorityTask(t) {
+      return (((t).dtor_starred) && (!((t).dtor_completed))) && (!((t).dtor_deleted));
+    };
+    static IsLogbookTask(t) {
+      return ((t).dtor_completed) && (!((t).dtor_deleted));
+    };
+    static IsVisibleTask(t) {
+      return !((t).dtor_deleted);
+    };
+    static MatchesSmartList(t, smartList) {
+      let _source0 = smartList;
+      {
+        if (_source0.is_Priority) {
+          return TodoDomain.__default.IsPriorityTask(t);
+        }
+      }
+      {
+        return TodoDomain.__default.IsLogbookTask(t);
+      }
+    };
+    static GetVisibleTaskIds(m) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && (TodoDomain.__default.IsVisibleTask(((m).dtor_taskData).get(_0_id)))) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetSmartListTaskIds(m, smartList) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && (TodoDomain.__default.MatchesSmartList(((m).dtor_taskData).get(_0_id), smartList))) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetPriorityTaskIds(m) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && (TodoDomain.__default.IsPriorityTask(((m).dtor_taskData).get(_0_id)))) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetLogbookTaskIds(m) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && (TodoDomain.__default.IsLogbookTask(((m).dtor_taskData).get(_0_id)))) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static CountSmartListTasks(m, smartList) {
+      return new BigNumber((TodoDomain.__default.GetSmartListTaskIds(m, smartList)).length);
+    };
+    static CountPriorityTasks(m) {
+      return new BigNumber((TodoDomain.__default.GetPriorityTaskIds(m)).length);
+    };
+    static CountLogbookTasks(m) {
+      return new BigNumber((TodoDomain.__default.GetLogbookTaskIds(m)).length);
+    };
+    static CountVisibleTasksInList(m, listId) {
+      if (!((m).dtor_tasks).contains(listId)) {
+        return _dafny.ZERO;
+      } else {
+        return TodoDomain.__default.CountVisibleInSeq(((m).dtor_tasks).get(listId), (m).dtor_taskData);
+      }
+    };
+    static CountVisibleInSeq(ids, taskData) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((ids).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          let _1_head = (ids)[_dafny.ZERO];
+          let _2_countHead = ((((taskData).contains(_1_head)) && (TodoDomain.__default.IsVisibleTask((taskData).get(_1_head)))) ? (_dafny.ONE) : (_dafny.ZERO));
+          _0___accumulator = (_0___accumulator).plus(_2_countHead);
+          let _in0 = (ids).slice(_dafny.ONE);
+          let _in1 = taskData;
+          ids = _in0;
+          taskData = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static GetTask(m, taskId) {
+      if ((((m).dtor_taskData).contains(taskId)) && (TodoDomain.__default.IsVisibleTask(((m).dtor_taskData).get(taskId)))) {
+        return TodoDomain.Option.create_Some(((m).dtor_taskData).get(taskId));
+      } else {
+        return TodoDomain.Option.create_None();
+      }
+    };
+    static GetTaskIncludingDeleted(m, taskId) {
+      if (((m).dtor_taskData).contains(taskId)) {
+        return TodoDomain.Option.create_Some(((m).dtor_taskData).get(taskId));
+      } else {
+        return TodoDomain.Option.create_None();
+      }
+    };
+    static GetTasksInList(m, listId) {
+      if (!((m).dtor_tasks).contains(listId)) {
+        return _dafny.Seq.of();
+      } else {
+        return TodoDomain.__default.FilterVisibleTasks(((m).dtor_tasks).get(listId), (m).dtor_taskData);
+      }
+    };
+    static FilterVisibleTasks(ids, taskData) {
+      if ((new BigNumber((ids).length)).isEqualTo(_dafny.ZERO)) {
+        return _dafny.Seq.of();
+      } else {
+        let _0_head = (ids)[_dafny.ZERO];
+        let _1_rest = TodoDomain.__default.FilterVisibleTasks((ids).slice(_dafny.ONE), taskData);
+        if (((taskData).contains(_0_head)) && (TodoDomain.__default.IsVisibleTask((taskData).get(_0_head)))) {
+          return _dafny.Seq.Concat(_dafny.Seq.of(_0_head), _1_rest);
+        } else {
+          return _1_rest;
+        }
+      }
+    };
+    static GetListName(m, listId) {
+      if (((m).dtor_listNames).contains(listId)) {
+        return TodoDomain.Option.create_Some(((m).dtor_listNames).get(listId));
+      } else {
+        return TodoDomain.Option.create_None();
+      }
+    };
+    static GetLists(m) {
+      return (m).dtor_lists;
+    };
+    static GetTagName(m, tagId) {
+      if (((m).dtor_tags).contains(tagId)) {
+        return TodoDomain.Option.create_Some((((m).dtor_tags).get(tagId)));
+      } else {
+        return TodoDomain.Option.create_None();
+      }
+    };
+    static GetTags(m) {
+      return ((m).dtor_tags).Keys;
+    };
+    static EmptyMultiModel() {
+      return _dafny.Map.Empty.slice();
+    };
+    static SetProject(mm, projectId, model) {
+      return ((mm)).update(projectId, model);
+    };
+    static RemoveProject(mm, projectId) {
+      return ((mm)).Subtract(_dafny.Set.fromElements(projectId));
+    };
+    static GetProject(mm, projectId) {
+      if (((mm)).contains(projectId)) {
+        return TodoDomain.Option.create_Some(((mm)).get(projectId));
+      } else {
+        return TodoDomain.Option.create_None();
+      }
+    };
+    static GetProjectIds(mm) {
+      return ((mm)).Keys;
+    };
+    static CountProjects(mm) {
+      return new BigNumber(((mm)).length);
+    };
+    static GetAllPriorityTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm)).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetAllLogbookTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm)).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetAllSmartListTasks(mm, smartList) {
+      let _source0 = smartList;
+      {
+        if (_source0.is_Priority) {
+          return TodoDomain.__default.GetAllPriorityTasks(mm);
+        }
+      }
+      {
+        return TodoDomain.__default.GetAllLogbookTasks(mm);
+      }
+    };
+    static CountAllPriorityTasks(mm) {
+      return new BigNumber((TodoDomain.__default.GetAllPriorityTasks(mm)).length);
+    };
+    static CountAllLogbookTasks(mm) {
+      return new BigNumber((TodoDomain.__default.GetAllLogbookTasks(mm)).length);
+    };
+    static CountAllSmartListTasks(mm, smartList) {
+      return new BigNumber((TodoDomain.__default.GetAllSmartListTasks(mm, smartList)).length);
+    };
+    static InitViewState() {
+      return TodoDomain.ViewState.create_ViewState(TodoDomain.ViewMode.create_AllProjects(), TodoDomain.SidebarSelection.create_NoSelection(), TodoDomain.__default.EmptyMultiModel());
+    };
+    static SetViewMode(vs, mode) {
+      return TodoDomain.ViewState.create_ViewState(mode, (vs).dtor_selection, (vs).dtor_loadedProjects);
+    };
+    static SelectSmartList(vs, smartList) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_SmartListSelected(smartList), (vs).dtor_loadedProjects);
+    };
+    static SelectProject(vs, projectId) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_ProjectSelected(projectId), (vs).dtor_loadedProjects);
+    };
+    static SelectList(vs, projectId, listId) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_ListSelected(projectId, listId), (vs).dtor_loadedProjects);
+    };
+    static ClearSelection(vs) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_NoSelection(), (vs).dtor_loadedProjects);
+    };
+    static LoadProject(vs, projectId, model) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, (vs).dtor_selection, TodoDomain.__default.SetProject((vs).dtor_loadedProjects, projectId, model));
+    };
+    static UnloadProject(vs, projectId) {
+      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, (vs).dtor_selection, TodoDomain.__default.RemoveProject((vs).dtor_loadedProjects, projectId));
+    };
+    static GetTasksToDisplay(vs) {
+      let _source0 = (vs).dtor_selection;
+      {
+        if (_source0.is_NoSelection) {
+          return _dafny.Set.fromElements();
+        }
+      }
+      {
+        if (_source0.is_SmartListSelected) {
+          let _0_smartList = (_source0).smartList;
+          return TodoDomain.__default.GetAllSmartListTasks((vs).dtor_loadedProjects, _0_smartList);
+        }
+      }
+      {
+        if (_source0.is_ProjectSelected) {
+          let _1_projectId = (_source0).projectId;
+          if ((((vs).dtor_loadedProjects)).contains(_1_projectId)) {
+            let _2_m = (((vs).dtor_loadedProjects)).get(_1_projectId);
+            return function () {
+              let _coll0 = new _dafny.Set();
+              for (const _compr_0 of (TodoDomain.__default.GetVisibleTaskIds(_2_m)).Elements) {
+                let _3_tid = _compr_0;
+                if (_System.nat._Is(_3_tid)) {
+                  if ((TodoDomain.__default.GetVisibleTaskIds(_2_m)).contains(_3_tid)) {
+                    _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_1_projectId, _3_tid));
+                  }
+                }
+              }
+              return _coll0;
+            }();
+          } else {
+            return _dafny.Set.fromElements();
+          }
+        }
+      }
+      {
+        let _4_projectId = (_source0).projectId;
+        let _5_listId = (_source0).listId;
+        if ((((vs).dtor_loadedProjects)).contains(_4_projectId)) {
+          let _6_m = (((vs).dtor_loadedProjects)).get(_4_projectId);
+          return function () {
+            let _coll1 = new _dafny.Set();
+            if (((_6_m).dtor_tasks).contains(_5_listId)) {
+              for (const _compr_1 of ((_6_m).dtor_taskData).Keys.Elements) {
+                let _7_tid = _compr_1;
+                if (_System.nat._Is(_7_tid)) {
+                  if (((((_6_m).dtor_taskData).contains(_7_tid)) && (TodoDomain.__default.SeqContains(((_6_m).dtor_tasks).get(_5_listId), _7_tid))) && (TodoDomain.__default.IsVisibleTask(((_6_m).dtor_taskData).get(_7_tid)))) {
+                    _coll1.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_4_projectId, _7_tid));
+                  }
+                }
+              }
+            }
+            return _coll1;
+          }();
+        } else {
+          return _dafny.Set.fromElements();
+        }
+      }
+    };
+    static GetSmartListCount(vs, smartList) {
+      return TodoDomain.__default.CountAllSmartListTasks((vs).dtor_loadedProjects, smartList);
+    };
+    static IsProjectLoaded(vs, projectId) {
+      return (((vs).dtor_loadedProjects)).contains(projectId);
+    };
     static RebaseThroughSuffix(suffix, a) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
@@ -2625,36 +2992,44 @@ let TodoDomain = (function() {
       let \$dt = new Err(4);
       return \$dt;
     }
-    static create_BadAnchor() {
+    static create_DuplicateTask() {
       let \$dt = new Err(5);
       return \$dt;
     }
-    static create_NotAMember() {
+    static create_DuplicateTag() {
       let \$dt = new Err(6);
       return \$dt;
     }
-    static create_PersonalProject() {
+    static create_BadAnchor() {
       let \$dt = new Err(7);
       return \$dt;
     }
-    static create_AlreadyCollaborative() {
+    static create_NotAMember() {
       let \$dt = new Err(8);
       return \$dt;
     }
-    static create_CannotRemoveOwner() {
+    static create_PersonalProject() {
       let \$dt = new Err(9);
       return \$dt;
     }
-    static create_TaskDeleted() {
+    static create_AlreadyCollaborative() {
       let \$dt = new Err(10);
       return \$dt;
     }
-    static create_InvalidDate() {
+    static create_CannotRemoveOwner() {
       let \$dt = new Err(11);
       return \$dt;
     }
-    static create_Rejected() {
+    static create_TaskDeleted() {
       let \$dt = new Err(12);
+      return \$dt;
+    }
+    static create_InvalidDate() {
+      let \$dt = new Err(13);
+      return \$dt;
+    }
+    static create_Rejected() {
+      let \$dt = new Err(14);
       return \$dt;
     }
     get is_MissingList() { return this.\$tag === 0; }
@@ -2662,14 +3037,16 @@ let TodoDomain = (function() {
     get is_MissingTag() { return this.\$tag === 2; }
     get is_MissingUser() { return this.\$tag === 3; }
     get is_DuplicateList() { return this.\$tag === 4; }
-    get is_BadAnchor() { return this.\$tag === 5; }
-    get is_NotAMember() { return this.\$tag === 6; }
-    get is_PersonalProject() { return this.\$tag === 7; }
-    get is_AlreadyCollaborative() { return this.\$tag === 8; }
-    get is_CannotRemoveOwner() { return this.\$tag === 9; }
-    get is_TaskDeleted() { return this.\$tag === 10; }
-    get is_InvalidDate() { return this.\$tag === 11; }
-    get is_Rejected() { return this.\$tag === 12; }
+    get is_DuplicateTask() { return this.\$tag === 5; }
+    get is_DuplicateTag() { return this.\$tag === 6; }
+    get is_BadAnchor() { return this.\$tag === 7; }
+    get is_NotAMember() { return this.\$tag === 8; }
+    get is_PersonalProject() { return this.\$tag === 9; }
+    get is_AlreadyCollaborative() { return this.\$tag === 10; }
+    get is_CannotRemoveOwner() { return this.\$tag === 11; }
+    get is_TaskDeleted() { return this.\$tag === 12; }
+    get is_InvalidDate() { return this.\$tag === 13; }
+    get is_Rejected() { return this.\$tag === 14; }
     static get AllSingletonConstructors() {
       return this.AllSingletonConstructors_();
     }
@@ -2679,6 +3056,8 @@ let TodoDomain = (function() {
       yield Err.create_MissingTag();
       yield Err.create_MissingUser();
       yield Err.create_DuplicateList();
+      yield Err.create_DuplicateTask();
+      yield Err.create_DuplicateTag();
       yield Err.create_BadAnchor();
       yield Err.create_NotAMember();
       yield Err.create_PersonalProject();
@@ -2700,20 +3079,24 @@ let TodoDomain = (function() {
       } else if (this.\$tag === 4) {
         return "TodoDomain.Err.DuplicateList";
       } else if (this.\$tag === 5) {
-        return "TodoDomain.Err.BadAnchor";
+        return "TodoDomain.Err.DuplicateTask";
       } else if (this.\$tag === 6) {
-        return "TodoDomain.Err.NotAMember";
+        return "TodoDomain.Err.DuplicateTag";
       } else if (this.\$tag === 7) {
-        return "TodoDomain.Err.PersonalProject";
+        return "TodoDomain.Err.BadAnchor";
       } else if (this.\$tag === 8) {
-        return "TodoDomain.Err.AlreadyCollaborative";
+        return "TodoDomain.Err.NotAMember";
       } else if (this.\$tag === 9) {
-        return "TodoDomain.Err.CannotRemoveOwner";
+        return "TodoDomain.Err.PersonalProject";
       } else if (this.\$tag === 10) {
-        return "TodoDomain.Err.TaskDeleted";
+        return "TodoDomain.Err.AlreadyCollaborative";
       } else if (this.\$tag === 11) {
-        return "TodoDomain.Err.InvalidDate";
+        return "TodoDomain.Err.CannotRemoveOwner";
       } else if (this.\$tag === 12) {
+        return "TodoDomain.Err.TaskDeleted";
+      } else if (this.\$tag === 13) {
+        return "TodoDomain.Err.InvalidDate";
+      } else if (this.\$tag === 14) {
         return "TodoDomain.Err.Rejected";
       } else  {
         return "<unexpected>";
@@ -2748,6 +3131,10 @@ let TodoDomain = (function() {
         return other.\$tag === 11;
       } else if (this.\$tag === 12) {
         return other.\$tag === 12;
+      } else if (this.\$tag === 13) {
+        return other.\$tag === 13;
+      } else if (this.\$tag === 14) {
+        return other.\$tag === 14;
       } else  {
         return false; // unexpected
       }
@@ -3182,6 +3569,306 @@ let TodoDomain = (function() {
     }
   }
 
+  \$module.ViewMode = class ViewMode {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_SingleProject() {
+      let \$dt = new ViewMode(0);
+      return \$dt;
+    }
+    static create_AllProjects() {
+      let \$dt = new ViewMode(1);
+      return \$dt;
+    }
+    get is_SingleProject() { return this.\$tag === 0; }
+    get is_AllProjects() { return this.\$tag === 1; }
+    static get AllSingletonConstructors() {
+      return this.AllSingletonConstructors_();
+    }
+    static *AllSingletonConstructors_() {
+      yield ViewMode.create_SingleProject();
+      yield ViewMode.create_AllProjects();
+    }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.ViewMode.SingleProject";
+      } else if (this.\$tag === 1) {
+        return "TodoDomain.ViewMode.AllProjects";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0;
+      } else if (this.\$tag === 1) {
+        return other.\$tag === 1;
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoDomain.ViewMode.create_SingleProject();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return ViewMode.Default();
+        }
+      };
+    }
+  }
+
+  \$module.SmartListType = class SmartListType {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_Priority() {
+      let \$dt = new SmartListType(0);
+      return \$dt;
+    }
+    static create_Logbook() {
+      let \$dt = new SmartListType(1);
+      return \$dt;
+    }
+    get is_Priority() { return this.\$tag === 0; }
+    get is_Logbook() { return this.\$tag === 1; }
+    static get AllSingletonConstructors() {
+      return this.AllSingletonConstructors_();
+    }
+    static *AllSingletonConstructors_() {
+      yield SmartListType.create_Priority();
+      yield SmartListType.create_Logbook();
+    }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.SmartListType.Priority";
+      } else if (this.\$tag === 1) {
+        return "TodoDomain.SmartListType.Logbook";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0;
+      } else if (this.\$tag === 1) {
+        return other.\$tag === 1;
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoDomain.SmartListType.create_Priority();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return SmartListType.Default();
+        }
+      };
+    }
+  }
+
+  \$module.MultiModel = class MultiModel {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_MultiModel(projects) {
+      let \$dt = new MultiModel(0);
+      \$dt.projects = projects;
+      return \$dt;
+    }
+    get is_MultiModel() { return this.\$tag === 0; }
+    get dtor_projects() { return this.projects; }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.MultiModel.MultiModel" + "(" + _dafny.toString(this.projects) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0 && _dafny.areEqual(this.projects, other.projects);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return _dafny.Map.Empty;
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return MultiModel.Default();
+        }
+      };
+    }
+  }
+
+  \$module.TaggedTaskId = class TaggedTaskId {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_TaggedTaskId(projectId, taskId) {
+      let \$dt = new TaggedTaskId(0);
+      \$dt.projectId = projectId;
+      \$dt.taskId = taskId;
+      return \$dt;
+    }
+    get is_TaggedTaskId() { return this.\$tag === 0; }
+    get dtor_projectId() { return this.projectId; }
+    get dtor_taskId() { return this.taskId; }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.TaggedTaskId.TaggedTaskId" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.taskId) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.taskId, other.taskId);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoDomain.TaggedTaskId.create_TaggedTaskId(_dafny.Seq.UnicodeFromString(""), _dafny.ZERO);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return TaggedTaskId.Default();
+        }
+      };
+    }
+  }
+
+  \$module.SidebarSelection = class SidebarSelection {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_NoSelection() {
+      let \$dt = new SidebarSelection(0);
+      return \$dt;
+    }
+    static create_SmartListSelected(smartList) {
+      let \$dt = new SidebarSelection(1);
+      \$dt.smartList = smartList;
+      return \$dt;
+    }
+    static create_ProjectSelected(projectId) {
+      let \$dt = new SidebarSelection(2);
+      \$dt.projectId = projectId;
+      return \$dt;
+    }
+    static create_ListSelected(projectId, listId) {
+      let \$dt = new SidebarSelection(3);
+      \$dt.projectId = projectId;
+      \$dt.listId = listId;
+      return \$dt;
+    }
+    get is_NoSelection() { return this.\$tag === 0; }
+    get is_SmartListSelected() { return this.\$tag === 1; }
+    get is_ProjectSelected() { return this.\$tag === 2; }
+    get is_ListSelected() { return this.\$tag === 3; }
+    get dtor_smartList() { return this.smartList; }
+    get dtor_projectId() { return this.projectId; }
+    get dtor_listId() { return this.listId; }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.SidebarSelection.NoSelection";
+      } else if (this.\$tag === 1) {
+        return "TodoDomain.SidebarSelection.SmartListSelected" + "(" + _dafny.toString(this.smartList) + ")";
+      } else if (this.\$tag === 2) {
+        return "TodoDomain.SidebarSelection.ProjectSelected" + "(" + this.projectId.toVerbatimString(true) + ")";
+      } else if (this.\$tag === 3) {
+        return "TodoDomain.SidebarSelection.ListSelected" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.listId) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0;
+      } else if (this.\$tag === 1) {
+        return other.\$tag === 1 && _dafny.areEqual(this.smartList, other.smartList);
+      } else if (this.\$tag === 2) {
+        return other.\$tag === 2 && _dafny.areEqual(this.projectId, other.projectId);
+      } else if (this.\$tag === 3) {
+        return other.\$tag === 3 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.listId, other.listId);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoDomain.SidebarSelection.create_NoSelection();
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return SidebarSelection.Default();
+        }
+      };
+    }
+  }
+
+  \$module.ViewState = class ViewState {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_ViewState(viewMode, selection, loadedProjects) {
+      let \$dt = new ViewState(0);
+      \$dt.viewMode = viewMode;
+      \$dt.selection = selection;
+      \$dt.loadedProjects = loadedProjects;
+      return \$dt;
+    }
+    get is_ViewState() { return this.\$tag === 0; }
+    get dtor_viewMode() { return this.viewMode; }
+    get dtor_selection() { return this.selection; }
+    get dtor_loadedProjects() { return this.loadedProjects; }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoDomain.ViewState.ViewState" + "(" + _dafny.toString(this.viewMode) + ", " + _dafny.toString(this.selection) + ", " + _dafny.toString(this.loadedProjects) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0 && _dafny.areEqual(this.viewMode, other.viewMode) && _dafny.areEqual(this.selection, other.selection) && _dafny.areEqual(this.loadedProjects, other.loadedProjects);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoDomain.ViewState.create_ViewState(TodoDomain.ViewMode.Default(), TodoDomain.SidebarSelection.Default(), _dafny.Map.Empty);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return ViewState.Default();
+        }
+      };
+    }
+  }
+
   \$module.Result = class Result {
     constructor(tag) {
       this.\$tag = tag;
@@ -3293,6 +3980,89 @@ let TodoMultiCollaboration = (function() {
         let _11_newAudit = _dafny.Seq.Concat((s).dtor_auditLog, _dafny.Seq.of(_10_rec));
         return _dafny.Tuple.of(TodoMultiCollaboration.ServerState.create_ServerState((s).dtor_present, (s).dtor_appliedLog, _11_newAudit), TodoMultiCollaboration.Reply.create_Rejected(TodoMultiCollaboration.RejectReason.create_DomainInvalid(), _1_rebased));
       }
+    };
+    static InitClient(version, model) {
+      return TodoMultiCollaboration.ClientState.create_ClientState(version, model, _dafny.Seq.of());
+    };
+    static InitClientFromServer(server) {
+      return TodoMultiCollaboration.ClientState.create_ClientState(TodoMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
+    };
+    static Sync(server) {
+      return TodoMultiCollaboration.ClientState.create_ClientState(TodoMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
+    };
+    static ClientLocalDispatch(client, action) {
+      let _0_result = TodoDomain.__default.TryStep((client).dtor_present, action);
+      let _source0 = _0_result;
+      {
+        if (_source0.is_Ok) {
+          let _1_newModel = (_source0).value;
+          return TodoMultiCollaboration.ClientState.create_ClientState((client).dtor_baseVersion, _1_newModel, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
+        }
+      }
+      {
+        return TodoMultiCollaboration.ClientState.create_ClientState((client).dtor_baseVersion, (client).dtor_present, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
+      }
+    };
+    static ReapplyPending(model, pending) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((pending).length)).isEqualTo(_dafny.ZERO)) {
+          return model;
+        } else {
+          let _0_result = TodoDomain.__default.TryStep(model, (pending)[_dafny.ZERO]);
+          let _1_newModel = function () {
+            let _source0 = _0_result;
+            {
+              if (_source0.is_Ok) {
+                let _2_m = (_source0).value;
+                return _2_m;
+              }
+            }
+            {
+              return model;
+            }
+          }();
+          let _in0 = _1_newModel;
+          let _in1 = (pending).slice(_dafny.ONE);
+          model = _in0;
+          pending = _in1;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static HandleRealtimeUpdate(client, serverVersion, serverModel) {
+      if (((client).dtor_baseVersion).isLessThan(serverVersion)) {
+        let _0_newPresent = TodoMultiCollaboration.__default.ReapplyPending(serverModel, (client).dtor_pending);
+        return TodoMultiCollaboration.ClientState.create_ClientState(serverVersion, _0_newPresent, (client).dtor_pending);
+      } else {
+        return client;
+      }
+    };
+    static ClientAcceptReply(client, newVersion, newPresent) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return TodoMultiCollaboration.ClientState.create_ClientState(newVersion, newPresent, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = TodoMultiCollaboration.__default.ReapplyPending(newPresent, _0_rest);
+        return TodoMultiCollaboration.ClientState.create_ClientState(newVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
+    static ClientRejectReply(client, freshVersion, freshModel) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return TodoMultiCollaboration.ClientState.create_ClientState(freshVersion, freshModel, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = TodoMultiCollaboration.__default.ReapplyPending(freshModel, _0_rest);
+        return TodoMultiCollaboration.ClientState.create_ClientState(freshVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
+    static PendingCount(client) {
+      return new BigNumber(((client).dtor_pending).length);
+    };
+    static ClientModel(client) {
+      return (client).dtor_present;
+    };
+    static ClientVersion(client) {
+      return (client).dtor_baseVersion;
     };
   };
 
@@ -3540,54 +4310,6 @@ let TodoMultiCollaboration = (function() {
       };
     }
   }
-  return \$module;
-})(); // end of module TodoMultiCollaboration
-let TodoAppCore = (function() {
-  let \$module = {};
-
-  \$module.__default = class __default {
-    constructor () {
-      this._tname = "TodoAppCore._default";
-    }
-    _parentTraits() {
-      return [];
-    }
-    static InitServerWithOwner(mode, ownerId) {
-      let _0_initModel = TodoDomain.Model.create_Model(mode, ownerId, _dafny.Set.fromElements(ownerId), _dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO, _dafny.ZERO, _dafny.ZERO);
-      return TodoMultiCollaboration.ServerState.create_ServerState(_0_initModel, _dafny.Seq.of(), _dafny.Seq.of());
-    };
-    static InitClientFromServer(server) {
-      return TodoAppCore.ClientState.create_ClientState(TodoMultiCollaboration.__default.Version(server), (server).dtor_present, _dafny.Seq.of());
-    };
-    static ClientLocalDispatch(client, action) {
-      let _0_result = TodoDomain.__default.TryStep((client).dtor_present, action);
-      let _source0 = _0_result;
-      {
-        if (_source0.is_Ok) {
-          let _1_newModel = (_source0).value;
-          return TodoAppCore.ClientState.create_ClientState((client).dtor_baseVersion, _1_newModel, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
-        }
-      }
-      {
-        return TodoAppCore.ClientState.create_ClientState((client).dtor_baseVersion, (client).dtor_present, _dafny.Seq.Concat((client).dtor_pending, _dafny.Seq.of(action)));
-      }
-    };
-    static ServerVersion(server) {
-      return TodoMultiCollaboration.__default.Version(server);
-    };
-    static ServerModel(server) {
-      return (server).dtor_present;
-    };
-    static ClientModel(client) {
-      return (client).dtor_present;
-    };
-    static ClientVersion(client) {
-      return (client).dtor_baseVersion;
-    };
-    static PendingCount(client) {
-      return new BigNumber(((client).dtor_pending).length);
-    };
-  };
 
   \$module.ClientState = class ClientState {
     constructor(tag) {
@@ -3606,7 +4328,7 @@ let TodoAppCore = (function() {
     get dtor_pending() { return this.pending; }
     toString() {
       if (this.\$tag === 0) {
-        return "TodoAppCore.ClientState.ClientState" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.pending) + ")";
+        return "TodoMultiCollaboration.ClientState.ClientState" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.pending) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -3621,7 +4343,7 @@ let TodoAppCore = (function() {
       }
     }
     static Default() {
-      return TodoAppCore.ClientState.create_ClientState(_dafny.ZERO, TodoDomain.Model.Default(), _dafny.Seq.of());
+      return TodoMultiCollaboration.ClientState.create_ClientState(_dafny.ZERO, TodoDomain.Model.Default(), _dafny.Seq.of());
     }
     static Rtd() {
       return class {
@@ -3631,6 +4353,50 @@ let TodoAppCore = (function() {
       };
     }
   }
+  return \$module;
+})(); // end of module TodoMultiCollaboration
+let TodoAppCore = (function() {
+  let \$module = {};
+
+  \$module.__default = class __default {
+    constructor () {
+      this._tname = "TodoAppCore._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static InitServerWithOwner(mode, ownerId) {
+      let _0_initModel = TodoDomain.Model.create_Model(mode, ownerId, _dafny.Set.fromElements(ownerId), _dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO, _dafny.ZERO, _dafny.ZERO);
+      return TodoMultiCollaboration.ServerState.create_ServerState(_0_initModel, _dafny.Seq.of(), _dafny.Seq.of());
+    };
+    static InitClientFromServer(server) {
+      return TodoMultiCollaboration.__default.InitClientFromServer(server);
+    };
+    static ClientLocalDispatch(client, action) {
+      return TodoMultiCollaboration.__default.ClientLocalDispatch(client, action);
+    };
+    static ServerVersion(server) {
+      return TodoMultiCollaboration.__default.Version(server);
+    };
+    static ServerModel(server) {
+      return (server).dtor_present;
+    };
+    static ClientModel(client) {
+      return TodoMultiCollaboration.__default.ClientModel(client);
+    };
+    static ClientVersion(client) {
+      return TodoMultiCollaboration.__default.ClientVersion(client);
+    };
+    static PendingCount(client) {
+      return TodoMultiCollaboration.__default.PendingCount(client);
+    };
+    static InitClient(version, model) {
+      return TodoMultiCollaboration.__default.InitClient(version, model);
+    };
+    static HandleRealtimeUpdate(client, serverVersion, serverModel) {
+      return TodoMultiCollaboration.__default.HandleRealtimeUpdate(client, serverVersion, serverModel);
+    };
+  };
   return \$module;
 })(); // end of module TodoAppCore
 let _module = (function() {

@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
 import { useProjects } from './hooks/useCollaborativeProject.js'
 import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
 import { useAllProjects } from './hooks/useAllProjects.js'
-import App from './dafny/app.js'
+import App from './dafny/app-extras.js'
 
 // Components
 import { AuthForm } from './components/auth'
