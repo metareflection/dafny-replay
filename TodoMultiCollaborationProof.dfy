@@ -30,7 +30,7 @@ module TodoMultiCollaborationProof {
   // Helper Lemmas for Sequence Operations
   // ============================================================================
 
-  lemma NoDupSeqAppend<T(==)>(s: seq<T>, x: T)
+  lemma NoDupSeqAppend<T>(s: seq<T>, x: T)
     requires NoDupSeq(s)
     requires !SeqContains(s, x)
     ensures NoDupSeq(s + [x])
@@ -52,7 +52,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma SeqContainsAppend<T(==)>(s: seq<T>, x: T, y: T)
+  lemma SeqContainsAppend<T>(s: seq<T>, x: T, y: T)
     ensures SeqContains(s + [x], y) <==> SeqContains(s, y) || y == x
   {
     if SeqContains(s + [x], y) {
@@ -73,7 +73,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma RemoveFirstPreservesNoDup<T(==)>(s: seq<T>, x: T)
+  lemma RemoveFirstPreservesNoDup<T>(s: seq<T>, x: T)
     requires NoDupSeq(s)
     ensures NoDupSeq(RemoveFirst(s, x))
     decreases |s|
@@ -115,7 +115,7 @@ module TodoMultiCollaborationProof {
   }
 
   // Helper: elements in RemoveFirst(s, x) are in s
-  lemma RemoveFirstInOriginal<T(==)>(s: seq<T>, x: T, y: T)
+  lemma RemoveFirstInOriginal<T>(s: seq<T>, x: T, y: T)
     requires SeqContains(RemoveFirst(s, x), y)
     ensures SeqContains(s, y)
     decreases |s|
@@ -136,7 +136,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma RemoveFirstSeqContains<T(==)>(s: seq<T>, x: T, y: T)
+  lemma RemoveFirstSeqContains<T>(s: seq<T>, x: T, y: T)
     requires NoDupSeq(s)
     ensures SeqContains(RemoveFirst(s, x), y) <==> (SeqContains(s, y) && y != x)
     decreases |s|
@@ -215,7 +215,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma NoDupSeqTail<T(==)>(s: seq<T>)
+  lemma NoDupSeqTail<T>(s: seq<T>)
     requires |s| > 0
     requires NoDupSeq(s)
     ensures NoDupSeq(s[1..])
@@ -229,7 +229,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma InsertAtPreservesNoDup<T(==)>(s: seq<T>, i: nat, x: T)
+  lemma InsertAtPreservesNoDup<T>(s: seq<T>, i: nat, x: T)
     requires i <= |s|
     requires NoDupSeq(s)
     requires !SeqContains(s, x)
@@ -256,7 +256,7 @@ module TodoMultiCollaborationProof {
     }
   }
 
-  lemma InsertAtSeqContains<T(==)>(s: seq<T>, i: nat, x: T, y: T)
+  lemma InsertAtSeqContains<T>(s: seq<T>, i: nat, x: T, y: T)
     requires i <= |s|
     ensures SeqContains(InsertAt(s, i, x), y) <==> SeqContains(s, y) || y == x
   {
@@ -314,7 +314,7 @@ module TodoMultiCollaborationProof {
   }
 
   // Effect of RemoveFirst on a single lane's contribution
-  lemma RemoveFirst_NotContains<T(==)>(s: seq<T>, x: T, y: T)
+  lemma RemoveFirst_NotContains<T>(s: seq<T>, x: T, y: T)
     requires NoDupSeq(s)
     requires x != y
     ensures SeqContains(RemoveFirst(s, x), y) == SeqContains(s, y)
@@ -452,7 +452,7 @@ module TodoMultiCollaborationProof {
   }
 
   // Helper for SeqContains in tail
-  lemma SeqContainsTail<T(==)>(s: seq<T>, x: T, head: T)
+  lemma SeqContainsTail<T>(s: seq<T>, x: T, head: T)
     requires |s| > 0
     requires s[0] == head
     requires head != x
@@ -465,7 +465,7 @@ module TodoMultiCollaborationProof {
   }
 
   // Connect sequence membership (x in s) to SeqContains
-  lemma SeqMembershipEquivSeqContains<T(==)>(s: seq<T>, x: T)
+  lemma SeqMembershipEquivSeqContains<T>(s: seq<T>, x: T)
     ensures x in s <==> SeqContains(s, x)
   {
     // Both are equivalent to: exists i :: 0 <= i < |s| && s[i] == x
