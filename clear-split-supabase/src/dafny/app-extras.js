@@ -73,43 +73,15 @@ const App = {
     amount: toNumber(s.dtor_amount)
   })),
 
+  // Convert verified Dafny Balances map to plain JS object
   Balances: (m) => {
+    const dafnyBalances = GeneratedApp.Balances(m);
     const result = {};
-    const members = seqToArray(m.dtor_memberList).map(dafnyStringToJs);
-    const expenses = seqToArray(m.dtor_expenses);
-    const settlements = seqToArray(m.dtor_settlements);
-
-    // Initialize all balances to 0
-    members.forEach(member => result[member] = 0);
-
-    // Process expenses
-    expenses.forEach(e => {
-      const paidBy = dafnyStringToJs(e.dtor_paidBy);
-      const amount = toNumber(e.dtor_amount);
-
-      // Payer gets credit for total amount
-      result[paidBy] = (result[paidBy] || 0) + amount;
-
-      // Each participant owes their share
-      if (e.dtor_shares && e.dtor_shares.Keys) {
-        for (const k of e.dtor_shares.Keys.Elements) {
-          const member = dafnyStringToJs(k);
-          const share = toNumber(e.dtor_shares.get(k));
-          result[member] = (result[member] || 0) - share;
-        }
+    if (dafnyBalances && dafnyBalances.Keys) {
+      for (const k of dafnyBalances.Keys.Elements) {
+        result[dafnyStringToJs(k)] = toNumber(dafnyBalances.get(k));
       }
-    });
-
-    // Process settlements
-    settlements.forEach(s => {
-      const from = dafnyStringToJs(s.dtor_from);
-      const to = dafnyStringToJs(s.dtor_to);
-      const amount = toNumber(s.dtor_amount);
-
-      result[from] = (result[from] || 0) + amount;
-      result[to] = (result[to] || 0) - amount;
-    });
-
+    }
     return result;
   },
 
