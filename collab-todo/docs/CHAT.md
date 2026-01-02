@@ -315,3 +315,11 @@ supabase functions deploy dispatch --project-ref <project-ref>
 3. Add due date picker UI
 4. Add tag/member assignment UI on tasks
 5. (Optional) Trash view for soft-deleted tasks
+
+---
+
+## Session #5 - Bug in Dafny -> JS Compiler 
+
+**Date:** 2026-01-01
+
+See BUGS.md in org repo
