@@ -57,23 +57,23 @@ const dafnyStringToJs = (seq) => {
 // ============================================================================
 
 const actionFromJson = (json) => {
-  switch (json.type) {
+  switch (json) {
     case 'Inc':
       return CounterDomain.Action.create_Inc();
     case 'Dec':
       return CounterDomain.Action.create_Dec();
     default:
-      throw new Error(`Unknown Action type: ${json.type}`);
+      throw new Error(`Unknown Action: ${json}`);
   }
 };
 
 const actionToJson = (value) => {
   if (value.is_Inc) {
-    return { type: 'Inc' };
+    return 'Inc';
   } else if (value.is_Dec) {
-    return { type: 'Dec' };
+    return 'Dec';
   }
-  return { type: 'Unknown' };
+  return 'Unknown';
 };
 
 const historyFromJson = (json) => {

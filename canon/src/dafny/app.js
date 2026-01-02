@@ -169,23 +169,23 @@ const nodeToJson = (value) => {
 };
 
 const axisFromJson = (json) => {
-  switch (json.type) {
+  switch (json) {
     case 'X':
       return Canon.Axis.create_X();
     case 'Y':
       return Canon.Axis.create_Y();
     default:
-      throw new Error(`Unknown Axis type: ${json.type}`);
+      throw new Error(`Unknown Axis: ${json}`);
   }
 };
 
 const axisToJson = (value) => {
   if (value.is_X) {
-    return { type: 'X' };
+    return 'X';
   } else if (value.is_Y) {
-    return { type: 'Y' };
+    return 'Y';
   }
-  return { type: 'Unknown' };
+  return 'Unknown';
 };
 
 const constraintFromJson = (json) => {

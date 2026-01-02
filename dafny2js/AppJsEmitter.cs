@@ -168,6 +168,14 @@ public class AppJsEmitter
     }
   }
 
+  /// <summary>
+  /// Check if a datatype is "enum-like" (all constructors have no fields).
+  /// </summary>
+  bool IsEnumLike(DatatypeInfo dt)
+  {
+    return dt.Constructors.Count > 1 && dt.Constructors.All(c => c.Fields.Count == 0);
+  }
+
   void GenerateFromJson(DatatypeInfo dt)
   {
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}FromJson";
@@ -178,6 +186,19 @@ public class AppJsEmitter
       // Single constructor - no switch needed
       var ctor = dt.Constructors[0];
       GenerateConstructorFromJson(dt, ctor, "  ");
+    }
+    else if (IsEnumLike(dt))
+    {
+      // Enum-like: json is just the variant name as a string
+      _sb.AppendLine("  switch (json) {");
+      foreach (var ctor in dt.Constructors)
+      {
+        _sb.AppendLine($"    case '{ctor.Name}':");
+        _sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+      }
+      _sb.AppendLine("    default:");
+      _sb.AppendLine($"      throw new Error(`Unknown {dt.Name}: ${{json}}`);");
+      _sb.AppendLine("  }");
     }
     else
     {
@@ -242,6 +263,19 @@ public class AppJsEmitter
       // Single constructor
       var ctor = dt.Constructors[0];
       GenerateConstructorToJson(dt, ctor, "  ", false);
+    }
+    else if (IsEnumLike(dt))
+    {
+      // Enum-like: return just the variant name as a string
+      for (int i = 0; i < dt.Constructors.Count; i++)
+      {
+        var ctor = dt.Constructors[i];
+        var prefix = i == 0 ? "if" : "} else if";
+        _sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        _sb.AppendLine($"    return '{ctor.Name}';");
+      }
+      _sb.AppendLine("  }");
+      _sb.AppendLine("  return 'Unknown';");
     }
     else
     {

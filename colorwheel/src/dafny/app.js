@@ -73,7 +73,7 @@ const colorToJson = (value) => {
 };
 
 const moodFromJson = (json) => {
-  switch (json.type) {
+  switch (json) {
     case 'Vibrant':
       return ColorWheelSpec.Mood.create_Vibrant();
     case 'SoftMuted':
@@ -89,31 +89,31 @@ const moodFromJson = (json) => {
     case 'Custom':
       return ColorWheelSpec.Mood.create_Custom();
     default:
-      throw new Error(`Unknown Mood type: ${json.type}`);
+      throw new Error(`Unknown Mood: ${json}`);
   }
 };
 
 const moodToJson = (value) => {
   if (value.is_Vibrant) {
-    return { type: 'Vibrant' };
+    return 'Vibrant';
   } else if (value.is_SoftMuted) {
-    return { type: 'SoftMuted' };
+    return 'SoftMuted';
   } else if (value.is_Pastel) {
-    return { type: 'Pastel' };
+    return 'Pastel';
   } else if (value.is_DeepJewel) {
-    return { type: 'DeepJewel' };
+    return 'DeepJewel';
   } else if (value.is_Earth) {
-    return { type: 'Earth' };
+    return 'Earth';
   } else if (value.is_Neon) {
-    return { type: 'Neon' };
+    return 'Neon';
   } else if (value.is_Custom) {
-    return { type: 'Custom' };
+    return 'Custom';
   }
-  return { type: 'Unknown' };
+  return 'Unknown';
 };
 
 const harmonyFromJson = (json) => {
-  switch (json.type) {
+  switch (json) {
     case 'Complementary':
       return ColorWheelSpec.Harmony.create_Complementary();
     case 'Triadic':
@@ -127,25 +127,25 @@ const harmonyFromJson = (json) => {
     case 'Custom':
       return ColorWheelSpec.Harmony.create_Custom();
     default:
-      throw new Error(`Unknown Harmony type: ${json.type}`);
+      throw new Error(`Unknown Harmony: ${json}`);
   }
 };
 
 const harmonyToJson = (value) => {
   if (value.is_Complementary) {
-    return { type: 'Complementary' };
+    return 'Complementary';
   } else if (value.is_Triadic) {
-    return { type: 'Triadic' };
+    return 'Triadic';
   } else if (value.is_Analogous) {
-    return { type: 'Analogous' };
+    return 'Analogous';
   } else if (value.is_SplitComplement) {
-    return { type: 'SplitComplement' };
+    return 'SplitComplement';
   } else if (value.is_Square) {
-    return { type: 'Square' };
+    return 'Square';
   } else if (value.is_Custom) {
-    return { type: 'Custom' };
+    return 'Custom';
   }
-  return { type: 'Unknown' };
+  return 'Unknown';
 };
 
 const modelFromJson = (json) => {

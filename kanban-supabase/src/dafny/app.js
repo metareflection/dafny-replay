@@ -128,7 +128,7 @@ const modelToJson = (value) => {
 };
 
 const errFromJson = (json) => {
-  switch (json.type) {
+  switch (json) {
     case 'MissingColumn':
       return KanbanDomain.Err.create_MissingColumn();
     case 'MissingCard':
@@ -140,23 +140,23 @@ const errFromJson = (json) => {
     case 'Rejected':
       return KanbanDomain.Err.create_Rejected();
     default:
-      throw new Error(`Unknown Err type: ${json.type}`);
+      throw new Error(`Unknown Err: ${json}`);
   }
 };
 
 const errToJson = (value) => {
   if (value.is_MissingColumn) {
-    return { type: 'MissingColumn' };
+    return 'MissingColumn';
   } else if (value.is_MissingCard) {
-    return { type: 'MissingCard' };
+    return 'MissingCard';
   } else if (value.is_WipExceeded) {
-    return { type: 'WipExceeded' };
+    return 'WipExceeded';
   } else if (value.is_BadAnchor) {
-    return { type: 'BadAnchor' };
+    return 'BadAnchor';
   } else if (value.is_Rejected) {
-    return { type: 'Rejected' };
+    return 'Rejected';
   }
-  return { type: 'Unknown' };
+  return 'Unknown';
 };
 
 const optionFromJson = (json) => {
