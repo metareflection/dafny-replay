@@ -233,68 +233,6 @@ abstract module {:compile false} MultiCollaboration {
   }
 
   // ===========================================================================
-  // Flush: send pending actions to server
-  // ===========================================================================
-
-  datatype FlushResult = FlushResult(
-    server: ServerState,
-    client: ClientState,
-    reply: Reply
-  )
-
-  datatype FlushAllResult = FlushAllResult(
-    server: ServerState,
-    client: ClientState,
-    replies: seq<Reply>
-  )
-
-  // Flush one pending action to server
-  function FlushOne(server: ServerState, client: ClientState): D.Result<FlushResult, D.Err>
-    requires client.baseVersion <= Version(server)
-    requires D.Inv(server.present)
-  {
-    if |client.pending| == 0 then D.Err(D.RejectErr())
-    else
-      var action := client.pending[0];
-      var rest := client.pending[1..];
-
-      var (newServer, reply) := Dispatch(server, client.baseVersion, action);
-
-      match reply
-        case Accepted(newVersion, newPresent, applied, noChange) =>
-          // Update client to match server
-          var newClient := ClientState(newVersion, newPresent, rest);
-          D.Ok(FlushResult(newServer, newClient, reply))
-
-        case Rejected(reason, rebased) =>
-          // Drop the action and sync to server state
-          var newClient := ClientState(Version(server), server.present, rest);
-          D.Ok(FlushResult(newServer, newClient, reply))
-  }
-
-  // Flush all pending actions
-  function FlushAll(server: ServerState, client: ClientState): FlushAllResult
-    requires client.baseVersion <= Version(server)
-    requires D.Inv(server.present)
-    ensures D.Inv(FlushAll(server, client).server.present)
-    decreases |client.pending|
-  {
-    if |client.pending| == 0 then
-      FlushAllResult(server, client, [])
-    else
-      var flushResult := FlushOne(server, client);
-      match flushResult
-        case Err(_) =>
-          FlushAllResult(server, client, [])
-        case Ok(result) =>
-          if result.client.baseVersion <= Version(result.server) then
-            var rest := FlushAll(result.server, result.client);
-            FlushAllResult(rest.server, rest.client, [result.reply] + rest.replies)
-          else
-            FlushAllResult(result.server, result.client, [result.reply])
-  }
-
-  // ===========================================================================
   // Client reply handling
   // ===========================================================================
 
