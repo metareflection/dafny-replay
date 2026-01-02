@@ -17,10 +17,12 @@ This document describes the verified domain specification for the collaborative 
 - Lists are ordered within a project
 - Each list has an internal **ListId** (nat, auto-allocated)
 - Each list has a user-visible **ListName** (string, editable)
+- **List names must be unique** within the project (case-insensitive)
 - Lists can be reordered using anchor-based placement (AtEnd, Before, After)
 
 ### Tasks
 - Tasks belong to exactly one list (when not deleted)
+- **Task titles must be unique** within each list (case-insensitive)
 - Each task has:
   - **title** (string)
   - **notes** (string)
@@ -36,6 +38,7 @@ This document describes the verified domain specification for the collaborative 
 ### Tags
 - Tags are project-scoped (not global)
 - Each tag has a **name** (string)
+- **Tag names must be unique** within the project (case-insensitive)
 - Tags can be attached to multiple tasks
 - Deleting a tag removes it from all tasks
 
@@ -50,17 +53,17 @@ This document describes the verified domain specification for the collaborative 
 ## Actions
 
 ### List Operations
-- **AddList(name)** - Creates a new list with the given name
-- **RenameList(listId, newName)** - Changes the display name
+- **AddList(name)** - Creates a new list with the given name (fails with DuplicateList if name exists)
+- **RenameList(listId, newName)** - Changes the display name (fails with DuplicateList if name exists)
 - **DeleteList(listId)** - Removes list and all its tasks (idempotent)
 - **MoveList(listId, place)** - Reorders list using anchor placement
 
 ### Task CRUD
-- **AddTask(listId, title)** - Creates task at end of list
-- **EditTask(taskId, title, notes)** - Updates title and notes
+- **AddTask(listId, title)** - Creates task at end of list (fails with DuplicateTask if title exists in list)
+- **EditTask(taskId, title, notes)** - Updates title and notes (fails with DuplicateTask if title exists in list)
 - **DeleteTask(taskId, userId)** - Soft deletes (marks deleted, records who and which list)
-- **RestoreTask(taskId)** - Restores to original list (or first list if original was deleted)
-- **MoveTask(taskId, toList, place)** - Moves between/within lists
+- **RestoreTask(taskId)** - Restores to original list (fails with DuplicateTask if title now conflicts)
+- **MoveTask(taskId, toList, place)** - Moves between/within lists (fails with DuplicateTask if title exists in destination)
 
 ### Task Status
 - **CompleteTask(taskId)** - Marks as completed (stays in place)
@@ -76,8 +79,8 @@ This document describes the verified domain specification for the collaborative 
 - **RemoveTagFromTask(taskId, tagId)** - Detaches tag
 
 ### Tag Operations
-- **CreateTag(name)** - Creates new project-level tag
-- **RenameTag(tagId, newName)** - Changes tag name
+- **CreateTag(name)** - Creates new project-level tag (fails with DuplicateTag if name exists)
+- **RenameTag(tagId, newName)** - Changes tag name (fails with DuplicateTag if name exists)
 - **DeleteTag(tagId)** - Removes tag from project and all tasks
 
 ### Project Operations
@@ -101,6 +104,9 @@ This document describes the verified domain specification for the collaborative 
 10. **Personal mode constraint** - Personal projects have exactly one member (owner)
 11. **Collaborative mode constraint** - Collaborative projects have at least one member
 12. **Valid dates** - All due dates are valid calendar dates
+13. **Unique list names** - No two lists have the same name (case-insensitive)
+14. **Unique task titles per list** - No two tasks in the same list have the same title (case-insensitive)
+15. **Unique tag names** - No two tags have the same name (case-insensitive)
 
 ---
 

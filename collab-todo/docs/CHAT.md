@@ -405,3 +405,63 @@ if (reply.is_Accepted) {
 - Adding duplicate returns `DuplicateList` error
 - Renaming to existing name returns `DuplicateList` error
 - Renaming to same name (idempotent) succeeds
+
+---
+
+## Session #7 - Unique Task Titles & Tag Names
+
+**Date:** 2026-01-01
+
+### Goals
+Extend uniqueness constraints to task titles (within each list) and tag names (project-scoped).
+
+### Analysis of Potential Duplicates
+
+| Item | Status Before | Status After |
+|------|---------------|--------------|
+| List names | Fixed (Session #6) | Fixed |
+| Task titles within list | NOT ENFORCED | Fixed |
+| Tag names | NOT ENFORCED | Fixed |
+| Member userIds | OK (set prevents dups) | OK |
+
+### Changes Made
+
+**1. New Error Types** (lines 126-127):
+```dafny
+| DuplicateTask        // Task with same title already exists in list
+| DuplicateTag         // Tag with same name already exists in project
+```
+
+**2. New Helper Predicates**:
+- `TaskTitleExistsInList(m, listId, title, excludeTask)` - case-insensitive check for task title in a specific list
+- `TagNameExists(m, name, excludeTag)` - case-insensitive check for tag name in project
+
+**3. New Invariants**:
+- **N**: Task titles are unique within each list (case-insensitive)
+- **O**: Tag names are unique within the project (case-insensitive)
+- Also updated **M** to use `EqIgnoreCase` for consistency
+
+**4. Updated Actions**:
+- `AddTask` - fails with `DuplicateTask` if title exists in list
+- `EditTask` - fails with `DuplicateTask` if new title exists in task's current list
+- `MoveTask` - fails with `DuplicateTask` if title exists in destination list
+- `RestoreTask` - fails with `DuplicateTask` if title now conflicts in target list
+- `CreateTag` - fails with `DuplicateTag` if name exists
+- `RenameTag` - fails with `DuplicateTag` if new name exists
+
+### Verification Status
+- **27 verified, 0 errors**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiCollaboration.dfy` | Added DuplicateTask/DuplicateTag errors, helper predicates, invariants N/O, updated 6 actions |
+| `docs/DESIGN.md` | Updated to reflect new uniqueness constraints |
+
+### Behavior Summary
+- "Buy milk" and "buy MILK" in same list are now treated as duplicates
+- Moving task to list with same title fails
+- Restoring deleted task fails if title now conflicts
+- "urgent" and "URGENT" tags are treated as duplicates
+- All comparisons are case-insensitive

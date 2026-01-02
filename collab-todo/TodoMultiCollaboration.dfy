@@ -123,6 +123,8 @@ module TodoDomain refines Domain {
     | MissingTag
     | MissingUser
     | DuplicateList
+    | DuplicateTask        // Task with same title already exists in list
+    | DuplicateTag         // Tag with same name already exists in project
     | BadAnchor
     | NotAMember           // User not in project members
     | PersonalProject      // Tried to add member to personal project
@@ -247,9 +249,20 @@ module TodoDomain refines Domain {
     && (forall id :: id in m.taskData && m.taskData[id].dueDate.Some?
           ==> ValidDate(m.taskData[id].dueDate.value))
 
-    // M: List names are unique within the project
+    // M: List names are unique within the project (case-insensitive)
     && (forall l1, l2 :: l1 in m.listNames && l2 in m.listNames && l1 != l2
-          ==> m.listNames[l1] != m.listNames[l2])
+          ==> !EqIgnoreCase(m.listNames[l1], m.listNames[l2]))
+
+    // N: Task titles are unique within each list (case-insensitive)
+    && (forall l, t1, t2 :: l in m.tasks
+          && SeqContains(m.tasks[l], t1) && t1 in m.taskData && !m.taskData[t1].deleted
+          && SeqContains(m.tasks[l], t2) && t2 in m.taskData && !m.taskData[t2].deleted
+          && t1 != t2
+          ==> !EqIgnoreCase(m.taskData[t1].title, m.taskData[t2].title))
+
+    // O: Tag names are unique within the project (case-insensitive)
+    && (forall t1, t2 :: t1 in m.tags && t2 in m.tags && t1 != t2
+          ==> !EqIgnoreCase(m.tags[t1].name, m.tags[t2].name))
   }
 
   // ===========================================================================
@@ -435,6 +448,27 @@ module TodoDomain refines Domain {
       EqIgnoreCase(m.listNames[l], name)
   }
 
+  // Check if a task title exists in a specific list (optionally excluding one task, for edit)
+  // Uses case-insensitive comparison
+  predicate TaskTitleExistsInList(m: Model, listId: ListId, title: string, excludeTask: Option<TaskId>)
+  {
+    listId in m.tasks &&
+    exists taskId :: taskId in m.taskData &&
+      SeqContains(m.tasks[listId], taskId) &&
+      !m.taskData[taskId].deleted &&
+      (excludeTask.None? || taskId != excludeTask.value) &&
+      EqIgnoreCase(m.taskData[taskId].title, title)
+  }
+
+  // Check if a tag name exists (optionally excluding one tag, for rename)
+  // Uses case-insensitive comparison
+  predicate TagNameExists(m: Model, name: string, excludeTag: Option<TagId>)
+  {
+    exists t :: t in m.tags &&
+      (excludeTag.None? || t != excludeTag.value) &&
+      EqIgnoreCase(m.tags[t].name, name)
+  }
+
   // ===========================================================================
   // TryStep: Apply an action to the model
   // ===========================================================================
@@ -505,6 +539,7 @@ module TodoDomain refines Domain {
 
       case AddTask(listId, title) =>
         if !SeqContains(m.lists, listId) then Err(MissingList)
+        else if TaskTitleExistsInList(m, listId, title, None) then Err(DuplicateTask)
         else
           var id := m.nextTaskId;
           var newTask := Task(title, "", false, false, None, {}, {}, false, None, None);
@@ -520,14 +555,18 @@ module TodoDomain refines Domain {
         if !(taskId in m.taskData) then Err(MissingTask)
         else if m.taskData[taskId].deleted then Err(TaskDeleted)
         else
-          var t := m.taskData[taskId];
-          var updated := Task(title, notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
-          Ok(Model(
-            m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
-            m.taskData[taskId := updated], m.tags,
-            m.nextListId, m.nextTaskId, m.nextTagId
-          ))
+          var currentList := FindListForTask(m, taskId);
+          if currentList.Some? && TaskTitleExistsInList(m, currentList.value, title, Some(taskId))
+          then Err(DuplicateTask)
+          else
+            var t := m.taskData[taskId];
+            var updated := Task(title, notes, t.completed, t.starred, t.dueDate,
+                                t.assignees, t.tags, t.deleted, t.deletedBy, t.deletedFromList);
+            Ok(Model(
+              m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks,
+              m.taskData[taskId := updated], m.tags,
+              m.nextListId, m.nextTaskId, m.nextTagId
+            ))
 
       case DeleteTask(taskId, userId) =>
         if !(taskId in m.taskData) then Ok(m)  // Idempotent
@@ -552,24 +591,30 @@ module TodoDomain refines Domain {
         else
           // Restore: clear deleted flag, add back to original list (or first if original gone)
           var t := m.taskData[taskId];
-          var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
-                              t.assignees, t.tags, false, None, None);
           // Try original list first, fall back to first list
           var targetList :=
             if t.deletedFromList.Some? && SeqContains(m.lists, t.deletedFromList.value)
             then t.deletedFromList.value
             else m.lists[0];
-          Ok(Model(
-            m.mode, m.owner, m.members, m.lists, m.listNames,
-            m.tasks[targetList := TaskList(m, targetList) + [taskId]],
-            m.taskData[taskId := updated], m.tags,
-            m.nextListId, m.nextTaskId, m.nextTagId
-          ))
+          // Check for duplicate title in target list
+          if TaskTitleExistsInList(m, targetList, t.title, None) then Err(DuplicateTask)
+          else
+            var updated := Task(t.title, t.notes, t.completed, t.starred, t.dueDate,
+                                t.assignees, t.tags, false, None, None);
+            Ok(Model(
+              m.mode, m.owner, m.members, m.lists, m.listNames,
+              m.tasks[targetList := TaskList(m, targetList) + [taskId]],
+              m.taskData[taskId := updated], m.tags,
+              m.nextListId, m.nextTaskId, m.nextTagId
+            ))
 
       case MoveTask(taskId, toList, taskPlace) =>
         if !(taskId in m.taskData) then Err(MissingTask)
         else if m.taskData[taskId].deleted then Err(TaskDeleted)
         else if !SeqContains(m.lists, toList) then Err(MissingList)
+        // Check for duplicate title in destination list (exclude this task since it's moving)
+        else if TaskTitleExistsInList(m, toList, m.taskData[taskId].title, Some(taskId))
+        then Err(DuplicateTask)
         else
           var tasks1 := map l | l in m.tasks :: RemoveFirst(m.tasks[l], taskId);
           var tgt := Get(tasks1, toList, []);
@@ -725,15 +770,18 @@ module TodoDomain refines Domain {
       // -----------------------------------------------------------------------
 
       case CreateTag(name) =>
-        var id := m.nextTagId;
-        Ok(Model(
-          m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks, m.taskData,
-          m.tags[id := Tag(name)],
-          m.nextListId, m.nextTaskId, m.nextTagId + 1
-        ))
+        if TagNameExists(m, name, None) then Err(DuplicateTag)
+        else
+          var id := m.nextTagId;
+          Ok(Model(
+            m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks, m.taskData,
+            m.tags[id := Tag(name)],
+            m.nextListId, m.nextTaskId, m.nextTagId + 1
+          ))
 
       case RenameTag(tagId, newName) =>
         if !(tagId in m.tags) then Err(MissingTag)
+        else if TagNameExists(m, newName, Some(tagId)) then Err(DuplicateTag)
         else Ok(Model(
           m.mode, m.owner, m.members, m.lists, m.listNames, m.tasks, m.taskData,
           m.tags[tagId := Tag(newName)],
