@@ -123,14 +123,16 @@ const modelToJson = (value) => {
 
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
-    case 'Ok':
+    case 'Ok': {
       return ClearSplit.Result.create_Ok(
         T_fromJson(json.value)
       );
-    case 'Error':
+    }
+    case 'Error': {
       return ClearSplit.Result.create_Error(
         E_fromJson(json.error)
       );
+    }
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
@@ -153,14 +155,17 @@ const resultToJson = (value, T_toJson, E_toJson) => {
 
 const errFromJson = (json) => {
   switch (json.type) {
-    case 'NotMember':
+    case 'NotMember': {
       return ClearSplit.Err.create_NotMember(
         _dafny.Seq.UnicodeFromString(json.p)
       );
-    case 'BadExpense':
+    }
+    case 'BadExpense': {
       return ClearSplit.Err.create_BadExpense();
-    case 'BadSettlement':
+    }
+    case 'BadSettlement': {
       return ClearSplit.Err.create_BadSettlement();
+    }
     default:
       throw new Error(`Unknown Err type: ${json.type}`);
   }
@@ -182,14 +187,16 @@ const errToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'AddExpense':
+    case 'AddExpense': {
       return ClearSplit.Action.create_AddExpense(
         expenseFromJson(json.e)
       );
-    case 'AddSettlement':
+    }
+    case 'AddSettlement': {
       return ClearSplit.Action.create_AddSettlement(
         settlementFromJson(json.s)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }

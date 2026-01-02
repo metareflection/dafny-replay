@@ -306,8 +306,9 @@ public class AppJsEmitter
       _sb.AppendLine("  switch (json.type) {");
       foreach (var ctor in dt.Constructors)
       {
-        _sb.AppendLine($"    case '{ctor.Name}':");
+        _sb.AppendLine($"    case '{ctor.Name}': {{");
         GenerateConstructorFromJson(dt, ctor, "      ", typeParamConverters);
+        _sb.AppendLine($"    }}");
       }
       _sb.AppendLine("    default:");
       _sb.AppendLine($"      throw new Error(`Unknown {dt.Name} type: ${{json.type}}`);");

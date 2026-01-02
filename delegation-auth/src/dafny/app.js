@@ -105,25 +105,29 @@ const modelToJson = (value) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'AddSubject':
+    case 'AddSubject': {
       return DelegationAuthDomain.Action.create_AddSubject(
         _dafny.Seq.UnicodeFromString(json.s)
       );
-    case 'Grant':
+    }
+    case 'Grant': {
       return DelegationAuthDomain.Action.create_Grant(
         _dafny.Seq.UnicodeFromString(json.s),
         _dafny.Seq.UnicodeFromString(json.cap)
       );
-    case 'Delegate':
+    }
+    case 'Delegate': {
       return DelegationAuthDomain.Action.create_Delegate(
         _dafny.Seq.UnicodeFromString(json.from),
         _dafny.Seq.UnicodeFromString(json.to),
         _dafny.Seq.UnicodeFromString(json.cap)
       );
-    case 'Revoke':
+    }
+    case 'Revoke': {
       return DelegationAuthDomain.Action.create_Revoke(
         new BigNumber(json.eid)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }

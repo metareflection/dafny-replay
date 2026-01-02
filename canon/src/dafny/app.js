@@ -58,44 +58,52 @@ const dafnyStringToJs = (seq) => {
 
 const actionFromJson = (json) => {
   switch (json.type) {
-    case 'AddNode':
+    case 'AddNode': {
       return CanonDomain.Action.create_AddNode(
         _dafny.Seq.UnicodeFromString(json.id),
         new BigNumber(json.x),
         new BigNumber(json.y)
       );
-    case 'AddAlign':
+    }
+    case 'AddAlign': {
       return CanonDomain.Action.create_AddAlign(
         _dafny.Seq.of(...(json.sel || []).map(x => _dafny.Seq.UnicodeFromString(x)))
       );
-    case 'AddEvenSpace':
+    }
+    case 'AddEvenSpace': {
       return CanonDomain.Action.create_AddEvenSpace(
         _dafny.Seq.of(...(json.sel || []).map(x => _dafny.Seq.UnicodeFromString(x)))
       );
-    case 'AddEdge':
+    }
+    case 'AddEdge': {
       return CanonDomain.Action.create_AddEdge(
         _dafny.Seq.UnicodeFromString(json.from),
         _dafny.Seq.UnicodeFromString(json.to)
       );
-    case 'DeleteConstraint':
+    }
+    case 'DeleteConstraint': {
       return CanonDomain.Action.create_DeleteConstraint(
         new BigNumber(json.cid)
       );
-    case 'DeleteEdge':
+    }
+    case 'DeleteEdge': {
       return CanonDomain.Action.create_DeleteEdge(
         _dafny.Seq.UnicodeFromString(json.from),
         _dafny.Seq.UnicodeFromString(json.to)
       );
-    case 'RemoveNode':
+    }
+    case 'RemoveNode': {
       return CanonDomain.Action.create_RemoveNode(
         _dafny.Seq.UnicodeFromString(json.nodeId)
       );
-    case 'MoveNode':
+    }
+    case 'MoveNode': {
       return CanonDomain.Action.create_MoveNode(
         _dafny.Seq.UnicodeFromString(json.id),
         new BigNumber(json.newX),
         new BigNumber(json.newY)
       );
+    }
     default:
       throw new Error(`Unknown Action type: ${json.type}`);
   }
@@ -190,18 +198,20 @@ const axisToJson = (value) => {
 
 const constraintFromJson = (json) => {
   switch (json.type) {
-    case 'Align':
+    case 'Align': {
       return Canon.Constraint.create_Align(
         new BigNumber(json.cid),
         _dafny.Seq.of(...(json.targets || []).map(x => _dafny.Seq.UnicodeFromString(x))),
         axisFromJson(json.axis)
       );
-    case 'EvenSpace':
+    }
+    case 'EvenSpace': {
       return Canon.Constraint.create_EvenSpace(
         new BigNumber(json.cid),
         _dafny.Seq.of(...(json.targets || []).map(x => _dafny.Seq.UnicodeFromString(x))),
         axisFromJson(json.axis)
       );
+    }
     default:
       throw new Error(`Unknown Constraint type: ${json.type}`);
   }
