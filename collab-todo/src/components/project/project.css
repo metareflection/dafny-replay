@@ -1,14 +1,14 @@
-/* Project component styles */
+/* Project component styles - Refined and smooth */
 
 /* Project Header */
 .project-header {
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-xl);
 }
 
 .project-header__top {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   margin-bottom: var(--space-md);
 }
 
@@ -16,9 +16,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   color: var(--color-accent);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
 }
 
 .project-header__icon svg {
@@ -28,18 +31,23 @@
 .project-header__info {
   flex: 1;
   min-width: 0;
+  padding-top: var(--space-xs);
 }
 
 .project-header__title {
+  font-family: var(--font-family-display);
   font-size: var(--font-size-xxl);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
   margin: 0;
+  color: var(--color-text-primary);
 }
 
 .project-header__subtitle {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  margin-top: var(--space-xxs);
 }
 
 .project-header__menu {
@@ -49,25 +57,33 @@
   width: 32px;
   height: 32px;
   color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .project-header__menu:hover {
   color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
 }
 
 .project-header__notes {
-  margin-top: var(--space-sm);
+  margin-top: var(--space-md);
 }
 
 .project-header__notes-input {
   width: 100%;
-  padding: var(--space-sm);
+  padding: var(--space-md);
   border: none;
   background: transparent;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   resize: none;
-  min-height: 24px;
+  min-height: 32px;
+  line-height: var(--line-height-relaxed);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
 .project-header__notes-input:focus {
@@ -86,21 +102,24 @@
   gap: var(--space-sm);
   padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--color-border-light);
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .filter-tabs__list {
   display: flex;
-  gap: var(--space-xs);
+  gap: var(--space-xxs);
 }
 
 .filter-tabs__tab {
-  padding: var(--space-xs) var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   background: transparent;
-  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .filter-tabs__tab:hover {
@@ -117,18 +136,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .filter-tabs__more:hover {
   color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
 }
 
 /* Project View - Smart list views */
 .project-view {
-  max-width: 600px;
+  max-width: 640px;
 }
 
 .project-view__section {
@@ -141,7 +165,7 @@
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-md);
   padding-bottom: var(--space-xs);
   border-bottom: 1px solid var(--color-border-light);
 }
@@ -149,12 +173,13 @@
 /* Logged items link */
 .project-view__logged-link {
   display: block;
-  padding: var(--space-md) 0;
+  padding: var(--space-lg) 0;
   font-size: var(--font-size-sm);
   color: var(--color-accent);
   text-align: center;
+  transition: color var(--transition-fast);
 }
 
 .project-view__logged-link:hover {
-  text-decoration: underline;
+  color: var(--color-accent-hover);
 }

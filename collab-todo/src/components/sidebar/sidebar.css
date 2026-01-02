@@ -1,4 +1,4 @@
-/* Sidebar component styles */
+/* Sidebar component styles - Refined and smooth */
 
 /* Sidebar Item */
 .sidebar-item {
@@ -6,10 +6,14 @@
   align-items: center;
   gap: var(--space-sm);
   width: 100%;
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   text-align: left;
   color: var(--color-text-primary);
-  transition: background var(--transition-fast);
+  border-radius: var(--radius-sm);
+  margin: 1px 0;
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sidebar-item:hover {
@@ -18,10 +22,15 @@
 
 .sidebar-item--selected {
   background: var(--color-bg-selected);
+  color: var(--color-accent);
+}
+
+.sidebar-item--selected:hover {
+  background: var(--color-bg-selected);
 }
 
 .sidebar-item--indent {
-  padding-left: var(--space-xl);
+  padding-left: var(--space-xxl);
 }
 
 .sidebar-item__icon {
@@ -31,6 +40,7 @@
   width: 20px;
   height: 20px;
   color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .sidebar-item--selected .sidebar-item__icon {
@@ -47,20 +57,22 @@
 
 /* Smart Lists */
 .smart-lists {
-  padding: var(--space-sm) 0;
+  padding: var(--space-sm) var(--space-sm);
   border-bottom: 1px solid var(--color-border-light);
 }
 
 /* Project List */
 .project-list {
-  padding: var(--space-sm) 0;
+  padding: var(--space-sm) var(--space-sm);
+  flex: 1;
+  overflow-y: auto;
 }
 
 .project-list__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-sm);
   margin-bottom: var(--space-xs);
 }
 
@@ -76,13 +88,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .project-list__add-btn:hover {
-  color: var(--color-text-secondary);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
 }
 
 .project-list__form {
@@ -90,11 +107,15 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
 }
 
 .project-list__form input {
   font-size: var(--font-size-sm);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
 }
 
 .project-list__form-actions {
@@ -104,14 +125,27 @@
 
 .project-list__form-actions button {
   flex: 1;
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.project-list__form-actions button:hover {
+  background: var(--color-bg-hover);
 }
 
 .project-list__form-actions button[type="submit"] {
   background: var(--color-accent);
   color: white;
+}
+
+.project-list__form-actions button[type="submit"]:hover {
+  background: var(--color-accent-hover);
 }
 
 .project-list__form-actions button[type="submit"]:disabled {
@@ -120,7 +154,7 @@
 
 .project-list__loading,
 .project-list__empty {
-  padding: var(--space-md);
+  padding: var(--space-lg);
   text-align: center;
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
@@ -145,14 +179,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 24px;
+  width: 22px;
+  height: 28px;
   color: var(--color-text-tertiary);
   flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .project-list__expand-btn:hover {
   color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
 }
 
 .project-list__project-btn {
@@ -160,8 +200,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-sm);
   text-align: left;
+  border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
 }
 
@@ -173,9 +214,14 @@
   background: var(--color-bg-selected);
 }
 
+.project-list__project-btn--selected:hover {
+  background: var(--color-bg-selected);
+}
+
 .project-list__project-icon {
   color: var(--color-accent);
   fill: var(--color-accent);
+  flex-shrink: 0;
 }
 
 .project-list__project-name {
@@ -189,21 +235,27 @@
 .project-list__lists {
   display: flex;
   flex-direction: column;
+  margin-left: var(--space-sm);
 }
 
 .project-list__add-list-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: var(--color-text-tertiary);
   flex-shrink: 0;
   margin-right: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
 }
 
 .project-list__add-list-btn:hover {
   color: var(--color-accent);
+  background: var(--color-accent-light);
 }
 
 .project-list__add-list-form {
@@ -214,7 +266,7 @@
 .project-list__add-list-form input {
   width: 100%;
   font-size: var(--font-size-sm);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg);
@@ -223,4 +275,5 @@
 .project-list__add-list-form input:focus {
   outline: none;
   border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
 }

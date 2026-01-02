@@ -1,10 +1,14 @@
-/* Global styles - Things for Mac inspired */
+/* Global styles - Refined and smooth */
 @import './variables.css';
 
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 html, body, #root {
@@ -20,6 +24,8 @@ body {
   background-color: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: var(--letter-spacing-normal);
 }
 
 /* Reset button styles */
@@ -31,11 +37,26 @@ button {
   cursor: pointer;
   color: inherit;
   padding: 0;
+  border-radius: var(--radius-sm);
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.4;
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 /* Reset input styles */
@@ -48,10 +69,20 @@ input, textarea {
   padding: var(--space-sm) var(--space-md);
   outline: none;
   width: 100%;
+  border-radius: var(--radius-sm);
+  transition: 
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+input:hover:not(:focus):not(:disabled) {
+  border-color: var(--color-text-tertiary);
 }
 
 input:focus, textarea:focus {
   border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
 }
 
 input::placeholder, textarea::placeholder {
@@ -67,13 +98,14 @@ ul, ol {
 a {
   color: var(--color-accent);
   text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--color-accent-hover);
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - subtle and refined */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -85,10 +117,21 @@ a:hover {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-tertiary);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 /* Selection */
@@ -126,4 +169,10 @@ a:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Focus ring utility */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
