@@ -269,17 +269,23 @@ abstract module EffectSystemProperties {
   // - FIFO: each accept/reject removes exactly one action from front
 
   // ===========================================================================
-  // SYSTEM PROPERTY 6: Convergence
+  // SYSTEM PROPERTY 6: Quiescence
   // ===========================================================================
 
-  // When pending is empty, client model reflects server state
-  // (client's present was synced from server, no local changes pending)
-  lemma ConvergenceWhenSynced(es: EffectState)
+  // When pending is empty, the client's optimistic view equals its base view.
+  // This means the UI shows exactly what came from the server, with no
+  // local modifications layered on top.
+  //
+  // Combined with the other properties, this gives us:
+  // - User action enters pending (UserActionEntersPending)
+  // - Action eventually processed (NoSilentDataLoss + Progress)
+  // - When all actions processed, client shows server state (Quiescence)
+  lemma Quiescence(es: EffectState)
     requires E.Inv(es)
     requires !E.HasPending(es)
     ensures E.MC.ClientModel(es.client) == es.client.present
-            // Client's optimistic view equals its base (no pending reapplied)
+    ensures es.client.pending == []
   {
-    // ClientModel(client) is defined as client.present, so this is trivial
+    // When pending is empty, ReapplyPending is identity, so ClientModel = present
   }
 }

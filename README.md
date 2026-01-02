@@ -35,7 +35,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Replay                 | Local UI state                 | Undo/redo preserves global invariants |
 | Authority              | Client–server                  | State always satisfies invariants |
 | Multi-Collaboration    | Client–server, offline clients | State satisfies invariants; Anchor-based moves, candidate fallback, minimal rejection |
-| Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, pending preservation (`pending' == pending[1..]`) |
+| Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, pending preservation, no silent data loss |
 
 ### List of Apps
 
@@ -211,6 +211,13 @@ Events include user actions, dispatch responses, network errors, and manual offl
 * `PendingSequencePreserved` — on accept/reject: `pending' == pending[1..]` (exact sequence equality)
 * `ConflictPreservesPendingExactly` — on conflict: `pending' == pending` (nothing lost)
 * `UserActionAppendsExact` — on user action: `pending' == pending + [action]`
+
+**System properties proved** (in `EffectSystemProperties.dfy`):
+
+* `NoSilentDataLoss` — every action in pending either stays in pending or is explicitly processed (accepted/rejected); actions never silently disappear
+* `UserActionEntersPending` — user actions are guaranteed to enter the pending queue
+* `FIFOProcessing` — actions are processed in order; only the first pending action can leave
+* `OnlineIdlePendingMakesProgress` — system makes progress when online with pending actions
 
 The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
 
