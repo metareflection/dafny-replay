@@ -413,6 +413,104 @@ abstract module MultiProjectEffectStateMachine {
             Pending(es') == Pending(es)
   {}
 
+  // Property: Conflict never empties pending (the "else" branch in Step is dead code)
+  lemma ConflictNeverEmptiesPending(es: EffectState, freshVersions: map<ProjectId, nat>, freshModels: map<ProjectId, Model>)
+    requires Inv(es)
+    requires es.mode.Dispatching?
+    ensures var (es', _) := Step(es, DispatchConflict(freshVersions, freshModels));
+            HasPending(es')
+  {
+    // Follows from ConflictPreservesPendingExactly + ModeConsistent (Dispatching => HasPending)
+    ConflictPreservesPendingExactly(es, freshVersions, freshModels);
+  }
+
+  // Property: DispatchAccepted transitions to Idle (or continues dispatching)
+  lemma AcceptedGoesIdleOrContinues(es: EffectState, newVersions: map<ProjectId, nat>, newModels: map<ProjectId, Model>)
+    requires es.mode.Dispatching?
+    ensures var (es', cmd) := Step(es, DispatchAccepted(newVersions, newModels));
+            es'.mode.Idle? || es'.mode.Dispatching?
+  {
+    // Direct from Step definition
+  }
+
+  // Property: MaxRetries exceeded leads to Idle
+  lemma MaxRetriesLeadsToIdle(es: EffectState, freshVersions: map<ProjectId, nat>, freshModels: map<ProjectId, Model>)
+    requires es.mode.Dispatching? && es.mode.retries >= MaxRetries
+    ensures Step(es, DispatchConflict(freshVersions, freshModels)).0.mode.Idle?
+  {
+    // Direct from Step definition
+  }
+
+  // Property: The tail of pending is exactly preserved on accept/reject
+  lemma PendingTailPreserved(es: EffectState, event: Event)
+    requires Inv(es)
+    requires event.DispatchAccepted? || event.DispatchRejected?
+    requires es.mode.Dispatching?  // Must be in dispatching mode to process reply
+    ensures var (es', _) := Step(es, event);
+            // The remaining pending actions are exactly pending[1..]
+            |Pending(es')| == |Pending(es)| - 1
+  {
+    // Follows from ClientAcceptReply and ClientRejectReply removing only first element
+    // Note: ModeConsistent ensures HasPending when Dispatching
+  }
+
+  // Property: Exact sequence preservation on accept/reject
+  lemma PendingSequencePreserved(es: EffectState, event: Event)
+    requires Inv(es)
+    requires es.mode.Dispatching?
+    requires event.DispatchAccepted? || event.DispatchRejected?
+    ensures var (es', _) := Step(es, event);
+            Pending(es') == Pending(es)[1..]  // Exact sequence equality
+  {
+    // ClientAcceptReply and ClientRejectReply both set pending to rest = pending[1..]
+    // The model is reapplied but the pending sequence is exactly preserved
+  }
+
+  // Property: UserAction always appends exactly one action
+  lemma UserActionAppendsOne(es: EffectState, action: MultiAction)
+    requires Inv(es)
+    ensures var (es', _) := Step(es, UserAction(action));
+            |Pending(es')| == |Pending(es)| + 1
+  {
+    // ClientLocalDispatch always appends action to pending
+  }
+
+  // Property: UserAction appends the exact action (strongest form)
+  lemma UserActionAppendsExact(es: EffectState, action: MultiAction)
+    requires Inv(es)
+    ensures var (es', _) := Step(es, UserAction(action));
+            Pending(es') == Pending(es) + [action]  // Exact sequence
+  {
+    // ClientLocalDispatch does: client.pending + [action] in both Ok and Err cases
+  }
+
+  // ===========================================================================
+  // Progress Property (Liveness)
+  // ===========================================================================
+
+  // Define a measure for progress: (isDispatching, retries, pendingCount)
+  // This decreases on successful dispatch, bounded by retries on conflict
+  function ProgressMeasure(es: EffectState): (bool, nat, nat)
+    requires RetriesBounded(es)
+  {
+    (es.mode.Dispatching?,
+     if es.mode.Dispatching? && es.mode.retries <= MaxRetries
+       then MaxRetries - es.mode.retries
+       else 0,
+     PendingCount(es))
+  }
+
+  // Lexicographic ordering for progress
+  // Tuple is (isDispatching: bool, retriesRemaining: nat, pendingCount: nat)
+  predicate ProgressLt(m1: (bool, nat, nat), m2: (bool, nat, nat)) {
+    // Primary: pendingCount decreases
+    m1.2 < m2.2 ||
+    // Secondary: if pending same, prefer going from dispatching to idle
+    (m1.2 == m2.2 && !m1.0 && m2.0) ||
+    // Tertiary: if both dispatching with same pending, retries remaining decreases
+    (m1.2 == m2.2 && m1.0 == m2.0 && m1.1 < m2.1)
+  }
+
   // ===========================================================================
   // Initialization
   // ===========================================================================
