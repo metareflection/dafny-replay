@@ -35,7 +35,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Replay                 | Local UI state                 | Undo/redo preserves global invariants |
 | Authority              | Client–server                  | State always satisfies invariants |
 | Multi-Collaboration    | Client–server, offline clients | State satisfies invariants; Anchor-based moves, candidate fallback, minimal rejection |
-| Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, invariant preservation |
+| Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, pending preservation (`pending' == pending[1..]`) |
 
 ### List of Apps
 
@@ -198,12 +198,17 @@ Events include user actions, dispatch responses, network errors, and manual offl
 3. **Invariant preservation**
    All state transitions preserve the invariant.
 
+4. **Pending preservation**
+   Pending actions are never lost. On accept/reject, exactly one action is removed and the rest are preserved in order (`pending' == pending[1..]`).
+
 **Key properties proved:**
 
 * `RetriesAreBounded` — retries never exceed the maximum
 * `TickStartsDispatch` — if online, idle, and has pending, a Tick starts dispatch
 * `MaxRetriesLeadsToIdle` — exceeding max retries transitions to Idle
 * `StepPreservesInv` — all transitions preserve the invariant
+* `PendingNeverLost` — pending actions are never arbitrarily lost; at most one removed per event
+* `PendingSequencePreserved` — on accept/reject: `pending' == pending[1..]` (exact sequence equality)
 
 The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
 
