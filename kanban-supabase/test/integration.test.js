@@ -451,6 +451,104 @@ describe('Rejection Mid-Flush', () => {
   });
 });
 
+describe('Max Retries on Conflict', () => {
+  it('should stop retrying after 5 conflicts and go idle (but preserve pending)', () => {
+    // The Dafny EffectStateMachine has MaxRetries = 5
+    // After 5 consecutive conflicts, it should:
+    // 1. Stop dispatching (go Idle)
+    // 2. Return NoOp command
+    // 3. PRESERVE the pending action (not lose it!)
+    // 4. A later Tick can restart the dispatch
+
+    const server = new TestServer();
+    const { version: v0, model: m0 } = server.sync();
+    let es = EffectInit(v0, m0);
+    let cmd;
+
+    // Setup: Create column
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddColumn', col: 'Todo', limit: 10 }));
+    let result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    // Sync to clean state
+    const syncState = server.sync();
+    es = EffectInit(syncState.version, syncState.model);
+
+    // Client adds a card - this starts dispatching
+    [es, cmd] = EffectStep(es, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'MyTask' }));
+    assert.strictEqual(EffectState.isDispatching(es), true);
+    assert.strictEqual(EffectState.getPendingCount(es), 1);
+
+    console.log('Starting conflict loop...');
+    const MAX_RETRIES = 5;
+    // We need MAX_RETRIES + 1 conflicts because we start at retries=0
+    // and check `retries >= MaxRetries` BEFORE incrementing
+    const CONFLICTS_TO_TRIGGER_IDLE = MAX_RETRIES + 1;
+
+    // Simulate conflicts until we hit the limit
+    for (let i = 0; i < CONFLICTS_TO_TRIGGER_IDLE; i++) {
+      // Another client changes the server (causes conflict)
+      server.dispatch(server.sync().version, { type: 'AddCard', col: 'Todo', title: `OtherClient-${i}` });
+      const freshState = server.sync();
+
+      console.log(`Conflict ${i + 1}: server at version ${freshState.version}, retries so far: ${i}`);
+
+      // Our client gets a conflict response
+      [es, cmd] = EffectStep(es, EffectEvent.DispatchConflict(freshState.version, freshState.model));
+
+      // Should still be dispatching (retrying) until we hit the last one
+      if (i < CONFLICTS_TO_TRIGGER_IDLE - 1) {
+        assert.strictEqual(EffectState.isDispatching(es), true, `Should still be dispatching after ${i + 1} conflicts`);
+        assert.strictEqual(EffectCommand.isSendDispatch(cmd), true, `Should return SendDispatch after ${i + 1} conflicts`);
+      }
+    }
+
+    // After MaxRetries+1 conflicts, should be IDLE
+    console.log(`\nAfter ${CONFLICTS_TO_TRIGGER_IDLE} conflicts:`);
+    console.log('  isIdle:', EffectState.isIdle(es));
+    console.log('  isDispatching:', EffectState.isDispatching(es));
+    console.log('  hasPending:', EffectState.hasPending(es));
+    console.log('  command isNoOp:', EffectCommand.isNoOp(cmd));
+
+    assert.strictEqual(EffectState.isIdle(es), true, 'Should be idle after MaxRetries');
+    assert.strictEqual(EffectState.isDispatching(es), false, 'Should NOT be dispatching');
+    assert.strictEqual(EffectCommand.isNoOp(cmd), true, 'Command should be NoOp');
+
+    // CRITICAL: Pending action should NOT be lost!
+    assert.strictEqual(EffectState.hasPending(es), true, 'Pending action must be preserved!');
+    assert.strictEqual(EffectState.getPendingCount(es), 1, 'Should still have 1 pending action');
+
+    // A Tick should restart the dispatch (with fresh retries=0)
+    console.log('\nSending Tick to restart...');
+    [es, cmd] = EffectStep(es, EffectEvent.Tick());
+
+    assert.strictEqual(EffectState.isDispatching(es), true, 'Tick should restart dispatching');
+    assert.strictEqual(EffectCommand.isSendDispatch(cmd), true, 'Should return SendDispatch after Tick');
+
+    // Now let it succeed
+    const action = actionToJson(EffectCommand.getAction(cmd));
+    const baseVer = EffectCommand.getBaseVersion(cmd);
+    result = server.dispatch(baseVer, action);
+
+    console.log('Final dispatch:', result.status);
+    assert.strictEqual(result.status, 'accepted');
+
+    [es, cmd] = EffectStep(es, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    // Now should be idle with no pending
+    assert.strictEqual(EffectState.isIdle(es), true);
+    assert.strictEqual(EffectState.hasPending(es), false);
+
+    // Verify server has all cards (6 from "other client" + 1 from us)
+    const finalState = server.sync();
+    console.log('\nFinal state:', finalState.model.lanes['Todo'].length, 'cards');
+    assert.strictEqual(finalState.model.lanes['Todo'].length, 7);
+
+    const titles = finalState.model.lanes['Todo'].map(id => finalState.model.cards[id].title);
+    assert.ok(titles.includes('MyTask'), 'Our task should be in the final state');
+  });
+});
+
 describe('Two Clients Offline Concurrently', () => {
   it('should sync both clients after concurrent offline edits', () => {
     // Scenario:
