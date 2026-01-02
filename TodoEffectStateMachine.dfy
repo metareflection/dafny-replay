@@ -4,7 +4,7 @@
 // This is compiled separately and used by EffectManager.js.
 
 include "EffectStateMachine.dfy"
-include "collab-todo/TodoMultiCollaboration.dfy"
+include "TodoMultiCollaboration.dfy"
 
 module TodoEffectStateMachine refines EffectStateMachine {
   import MC = TodoMultiCollaboration

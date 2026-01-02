@@ -115,7 +115,7 @@ echo "Generating colorwheel app.js..."
 (cd dafny2js && dotnet run --no-build -- --file ../ColorWheelDomain.dfy --app-core AppCore --cjs-name ColorWheel.cjs --output ../colorwheel/src/dafny/app.js)
 
 echo "Compiling TodoMultiCollaboration to JavaScript..."
-dafny translate js --no-verify -o generated/TodoMulti --include-runtime collab-todo/TodoMultiCollaboration.dfy
+dafny translate js --no-verify -o generated/TodoMulti --include-runtime TodoMultiCollaboration.dfy
 
 echo "Copying to collab-todo project..."
 cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
