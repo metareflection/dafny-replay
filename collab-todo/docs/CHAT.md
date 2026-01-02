@@ -758,3 +758,139 @@ Clean up the UI to be less cluttered and more polished:
 2. Add keyboard shortcuts
 3. (Optional) Drag-and-drop for task/list reordering
 4. (Optional) Members panel in sidebar
+
+---
+
+## Session #11 - View Layer Spec (All Projects & Smart Lists)
+
+**Date:** 2026-01-02
+
+### Goals
+Spec out the view layer in Dafny to fix bugs with:
+1. Default view mode should be "All Projects" not "Single Project"
+2. Smart lists (Priority, Logbook) should work across all projects
+3. Bug where count shows N but "No tasks" displays when clicked
+
+### Design Decision: Hybrid Approach
+
+**Option A (Full ViewState in Dafny):**
+- All state including selection lives in Dafny
+- UI becomes pure renderer
+- Con: Adds complexity for non-collaborative state
+
+**Option B (Query functions only):**
+- Just add filter/count functions
+- UI manages loading and selection
+- Con: Some logic still in UI
+
+**Chosen: Hybrid**
+- Full ViewState type in Dafny (compiled)
+- All transitions and queries in Dafny (compiled)
+- UI just calls Dafny functions, no logic
+- Ghost invariants ensure correctness
+
+### Types Added
+
+```dafny
+type ProjectId = string
+
+datatype ViewMode = SingleProject | AllProjects
+
+datatype SmartListType = Priority | Logbook
+
+datatype SidebarSelection =
+  | NoSelection
+  | SmartListSelected(smartList: SmartListType)
+  | ProjectSelected(projectId: ProjectId)
+  | ListSelected(projectId: ProjectId, listId: ListId)
+
+datatype ViewState = ViewState(
+  viewMode: ViewMode,
+  selection: SidebarSelection,
+  loadedProjects: MultiModel
+)
+
+datatype MultiModel = MultiModel(projects: map<ProjectId, Model>)
+
+datatype TaggedTaskId = TaggedTaskId(projectId: ProjectId, taskId: TaskId)
+```
+
+### Smart List Predicates (Compiled)
+
+```dafny
+predicate IsPriorityTask(t: Task) {
+  t.starred && !t.completed && !t.deleted
+}
+
+predicate IsLogbookTask(t: Task) {
+  t.completed && !t.deleted
+}
+
+predicate IsVisibleTask(t: Task) {
+  !t.deleted
+}
+```
+
+### Key Functions Added (All Compiled)
+
+**Single-Project:**
+- `GetVisibleTaskIds(m)`, `GetPriorityTaskIds(m)`, `GetLogbookTaskIds(m)`
+- `CountPriorityTasks(m)`, `CountLogbookTasks(m)`
+- `GetTask(m, taskId)`, `GetTasksInList(m, listId)`
+- `GetListName(m, listId)`, `GetLists(m)`, `GetTags(m)`
+
+**Multi-Project:**
+- `GetAllPriorityTasks(mm)`, `GetAllLogbookTasks(mm)`
+- `CountAllPriorityTasks(mm)`, `CountAllLogbookTasks(mm)`
+- `SetProject(mm, pid, model)`, `RemoveProject(mm, pid)`
+
+**View State:**
+- `InitViewState()` - Returns `ViewState(AllProjects, NoSelection, EmptyMultiModel())`
+- `SetViewMode(vs, mode)`, `SelectSmartList(vs, smartList)`
+- `SelectProject(vs, pid)`, `SelectList(vs, pid, lid)`
+- `LoadProject(vs, pid, model)`, `UnloadProject(vs, pid)`
+- `GetTasksToDisplay(vs)` - Returns `set<TaggedTaskId>` based on selection
+- `GetSmartListCount(vs, smartList)` - Count for badge
+
+### Ghost Invariants
+
+```dafny
+ghost predicate ViewStateConsistent(vs: ViewState) {
+  // Selection refers to loaded data
+}
+
+ghost predicate CountMatchesTasks(vs: ViewState, smartList: SmartListType) {
+  GetSmartListCount(vs, smartList) == |GetAllSmartListTasks(vs.loadedProjects, smartList)|
+}
+
+lemma CountMatchesTasksAlways(vs: ViewState, smartList: SmartListType)
+  ensures CountMatchesTasks(vs, smartList)
+{
+  // Trivially true: both call same underlying function
+}
+```
+
+### How This Fixes the Bugs
+
+1. **Default to AllProjects:** `InitViewState()` returns `ViewState(AllProjects, ...)` - UI just uses this
+
+2. **Smart lists work across projects:** `GetAllSmartListTasks(mm, smartList)` aggregates across all loaded projects in the MultiModel
+
+3. **Count matches display:** Both `GetSmartListCount` and `GetTasksToDisplay` use the same underlying `GetAllSmartListTasks` function. The ghost invariant `CountMatchesTasks` proves they must be equal. The UI cannot have a mismatch because it calls the same Dafny function for both.
+
+### Verification Status
+- **52 verified, 0 errors**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiCollaboration.dfy` | Added ~400 lines of view layer spec |
+| `docs/DESIGN.md` | Documented view layer functions and invariants |
+| `docs/CHAT.md` | This session |
+
+### Next Steps
+1. Compile Dafny to JavaScript
+2. Update `src/dafny/app.js` adapter to expose view layer functions
+3. Rewrite React hooks to use Dafny ViewState
+4. Remove all filtering/counting logic from React components

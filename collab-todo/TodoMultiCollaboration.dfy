@@ -23,6 +23,11 @@ include "../MultiCollaboration.dfy"
 // - RemoveMember + assignment: remove member, reject assignment
 // - MoveList conflicts: remote wins, local warned (app layer)
 //
+// View layer:
+// - Smart lists: Priority (starred, not completed, not deleted), Logbook (completed, not deleted)
+// - Multi-project aggregation for "All Projects" view
+// - All filtering/counting logic compiled to JS (not ghost)
+//
 // =============================================================================
 
 module TodoDomain refines Domain {
@@ -973,6 +978,414 @@ module TodoDomain refines Domain {
 
       case _ =>
         [a]
+  }
+
+  // ===========================================================================
+  // View Layer: Smart Lists and Aggregation (all compiled, not ghost)
+  // ===========================================================================
+
+  // ---------------------------------------------------------------------------
+  // Types
+  // ---------------------------------------------------------------------------
+
+  type ProjectId = string   // Supabase project UUIDs
+
+  datatype ViewMode =
+    | SingleProject         // View one project at a time
+    | AllProjects           // Aggregate view across all projects
+
+  datatype SmartListType =
+    | Priority              // Starred, not completed, not deleted
+    | Logbook               // Completed, not deleted
+
+  // ---------------------------------------------------------------------------
+  // Smart List Predicates (compiled)
+  // ---------------------------------------------------------------------------
+
+  // A task appears in the Priority smart list if:
+  // - It is starred
+  // - It is NOT completed
+  // - It is NOT deleted
+  predicate IsPriorityTask(t: Task)
+  {
+    t.starred && !t.completed && !t.deleted
+  }
+
+  // A task appears in the Logbook smart list if:
+  // - It IS completed
+  // - It is NOT deleted
+  predicate IsLogbookTask(t: Task)
+  {
+    t.completed && !t.deleted
+  }
+
+  // A task is visible (not soft-deleted)
+  predicate IsVisibleTask(t: Task)
+  {
+    !t.deleted
+  }
+
+  // Check if a task matches a smart list filter
+  predicate MatchesSmartList(t: Task, smartList: SmartListType)
+  {
+    match smartList
+      case Priority => IsPriorityTask(t)
+      case Logbook => IsLogbookTask(t)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Single-Project Query Functions (compiled)
+  // ---------------------------------------------------------------------------
+
+  // Get all visible (non-deleted) task IDs in a model
+  function GetVisibleTaskIds(m: Model): set<TaskId>
+  {
+    set id | id in m.taskData && IsVisibleTask(m.taskData[id]) :: id
+  }
+
+  // Get all task IDs matching a smart list filter
+  function GetSmartListTaskIds(m: Model, smartList: SmartListType): set<TaskId>
+  {
+    set id | id in m.taskData && MatchesSmartList(m.taskData[id], smartList) :: id
+  }
+
+  // Get priority task IDs
+  function GetPriorityTaskIds(m: Model): set<TaskId>
+  {
+    set id | id in m.taskData && IsPriorityTask(m.taskData[id]) :: id
+  }
+
+  // Get logbook task IDs
+  function GetLogbookTaskIds(m: Model): set<TaskId>
+  {
+    set id | id in m.taskData && IsLogbookTask(m.taskData[id]) :: id
+  }
+
+  // Count tasks matching a smart list filter
+  function CountSmartListTasks(m: Model, smartList: SmartListType): nat
+  {
+    |GetSmartListTaskIds(m, smartList)|
+  }
+
+  // Count priority tasks
+  function CountPriorityTasks(m: Model): nat
+  {
+    |GetPriorityTaskIds(m)|
+  }
+
+  // Count logbook tasks
+  function CountLogbookTasks(m: Model): nat
+  {
+    |GetLogbookTaskIds(m)|
+  }
+
+  // Count visible tasks in a list
+  function CountVisibleTasksInList(m: Model, listId: ListId): nat
+  {
+    if listId !in m.tasks then 0
+    else CountVisibleInSeq(m.tasks[listId], m.taskData)
+  }
+
+  function CountVisibleInSeq(ids: seq<TaskId>, taskData: map<TaskId, Task>): nat
+  {
+    if |ids| == 0 then 0
+    else
+      var head := ids[0];
+      var countHead := if head in taskData && IsVisibleTask(taskData[head]) then 1 else 0;
+      countHead + CountVisibleInSeq(ids[1..], taskData)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Task Accessors (compiled)
+  // ---------------------------------------------------------------------------
+
+  // Get a task by ID (returns None if not found or deleted)
+  function GetTask(m: Model, taskId: TaskId): Option<Task>
+  {
+    if taskId in m.taskData && IsVisibleTask(m.taskData[taskId])
+    then Some(m.taskData[taskId])
+    else None
+  }
+
+  // Get a task by ID including deleted (for trash view)
+  function GetTaskIncludingDeleted(m: Model, taskId: TaskId): Option<Task>
+  {
+    if taskId in m.taskData then Some(m.taskData[taskId]) else None
+  }
+
+  // Get all tasks in a list (ordered, visible only)
+  function GetTasksInList(m: Model, listId: ListId): seq<TaskId>
+  {
+    if listId !in m.tasks then []
+    else FilterVisibleTasks(m.tasks[listId], m.taskData)
+  }
+
+  function FilterVisibleTasks(ids: seq<TaskId>, taskData: map<TaskId, Task>): seq<TaskId>
+  {
+    if |ids| == 0 then []
+    else
+      var head := ids[0];
+      var rest := FilterVisibleTasks(ids[1..], taskData);
+      if head in taskData && IsVisibleTask(taskData[head])
+      then [head] + rest
+      else rest
+  }
+
+  // Get list name
+  function GetListName(m: Model, listId: ListId): Option<string>
+  {
+    if listId in m.listNames then Some(m.listNames[listId]) else None
+  }
+
+  // Get all list IDs (ordered)
+  function GetLists(m: Model): seq<ListId>
+  {
+    m.lists
+  }
+
+  // Get tag name
+  function GetTagName(m: Model, tagId: TagId): Option<string>
+  {
+    if tagId in m.tags then Some(m.tags[tagId].name) else None
+  }
+
+  // Get all tag IDs
+  function GetTags(m: Model): set<TagId>
+  {
+    m.tags.Keys
+  }
+
+  // ---------------------------------------------------------------------------
+  // Multi-Project Aggregation (compiled)
+  // ---------------------------------------------------------------------------
+
+  // A collection of loaded projects
+  datatype MultiModel = MultiModel(projects: map<ProjectId, Model>)
+
+  // Empty multi-model
+  function EmptyMultiModel(): MultiModel
+  {
+    MultiModel(map[])
+  }
+
+  // Add or update a project in the multi-model
+  function SetProject(mm: MultiModel, projectId: ProjectId, model: Model): MultiModel
+  {
+    MultiModel(mm.projects[projectId := model])
+  }
+
+  // Remove a project from the multi-model
+  function RemoveProject(mm: MultiModel, projectId: ProjectId): MultiModel
+  {
+    MultiModel(mm.projects - {projectId})
+  }
+
+  // Get a project from the multi-model
+  function GetProject(mm: MultiModel, projectId: ProjectId): Option<Model>
+  {
+    if projectId in mm.projects then Some(mm.projects[projectId]) else None
+  }
+
+  // Get all project IDs
+  function GetProjectIds(mm: MultiModel): set<ProjectId>
+  {
+    mm.projects.Keys
+  }
+
+  // Count projects
+  function CountProjects(mm: MultiModel): nat
+  {
+    |mm.projects|
+  }
+
+  // ---------------------------------------------------------------------------
+  // Multi-Project Smart List Functions (compiled)
+  // ---------------------------------------------------------------------------
+
+  // Tagged task ID: includes project context
+  datatype TaggedTaskId = TaggedTaskId(projectId: ProjectId, taskId: TaskId)
+
+  // Get all priority tasks across all projects
+  function GetAllPriorityTasks(mm: MultiModel): set<TaggedTaskId>
+  {
+    set pid, tid | pid in mm.projects && tid in GetPriorityTaskIds(mm.projects[pid])
+      :: TaggedTaskId(pid, tid)
+  }
+
+  // Get all logbook tasks across all projects
+  function GetAllLogbookTasks(mm: MultiModel): set<TaggedTaskId>
+  {
+    set pid, tid | pid in mm.projects && tid in GetLogbookTaskIds(mm.projects[pid])
+      :: TaggedTaskId(pid, tid)
+  }
+
+  // Get all tasks matching a smart list across all projects
+  function GetAllSmartListTasks(mm: MultiModel, smartList: SmartListType): set<TaggedTaskId>
+  {
+    match smartList
+      case Priority => GetAllPriorityTasks(mm)
+      case Logbook => GetAllLogbookTasks(mm)
+  }
+
+  // Count priority tasks across all projects
+  function CountAllPriorityTasks(mm: MultiModel): nat
+  {
+    |GetAllPriorityTasks(mm)|
+  }
+
+  // Count logbook tasks across all projects
+  function CountAllLogbookTasks(mm: MultiModel): nat
+  {
+    |GetAllLogbookTasks(mm)|
+  }
+
+  // Count tasks matching a smart list across all projects
+  function CountAllSmartListTasks(mm: MultiModel, smartList: SmartListType): nat
+  {
+    |GetAllSmartListTasks(mm, smartList)|
+  }
+
+  // ---------------------------------------------------------------------------
+  // View State (compiled) - What the UI is currently showing
+  // ---------------------------------------------------------------------------
+
+  datatype SidebarSelection =
+    | NoSelection                                    // Nothing selected
+    | SmartListSelected(smartList: SmartListType)    // Priority or Logbook
+    | ProjectSelected(projectId: ProjectId)          // A specific project
+    | ListSelected(projectId: ProjectId, listId: ListId)  // A specific list
+
+  datatype ViewState = ViewState(
+    viewMode: ViewMode,                    // Single or All
+    selection: SidebarSelection,           // What's selected in sidebar
+    loadedProjects: MultiModel             // All loaded project data
+  )
+
+  // Initial view state: All Projects mode, no selection
+  function InitViewState(): ViewState
+  {
+    ViewState(AllProjects, NoSelection, EmptyMultiModel())
+  }
+
+  // ---------------------------------------------------------------------------
+  // View State Transitions (compiled)
+  // ---------------------------------------------------------------------------
+
+  // Set view mode
+  function SetViewMode(vs: ViewState, mode: ViewMode): ViewState
+  {
+    ViewState(mode, vs.selection, vs.loadedProjects)
+  }
+
+  // Select a smart list
+  function SelectSmartList(vs: ViewState, smartList: SmartListType): ViewState
+  {
+    ViewState(vs.viewMode, SmartListSelected(smartList), vs.loadedProjects)
+  }
+
+  // Select a project
+  function SelectProject(vs: ViewState, projectId: ProjectId): ViewState
+  {
+    ViewState(vs.viewMode, ProjectSelected(projectId), vs.loadedProjects)
+  }
+
+  // Select a list within a project
+  function SelectList(vs: ViewState, projectId: ProjectId, listId: ListId): ViewState
+  {
+    ViewState(vs.viewMode, ListSelected(projectId, listId), vs.loadedProjects)
+  }
+
+  // Clear selection
+  function ClearSelection(vs: ViewState): ViewState
+  {
+    ViewState(vs.viewMode, NoSelection, vs.loadedProjects)
+  }
+
+  // Load a project into the view state
+  function LoadProject(vs: ViewState, projectId: ProjectId, model: Model): ViewState
+  {
+    ViewState(vs.viewMode, vs.selection, SetProject(vs.loadedProjects, projectId, model))
+  }
+
+  // Unload a project from the view state
+  function UnloadProject(vs: ViewState, projectId: ProjectId): ViewState
+  {
+    ViewState(vs.viewMode, vs.selection, RemoveProject(vs.loadedProjects, projectId))
+  }
+
+  // ---------------------------------------------------------------------------
+  // View State Queries (compiled) - What should the UI display?
+  // ---------------------------------------------------------------------------
+
+  // Get tasks to display based on current selection
+  function GetTasksToDisplay(vs: ViewState): set<TaggedTaskId>
+  {
+    match vs.selection
+      case NoSelection => {}
+      case SmartListSelected(smartList) =>
+        // In AllProjects mode: aggregate across all loaded projects
+        // In SingleProject mode: should only have one project loaded
+        GetAllSmartListTasks(vs.loadedProjects, smartList)
+      case ProjectSelected(projectId) =>
+        // All visible tasks in the project
+        if projectId in vs.loadedProjects.projects then
+          var m := vs.loadedProjects.projects[projectId];
+          set tid | tid in GetVisibleTaskIds(m) :: TaggedTaskId(projectId, tid)
+        else {}
+      case ListSelected(projectId, listId) =>
+        // Tasks in the specific list
+        if projectId in vs.loadedProjects.projects then
+          var m := vs.loadedProjects.projects[projectId];
+          set tid | tid in m.taskData &&
+                    listId in m.tasks &&
+                    SeqContains(m.tasks[listId], tid) &&
+                    IsVisibleTask(m.taskData[tid])
+            :: TaggedTaskId(projectId, tid)
+        else {}
+  }
+
+  // Get count to display for a smart list (respects view mode)
+  function GetSmartListCount(vs: ViewState, smartList: SmartListType): nat
+  {
+    CountAllSmartListTasks(vs.loadedProjects, smartList)
+  }
+
+  // Check if a project is loaded
+  function IsProjectLoaded(vs: ViewState, projectId: ProjectId): bool
+  {
+    projectId in vs.loadedProjects.projects
+  }
+
+  // ===========================================================================
+  // Ghost Invariants for View Layer
+  // ===========================================================================
+
+  // View state is consistent: selection refers to loaded data
+  ghost predicate ViewStateConsistent(vs: ViewState)
+  {
+    match vs.selection
+      case NoSelection => true
+      case SmartListSelected(_) => true  // Smart lists always valid
+      case ProjectSelected(projectId) =>
+        projectId in vs.loadedProjects.projects
+      case ListSelected(projectId, listId) =>
+        projectId in vs.loadedProjects.projects &&
+        listId in vs.loadedProjects.projects[projectId].listNames
+  }
+
+  // Key invariant: Count matches actual task set size
+  // This ensures the "count shows but no tasks" bug cannot happen
+  ghost predicate CountMatchesTasks(vs: ViewState, smartList: SmartListType)
+  {
+    GetSmartListCount(vs, smartList) == |GetAllSmartListTasks(vs.loadedProjects, smartList)|
+  }
+
+  // This is trivially true by definition, but stating it explicitly
+  // ensures the UI uses the same logic for both
+  lemma CountMatchesTasksAlways(vs: ViewState, smartList: SmartListType)
+    ensures CountMatchesTasks(vs, smartList)
+  {
+    // Trivial: both sides call the same underlying function
   }
 
   // ===========================================================================

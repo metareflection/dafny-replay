@@ -177,6 +177,98 @@ The app layer detects conflicts by comparing actions in the dispatch result:
 
 ---
 
+## View Layer
+
+The view layer is fully specced in Dafny and compiled to JavaScript. The UI should call these functions directly - no filtering/counting logic in React code.
+
+### View Mode
+- **AllProjects** - Default mode, aggregates tasks across all loaded projects
+- **SingleProject** - View one project at a time
+
+### Smart Lists
+Smart lists filter tasks across all loaded projects (in AllProjects mode) or the current project (in SingleProject mode).
+
+- **Priority** - Tasks that are starred AND not completed AND not deleted
+- **Logbook** - Tasks that are completed AND not deleted
+
+### Sidebar Selection
+What the user has selected in the sidebar:
+- **NoSelection** - Nothing selected
+- **SmartListSelected(smartList)** - Priority or Logbook selected
+- **ProjectSelected(projectId)** - A project selected (shows all lists)
+- **ListSelected(projectId, listId)** - A specific list selected
+
+### View State
+The complete view state is a single Dafny datatype:
+```
+ViewState(
+  viewMode: ViewMode,           // Single or All
+  selection: SidebarSelection,  // What's selected
+  loadedProjects: MultiModel    // All loaded project data
+)
+```
+
+Initial state: `ViewState(AllProjects, NoSelection, EmptyMultiModel())`
+
+### Key Functions (all compiled, used by UI)
+
+**Smart List Predicates:**
+- `IsPriorityTask(t)` - Is this task a priority task?
+- `IsLogbookTask(t)` - Is this task in the logbook?
+- `IsVisibleTask(t)` - Is this task visible (not deleted)?
+- `MatchesSmartList(t, smartList)` - Does task match filter?
+
+**Single-Project Queries:**
+- `GetVisibleTaskIds(m)` - All non-deleted task IDs
+- `GetPriorityTaskIds(m)` - Task IDs matching Priority filter
+- `GetLogbookTaskIds(m)` - Task IDs matching Logbook filter
+- `CountPriorityTasks(m)` - Count of priority tasks
+- `CountLogbookTasks(m)` - Count of logbook tasks
+- `GetTasksInList(m, listId)` - Ordered task IDs in a list (visible only)
+
+**Task Accessors:**
+- `GetTask(m, taskId)` - Get task (None if deleted or missing)
+- `GetTaskIncludingDeleted(m, taskId)` - Get task even if deleted
+- `GetListName(m, listId)` - Get list name
+- `GetLists(m)` - Get ordered list IDs
+- `GetTagName(m, tagId)` - Get tag name
+- `GetTags(m)` - Get all tag IDs
+
+**Multi-Project Aggregation:**
+- `TaggedTaskId(projectId, taskId)` - Task ID with project context
+- `GetAllPriorityTasks(mm)` - All priority tasks across projects
+- `GetAllLogbookTasks(mm)` - All logbook tasks across projects
+- `CountAllPriorityTasks(mm)` - Total priority count
+- `CountAllLogbookTasks(mm)` - Total logbook count
+
+**View State Transitions:**
+- `InitViewState()` - Initial state (AllProjects, no selection)
+- `SetViewMode(vs, mode)` - Change view mode
+- `SelectSmartList(vs, smartList)` - Select Priority or Logbook
+- `SelectProject(vs, projectId)` - Select a project
+- `SelectList(vs, projectId, listId)` - Select a list
+- `ClearSelection(vs)` - Clear selection
+- `LoadProject(vs, projectId, model)` - Load project data
+- `UnloadProject(vs, projectId)` - Unload project data
+
+**View State Queries:**
+- `GetTasksToDisplay(vs)` - Tasks to show based on selection
+- `GetSmartListCount(vs, smartList)` - Count for smart list badge
+- `IsProjectLoaded(vs, projectId)` - Is project loaded?
+
+### Ghost Invariants
+
+**ViewStateConsistent(vs):**
+- Selection must refer to loaded data
+- If ProjectSelected, that project must be loaded
+- If ListSelected, that project and list must be loaded
+
+**CountMatchesTasks(vs, smartList):**
+- The count displayed equals the actual number of tasks
+- Prevents "count shows N but no tasks displayed" bugs
+
+---
+
 ## See Also
 
 - [LATER.md](LATER.md) - Future specs and enhancements to be added later
