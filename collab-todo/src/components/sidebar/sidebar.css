@@ -152,6 +152,12 @@
   opacity: 0.5;
 }
 
+.project-list__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+
 .project-list__loading,
 .project-list__empty {
   padding: var(--space-lg);

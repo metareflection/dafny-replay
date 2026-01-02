@@ -19,6 +19,7 @@ export function ProjectList({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState(null)
   const [showAddListForm, setShowAddListForm] = useState(null) // projectId or null
   const [newListName, setNewListName] = useState('')
 
@@ -39,12 +40,20 @@ export function ProjectList({
     if (!newProjectName.trim() || creating) return
 
     setCreating(true)
+    setCreateError(null)
     try {
       await onCreateProject(newProjectName.trim())
       setNewProjectName('')
       setShowCreateForm(false)
     } catch (err) {
       console.error('Failed to create project:', err)
+      // Extract error message from Supabase error
+      const message = err?.message || 'Failed to create project'
+      if (message.includes('already exists')) {
+        setCreateError('A project with this name already exists')
+      } else {
+        setCreateError(message)
+      }
     } finally {
       setCreating(false)
     }
@@ -81,15 +90,24 @@ export function ProjectList({
             type="text"
             placeholder="Project name..."
             value={newProjectName}
-            onChange={(e) => setNewProjectName(e.target.value)}
+            onChange={(e) => {
+              setNewProjectName(e.target.value)
+              setCreateError(null)
+            }}
             autoFocus
             disabled={creating}
           />
+          {createError && (
+            <div className="project-list__error">{createError}</div>
+          )}
           <div className="project-list__form-actions">
             <button type="submit" disabled={!newProjectName.trim() || creating}>
               {creating ? '...' : 'Create'}
             </button>
-            <button type="button" onClick={() => setShowCreateForm(false)}>
+            <button type="button" onClick={() => {
+              setShowCreateForm(false)
+              setCreateError(null)
+            }}>
               Cancel
             </button>
           </div>

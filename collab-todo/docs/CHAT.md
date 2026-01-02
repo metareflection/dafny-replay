@@ -894,3 +894,255 @@ lemma CountMatchesTasksAlways(vs: ViewState, smartList: SmartListType)
 2. Update `src/dafny/app.js` adapter to expose view layer functions
 3. Rewrite React hooks to use Dafny ViewState
 4. Remove all filtering/counting logic from React components
+
+---
+
+## Session #12 - EffectStateMachine Integration & dafny2js Improvements
+
+**Date:** 2026-01-02
+
+### Goals
+Integrate the verified EffectStateMachine pattern (from kanban-supabase) into collab-todo for proper dispatch/retry/offline logic.
+
+### Work Completed
+
+**1. TodoEffectStateMachine.dfy Created:**
+```dafny
+module TodoEffectStateMachine refines EffectStateMachine {
+  import MC = TodoMultiCollaboration
+}
+
+module TodoEffectAppCore refines TodoAppCore {
+  import E = TodoEffectStateMachine
+
+  function EffectInit(version: nat, model: K.Model): EffectState
+  function EffectStep(es: EffectState, event: EffectEvent): (EffectState, EffectCommand)
+  // ... state accessors, event constructors, command inspection
+}
+```
+
+**2. compile.sh Updated:**
+- Compile `TodoEffectStateMachine.dfy` to JavaScript
+- Generate `app.js` from `TodoEffectAppCore` (not `TodoAppCore`)
+- Copy `TodoEffect.cjs` to project
+- Build Deno bundle for Edge Function
+
+**3. EffectManager.js Created:**
+- Uses verified `Step` function for all state transitions
+- Handles network I/O (dispatch, sync, realtime)
+- Exposes `subscribe`/`getSnapshot` for `useSyncExternalStore`
+
+**4. useCollaborativeProjectOffline.js Simplified:**
+- Reduced from ~380 lines to ~75 lines
+- Now just wraps EffectManager via `useSyncExternalStore`
+
+**5. app-extras.js Updated:**
+- Added `EffectInit`, `EffectStep` (JSON-accepting wrappers)
+- Added `EffectEvent.*` constructors
+- Added `EffectCommand.*` inspection functions
+- Added `EffectState.*` accessors
+
+### Bug Fix: Invalid Date Display
+
+**Problem:** Due dates showed "Invalid Date" in the UI.
+
+**Root Cause:** Generated `optionToJson` returned `{ type: 'Some', value: <raw Dafny Date> }` but UI expected `{ year, month, day }` or `null`.
+
+**Initial Fix:** Custom `taskToPlainJs` that manually converted nested types.
+
+**Better Fix (by user):** Enhanced dafny2js to handle recursive type conversion with generics. Now `taskToJson` properly converts `Option<Date>` recursively.
+
+**Final app-extras.js:**
+```javascript
+const taskToPlainJs = (dafnyTask) => {
+  const json = GeneratedApp.taskToJson(dafnyTask);
+  return {
+    ...json,
+    dueDate: taggedOptionToNull(json.dueDate),
+    deletedBy: taggedOptionToNull(json.deletedBy),
+    deletedFromList: taggedOptionToNull(json.deletedFromList)
+  };
+};
+```
+
+Only need to convert tagged-union to null-based; recursive Date conversion now handled by generated code.
+
+### JSON Conversion Wishlist Created
+
+Documented remaining issues in `org/JSON_CONVERSION_WISHLIST.md`:
+
+1. **Option serialization format** - Tagged (`{ type: 'Some', value: x }`) vs null-based (`null` / `x`)
+2. **Nested types** - Now fixed with recursive generics
+3. **Custom field names** - Minor, not addressed
+4. **Unknown types** - Fail silently, could be better
+5. **Generated accessors** - Use generated toJson, need overrides
+
+**Decision:** Keep tagged-union format in dafny2js (exhaustive, type-safe). Use thin `taggedOptionToNull` adapter in app-extras.js for UI needs.
+
+### Files Created/Modified
+
+| File | Changes |
+|------|---------|
+| `TodoEffectStateMachine.dfy` | Created - verified effect state machine |
+| `compile.sh` | Updated for TodoEffectStateMachine |
+| `src/hooks/EffectManager.js` | Created - JS wrapper for verified Step |
+| `src/hooks/useCollaborativeProjectOffline.js` | Simplified to use EffectManager |
+| `src/dafny/app-extras.js` | Added Effect wrappers, fixed date handling |
+| `org/JSON_CONVERSION_WISHLIST.md` | Created - documented JSON issues |
+| `dafny2js/AppJsEmitter.cs` | Fixed duplicate detection, added recursive generic support |
+
+### Verification Status
+- TodoEffectStateMachine.dfy verifies successfully
+- All Dafny guarantees now apply to client-side state machine
+
+### Key Benefits of EffectStateMachine
+
+The verified `Step` function guarantees:
+- No infinite retry loops (bounded retries)
+- Pending actions preserved correctly across network failures
+- Proper state transitions (Idle → Dispatching → Idle)
+- Correct handling of conflict/rejected responses
+
+### Architecture After This Session
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         React UI                                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              useCollaborativeProjectOffline                     │
+│              (75 lines, wraps EffectManager)                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      EffectManager.js                           │
+│  - Calls VERIFIED EffectStep for all transitions                │
+│  - Handles I/O (network, realtime, browser events)              │
+│  - useSyncExternalStore integration                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Compiled Dafny (TodoEffect.cjs)                    │
+│  - TodoEffectStateMachine.Step (VERIFIED)                       │
+│  - TodoMultiCollaboration.Dispatch (VERIFIED)                   │
+│  - All state transitions provably correct                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Open Items
+1. Test end-to-end with Supabase
+2. Implement remaining UI features (due dates, tags, assignees)
+3. (Optional) Prove remaining axioms in proof file
+
+---
+
+## Session #13 - Project Name Uniqueness & Error UI
+
+**Date:** 2026-01-02
+
+### Goals
+Investigate and fix duplicate name handling across the app.
+
+### Investigation
+
+User reported being able to create duplicate names. We investigated the uniqueness constraints:
+
+**Tested Edge Function via curl:**
+```bash
+# Duplicate list - REJECTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "New List"}}'
+# Returns: {"status":"rejected","reason":"DomainInvalid"}
+
+# Case-insensitive duplicate - REJECTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "NEW LIST"}}'
+# Returns: {"status":"rejected","reason":"DomainInvalid"}
+
+# Unique list - ACCEPTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "Groceries"}}'
+# Returns: {"status":"accepted",...}
+```
+
+**Findings:**
+| Item | Uniqueness | Location |
+|------|------------|----------|
+| List names | ✓ Working | Dafny spec (Session #6) |
+| Task titles | ✓ Working | Dafny spec (Session #7) |
+| Tag names | ✓ Working | Dafny spec (Session #7) |
+| Project names | ✗ Missing | SQL `create_project()` |
+
+### Root Cause
+
+Projects are NOT in the Dafny spec - they're managed at the Supabase level:
+- Projects table: `id, name, owner_id, state, version`
+- `create_project()` SQL function had no uniqueness check
+- Existing duplicate projects (e.g., 4 projects named "Foo") confirmed this
+
+### Changes Made
+
+**1. Added project name uniqueness to SQL function** (`supabase/schema.sql`):
+```sql
+CREATE OR REPLACE FUNCTION create_project(project_name TEXT)
+...
+BEGIN
+  -- Check for duplicate project name (case-insensitive) for this user
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(project_name)
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+  ...
+END;
+```
+
+**2. Added UI error handling** (`src/components/sidebar/ProjectList.jsx`):
+- Added `createError` state
+- Display error message below input when creation fails
+- Clear error when typing or canceling
+- Friendly message: "A project with this name already exists"
+
+**3. Added error styling** (`src/components/sidebar/sidebar.css`):
+```css
+.project-list__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/schema.sql` | Added case-insensitive duplicate check in `create_project()` |
+| `src/components/sidebar/ProjectList.jsx` | Added error state and display |
+| `src/components/sidebar/sidebar.css` | Added `.project-list__error` style |
+
+### Architecture Note
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Uniqueness Enforcement                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Projects     → SQL function (create_project)                   │
+│  Lists        → Dafny TryStep (DuplicateList error)            │
+│  Tasks        → Dafny TryStep (DuplicateTask error)            │
+│  Tags         → Dafny TryStep (DuplicateTag error)             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Projects live outside the Dafny spec because they're a Supabase-level concept (rows in a table), while lists/tasks/tags are part of the collaborative Model state.
+
+### Deployment Required
+
+User must run the updated `create_project` function in Supabase SQL Editor to enable project name uniqueness.
+
+### Verification
+- Duplicate project creation now shows error in UI
+- Error clears when typing new name or canceling
+- Case-insensitive matching (e.g., "Foo" and "foo" are duplicates)

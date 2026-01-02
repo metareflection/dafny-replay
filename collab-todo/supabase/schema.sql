@@ -144,6 +144,7 @@ CREATE POLICY "owner can remove members"
 
 -- Create a new project (owner auto-added as member)
 -- Initializes Todo model with owner as the sole member (Personal mode)
+-- Rejects duplicate project names (case-insensitive) per user
 CREATE OR REPLACE FUNCTION create_project(project_name TEXT)
 RETURNS UUID
 LANGUAGE plpgsql
@@ -154,6 +155,15 @@ DECLARE
   new_id UUID;
   owner_id_str TEXT;
 BEGIN
+  -- Check for duplicate project name (case-insensitive) for this user
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(project_name)
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+
   -- Get owner ID as string for Dafny model
   owner_id_str := auth.uid()::TEXT;
 
