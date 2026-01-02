@@ -418,6 +418,7 @@ cd kanban-supabase   # kanban with supabase (requires setup)
 cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
 cd clear-split       # ClearSplit app
+cd clear-split-supabase # clear-split with supabase (requires setup)
 npm install
 npm run dev
 ```
