@@ -4,7 +4,7 @@
 import GeneratedApp from './app.js';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, KanbanDomain, KanbanEffectAppCore, KanbanEffectStateMachine } = GeneratedApp._internal;
+const { _dafny, KanbanDomain, KanbanEffectStateMachine } = GeneratedApp._internal;
 
 // Helper to convert seq to array
 const seqToArray = (seq) => {
@@ -39,44 +39,6 @@ const App = {
   },
 
   // -------------------------------------------------------------------------
-  // Convenience wrappers that take JSON
-  // -------------------------------------------------------------------------
-
-  // InitClient: create client state from JSON model
-  InitClient: (version, modelJson) => {
-    const model = GeneratedApp.modelFromJson(modelJson);
-    return KanbanEffectAppCore.__default.MakeClientState(
-      new BigNumber(version),
-      model,
-      _dafny.Seq.of()
-    );
-  },
-
-  // LocalDispatch: alias for ClientLocalDispatch
-  LocalDispatch: (client, action) => GeneratedApp.ClientLocalDispatch(client, action),
-
-  // HandleRealtimeUpdate: takes JSON model
-  HandleRealtimeUpdate: (client, serverVersion, serverModelJson) => {
-    const serverModel = GeneratedApp.modelFromJson(serverModelJson);
-    return KanbanEffectAppCore.__default.HandleRealtimeUpdate(
-      client,
-      new BigNumber(serverVersion),
-      serverModel
-    );
-  },
-
-  // ClientAcceptReply: handle accepted server reply while preserving pending actions
-  // Removes the first pending action (the dispatched one) and re-applies the rest
-  ClientAcceptReply: (client, newVersion, newPresentJson) => {
-    const newPresent = GeneratedApp.modelFromJson(newPresentJson);
-    return KanbanEffectAppCore.__default.ClientAcceptReply(
-      client,
-      new BigNumber(newVersion),
-      newPresent
-    );
-  },
-
-  // -------------------------------------------------------------------------
   // Model accessors
   // -------------------------------------------------------------------------
 
@@ -104,74 +66,69 @@ const App = {
     return '';
   },
 
-  // =========================================================================
-  // Effect State Machine (VERIFIED)
-  // =========================================================================
-
-  // Initialize effect state from server response
-  EffectInit: (version, modelJson) => {
-    const model = GeneratedApp.modelFromJson(modelJson);
-    return KanbanEffectAppCore.__default.EffectInit(new BigNumber(version), model);
-  },
-
-  // Step function - the core verified state machine
-  // Returns [newEffectState, command]
-  EffectStep: (effectState, event) => {
-    const result = KanbanEffectAppCore.__default.EffectStep(effectState, event);
-    return [result[0], result[1]];
-  },
-
-  // Event constructors (using AppCore wrappers)
-  EffectEvent: {
-    UserAction: (action) =>
-      KanbanEffectAppCore.__default.EffectUserAction(action),
-
-    DispatchAccepted: (version, modelJson) => {
-      const model = GeneratedApp.modelFromJson(modelJson);
-      return KanbanEffectAppCore.__default.EffectDispatchAccepted(
-        new BigNumber(version), model
-      );
+    // -------------------------------------------------------------------------
+    // JSON-accepting wrappers (only addition over generated app.js)
+    // -------------------------------------------------------------------------
+  
+    InitClient: (version, modelJson) =>
+      GeneratedApp.MakeClientState(version, GeneratedApp.modelFromJson(modelJson), _dafny.Seq.of()),
+  
+    LocalDispatch: (client, action) =>
+      GeneratedApp.ClientLocalDispatch(client, action),
+  
+    HandleRealtimeUpdate: (client, serverVersion, serverModelJson) =>
+      GeneratedApp.HandleRealtimeUpdate(client, serverVersion, GeneratedApp.modelFromJson(serverModelJson)),
+  
+    ClientAcceptReply: (client, newVersion, newPresentJson) =>
+      GeneratedApp.ClientAcceptReply(client, newVersion, GeneratedApp.modelFromJson(newPresentJson)),
+  
+    // -------------------------------------------------------------------------
+    // Effect State Machine - JSON-accepting wrappers
+    // -------------------------------------------------------------------------
+  
+    EffectInit: (version, modelJson) =>
+      GeneratedApp.EffectInit(version, GeneratedApp.modelFromJson(modelJson)),
+  
+    // Step returns tuple, convert to array for JS
+    EffectStep: (effectState, event) => {
+      const result = GeneratedApp.EffectStep(effectState, event);
+      return [result[0], result[1]];
     },
-
-    DispatchConflict: (version, modelJson) => {
-      const model = GeneratedApp.modelFromJson(modelJson);
-      return KanbanEffectAppCore.__default.EffectDispatchConflict(
-        new BigNumber(version), model
-      );
+  
+    // Event constructors - JSON-accepting variants
+    EffectEvent: {
+      UserAction: (action) => GeneratedApp.EffectUserAction(action),
+      DispatchAccepted: (version, modelJson) =>
+        GeneratedApp.EffectDispatchAccepted(version, GeneratedApp.modelFromJson(modelJson)),
+      DispatchConflict: (version, modelJson) =>
+        GeneratedApp.EffectDispatchConflict(version, GeneratedApp.modelFromJson(modelJson)),
+      DispatchRejected: (version, modelJson) =>
+        GeneratedApp.EffectDispatchRejected(version, GeneratedApp.modelFromJson(modelJson)),
+      NetworkError: () => GeneratedApp.EffectNetworkError(),
+      NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
+      ManualGoOffline: () => GeneratedApp.EffectManualGoOffline(),
+      ManualGoOnline: () => GeneratedApp.EffectManualGoOnline(),
+      Tick: () => GeneratedApp.EffectTick(),
     },
-
-    DispatchRejected: (version, modelJson) => {
-      const model = GeneratedApp.modelFromJson(modelJson);
-      return KanbanEffectAppCore.__default.EffectDispatchRejected(
-        new BigNumber(version), model
-      );
+  
+    // Command inspection - just aliases
+    EffectCommand: {
+      isNoOp: (cmd) => GeneratedApp.EffectIsNoOp(cmd),
+      isSendDispatch: (cmd) => GeneratedApp.EffectIsSendDispatch(cmd),
+      getBaseVersion: (cmd) => GeneratedApp.EffectGetBaseVersion(cmd),
+      getAction: (cmd) => GeneratedApp.EffectGetAction(cmd),
     },
-
-    NetworkError: () => KanbanEffectAppCore.__default.EffectNetworkError(),
-    NetworkRestored: () => KanbanEffectAppCore.__default.EffectNetworkRestored(),
-    ManualGoOffline: () => KanbanEffectAppCore.__default.EffectManualGoOffline(),
-    ManualGoOnline: () => KanbanEffectAppCore.__default.EffectManualGoOnline(),
-    Tick: () => KanbanEffectAppCore.__default.EffectTick(),
-  },
-
-  // Command inspection (using AppCore wrappers)
-  EffectCommand: {
-    isNoOp: (cmd) => KanbanEffectAppCore.__default.EffectIsNoOp(cmd),
-    isSendDispatch: (cmd) => KanbanEffectAppCore.__default.EffectIsSendDispatch(cmd),
-    getBaseVersion: (cmd) => KanbanEffectAppCore.__default.EffectGetBaseVersion(cmd).toNumber(),
-    getAction: (cmd) => KanbanEffectAppCore.__default.EffectGetAction(cmd),
-  },
-
-  // EffectState accessors (using AppCore wrappers)
-  EffectState: {
-    getClient: (es) => KanbanEffectAppCore.__default.EffectGetClient(es),
-    getServerVersion: (es) => KanbanEffectAppCore.__default.EffectGetServerVersion(es).toNumber(),
-    isOnline: (es) => KanbanEffectAppCore.__default.EffectIsOnline(es),
-    isIdle: (es) => KanbanEffectAppCore.__default.EffectIsIdle(es),
-    isDispatching: (es) => es.dtor_mode.is_Dispatching,
-    hasPending: (es) => KanbanEffectAppCore.__default.EffectHasPending(es),
-    getPendingCount: (es) => KanbanEffectAppCore.__default.EffectPendingCount(es).toNumber(),
-  },
+  
+    // EffectState accessors - just aliases
+    EffectState: {
+      getClient: (es) => GeneratedApp.EffectGetClient(es),
+      getServerVersion: (es) => GeneratedApp.EffectGetServerVersion(es),
+      isOnline: (es) => GeneratedApp.EffectIsOnline(es),
+      isIdle: (es) => GeneratedApp.EffectIsIdle(es),
+      isDispatching: (es) => es.dtor_mode.is_Dispatching,
+      hasPending: (es) => GeneratedApp.EffectHasPending(es),
+      getPendingCount: (es) => GeneratedApp.EffectPendingCount(es),
+    },
 };
 
 export default App;
