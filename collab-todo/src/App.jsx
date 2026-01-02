@@ -95,126 +95,302 @@ function AuthForm() {
 }
 
 // ============================================================================
-// Kanban Components
+// Task Item Component
 // ============================================================================
 
-function Card({ id, title, onDragStart, onDragEnd, onEditTitle }) {
+function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onDelete, onMove, lists }) {
   const [editing, setEditing] = useState(false)
-  const [editValue, setEditValue] = useState(title)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [editNotes, setEditNotes] = useState(task.notes)
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
 
-  const handleDoubleClick = () => {
-    setEditValue(title)
-    setEditing(true)
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmitEdit = (e) => {
     e.preventDefault()
-    if (editValue.trim() && editValue.trim() !== title) {
-      onEditTitle(id, editValue.trim())
+    if (editTitle.trim()) {
+      onEdit(taskId, editTitle.trim(), editNotes)
     }
     setEditing(false)
   }
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      setEditing(false)
-    }
+  const formatDueDate = (dueDate) => {
+    if (!dueDate) return null
+    return `${dueDate.year}-${String(dueDate.month).padStart(2, '0')}-${String(dueDate.day).padStart(2, '0')}`
+  }
+
+  const isOverdue = (dueDate) => {
+    if (!dueDate) return false
+    const today = new Date()
+    const due = new Date(dueDate.year, dueDate.month - 1, dueDate.day)
+    return due < today && !task.completed
   }
 
   return (
-    <div
-      className="card"
-      draggable={!editing}
-      onDragStart={(e) => onDragStart(e, id)}
-      onDragEnd={onDragEnd}
-    >
-      <div className="card-id">#{id}</div>
-      {editing ? (
-        <form onSubmit={handleSubmit} className="card-edit-form">
-          <input
-            type="text"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleSubmit}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-        </form>
-      ) : (
-        <div className="card-title" onDoubleClick={handleDoubleClick}>{title}</div>
+    <div className={`task-item ${task.completed ? 'completed' : ''} ${task.starred ? 'starred' : ''}`}>
+      <div className="task-main">
+        <button
+          className={`checkbox ${task.completed ? 'checked' : ''}`}
+          onClick={() => onComplete(taskId, !task.completed)}
+          title={task.completed ? 'Mark incomplete' : 'Mark complete'}
+        >
+          {task.completed ? '\u2713' : ''}
+        </button>
+
+        {editing ? (
+          <form onSubmit={handleSubmitEdit} className="task-edit-form">
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder="Task title"
+              autoFocus
+            />
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Notes..."
+              rows={2}
+            />
+            <div className="task-edit-buttons">
+              <button type="submit">Save</button>
+              <button type="button" onClick={() => setEditing(false)}>Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <div className="task-content" onClick={() => setEditing(true)}>
+            <div className="task-title">{task.title}</div>
+            {task.notes && <div className="task-notes">{task.notes}</div>}
+            {task.dueDate && (
+              <div className={`task-due-date ${isOverdue(task.dueDate) ? 'overdue' : ''}`}>
+                Due: {formatDueDate(task.dueDate)}
+              </div>
+            )}
+            {task.tags.length > 0 && (
+              <div className="task-tags">
+                {task.tags.map(tagId => (
+                  <span key={tagId} className="task-tag">
+                    {App.GetTagName(model, tagId)}
+                  </span>
+                ))}
+              </div>
+            )}
+            {task.assignees.length > 0 && (
+              <div className="task-assignees">
+                {task.assignees.map(a => (
+                  <span key={a} className="task-assignee" title={a}>
+                    {a.slice(0, 8)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="task-actions">
+          <button
+            className={`star-btn ${task.starred ? 'starred' : ''}`}
+            onClick={() => onStar(taskId, !task.starred)}
+            title={task.starred ? 'Remove star' : 'Add star'}
+          >
+            {task.starred ? '\u2605' : '\u2606'}
+          </button>
+
+          <div className="move-menu-container">
+            <button
+              className="move-btn"
+              onClick={() => setShowMoveMenu(!showMoveMenu)}
+              title="Move to list"
+            >
+              \u2192
+            </button>
+            {showMoveMenu && (
+              <div className="move-menu">
+                {lists.map(listId => (
+                  <button
+                    key={listId}
+                    onClick={() => {
+                      onMove(taskId, listId)
+                      setShowMoveMenu(false)
+                    }}
+                  >
+                    {App.GetListName(model, listId)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            className="delete-btn"
+            onClick={() => onDelete(taskId)}
+            title="Delete task"
+          >
+            \u2715
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// List Component
+// ============================================================================
+
+function TaskList({ listId, listName, model, userId, dispatch, lists, onRenameList, onDeleteList }) {
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [editingName, setEditingName] = useState(false)
+  const [editName, setEditName] = useState(listName)
+  const [collapsed, setCollapsed] = useState(false)
+
+  const taskIds = App.GetTasksInList(model, listId)
+  const tasks = taskIds.map(id => ({ id, ...App.GetTask(model, id) })).filter(t => !t.deleted)
+
+  // Sort: starred first, then by position
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.starred && !b.starred) return -1
+    if (!a.starred && b.starred) return 1
+    return 0
+  })
+
+  const completedCount = tasks.filter(t => t.completed).length
+  const totalCount = tasks.length
+
+  const handleAddTask = (e) => {
+    e.preventDefault()
+    if (newTaskTitle.trim()) {
+      dispatch(App.AddTask(listId, newTaskTitle.trim()))
+      setNewTaskTitle('')
+    }
+  }
+
+  const handleRename = (e) => {
+    e.preventDefault()
+    if (editName.trim() && editName.trim() !== listName) {
+      onRenameList(listId, editName.trim())
+    }
+    setEditingName(false)
+  }
+
+  return (
+    <div className="task-list">
+      <div className="list-header">
+        {editingName ? (
+          <form onSubmit={handleRename} className="list-rename-form">
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              autoFocus
+              onBlur={handleRename}
+            />
+          </form>
+        ) : (
+          <h3 onClick={() => setEditingName(true)}>{listName}</h3>
+        )}
+        <span className="list-count">{completedCount}/{totalCount}</span>
+        <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? '\u25BC' : '\u25B2'}
+        </button>
+        <button className="delete-list-btn" onClick={() => onDeleteList(listId)} title="Delete list">
+          \u2715
+        </button>
+      </div>
+
+      {!collapsed && (
+        <>
+          <form className="add-task-form" onSubmit={handleAddTask}>
+            <input
+              type="text"
+              placeholder="Add task..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+            />
+            <button type="submit" disabled={!newTaskTitle.trim()}>+</button>
+          </form>
+
+          <div className="tasks">
+            {sortedTasks.map(task => (
+              <TaskItem
+                key={task.id}
+                taskId={task.id}
+                task={task}
+                model={model}
+                userId={userId}
+                lists={lists}
+                onComplete={(id, completed) =>
+                  dispatch(completed ? App.CompleteTask(id) : App.UncompleteTask(id))
+                }
+                onStar={(id, starred) =>
+                  dispatch(starred ? App.StarTask(id) : App.UnstarTask(id))
+                }
+                onEdit={(id, title, notes) =>
+                  dispatch(App.EditTask(id, title, notes))
+                }
+                onDelete={(id) =>
+                  dispatch(App.DeleteTask(id, userId))
+                }
+                onMove={(id, toListId) =>
+                  dispatch(App.MoveTask(id, toListId, App.AtEnd()))
+                }
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   )
 }
 
-function Column({ name, cards, wip, model, onAddCard, onMoveCard, onEditTitle }) {
-  const [newCardTitle, setNewCardTitle] = useState('')
-  const count = cards.length
-  const atLimit = wip > 0 && count >= wip
+// ============================================================================
+// Tags Panel
+// ============================================================================
 
-  const handleAddCard = (e) => {
+function TagsPanel({ model, dispatch }) {
+  const [newTagName, setNewTagName] = useState('')
+  const tags = App.GetTags(model)
+  const tagIds = Object.keys(tags).map(Number)
+
+  const handleCreateTag = (e) => {
     e.preventDefault()
-    if (newCardTitle.trim()) {
-      onAddCard(name, newCardTitle.trim())
-      setNewCardTitle('')
+    if (newTagName.trim()) {
+      dispatch(App.CreateTag(newTagName.trim()))
+      setNewTagName('')
     }
   }
 
-  const handleDragOver = (e) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault()
-    const cardId = parseInt(e.dataTransfer.getData('cardId'), 10)
-    onMoveCard(cardId, name, App.AtEnd())
-  }
-
   return (
-    <div
-      className="column"
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-    >
-      <div className="column-header">
-        <h3>{name}</h3>
-        <span className={`wip-badge ${atLimit ? 'at-limit' : ''}`}>
-          {count}/{wip || '∞'}
-        </span>
-      </div>
-      <div className="cards">
-        {cards.map((cardId) => (
-          <Card
-            key={cardId}
-            id={cardId}
-            title={App.GetCardTitle(model, cardId)}
-            onDragStart={(e, id) => {
-              e.dataTransfer.setData('cardId', id.toString())
-              e.target.classList.add('dragging')
-            }}
-            onDragEnd={(e) => {
-              e.target.classList.remove('dragging')
-            }}
-            onEditTitle={onEditTitle}
-          />
+    <div className="tags-panel">
+      <h4>Tags</h4>
+      <div className="tags-list">
+        {tagIds.map(tagId => (
+          <div key={tagId} className="tag-item">
+            <span className="tag-name">{tags[tagId].name}</span>
+            <button
+              className="delete-tag-btn"
+              onClick={() => dispatch(App.DeleteTag(tagId))}
+              title="Delete tag"
+            >
+              \u2715
+            </button>
+          </div>
         ))}
       </div>
-      {!atLimit && (
-        <form className="add-card-form" onSubmit={handleAddCard}>
-          <input
-            type="text"
-            placeholder="New card..."
-            value={newCardTitle}
-            onChange={(e) => setNewCardTitle(e.target.value)}
-          />
-          <button type="submit" disabled={!newCardTitle.trim()}>
-            Add
-          </button>
-        </form>
-      )}
+      <form onSubmit={handleCreateTag} className="add-tag-form">
+        <input
+          type="text"
+          placeholder="New tag..."
+          value={newTagName}
+          onChange={(e) => setNewTagName(e.target.value)}
+        />
+        <button type="submit" disabled={!newTagName.trim()}>+</button>
+      </form>
     </div>
   )
 }
+
+// ============================================================================
+// Toast Component
+// ============================================================================
 
 function Toast({ message, onClose }) {
   useEffect(() => {
@@ -249,7 +425,7 @@ function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
       setNewName('')
       setShowCreate(false)
       onSelect(projectId)
-      onIsOwnerChange?.(true) // Creator is always owner
+      onIsOwnerChange?.(true)
     } catch (err) {
       console.error('Failed to create project:', err)
     } finally {
@@ -262,7 +438,7 @@ function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
       <div className="project-header">
         <h4>Projects</h4>
         <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : '↻'}
+          {loading ? '...' : '\u21BB'}
         </button>
       </div>
       <ul className="project-list">
@@ -352,7 +528,7 @@ function MembersPanel({ projectId, isOwner, currentUserId }) {
       <div className="members-header">
         <h4>Members</h4>
         <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : '↻'}
+          {loading ? '...' : '\u21BB'}
         </button>
       </div>
       {error && <div className="members-error">{error}</div>}
@@ -367,7 +543,7 @@ function MembersPanel({ projectId, isOwner, currentUserId }) {
                 onClick={() => handleRemove(member.user_id)}
                 title="Remove member"
               >
-                ×
+                \u00D7
               </button>
             )}
           </li>
@@ -395,14 +571,13 @@ function MembersPanel({ projectId, isOwner, currentUserId }) {
 }
 
 // ============================================================================
-// Main Kanban Board
+// Main Todo Board
 // ============================================================================
 
-function KanbanBoard({ user, onSignOut }) {
+function TodoBoard({ user, onSignOut }) {
   const [currentProjectId, setCurrentProjectId] = useState(null)
   const [isOwner, setIsOwner] = useState(false)
-  const [newColName, setNewColName] = useState('')
-  const [newColLimit, setNewColLimit] = useState(5)
+  const [newListName, setNewListName] = useState('')
   const [toast, setToast] = useState(null)
 
   const {
@@ -418,25 +593,22 @@ function KanbanBoard({ user, onSignOut }) {
     isFlushing
   } = useCollaborativeProjectOffline(currentProjectId)
 
-  const handleAddColumn = (e) => {
+  const handleAddList = (e) => {
     e.preventDefault()
-    const cols = model ? App.GetCols(model) : []
-    if (newColName.trim() && !cols.includes(newColName.trim())) {
-      dispatch(App.AddColumn(newColName.trim(), newColLimit))
-      setNewColName('')
+    if (newListName.trim()) {
+      dispatch(App.AddList(newListName.trim()))
+      setNewListName('')
     }
   }
 
-  const handleAddCard = (col, title) => {
-    dispatch(App.AddCard(col, title))
+  const handleRenameList = (listId, newName) => {
+    dispatch(App.RenameList(listId, newName))
   }
 
-  const handleMoveCard = (cardId, toCol, place) => {
-    dispatch(App.MoveCard(cardId, toCol, place))
-  }
-
-  const handleEditTitle = (cardId, title) => {
-    dispatch(App.EditTitle(cardId, title))
+  const handleDeleteList = (listId) => {
+    if (confirm('Delete this list? All tasks in it will be permanently deleted.')) {
+      dispatch(App.DeleteList(listId))
+    }
   }
 
   // Show error as toast
@@ -446,14 +618,14 @@ function KanbanBoard({ user, onSignOut }) {
     }
   }, [error])
 
-  const cols = model ? App.GetCols(model) : []
+  const lists = model ? App.GetLists(model) : []
 
   return (
     <>
       <div className="header">
         <div>
-          <h1>Kanban Supabase</h1>
-          <p className="subtitle">Dafny-verified collaboration with Supabase</p>
+          <h1>Todo Collab</h1>
+          <p className="subtitle">Dafny-verified collaborative todos</p>
         </div>
         <div className="user-info">
           <span className="user-email">{user.email}</span>
@@ -481,6 +653,9 @@ function KanbanBoard({ user, onSignOut }) {
         {pendingCount > 0 && (
           <span className="pending-badge">{pendingCount} pending</span>
         )}
+        {model && (
+          <span className="mode-badge">{App.GetMode(model)}</span>
+        )}
       </div>
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
@@ -497,6 +672,7 @@ function KanbanBoard({ user, onSignOut }) {
             isOwner={isOwner}
             currentUserId={user.id}
           />
+          {model && <TagsPanel model={model} dispatch={dispatch} />}
         </div>
 
         <div className="board-section">
@@ -510,41 +686,35 @@ function KanbanBoard({ user, onSignOut }) {
             </div>
           ) : (
             <>
-              <form className="add-column-form" onSubmit={handleAddColumn}>
+              <form className="add-list-form" onSubmit={handleAddList}>
                 <input
                   type="text"
-                  placeholder="Column name..."
-                  value={newColName}
-                  onChange={(e) => setNewColName(e.target.value)}
+                  placeholder="New list name..."
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
                 />
-                <input
-                  type="number"
-                  placeholder="WIP"
-                  min="1"
-                  value={newColLimit}
-                  onChange={(e) => setNewColLimit(parseInt(e.target.value, 10) || 1)}
-                />
-                <button type="submit" disabled={!newColName.trim() || cols.includes(newColName.trim())}>
-                  Add Column
+                <button type="submit" disabled={!newListName.trim()}>
+                  Add List
                 </button>
               </form>
 
-              {cols.length === 0 ? (
+              {lists.length === 0 ? (
                 <div className="empty-board">
-                  <p>No columns yet. Add a column to get started!</p>
+                  <p>No lists yet. Add a list to get started!</p>
                 </div>
               ) : (
                 <div className="board">
-                  {cols.map((col) => (
-                    <Column
-                      key={col}
-                      name={col}
-                      cards={App.GetLane(model, col)}
-                      wip={App.GetWip(model, col)}
+                  {lists.map((listId) => (
+                    <TaskList
+                      key={listId}
+                      listId={listId}
+                      listName={App.GetListName(model, listId)}
                       model={model}
-                      onAddCard={handleAddCard}
-                      onMoveCard={handleMoveCard}
-                      onEditTitle={handleEditTitle}
+                      userId={user.id}
+                      dispatch={dispatch}
+                      lists={lists}
+                      onRenameList={handleRenameList}
+                      onDeleteList={handleDeleteList}
                     />
                   ))}
                 </div>
@@ -600,7 +770,7 @@ function AppContainer() {
   if (loading) {
     return (
       <div className="loading">
-        <h1>Kanban Supabase</h1>
+        <h1>Todo Collab</h1>
         <p>Loading...</p>
       </div>
     )
@@ -609,14 +779,14 @@ function AppContainer() {
   if (!user) {
     return (
       <div className="auth-container">
-        <h1>Kanban Supabase</h1>
-        <p className="subtitle">Dafny-verified collaboration with Supabase</p>
+        <h1>Todo Collab</h1>
+        <p className="subtitle">Dafny-verified collaborative todos</p>
         <AuthForm />
       </div>
     )
   }
 
-  return <KanbanBoard user={user} onSignOut={handleSignOut} />
+  return <TodoBoard user={user} onSignOut={handleSignOut} />
 }
 
 export default AppContainer

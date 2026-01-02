@@ -1,23 +1,40 @@
--- Kanban Supabase Schema
--- Dafny-verified collaborative Kanban with Supabase
+-- Todo Collab Supabase Schema
+-- Dafny-verified collaborative Todo app with Supabase
 
 -- ============================================================================
 -- Tables
 -- ============================================================================
 
 -- Projects table: stores Dafny state
+-- Each project contains the full Todo model state
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
-  -- Dafny model state (JSON)
+  -- Dafny Todo model state (JSON)
+  -- Matches TodoDomain.Model structure:
+  --   mode: 'Personal' | 'Collaborative'
+  --   owner: UserId (string)
+  --   members: array of UserId
+  --   lists: array of ListId (ordered)
+  --   listNames: { listId: name }
+  --   tasks: { listId: [taskId, ...] }
+  --   taskData: { taskId: Task }
+  --   tags: { tagId: { name: string } }
+  --   nextListId, nextTaskId, nextTagId: allocators
   state JSONB NOT NULL DEFAULT '{
-    "cols": [],
-    "lanes": {},
-    "wip": {},
-    "cards": {},
-    "nextId": 0
+    "mode": "Personal",
+    "owner": "",
+    "members": [],
+    "lists": [],
+    "listNames": {},
+    "tasks": {},
+    "taskData": {},
+    "tags": {},
+    "nextListId": 0,
+    "nextTaskId": 0,
+    "nextTagId": 0
   }',
 
   -- For reconciliation (MultiCollaboration pattern)
@@ -30,10 +47,22 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 -- ============================================================================
--- Migration: Add audit_log column to existing databases
--- Run this if you have an existing projects table without audit_log:
+-- Migration: From Kanban to Todo schema
+-- Run this if you have an existing Kanban projects table:
 -- ============================================================================
--- ALTER TABLE projects ADD COLUMN IF NOT EXISTS audit_log JSONB DEFAULT '[]';
+-- UPDATE projects SET state = '{
+--   "mode": "Personal",
+--   "owner": "",
+--   "members": [],
+--   "lists": [],
+--   "listNames": {},
+--   "tasks": {},
+--   "taskData": {},
+--   "tags": {},
+--   "nextListId": 0,
+--   "nextTaskId": 0,
+--   "nextTagId": 0
+-- }'::jsonb WHERE state->>'cols' IS NOT NULL;
 
 -- Project members: who can access which project
 CREATE TABLE IF NOT EXISTS project_members (
@@ -114,6 +143,7 @@ CREATE POLICY "owner can remove members"
 -- ============================================================================
 
 -- Create a new project (owner auto-added as member)
+-- Initializes Todo model with owner as the sole member (Personal mode)
 CREATE OR REPLACE FUNCTION create_project(project_name TEXT)
 RETURNS UUID
 LANGUAGE plpgsql
@@ -122,17 +152,34 @@ SET search_path = public
 AS $$
 DECLARE
   new_id UUID;
+  owner_id_str TEXT;
 BEGIN
-  -- Create project
+  -- Get owner ID as string for Dafny model
+  owner_id_str := auth.uid()::TEXT;
+
+  -- Create project with Todo model state
+  -- Owner is set in the Dafny model state, members includes owner
   INSERT INTO projects (name, owner_id, state)
   VALUES (
     project_name,
     auth.uid(),
-    '{"cols": [], "lanes": {}, "wip": {}, "cards": {}, "nextId": 0}'::jsonb
+    jsonb_build_object(
+      'mode', 'Personal',
+      'owner', owner_id_str,
+      'members', jsonb_build_array(owner_id_str),
+      'lists', '[]'::jsonb,
+      'listNames', '{}'::jsonb,
+      'tasks', '{}'::jsonb,
+      'taskData', '{}'::jsonb,
+      'tags', '{}'::jsonb,
+      'nextListId', 0,
+      'nextTaskId', 0,
+      'nextTagId', 0
+    )
   )
   RETURNING id INTO new_id;
 
-  -- Add owner as member
+  -- Add owner as member in project_members table
   INSERT INTO project_members (project_id, user_id, role)
   VALUES (new_id, auth.uid(), 'owner');
 

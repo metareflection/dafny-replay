@@ -1,24 +1,3 @@
-// Dafny Todo Domain Bundle for Deno Edge Function
-// AUTO-GENERATED - DO NOT EDIT
-// Regenerate with: node build-bundle.js
-
-import BigNumber from 'https://esm.sh/bignumber.js@9.1.2';
-
-BigNumber.config({ MODULO_MODE: BigNumber.EUCLID });
-
-// Dafny runtime mock for require
-const require = (mod: string) => {
-  if (mod === 'bignumber.js') return BigNumber;
-  throw new Error(`Unknown module: ${mod}`);
-};
-
-// deno-lint-ignore no-unused-vars
-const exports = {};
-// deno-lint-ignore no-unused-vars
-const module = { exports };
-
-// Evaluate Dafny code
-const initDafny = new Function('require', 'exports', 'module', `
 // Dafny program TodoMultiCollaboration.dfy compiled into JavaScript
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
@@ -26,17 +5,17 @@ const initDafny = new Function('require', 'exports', 'module', `
 const BigNumber = require('bignumber.js');
 BigNumber.config({ MODULO_MODE: BigNumber.EUCLID })
 let _dafny = (function() {
-  let \$module = {};
-  \$module.areEqual = function(a, b) {
+  let $module = {};
+  $module.areEqual = function(a, b) {
     if (typeof a === 'string' && b instanceof _dafny.Seq) {
       // Seq.equals(string) works as expected,
       // and the catch-all else block handles that direction.
       // But the opposite direction doesn't work; handle it here.
       return b.equals(a);
     } else if (typeof a === 'number' && BigNumber.isBigNumber(b)) {
-      // This conditional would be correct even without the \`typeof a\` part,
-      // but in most cases it's probably faster to short-circuit on a \`typeof\`
-      // than to call \`isBigNumber\`. (But it remains to properly test this.)
+      // This conditional would be correct even without the `typeof a` part,
+      // but in most cases it's probably faster to short-circuit on a `typeof`
+      // than to call `isBigNumber`. (But it remains to properly test this.)
       return b.isEqualTo(a);
     } else if (typeof a !== 'object' || a === null || b === null) {
       return a === b;
@@ -48,7 +27,7 @@ let _dafny = (function() {
       return a.equals(b);  // value-type equality
     }
   }
-  \$module.toString = function(a) {
+  $module.toString = function(a) {
     if (a === null) {
       return "null";
     } else if (typeof a === "number") {
@@ -61,50 +40,50 @@ let _dafny = (function() {
       return a.toString();
     }
   }
-  \$module.escapeCharacter = function(cp) {
+  $module.escapeCharacter = function(cp) {
     let s = String.fromCodePoint(cp.value)
     switch (s) {
-      case '\\n': return "\\\\n";
-      case '\\r': return "\\\\r";
-      case '\\t': return "\\\\t";
-      case '\\0': return "\\\\0";
-      case '\\'': return "\\\\'";
-      case '\\"': return "\\\\\\"";
-      case '\\\\': return "\\\\\\\\";
+      case '\n': return "\\n";
+      case '\r': return "\\r";
+      case '\t': return "\\t";
+      case '\0': return "\\0";
+      case '\'': return "\\'";
+      case '\"': return "\\\"";
+      case '\\': return "\\\\";
       default: return s;
     };
   }
-  \$module.NewObject = function() {
+  $module.NewObject = function() {
     return { _tname: "object" };
   }
-  \$module.InstanceOfTrait = function(obj, trait) {
+  $module.InstanceOfTrait = function(obj, trait) {
     return obj._parentTraits !== undefined && obj._parentTraits().includes(trait);
   }
-  \$module.Rtd_bool = class {
+  $module.Rtd_bool = class {
     static get Default() { return false; }
   }
-  \$module.Rtd_char = class {
+  $module.Rtd_char = class {
     static get Default() { return 'D'; }  // See CharType.DefaultValue in Dafny source code
   }
-  \$module.Rtd_codepoint = class {
+  $module.Rtd_codepoint = class {
     static get Default() { return new _dafny.CodePoint('D'.codePointAt(0)); }
   }
-  \$module.Rtd_int = class {
+  $module.Rtd_int = class {
     static get Default() { return BigNumber(0); }
   }
-  \$module.Rtd_number = class {
+  $module.Rtd_number = class {
     static get Default() { return 0; }
   }
-  \$module.Rtd_ref = class {
+  $module.Rtd_ref = class {
     static get Default() { return null; }
   }
-  \$module.Rtd_array = class {
+  $module.Rtd_array = class {
     static get Default() { return []; }
   }
-  \$module.ZERO = new BigNumber(0);
-  \$module.ONE = new BigNumber(1);
-  \$module.NUMBER_LIMIT = new BigNumber(0x20).multipliedBy(0x1000000000000);  // 2^53
-  \$module.Tuple = class Tuple extends Array {
+  $module.ZERO = new BigNumber(0);
+  $module.ONE = new BigNumber(1);
+  $module.NUMBER_LIMIT = new BigNumber(0x20).multipliedBy(0x1000000000000);  // 2^53
+  $module.Tuple = class Tuple extends Array {
     constructor(...elems) {
       super(...elems);
     }
@@ -131,7 +110,7 @@ let _dafny = (function() {
       };
     }
   }
-  \$module.Set = class Set extends Array {
+  $module.Set = class Set extends Array {
     constructor() {
       super();
     }
@@ -289,7 +268,7 @@ let _dafny = (function() {
       }
     }
   }
-  \$module.MultiSet = class MultiSet extends Array {
+  $module.MultiSet = class MultiSet extends Array {
     constructor() {
       super();
     }
@@ -491,7 +470,7 @@ let _dafny = (function() {
       return this.IsSubsetOf(that) && this.cardinality().isLessThan(that.cardinality());
     }
   }
-  \$module.CodePoint = class CodePoint {
+  $module.CodePoint = class CodePoint {
     constructor(value) {
       this.value = value
     }
@@ -508,7 +487,7 @@ let _dafny = (function() {
       return this.value <= other.value
     }
     toString() {
-      return "'" + \$module.escapeCharacter(this) + "'";
+      return "'" + $module.escapeCharacter(this) + "'";
     }
     static isCodePoint(i) {
       return (
@@ -516,7 +495,7 @@ let _dafny = (function() {
         (new BigNumber(0xE000).isLessThanOrEqualTo(i) && i.isLessThan(new BigNumber(0x11_0000))))
     }
   }
-  \$module.Seq = class Seq extends Array {
+  $module.Seq = class Seq extends Array {
     constructor(...elems) {
       super(...elems);
     }
@@ -626,7 +605,7 @@ let _dafny = (function() {
       return true;
     }
   }
-  \$module.Map = class Map extends Array {
+  $module.Map = class Map extends Array {
     constructor() {
       super();
     }
@@ -738,10 +717,10 @@ let _dafny = (function() {
       return m;
     }
   }
-  \$module.newArray = function(initValue, ...dims) {
+  $module.newArray = function(initValue, ...dims) {
     return { dims: dims, elmts: buildArray(initValue, ...dims) };
   }
-  \$module.BigOrdinal = class BigOrdinal {
+  $module.BigOrdinal = class BigOrdinal {
     static get Default() {
       return _dafny.ZERO;
     }
@@ -758,7 +737,7 @@ let _dafny = (function() {
       return true;  // at run time, every ORDINAL is a natural number
     }
   }
-  \$module.BigRational = class BigRational {
+  $module.BigRational = class BigRational {
     static get ZERO() {
       if (this._zero === undefined) {
         this._zero = new BigRational(_dafny.ZERO);
@@ -774,9 +753,9 @@ let _dafny = (function() {
     static get Default() {
       return _dafny.BigRational.ZERO;
     }
-    // We need to deal with the special case \`num == 0 && den == 0\`, because
+    // We need to deal with the special case `num == 0 && den == 0`, because
     // that's what C#'s default struct constructor will produce for BigRational. :(
-    // To deal with it, we ignore \`den\` when \`num\` is 0.
+    // To deal with it, we ignore `den` when `num` is 0.
     toString() {
       if (this.num.isZero() || this.den.isEqualTo(1)) {
         return this.num.toFixed() + ".0";
@@ -940,7 +919,7 @@ let _dafny = (function() {
       return a.multipliedBy(bReciprocal);
     }
   }
-  \$module.EuclideanDivisionNumber = function(a, b) {
+  $module.EuclideanDivisionNumber = function(a, b) {
     if (0 <= a) {
       if (0 <= b) {
         // +a +b: a/b
@@ -959,7 +938,7 @@ let _dafny = (function() {
       }
     }
   }
-  \$module.EuclideanDivision = function(a, b) {
+  $module.EuclideanDivision = function(a, b) {
     if (a.isGreaterThanOrEqualTo(0)) {
       if (b.isGreaterThanOrEqualTo(0)) {
         // +a +b: a/b
@@ -978,7 +957,7 @@ let _dafny = (function() {
       }
     }
   }
-  \$module.EuclideanModuloNumber = function(a, b) {
+  $module.EuclideanModuloNumber = function(a, b) {
     let bp = Math.abs(b);
     if (0 <= a) {
       // +a: a % bp
@@ -991,23 +970,23 @@ let _dafny = (function() {
       return c === 0 ? c : bp - c;
     }
   }
-  \$module.ShiftLeft = function(b, n) {
+  $module.ShiftLeft = function(b, n) {
     return b.multipliedBy(new BigNumber(2).exponentiatedBy(n));
   }
-  \$module.ShiftRight = function(b, n) {
+  $module.ShiftRight = function(b, n) {
     return b.dividedToIntegerBy(new BigNumber(2).exponentiatedBy(n));
   }
-  \$module.RotateLeft = function(b, n, w) {  // truncate(b << n) | (b >> (w - n))
+  $module.RotateLeft = function(b, n, w) {  // truncate(b << n) | (b >> (w - n))
     let x = _dafny.ShiftLeft(b, n).mod(new BigNumber(2).exponentiatedBy(w));
     let y = _dafny.ShiftRight(b, w - n);
     return x.plus(y);
   }
-  \$module.RotateRight = function(b, n, w) {  // (b >> n) | truncate(b << (w - n))
+  $module.RotateRight = function(b, n, w) {  // (b >> n) | truncate(b << (w - n))
     let x = _dafny.ShiftRight(b, n);
     let y = _dafny.ShiftLeft(b, w - n).mod(new BigNumber(2).exponentiatedBy(w));;
     return x.plus(y);
   }
-  \$module.BitwiseAnd = function(a, b) {
+  $module.BitwiseAnd = function(a, b) {
     let r = _dafny.ZERO;
     const m = _dafny.NUMBER_LIMIT;  // 2^53
     let h = _dafny.ONE;
@@ -1021,7 +1000,7 @@ let _dafny = (function() {
     }
     return r;
   }
-  \$module.BitwiseOr = function(a, b) {
+  $module.BitwiseOr = function(a, b) {
     let r = _dafny.ZERO;
     const m = _dafny.NUMBER_LIMIT;  // 2^53
     let h = _dafny.ONE;
@@ -1036,7 +1015,7 @@ let _dafny = (function() {
     r = r.plus(h.multipliedBy(a | b));
     return r;
   }
-  \$module.BitwiseXor = function(a, b) {
+  $module.BitwiseXor = function(a, b) {
     let r = _dafny.ZERO;
     const m = _dafny.NUMBER_LIMIT;  // 2^53
     let h = _dafny.ONE;
@@ -1051,7 +1030,7 @@ let _dafny = (function() {
     r = r.plus(h.multipliedBy(a | b));
     return r;
   }
-  \$module.BitwiseNot = function(a, bits) {
+  $module.BitwiseNot = function(a, bits) {
     let r = _dafny.ZERO;
     let h = _dafny.ONE;
     for (let i = 0; i < bits; i++) {
@@ -1064,34 +1043,34 @@ let _dafny = (function() {
     }
     return r;
   }
-  \$module.Quantifier = function(vals, frall, pred) {
+  $module.Quantifier = function(vals, frall, pred) {
     for (let u of vals) {
       if (pred(u) !== frall) { return !frall; }
     }
     return frall;
   }
-  \$module.PlusChar = function(a, b) {
+  $module.PlusChar = function(a, b) {
     return String.fromCharCode(a.charCodeAt(0) + b.charCodeAt(0));
   }
-  \$module.UnicodePlusChar = function(a, b) {
+  $module.UnicodePlusChar = function(a, b) {
     return new _dafny.CodePoint(a.value + b.value);
   }
-  \$module.MinusChar = function(a, b) {
+  $module.MinusChar = function(a, b) {
     return String.fromCharCode(a.charCodeAt(0) - b.charCodeAt(0));
   }
-  \$module.UnicodeMinusChar = function(a, b) {
+  $module.UnicodeMinusChar = function(a, b) {
     return new _dafny.CodePoint(a.value - b.value);
   }
-  \$module.AllBooleans = function*() {
+  $module.AllBooleans = function*() {
     yield false;
     yield true;
   }
-  \$module.AllChars = function*() {
+  $module.AllChars = function*() {
     for (let i = 0; i < 0x10000; i++) {
       yield String.fromCharCode(i);
     }
   }
-  \$module.AllUnicodeChars = function*() {
+  $module.AllUnicodeChars = function*() {
     for (let i = 0; i < 0xD800; i++) {
       yield new _dafny.CodePoint(i);
     }
@@ -1099,14 +1078,14 @@ let _dafny = (function() {
       yield new _dafny.CodePoint(i);
     }
   }
-  \$module.AllIntegers = function*() {
+  $module.AllIntegers = function*() {
     yield _dafny.ZERO;
     for (let j = _dafny.ONE;; j = j.plus(1)) {
       yield j;
       yield j.negated();
     }
   }
-  \$module.IntegerRange = function*(lo, hi) {
+  $module.IntegerRange = function*(lo, hi) {
     if (lo === null) {
       while (true) {
         hi = hi.minus(1);
@@ -1124,35 +1103,35 @@ let _dafny = (function() {
       }
     }
   }
-  \$module.SingleValue = function*(v) {
+  $module.SingleValue = function*(v) {
     yield v;
   }
-  \$module.HaltException = class HaltException extends Error {
+  $module.HaltException = class HaltException extends Error {
     constructor(message) {
       super(message)
     }
   }
-  \$module.HandleHaltExceptions = function(f) {
+  $module.HandleHaltExceptions = function(f) {
     try {
       f()
     } catch (e) {
       if (e instanceof _dafny.HaltException) {
-        process.stdout.write("[Program halted] " + e.message + "\\n")
+        process.stdout.write("[Program halted] " + e.message + "\n")
         process.exitCode = 1
       } else {
         throw e
       }
     }
   }
-  \$module.FromMainArguments = function(args) {
+  $module.FromMainArguments = function(args) {
     var a = [...args];
     a.splice(0, 2, args[0] + " " + args[1]);
     return a;
   }
-  \$module.UnicodeFromMainArguments = function(args) {
-    return \$module.FromMainArguments(args).map(_dafny.Seq.UnicodeFromString);
+  $module.UnicodeFromMainArguments = function(args) {
+    return $module.FromMainArguments(args).map(_dafny.Seq.UnicodeFromString);
   }
-  return \$module;
+  return $module;
 
   // What follows are routines private to the Dafny runtime
   function buildArray(initValue, ...dims) {
@@ -1165,7 +1144,7 @@ let _dafny = (function() {
     }
   }
   function arrayElementsToString(a) {
-    // like \`a.join(", ")\`, but calling _dafny.toString(x) on every element x instead of x.toString()
+    // like `a.join(", ")`, but calling _dafny.toString(x) on every element x instead of x.toString()
     let s = "";
     let sep = "";
     for (let x of a) {
@@ -1191,9 +1170,9 @@ let _dafny = (function() {
 })();
 // Dafny program systemModulePopulator.dfy compiled into JavaScript
 let _System = (function() {
-  let \$module = {};
+  let $module = {};
 
-  \$module.nat = class nat {
+  $module.nat = class nat {
     constructor () {
     }
     static get Default() {
@@ -1205,12 +1184,12 @@ let _System = (function() {
     }
   };
 
-  return \$module;
+  return $module;
 })(); // end of module _System
 let TodoDomain = (function() {
-  let \$module = {};
+  let $module = {};
 
-  \$module.__default = class __default {
+  $module.__default = class __default {
     constructor () {
       this._tname = "TodoDomain._default";
     }
@@ -2267,26 +2246,26 @@ let TodoDomain = (function() {
     };
   };
 
-  \$module.Option = class Option {
+  $module.Option = class Option {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_None() {
-      let \$dt = new Option(0);
-      return \$dt;
+      let $dt = new Option(0);
+      return $dt;
     }
     static create_Some(value) {
-      let \$dt = new Option(1);
-      \$dt.value = value;
-      return \$dt;
+      let $dt = new Option(1);
+      $dt.value = value;
+      return $dt;
     }
-    get is_None() { return this.\$tag === 0; }
-    get is_Some() { return this.\$tag === 1; }
+    get is_None() { return this.$tag === 0; }
+    get is_Some() { return this.$tag === 1; }
     get dtor_value() { return this.value; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Option.None";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.Option.Some" + "(" + _dafny.toString(this.value) + ")";
       } else  {
         return "<unexpected>";
@@ -2295,10 +2274,10 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.value, other.value);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.value, other.value);
       } else  {
         return false; // unexpected
       }
@@ -2315,23 +2294,23 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Date = class Date {
+  $module.Date = class Date {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Date(year, month, day) {
-      let \$dt = new Date(0);
-      \$dt.year = year;
-      \$dt.month = month;
-      \$dt.day = day;
-      return \$dt;
+      let $dt = new Date(0);
+      $dt.year = year;
+      $dt.month = month;
+      $dt.day = day;
+      return $dt;
     }
-    get is_Date() { return this.\$tag === 0; }
+    get is_Date() { return this.$tag === 0; }
     get dtor_year() { return this.year; }
     get dtor_month() { return this.month; }
     get dtor_day() { return this.day; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Date.Date" + "(" + _dafny.toString(this.year) + ", " + _dafny.toString(this.month) + ", " + _dafny.toString(this.day) + ")";
       } else  {
         return "<unexpected>";
@@ -2340,8 +2319,8 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.year, other.year) && _dafny.areEqual(this.month, other.month) && _dafny.areEqual(this.day, other.day);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.year, other.year) && _dafny.areEqual(this.month, other.month) && _dafny.areEqual(this.day, other.day);
       } else  {
         return false; // unexpected
       }
@@ -2358,25 +2337,25 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Task = class Task {
+  $module.Task = class Task {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Task(title, notes, completed, starred, dueDate, assignees, tags, deleted, deletedBy, deletedFromList) {
-      let \$dt = new Task(0);
-      \$dt.title = title;
-      \$dt.notes = notes;
-      \$dt.completed = completed;
-      \$dt.starred = starred;
-      \$dt.dueDate = dueDate;
-      \$dt.assignees = assignees;
-      \$dt.tags = tags;
-      \$dt.deleted = deleted;
-      \$dt.deletedBy = deletedBy;
-      \$dt.deletedFromList = deletedFromList;
-      return \$dt;
+      let $dt = new Task(0);
+      $dt.title = title;
+      $dt.notes = notes;
+      $dt.completed = completed;
+      $dt.starred = starred;
+      $dt.dueDate = dueDate;
+      $dt.assignees = assignees;
+      $dt.tags = tags;
+      $dt.deleted = deleted;
+      $dt.deletedBy = deletedBy;
+      $dt.deletedFromList = deletedFromList;
+      return $dt;
     }
-    get is_Task() { return this.\$tag === 0; }
+    get is_Task() { return this.$tag === 0; }
     get dtor_title() { return this.title; }
     get dtor_notes() { return this.notes; }
     get dtor_completed() { return this.completed; }
@@ -2388,7 +2367,7 @@ let TodoDomain = (function() {
     get dtor_deletedBy() { return this.deletedBy; }
     get dtor_deletedFromList() { return this.deletedFromList; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Task.Task" + "(" + this.title.toVerbatimString(true) + ", " + this.notes.toVerbatimString(true) + ", " + _dafny.toString(this.completed) + ", " + _dafny.toString(this.starred) + ", " + _dafny.toString(this.dueDate) + ", " + _dafny.toString(this.assignees) + ", " + _dafny.toString(this.tags) + ", " + _dafny.toString(this.deleted) + ", " + _dafny.toString(this.deletedBy) + ", " + _dafny.toString(this.deletedFromList) + ")";
       } else  {
         return "<unexpected>";
@@ -2397,8 +2376,8 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.title, other.title) && _dafny.areEqual(this.notes, other.notes) && this.completed === other.completed && this.starred === other.starred && _dafny.areEqual(this.dueDate, other.dueDate) && _dafny.areEqual(this.assignees, other.assignees) && _dafny.areEqual(this.tags, other.tags) && this.deleted === other.deleted && _dafny.areEqual(this.deletedBy, other.deletedBy) && _dafny.areEqual(this.deletedFromList, other.deletedFromList);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.title, other.title) && _dafny.areEqual(this.notes, other.notes) && this.completed === other.completed && this.starred === other.starred && _dafny.areEqual(this.dueDate, other.dueDate) && _dafny.areEqual(this.assignees, other.assignees) && _dafny.areEqual(this.tags, other.tags) && this.deleted === other.deleted && _dafny.areEqual(this.deletedBy, other.deletedBy) && _dafny.areEqual(this.deletedFromList, other.deletedFromList);
       } else  {
         return false; // unexpected
       }
@@ -2415,19 +2394,19 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Tag = class Tag {
+  $module.Tag = class Tag {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Tag(name) {
-      let \$dt = new Tag(0);
-      \$dt.name = name;
-      return \$dt;
+      let $dt = new Tag(0);
+      $dt.name = name;
+      return $dt;
     }
-    get is_Tag() { return this.\$tag === 0; }
+    get is_Tag() { return this.$tag === 0; }
     get dtor_name() { return this.name; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Tag.Tag" + "(" + this.name.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
@@ -2436,8 +2415,8 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.name, other.name);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.name, other.name);
       } else  {
         return false; // unexpected
       }
@@ -2454,20 +2433,20 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.ProjectMode = class ProjectMode {
+  $module.ProjectMode = class ProjectMode {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Personal() {
-      let \$dt = new ProjectMode(0);
-      return \$dt;
+      let $dt = new ProjectMode(0);
+      return $dt;
     }
     static create_Collaborative() {
-      let \$dt = new ProjectMode(1);
-      return \$dt;
+      let $dt = new ProjectMode(1);
+      return $dt;
     }
-    get is_Personal() { return this.\$tag === 0; }
-    get is_Collaborative() { return this.\$tag === 1; }
+    get is_Personal() { return this.$tag === 0; }
+    get is_Collaborative() { return this.$tag === 1; }
     static get AllSingletonConstructors() {
       return this.AllSingletonConstructors_();
     }
@@ -2476,9 +2455,9 @@ let TodoDomain = (function() {
       yield ProjectMode.create_Collaborative();
     }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.ProjectMode.Personal";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.ProjectMode.Collaborative";
       } else  {
         return "<unexpected>";
@@ -2487,10 +2466,10 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1;
       } else  {
         return false; // unexpected
       }
@@ -2507,26 +2486,26 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Model = class Model {
+  $module.Model = class Model {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Model(mode, owner, members, lists, listNames, tasks, taskData, tags, nextListId, nextTaskId, nextTagId) {
-      let \$dt = new Model(0);
-      \$dt.mode = mode;
-      \$dt.owner = owner;
-      \$dt.members = members;
-      \$dt.lists = lists;
-      \$dt.listNames = listNames;
-      \$dt.tasks = tasks;
-      \$dt.taskData = taskData;
-      \$dt.tags = tags;
-      \$dt.nextListId = nextListId;
-      \$dt.nextTaskId = nextTaskId;
-      \$dt.nextTagId = nextTagId;
-      return \$dt;
+      let $dt = new Model(0);
+      $dt.mode = mode;
+      $dt.owner = owner;
+      $dt.members = members;
+      $dt.lists = lists;
+      $dt.listNames = listNames;
+      $dt.tasks = tasks;
+      $dt.taskData = taskData;
+      $dt.tags = tags;
+      $dt.nextListId = nextListId;
+      $dt.nextTaskId = nextTaskId;
+      $dt.nextTagId = nextTagId;
+      return $dt;
     }
-    get is_Model() { return this.\$tag === 0; }
+    get is_Model() { return this.$tag === 0; }
     get dtor_mode() { return this.mode; }
     get dtor_owner() { return this.owner; }
     get dtor_members() { return this.members; }
@@ -2539,7 +2518,7 @@ let TodoDomain = (function() {
     get dtor_nextTaskId() { return this.nextTaskId; }
     get dtor_nextTagId() { return this.nextTagId; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Model.Model" + "(" + _dafny.toString(this.mode) + ", " + this.owner.toVerbatimString(true) + ", " + _dafny.toString(this.members) + ", " + _dafny.toString(this.lists) + ", " + _dafny.toString(this.listNames) + ", " + _dafny.toString(this.tasks) + ", " + _dafny.toString(this.taskData) + ", " + _dafny.toString(this.tags) + ", " + _dafny.toString(this.nextListId) + ", " + _dafny.toString(this.nextTaskId) + ", " + _dafny.toString(this.nextTagId) + ")";
       } else  {
         return "<unexpected>";
@@ -2548,8 +2527,8 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.mode, other.mode) && _dafny.areEqual(this.owner, other.owner) && _dafny.areEqual(this.members, other.members) && _dafny.areEqual(this.lists, other.lists) && _dafny.areEqual(this.listNames, other.listNames) && _dafny.areEqual(this.tasks, other.tasks) && _dafny.areEqual(this.taskData, other.taskData) && _dafny.areEqual(this.tags, other.tags) && _dafny.areEqual(this.nextListId, other.nextListId) && _dafny.areEqual(this.nextTaskId, other.nextTaskId) && _dafny.areEqual(this.nextTagId, other.nextTagId);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.mode, other.mode) && _dafny.areEqual(this.owner, other.owner) && _dafny.areEqual(this.members, other.members) && _dafny.areEqual(this.lists, other.lists) && _dafny.areEqual(this.listNames, other.listNames) && _dafny.areEqual(this.tasks, other.tasks) && _dafny.areEqual(this.taskData, other.taskData) && _dafny.areEqual(this.tags, other.tags) && _dafny.areEqual(this.nextListId, other.nextListId) && _dafny.areEqual(this.nextTaskId, other.nextTaskId) && _dafny.areEqual(this.nextTagId, other.nextTagId);
       } else  {
         return false; // unexpected
       }
@@ -2566,75 +2545,75 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Err = class Err {
+  $module.Err = class Err {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_MissingList() {
-      let \$dt = new Err(0);
-      return \$dt;
+      let $dt = new Err(0);
+      return $dt;
     }
     static create_MissingTask() {
-      let \$dt = new Err(1);
-      return \$dt;
+      let $dt = new Err(1);
+      return $dt;
     }
     static create_MissingTag() {
-      let \$dt = new Err(2);
-      return \$dt;
+      let $dt = new Err(2);
+      return $dt;
     }
     static create_MissingUser() {
-      let \$dt = new Err(3);
-      return \$dt;
+      let $dt = new Err(3);
+      return $dt;
     }
     static create_DuplicateList() {
-      let \$dt = new Err(4);
-      return \$dt;
+      let $dt = new Err(4);
+      return $dt;
     }
     static create_BadAnchor() {
-      let \$dt = new Err(5);
-      return \$dt;
+      let $dt = new Err(5);
+      return $dt;
     }
     static create_NotAMember() {
-      let \$dt = new Err(6);
-      return \$dt;
+      let $dt = new Err(6);
+      return $dt;
     }
     static create_PersonalProject() {
-      let \$dt = new Err(7);
-      return \$dt;
+      let $dt = new Err(7);
+      return $dt;
     }
     static create_AlreadyCollaborative() {
-      let \$dt = new Err(8);
-      return \$dt;
+      let $dt = new Err(8);
+      return $dt;
     }
     static create_CannotRemoveOwner() {
-      let \$dt = new Err(9);
-      return \$dt;
+      let $dt = new Err(9);
+      return $dt;
     }
     static create_TaskDeleted() {
-      let \$dt = new Err(10);
-      return \$dt;
+      let $dt = new Err(10);
+      return $dt;
     }
     static create_InvalidDate() {
-      let \$dt = new Err(11);
-      return \$dt;
+      let $dt = new Err(11);
+      return $dt;
     }
     static create_Rejected() {
-      let \$dt = new Err(12);
-      return \$dt;
+      let $dt = new Err(12);
+      return $dt;
     }
-    get is_MissingList() { return this.\$tag === 0; }
-    get is_MissingTask() { return this.\$tag === 1; }
-    get is_MissingTag() { return this.\$tag === 2; }
-    get is_MissingUser() { return this.\$tag === 3; }
-    get is_DuplicateList() { return this.\$tag === 4; }
-    get is_BadAnchor() { return this.\$tag === 5; }
-    get is_NotAMember() { return this.\$tag === 6; }
-    get is_PersonalProject() { return this.\$tag === 7; }
-    get is_AlreadyCollaborative() { return this.\$tag === 8; }
-    get is_CannotRemoveOwner() { return this.\$tag === 9; }
-    get is_TaskDeleted() { return this.\$tag === 10; }
-    get is_InvalidDate() { return this.\$tag === 11; }
-    get is_Rejected() { return this.\$tag === 12; }
+    get is_MissingList() { return this.$tag === 0; }
+    get is_MissingTask() { return this.$tag === 1; }
+    get is_MissingTag() { return this.$tag === 2; }
+    get is_MissingUser() { return this.$tag === 3; }
+    get is_DuplicateList() { return this.$tag === 4; }
+    get is_BadAnchor() { return this.$tag === 5; }
+    get is_NotAMember() { return this.$tag === 6; }
+    get is_PersonalProject() { return this.$tag === 7; }
+    get is_AlreadyCollaborative() { return this.$tag === 8; }
+    get is_CannotRemoveOwner() { return this.$tag === 9; }
+    get is_TaskDeleted() { return this.$tag === 10; }
+    get is_InvalidDate() { return this.$tag === 11; }
+    get is_Rejected() { return this.$tag === 12; }
     static get AllSingletonConstructors() {
       return this.AllSingletonConstructors_();
     }
@@ -2654,31 +2633,31 @@ let TodoDomain = (function() {
       yield Err.create_Rejected();
     }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Err.MissingList";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.Err.MissingTask";
-      } else if (this.\$tag === 2) {
+      } else if (this.$tag === 2) {
         return "TodoDomain.Err.MissingTag";
-      } else if (this.\$tag === 3) {
+      } else if (this.$tag === 3) {
         return "TodoDomain.Err.MissingUser";
-      } else if (this.\$tag === 4) {
+      } else if (this.$tag === 4) {
         return "TodoDomain.Err.DuplicateList";
-      } else if (this.\$tag === 5) {
+      } else if (this.$tag === 5) {
         return "TodoDomain.Err.BadAnchor";
-      } else if (this.\$tag === 6) {
+      } else if (this.$tag === 6) {
         return "TodoDomain.Err.NotAMember";
-      } else if (this.\$tag === 7) {
+      } else if (this.$tag === 7) {
         return "TodoDomain.Err.PersonalProject";
-      } else if (this.\$tag === 8) {
+      } else if (this.$tag === 8) {
         return "TodoDomain.Err.AlreadyCollaborative";
-      } else if (this.\$tag === 9) {
+      } else if (this.$tag === 9) {
         return "TodoDomain.Err.CannotRemoveOwner";
-      } else if (this.\$tag === 10) {
+      } else if (this.$tag === 10) {
         return "TodoDomain.Err.TaskDeleted";
-      } else if (this.\$tag === 11) {
+      } else if (this.$tag === 11) {
         return "TodoDomain.Err.InvalidDate";
-      } else if (this.\$tag === 12) {
+      } else if (this.$tag === 12) {
         return "TodoDomain.Err.Rejected";
       } else  {
         return "<unexpected>";
@@ -2687,32 +2666,32 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1;
-      } else if (this.\$tag === 2) {
-        return other.\$tag === 2;
-      } else if (this.\$tag === 3) {
-        return other.\$tag === 3;
-      } else if (this.\$tag === 4) {
-        return other.\$tag === 4;
-      } else if (this.\$tag === 5) {
-        return other.\$tag === 5;
-      } else if (this.\$tag === 6) {
-        return other.\$tag === 6;
-      } else if (this.\$tag === 7) {
-        return other.\$tag === 7;
-      } else if (this.\$tag === 8) {
-        return other.\$tag === 8;
-      } else if (this.\$tag === 9) {
-        return other.\$tag === 9;
-      } else if (this.\$tag === 10) {
-        return other.\$tag === 10;
-      } else if (this.\$tag === 11) {
-        return other.\$tag === 11;
-      } else if (this.\$tag === 12) {
-        return other.\$tag === 12;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1;
+      } else if (this.$tag === 2) {
+        return other.$tag === 2;
+      } else if (this.$tag === 3) {
+        return other.$tag === 3;
+      } else if (this.$tag === 4) {
+        return other.$tag === 4;
+      } else if (this.$tag === 5) {
+        return other.$tag === 5;
+      } else if (this.$tag === 6) {
+        return other.$tag === 6;
+      } else if (this.$tag === 7) {
+        return other.$tag === 7;
+      } else if (this.$tag === 8) {
+        return other.$tag === 8;
+      } else if (this.$tag === 9) {
+        return other.$tag === 9;
+      } else if (this.$tag === 10) {
+        return other.$tag === 10;
+      } else if (this.$tag === 11) {
+        return other.$tag === 11;
+      } else if (this.$tag === 12) {
+        return other.$tag === 12;
       } else  {
         return false; // unexpected
       }
@@ -2729,34 +2708,34 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Place = class Place {
+  $module.Place = class Place {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_AtEnd() {
-      let \$dt = new Place(0);
-      return \$dt;
+      let $dt = new Place(0);
+      return $dt;
     }
     static create_Before(anchor) {
-      let \$dt = new Place(1);
-      \$dt.anchor = anchor;
-      return \$dt;
+      let $dt = new Place(1);
+      $dt.anchor = anchor;
+      return $dt;
     }
     static create_After(anchor) {
-      let \$dt = new Place(2);
-      \$dt.anchor = anchor;
-      return \$dt;
+      let $dt = new Place(2);
+      $dt.anchor = anchor;
+      return $dt;
     }
-    get is_AtEnd() { return this.\$tag === 0; }
-    get is_Before() { return this.\$tag === 1; }
-    get is_After() { return this.\$tag === 2; }
+    get is_AtEnd() { return this.$tag === 0; }
+    get is_Before() { return this.$tag === 1; }
+    get is_After() { return this.$tag === 2; }
     get dtor_anchor() { return this.anchor; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Place.AtEnd";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.Place.Before" + "(" + _dafny.toString(this.anchor) + ")";
-      } else if (this.\$tag === 2) {
+      } else if (this.$tag === 2) {
         return "TodoDomain.Place.After" + "(" + _dafny.toString(this.anchor) + ")";
       } else  {
         return "<unexpected>";
@@ -2765,12 +2744,12 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.anchor, other.anchor);
-      } else if (this.\$tag === 2) {
-        return other.\$tag === 2 && _dafny.areEqual(this.anchor, other.anchor);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.anchor, other.anchor);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.anchor, other.anchor);
       } else  {
         return false; // unexpected
       }
@@ -2787,34 +2766,34 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.ListPlace = class ListPlace {
+  $module.ListPlace = class ListPlace {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_ListAtEnd() {
-      let \$dt = new ListPlace(0);
-      return \$dt;
+      let $dt = new ListPlace(0);
+      return $dt;
     }
     static create_ListBefore(anchor) {
-      let \$dt = new ListPlace(1);
-      \$dt.anchor = anchor;
-      return \$dt;
+      let $dt = new ListPlace(1);
+      $dt.anchor = anchor;
+      return $dt;
     }
     static create_ListAfter(anchor) {
-      let \$dt = new ListPlace(2);
-      \$dt.anchor = anchor;
-      return \$dt;
+      let $dt = new ListPlace(2);
+      $dt.anchor = anchor;
+      return $dt;
     }
-    get is_ListAtEnd() { return this.\$tag === 0; }
-    get is_ListBefore() { return this.\$tag === 1; }
-    get is_ListAfter() { return this.\$tag === 2; }
+    get is_ListAtEnd() { return this.$tag === 0; }
+    get is_ListBefore() { return this.$tag === 1; }
+    get is_ListAfter() { return this.$tag === 2; }
     get dtor_anchor() { return this.anchor; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.ListPlace.ListAtEnd";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.ListPlace.ListBefore" + "(" + _dafny.toString(this.anchor) + ")";
-      } else if (this.\$tag === 2) {
+      } else if (this.$tag === 2) {
         return "TodoDomain.ListPlace.ListAfter" + "(" + _dafny.toString(this.anchor) + ")";
       } else  {
         return "<unexpected>";
@@ -2823,12 +2802,12 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.anchor, other.anchor);
-      } else if (this.\$tag === 2) {
-        return other.\$tag === 2 && _dafny.areEqual(this.anchor, other.anchor);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.anchor, other.anchor);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.anchor, other.anchor);
       } else  {
         return false; // unexpected
       }
@@ -2845,172 +2824,172 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Action = class Action {
+  $module.Action = class Action {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_NoOp() {
-      let \$dt = new Action(0);
-      return \$dt;
+      let $dt = new Action(0);
+      return $dt;
     }
     static create_AddList(name) {
-      let \$dt = new Action(1);
-      \$dt.name = name;
-      return \$dt;
+      let $dt = new Action(1);
+      $dt.name = name;
+      return $dt;
     }
     static create_RenameList(listId, newName) {
-      let \$dt = new Action(2);
-      \$dt.listId = listId;
-      \$dt.newName = newName;
-      return \$dt;
+      let $dt = new Action(2);
+      $dt.listId = listId;
+      $dt.newName = newName;
+      return $dt;
     }
     static create_DeleteList(listId) {
-      let \$dt = new Action(3);
-      \$dt.listId = listId;
-      return \$dt;
+      let $dt = new Action(3);
+      $dt.listId = listId;
+      return $dt;
     }
     static create_MoveList(listId, listPlace) {
-      let \$dt = new Action(4);
-      \$dt.listId = listId;
-      \$dt.listPlace = listPlace;
-      return \$dt;
+      let $dt = new Action(4);
+      $dt.listId = listId;
+      $dt.listPlace = listPlace;
+      return $dt;
     }
     static create_AddTask(listId, title) {
-      let \$dt = new Action(5);
-      \$dt.listId = listId;
-      \$dt.title = title;
-      return \$dt;
+      let $dt = new Action(5);
+      $dt.listId = listId;
+      $dt.title = title;
+      return $dt;
     }
     static create_EditTask(taskId, title, notes) {
-      let \$dt = new Action(6);
-      \$dt.taskId = taskId;
-      \$dt.title = title;
-      \$dt.notes = notes;
-      return \$dt;
+      let $dt = new Action(6);
+      $dt.taskId = taskId;
+      $dt.title = title;
+      $dt.notes = notes;
+      return $dt;
     }
     static create_DeleteTask(taskId, userId) {
-      let \$dt = new Action(7);
-      \$dt.taskId = taskId;
-      \$dt.userId = userId;
-      return \$dt;
+      let $dt = new Action(7);
+      $dt.taskId = taskId;
+      $dt.userId = userId;
+      return $dt;
     }
     static create_RestoreTask(taskId) {
-      let \$dt = new Action(8);
-      \$dt.taskId = taskId;
-      return \$dt;
+      let $dt = new Action(8);
+      $dt.taskId = taskId;
+      return $dt;
     }
     static create_MoveTask(taskId, toList, taskPlace) {
-      let \$dt = new Action(9);
-      \$dt.taskId = taskId;
-      \$dt.toList = toList;
-      \$dt.taskPlace = taskPlace;
-      return \$dt;
+      let $dt = new Action(9);
+      $dt.taskId = taskId;
+      $dt.toList = toList;
+      $dt.taskPlace = taskPlace;
+      return $dt;
     }
     static create_CompleteTask(taskId) {
-      let \$dt = new Action(10);
-      \$dt.taskId = taskId;
-      return \$dt;
+      let $dt = new Action(10);
+      $dt.taskId = taskId;
+      return $dt;
     }
     static create_UncompleteTask(taskId) {
-      let \$dt = new Action(11);
-      \$dt.taskId = taskId;
-      return \$dt;
+      let $dt = new Action(11);
+      $dt.taskId = taskId;
+      return $dt;
     }
     static create_StarTask(taskId) {
-      let \$dt = new Action(12);
-      \$dt.taskId = taskId;
-      return \$dt;
+      let $dt = new Action(12);
+      $dt.taskId = taskId;
+      return $dt;
     }
     static create_UnstarTask(taskId) {
-      let \$dt = new Action(13);
-      \$dt.taskId = taskId;
-      return \$dt;
+      let $dt = new Action(13);
+      $dt.taskId = taskId;
+      return $dt;
     }
     static create_SetDueDate(taskId, dueDate) {
-      let \$dt = new Action(14);
-      \$dt.taskId = taskId;
-      \$dt.dueDate = dueDate;
-      return \$dt;
+      let $dt = new Action(14);
+      $dt.taskId = taskId;
+      $dt.dueDate = dueDate;
+      return $dt;
     }
     static create_AssignTask(taskId, userId) {
-      let \$dt = new Action(15);
-      \$dt.taskId = taskId;
-      \$dt.userId = userId;
-      return \$dt;
+      let $dt = new Action(15);
+      $dt.taskId = taskId;
+      $dt.userId = userId;
+      return $dt;
     }
     static create_UnassignTask(taskId, userId) {
-      let \$dt = new Action(16);
-      \$dt.taskId = taskId;
-      \$dt.userId = userId;
-      return \$dt;
+      let $dt = new Action(16);
+      $dt.taskId = taskId;
+      $dt.userId = userId;
+      return $dt;
     }
     static create_AddTagToTask(taskId, tagId) {
-      let \$dt = new Action(17);
-      \$dt.taskId = taskId;
-      \$dt.tagId = tagId;
-      return \$dt;
+      let $dt = new Action(17);
+      $dt.taskId = taskId;
+      $dt.tagId = tagId;
+      return $dt;
     }
     static create_RemoveTagFromTask(taskId, tagId) {
-      let \$dt = new Action(18);
-      \$dt.taskId = taskId;
-      \$dt.tagId = tagId;
-      return \$dt;
+      let $dt = new Action(18);
+      $dt.taskId = taskId;
+      $dt.tagId = tagId;
+      return $dt;
     }
     static create_CreateTag(name) {
-      let \$dt = new Action(19);
-      \$dt.name = name;
-      return \$dt;
+      let $dt = new Action(19);
+      $dt.name = name;
+      return $dt;
     }
     static create_RenameTag(tagId, newName) {
-      let \$dt = new Action(20);
-      \$dt.tagId = tagId;
-      \$dt.newName = newName;
-      return \$dt;
+      let $dt = new Action(20);
+      $dt.tagId = tagId;
+      $dt.newName = newName;
+      return $dt;
     }
     static create_DeleteTag(tagId) {
-      let \$dt = new Action(21);
-      \$dt.tagId = tagId;
-      return \$dt;
+      let $dt = new Action(21);
+      $dt.tagId = tagId;
+      return $dt;
     }
     static create_MakeCollaborative() {
-      let \$dt = new Action(22);
-      return \$dt;
+      let $dt = new Action(22);
+      return $dt;
     }
     static create_AddMember(userId) {
-      let \$dt = new Action(23);
-      \$dt.userId = userId;
-      return \$dt;
+      let $dt = new Action(23);
+      $dt.userId = userId;
+      return $dt;
     }
     static create_RemoveMember(userId) {
-      let \$dt = new Action(24);
-      \$dt.userId = userId;
-      return \$dt;
+      let $dt = new Action(24);
+      $dt.userId = userId;
+      return $dt;
     }
-    get is_NoOp() { return this.\$tag === 0; }
-    get is_AddList() { return this.\$tag === 1; }
-    get is_RenameList() { return this.\$tag === 2; }
-    get is_DeleteList() { return this.\$tag === 3; }
-    get is_MoveList() { return this.\$tag === 4; }
-    get is_AddTask() { return this.\$tag === 5; }
-    get is_EditTask() { return this.\$tag === 6; }
-    get is_DeleteTask() { return this.\$tag === 7; }
-    get is_RestoreTask() { return this.\$tag === 8; }
-    get is_MoveTask() { return this.\$tag === 9; }
-    get is_CompleteTask() { return this.\$tag === 10; }
-    get is_UncompleteTask() { return this.\$tag === 11; }
-    get is_StarTask() { return this.\$tag === 12; }
-    get is_UnstarTask() { return this.\$tag === 13; }
-    get is_SetDueDate() { return this.\$tag === 14; }
-    get is_AssignTask() { return this.\$tag === 15; }
-    get is_UnassignTask() { return this.\$tag === 16; }
-    get is_AddTagToTask() { return this.\$tag === 17; }
-    get is_RemoveTagFromTask() { return this.\$tag === 18; }
-    get is_CreateTag() { return this.\$tag === 19; }
-    get is_RenameTag() { return this.\$tag === 20; }
-    get is_DeleteTag() { return this.\$tag === 21; }
-    get is_MakeCollaborative() { return this.\$tag === 22; }
-    get is_AddMember() { return this.\$tag === 23; }
-    get is_RemoveMember() { return this.\$tag === 24; }
+    get is_NoOp() { return this.$tag === 0; }
+    get is_AddList() { return this.$tag === 1; }
+    get is_RenameList() { return this.$tag === 2; }
+    get is_DeleteList() { return this.$tag === 3; }
+    get is_MoveList() { return this.$tag === 4; }
+    get is_AddTask() { return this.$tag === 5; }
+    get is_EditTask() { return this.$tag === 6; }
+    get is_DeleteTask() { return this.$tag === 7; }
+    get is_RestoreTask() { return this.$tag === 8; }
+    get is_MoveTask() { return this.$tag === 9; }
+    get is_CompleteTask() { return this.$tag === 10; }
+    get is_UncompleteTask() { return this.$tag === 11; }
+    get is_StarTask() { return this.$tag === 12; }
+    get is_UnstarTask() { return this.$tag === 13; }
+    get is_SetDueDate() { return this.$tag === 14; }
+    get is_AssignTask() { return this.$tag === 15; }
+    get is_UnassignTask() { return this.$tag === 16; }
+    get is_AddTagToTask() { return this.$tag === 17; }
+    get is_RemoveTagFromTask() { return this.$tag === 18; }
+    get is_CreateTag() { return this.$tag === 19; }
+    get is_RenameTag() { return this.$tag === 20; }
+    get is_DeleteTag() { return this.$tag === 21; }
+    get is_MakeCollaborative() { return this.$tag === 22; }
+    get is_AddMember() { return this.$tag === 23; }
+    get is_RemoveMember() { return this.$tag === 24; }
     get dtor_name() { return this.name; }
     get dtor_listId() { return this.listId; }
     get dtor_newName() { return this.newName; }
@@ -3024,55 +3003,55 @@ let TodoDomain = (function() {
     get dtor_dueDate() { return this.dueDate; }
     get dtor_tagId() { return this.tagId; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Action.NoOp";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.Action.AddList" + "(" + this.name.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 2) {
+      } else if (this.$tag === 2) {
         return "TodoDomain.Action.RenameList" + "(" + _dafny.toString(this.listId) + ", " + this.newName.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 3) {
+      } else if (this.$tag === 3) {
         return "TodoDomain.Action.DeleteList" + "(" + _dafny.toString(this.listId) + ")";
-      } else if (this.\$tag === 4) {
+      } else if (this.$tag === 4) {
         return "TodoDomain.Action.MoveList" + "(" + _dafny.toString(this.listId) + ", " + _dafny.toString(this.listPlace) + ")";
-      } else if (this.\$tag === 5) {
+      } else if (this.$tag === 5) {
         return "TodoDomain.Action.AddTask" + "(" + _dafny.toString(this.listId) + ", " + this.title.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 6) {
+      } else if (this.$tag === 6) {
         return "TodoDomain.Action.EditTask" + "(" + _dafny.toString(this.taskId) + ", " + this.title.toVerbatimString(true) + ", " + this.notes.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 7) {
+      } else if (this.$tag === 7) {
         return "TodoDomain.Action.DeleteTask" + "(" + _dafny.toString(this.taskId) + ", " + this.userId.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 8) {
+      } else if (this.$tag === 8) {
         return "TodoDomain.Action.RestoreTask" + "(" + _dafny.toString(this.taskId) + ")";
-      } else if (this.\$tag === 9) {
+      } else if (this.$tag === 9) {
         return "TodoDomain.Action.MoveTask" + "(" + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.toList) + ", " + _dafny.toString(this.taskPlace) + ")";
-      } else if (this.\$tag === 10) {
+      } else if (this.$tag === 10) {
         return "TodoDomain.Action.CompleteTask" + "(" + _dafny.toString(this.taskId) + ")";
-      } else if (this.\$tag === 11) {
+      } else if (this.$tag === 11) {
         return "TodoDomain.Action.UncompleteTask" + "(" + _dafny.toString(this.taskId) + ")";
-      } else if (this.\$tag === 12) {
+      } else if (this.$tag === 12) {
         return "TodoDomain.Action.StarTask" + "(" + _dafny.toString(this.taskId) + ")";
-      } else if (this.\$tag === 13) {
+      } else if (this.$tag === 13) {
         return "TodoDomain.Action.UnstarTask" + "(" + _dafny.toString(this.taskId) + ")";
-      } else if (this.\$tag === 14) {
+      } else if (this.$tag === 14) {
         return "TodoDomain.Action.SetDueDate" + "(" + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.dueDate) + ")";
-      } else if (this.\$tag === 15) {
+      } else if (this.$tag === 15) {
         return "TodoDomain.Action.AssignTask" + "(" + _dafny.toString(this.taskId) + ", " + this.userId.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 16) {
+      } else if (this.$tag === 16) {
         return "TodoDomain.Action.UnassignTask" + "(" + _dafny.toString(this.taskId) + ", " + this.userId.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 17) {
+      } else if (this.$tag === 17) {
         return "TodoDomain.Action.AddTagToTask" + "(" + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.tagId) + ")";
-      } else if (this.\$tag === 18) {
+      } else if (this.$tag === 18) {
         return "TodoDomain.Action.RemoveTagFromTask" + "(" + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.tagId) + ")";
-      } else if (this.\$tag === 19) {
+      } else if (this.$tag === 19) {
         return "TodoDomain.Action.CreateTag" + "(" + this.name.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 20) {
+      } else if (this.$tag === 20) {
         return "TodoDomain.Action.RenameTag" + "(" + _dafny.toString(this.tagId) + ", " + this.newName.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 21) {
+      } else if (this.$tag === 21) {
         return "TodoDomain.Action.DeleteTag" + "(" + _dafny.toString(this.tagId) + ")";
-      } else if (this.\$tag === 22) {
+      } else if (this.$tag === 22) {
         return "TodoDomain.Action.MakeCollaborative";
-      } else if (this.\$tag === 23) {
+      } else if (this.$tag === 23) {
         return "TodoDomain.Action.AddMember" + "(" + this.userId.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 24) {
+      } else if (this.$tag === 24) {
         return "TodoDomain.Action.RemoveMember" + "(" + this.userId.toVerbatimString(true) + ")";
       } else  {
         return "<unexpected>";
@@ -3081,56 +3060,56 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.name, other.name);
-      } else if (this.\$tag === 2) {
-        return other.\$tag === 2 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.newName, other.newName);
-      } else if (this.\$tag === 3) {
-        return other.\$tag === 3 && _dafny.areEqual(this.listId, other.listId);
-      } else if (this.\$tag === 4) {
-        return other.\$tag === 4 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.listPlace, other.listPlace);
-      } else if (this.\$tag === 5) {
-        return other.\$tag === 5 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.title, other.title);
-      } else if (this.\$tag === 6) {
-        return other.\$tag === 6 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.title, other.title) && _dafny.areEqual(this.notes, other.notes);
-      } else if (this.\$tag === 7) {
-        return other.\$tag === 7 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
-      } else if (this.\$tag === 8) {
-        return other.\$tag === 8 && _dafny.areEqual(this.taskId, other.taskId);
-      } else if (this.\$tag === 9) {
-        return other.\$tag === 9 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.toList, other.toList) && _dafny.areEqual(this.taskPlace, other.taskPlace);
-      } else if (this.\$tag === 10) {
-        return other.\$tag === 10 && _dafny.areEqual(this.taskId, other.taskId);
-      } else if (this.\$tag === 11) {
-        return other.\$tag === 11 && _dafny.areEqual(this.taskId, other.taskId);
-      } else if (this.\$tag === 12) {
-        return other.\$tag === 12 && _dafny.areEqual(this.taskId, other.taskId);
-      } else if (this.\$tag === 13) {
-        return other.\$tag === 13 && _dafny.areEqual(this.taskId, other.taskId);
-      } else if (this.\$tag === 14) {
-        return other.\$tag === 14 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.dueDate, other.dueDate);
-      } else if (this.\$tag === 15) {
-        return other.\$tag === 15 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
-      } else if (this.\$tag === 16) {
-        return other.\$tag === 16 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
-      } else if (this.\$tag === 17) {
-        return other.\$tag === 17 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.tagId, other.tagId);
-      } else if (this.\$tag === 18) {
-        return other.\$tag === 18 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.tagId, other.tagId);
-      } else if (this.\$tag === 19) {
-        return other.\$tag === 19 && _dafny.areEqual(this.name, other.name);
-      } else if (this.\$tag === 20) {
-        return other.\$tag === 20 && _dafny.areEqual(this.tagId, other.tagId) && _dafny.areEqual(this.newName, other.newName);
-      } else if (this.\$tag === 21) {
-        return other.\$tag === 21 && _dafny.areEqual(this.tagId, other.tagId);
-      } else if (this.\$tag === 22) {
-        return other.\$tag === 22;
-      } else if (this.\$tag === 23) {
-        return other.\$tag === 23 && _dafny.areEqual(this.userId, other.userId);
-      } else if (this.\$tag === 24) {
-        return other.\$tag === 24 && _dafny.areEqual(this.userId, other.userId);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.name, other.name);
+      } else if (this.$tag === 2) {
+        return other.$tag === 2 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.newName, other.newName);
+      } else if (this.$tag === 3) {
+        return other.$tag === 3 && _dafny.areEqual(this.listId, other.listId);
+      } else if (this.$tag === 4) {
+        return other.$tag === 4 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.listPlace, other.listPlace);
+      } else if (this.$tag === 5) {
+        return other.$tag === 5 && _dafny.areEqual(this.listId, other.listId) && _dafny.areEqual(this.title, other.title);
+      } else if (this.$tag === 6) {
+        return other.$tag === 6 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.title, other.title) && _dafny.areEqual(this.notes, other.notes);
+      } else if (this.$tag === 7) {
+        return other.$tag === 7 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
+      } else if (this.$tag === 8) {
+        return other.$tag === 8 && _dafny.areEqual(this.taskId, other.taskId);
+      } else if (this.$tag === 9) {
+        return other.$tag === 9 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.toList, other.toList) && _dafny.areEqual(this.taskPlace, other.taskPlace);
+      } else if (this.$tag === 10) {
+        return other.$tag === 10 && _dafny.areEqual(this.taskId, other.taskId);
+      } else if (this.$tag === 11) {
+        return other.$tag === 11 && _dafny.areEqual(this.taskId, other.taskId);
+      } else if (this.$tag === 12) {
+        return other.$tag === 12 && _dafny.areEqual(this.taskId, other.taskId);
+      } else if (this.$tag === 13) {
+        return other.$tag === 13 && _dafny.areEqual(this.taskId, other.taskId);
+      } else if (this.$tag === 14) {
+        return other.$tag === 14 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.dueDate, other.dueDate);
+      } else if (this.$tag === 15) {
+        return other.$tag === 15 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
+      } else if (this.$tag === 16) {
+        return other.$tag === 16 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.userId, other.userId);
+      } else if (this.$tag === 17) {
+        return other.$tag === 17 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.tagId, other.tagId);
+      } else if (this.$tag === 18) {
+        return other.$tag === 18 && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.tagId, other.tagId);
+      } else if (this.$tag === 19) {
+        return other.$tag === 19 && _dafny.areEqual(this.name, other.name);
+      } else if (this.$tag === 20) {
+        return other.$tag === 20 && _dafny.areEqual(this.tagId, other.tagId) && _dafny.areEqual(this.newName, other.newName);
+      } else if (this.$tag === 21) {
+        return other.$tag === 21 && _dafny.areEqual(this.tagId, other.tagId);
+      } else if (this.$tag === 22) {
+        return other.$tag === 22;
+      } else if (this.$tag === 23) {
+        return other.$tag === 23 && _dafny.areEqual(this.userId, other.userId);
+      } else if (this.$tag === 24) {
+        return other.$tag === 24 && _dafny.areEqual(this.userId, other.userId);
       } else  {
         return false; // unexpected
       }
@@ -3147,28 +3126,28 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.Result = class Result {
+  $module.Result = class Result {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Ok(value) {
-      let \$dt = new Result(0);
-      \$dt.value = value;
-      return \$dt;
+      let $dt = new Result(0);
+      $dt.value = value;
+      return $dt;
     }
     static create_Err(error) {
-      let \$dt = new Result(1);
-      \$dt.error = error;
-      return \$dt;
+      let $dt = new Result(1);
+      $dt.error = error;
+      return $dt;
     }
-    get is_Ok() { return this.\$tag === 0; }
-    get is_Err() { return this.\$tag === 1; }
+    get is_Ok() { return this.$tag === 0; }
+    get is_Err() { return this.$tag === 1; }
     get dtor_value() { return this.value; }
     get dtor_error() { return this.error; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoDomain.Result.Ok" + "(" + _dafny.toString(this.value) + ")";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoDomain.Result.Err" + "(" + _dafny.toString(this.error) + ")";
       } else  {
         return "<unexpected>";
@@ -3177,10 +3156,10 @@ let TodoDomain = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.value, other.value);
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.error, other.error);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.value, other.value);
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.error, other.error);
       } else  {
         return false; // unexpected
       }
@@ -3188,20 +3167,20 @@ let TodoDomain = (function() {
     static Default(_default_T) {
       return TodoDomain.Result.create_Ok(_default_T);
     }
-    static Rtd(rtd\$_T) {
+    static Rtd(rtd$_T) {
       return class {
         static get Default() {
-          return Result.Default(rtd\$_T.Default);
+          return Result.Default(rtd$_T.Default);
         }
       };
     }
   }
-  return \$module;
+  return $module;
 })(); // end of module TodoDomain
 let TodoMultiCollaboration = (function() {
-  let \$module = {};
+  let $module = {};
 
-  \$module.__default = class __default {
+  $module.__default = class __default {
     constructor () {
       this._tname = "TodoMultiCollaboration._default";
     }
@@ -3261,15 +3240,15 @@ let TodoMultiCollaboration = (function() {
     };
   };
 
-  \$module.RejectReason = class RejectReason {
+  $module.RejectReason = class RejectReason {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_DomainInvalid() {
-      let \$dt = new RejectReason(0);
-      return \$dt;
+      let $dt = new RejectReason(0);
+      return $dt;
     }
-    get is_DomainInvalid() { return this.\$tag === 0; }
+    get is_DomainInvalid() { return this.$tag === 0; }
     static get AllSingletonConstructors() {
       return this.AllSingletonConstructors_();
     }
@@ -3277,7 +3256,7 @@ let TodoMultiCollaboration = (function() {
       yield RejectReason.create_DomainInvalid();
     }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoMultiCollaboration.RejectReason.DomainInvalid";
       } else  {
         return "<unexpected>";
@@ -3286,8 +3265,8 @@ let TodoMultiCollaboration = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0;
       } else  {
         return false; // unexpected
       }
@@ -3304,26 +3283,26 @@ let TodoMultiCollaboration = (function() {
     }
   }
 
-  \$module.Reply = class Reply {
+  $module.Reply = class Reply {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Accepted(newVersion, newPresent, applied, noChange) {
-      let \$dt = new Reply(0);
-      \$dt.newVersion = newVersion;
-      \$dt.newPresent = newPresent;
-      \$dt.applied = applied;
-      \$dt.noChange = noChange;
-      return \$dt;
+      let $dt = new Reply(0);
+      $dt.newVersion = newVersion;
+      $dt.newPresent = newPresent;
+      $dt.applied = applied;
+      $dt.noChange = noChange;
+      return $dt;
     }
     static create_Rejected(reason, rebased) {
-      let \$dt = new Reply(1);
-      \$dt.reason = reason;
-      \$dt.rebased = rebased;
-      return \$dt;
+      let $dt = new Reply(1);
+      $dt.reason = reason;
+      $dt.rebased = rebased;
+      return $dt;
     }
-    get is_Accepted() { return this.\$tag === 0; }
-    get is_Rejected() { return this.\$tag === 1; }
+    get is_Accepted() { return this.$tag === 0; }
+    get is_Rejected() { return this.$tag === 1; }
     get dtor_newVersion() { return this.newVersion; }
     get dtor_newPresent() { return this.newPresent; }
     get dtor_applied() { return this.applied; }
@@ -3331,9 +3310,9 @@ let TodoMultiCollaboration = (function() {
     get dtor_reason() { return this.reason; }
     get dtor_rebased() { return this.rebased; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoMultiCollaboration.Reply.Accepted" + "(" + _dafny.toString(this.newVersion) + ", " + _dafny.toString(this.newPresent) + ", " + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoMultiCollaboration.Reply.Rejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
       } else  {
         return "<unexpected>";
@@ -3342,10 +3321,10 @@ let TodoMultiCollaboration = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.newVersion, other.newVersion) && _dafny.areEqual(this.newPresent, other.newPresent) && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.newVersion, other.newVersion) && _dafny.areEqual(this.newPresent, other.newPresent) && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
       } else  {
         return false; // unexpected
       }
@@ -3362,32 +3341,32 @@ let TodoMultiCollaboration = (function() {
     }
   }
 
-  \$module.RequestOutcome = class RequestOutcome {
+  $module.RequestOutcome = class RequestOutcome {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_AuditAccepted(applied, noChange) {
-      let \$dt = new RequestOutcome(0);
-      \$dt.applied = applied;
-      \$dt.noChange = noChange;
-      return \$dt;
+      let $dt = new RequestOutcome(0);
+      $dt.applied = applied;
+      $dt.noChange = noChange;
+      return $dt;
     }
     static create_AuditRejected(reason, rebased) {
-      let \$dt = new RequestOutcome(1);
-      \$dt.reason = reason;
-      \$dt.rebased = rebased;
-      return \$dt;
+      let $dt = new RequestOutcome(1);
+      $dt.reason = reason;
+      $dt.rebased = rebased;
+      return $dt;
     }
-    get is_AuditAccepted() { return this.\$tag === 0; }
-    get is_AuditRejected() { return this.\$tag === 1; }
+    get is_AuditAccepted() { return this.$tag === 0; }
+    get is_AuditRejected() { return this.$tag === 1; }
     get dtor_applied() { return this.applied; }
     get dtor_noChange() { return this.noChange; }
     get dtor_reason() { return this.reason; }
     get dtor_rebased() { return this.rebased; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoMultiCollaboration.RequestOutcome.AuditAccepted" + "(" + _dafny.toString(this.applied) + ", " + _dafny.toString(this.noChange) + ")";
-      } else if (this.\$tag === 1) {
+      } else if (this.$tag === 1) {
         return "TodoMultiCollaboration.RequestOutcome.AuditRejected" + "(" + _dafny.toString(this.reason) + ", " + _dafny.toString(this.rebased) + ")";
       } else  {
         return "<unexpected>";
@@ -3396,10 +3375,10 @@ let TodoMultiCollaboration = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.applied, other.applied) && this.noChange === other.noChange;
+      } else if (this.$tag === 1) {
+        return other.$tag === 1 && _dafny.areEqual(this.reason, other.reason) && _dafny.areEqual(this.rebased, other.rebased);
       } else  {
         return false; // unexpected
       }
@@ -3416,27 +3395,27 @@ let TodoMultiCollaboration = (function() {
     }
   }
 
-  \$module.RequestRecord = class RequestRecord {
+  $module.RequestRecord = class RequestRecord {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_Req(baseVersion, orig, rebased, chosen, outcome) {
-      let \$dt = new RequestRecord(0);
-      \$dt.baseVersion = baseVersion;
-      \$dt.orig = orig;
-      \$dt.rebased = rebased;
-      \$dt.chosen = chosen;
-      \$dt.outcome = outcome;
-      return \$dt;
+      let $dt = new RequestRecord(0);
+      $dt.baseVersion = baseVersion;
+      $dt.orig = orig;
+      $dt.rebased = rebased;
+      $dt.chosen = chosen;
+      $dt.outcome = outcome;
+      return $dt;
     }
-    get is_Req() { return this.\$tag === 0; }
+    get is_Req() { return this.$tag === 0; }
     get dtor_baseVersion() { return this.baseVersion; }
     get dtor_orig() { return this.orig; }
     get dtor_rebased() { return this.rebased; }
     get dtor_chosen() { return this.chosen; }
     get dtor_outcome() { return this.outcome; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoMultiCollaboration.RequestRecord.Req" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.orig) + ", " + _dafny.toString(this.rebased) + ", " + _dafny.toString(this.chosen) + ", " + _dafny.toString(this.outcome) + ")";
       } else  {
         return "<unexpected>";
@@ -3445,8 +3424,8 @@ let TodoMultiCollaboration = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.orig, other.orig) && _dafny.areEqual(this.rebased, other.rebased) && _dafny.areEqual(this.chosen, other.chosen) && _dafny.areEqual(this.outcome, other.outcome);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.orig, other.orig) && _dafny.areEqual(this.rebased, other.rebased) && _dafny.areEqual(this.chosen, other.chosen) && _dafny.areEqual(this.outcome, other.outcome);
       } else  {
         return false; // unexpected
       }
@@ -3463,23 +3442,23 @@ let TodoMultiCollaboration = (function() {
     }
   }
 
-  \$module.ServerState = class ServerState {
+  $module.ServerState = class ServerState {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_ServerState(present, appliedLog, auditLog) {
-      let \$dt = new ServerState(0);
-      \$dt.present = present;
-      \$dt.appliedLog = appliedLog;
-      \$dt.auditLog = auditLog;
-      return \$dt;
+      let $dt = new ServerState(0);
+      $dt.present = present;
+      $dt.appliedLog = appliedLog;
+      $dt.auditLog = auditLog;
+      return $dt;
     }
-    get is_ServerState() { return this.\$tag === 0; }
+    get is_ServerState() { return this.$tag === 0; }
     get dtor_present() { return this.present; }
     get dtor_appliedLog() { return this.appliedLog; }
     get dtor_auditLog() { return this.auditLog; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoMultiCollaboration.ServerState.ServerState" + "(" + _dafny.toString(this.present) + ", " + _dafny.toString(this.appliedLog) + ", " + _dafny.toString(this.auditLog) + ")";
       } else  {
         return "<unexpected>";
@@ -3488,8 +3467,8 @@ let TodoMultiCollaboration = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.appliedLog, other.appliedLog) && _dafny.areEqual(this.auditLog, other.auditLog);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.appliedLog, other.appliedLog) && _dafny.areEqual(this.auditLog, other.auditLog);
       } else  {
         return false; // unexpected
       }
@@ -3505,12 +3484,12 @@ let TodoMultiCollaboration = (function() {
       };
     }
   }
-  return \$module;
+  return $module;
 })(); // end of module TodoMultiCollaboration
 let TodoAppCore = (function() {
-  let \$module = {};
+  let $module = {};
 
-  \$module.__default = class __default {
+  $module.__default = class __default {
     constructor () {
       this._tname = "TodoAppCore._default";
     }
@@ -3554,23 +3533,23 @@ let TodoAppCore = (function() {
     };
   };
 
-  \$module.ClientState = class ClientState {
+  $module.ClientState = class ClientState {
     constructor(tag) {
-      this.\$tag = tag;
+      this.$tag = tag;
     }
     static create_ClientState(baseVersion, present, pending) {
-      let \$dt = new ClientState(0);
-      \$dt.baseVersion = baseVersion;
-      \$dt.present = present;
-      \$dt.pending = pending;
-      return \$dt;
+      let $dt = new ClientState(0);
+      $dt.baseVersion = baseVersion;
+      $dt.present = present;
+      $dt.pending = pending;
+      return $dt;
     }
-    get is_ClientState() { return this.\$tag === 0; }
+    get is_ClientState() { return this.$tag === 0; }
     get dtor_baseVersion() { return this.baseVersion; }
     get dtor_present() { return this.present; }
     get dtor_pending() { return this.pending; }
     toString() {
-      if (this.\$tag === 0) {
+      if (this.$tag === 0) {
         return "TodoAppCore.ClientState.ClientState" + "(" + _dafny.toString(this.baseVersion) + ", " + _dafny.toString(this.present) + ", " + _dafny.toString(this.pending) + ")";
       } else  {
         return "<unexpected>";
@@ -3579,8 +3558,8 @@ let TodoAppCore = (function() {
     equals(other) {
       if (this === other) {
         return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.pending, other.pending);
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.baseVersion, other.baseVersion) && _dafny.areEqual(this.present, other.present) && _dafny.areEqual(this.pending, other.pending);
       } else  {
         return false; // unexpected
       }
@@ -3596,743 +3575,10 @@ let TodoAppCore = (function() {
       };
     }
   }
-  return \$module;
+  return $module;
 })(); // end of module TodoAppCore
 let _module = (function() {
-  let \$module = {};
+  let $module = {};
 
-  return \$module;
+  return $module;
 })(); // end of module _module
-
-  return { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore };
-`);
-
-const { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore } = initDafny(require, exports, module);
-
-export { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore, BigNumber };
-
-// ============================================================================
-// Helper functions
-// ============================================================================
-
-// deno-lint-ignore no-explicit-any
-const seqToArray = (seq: any): any[] => {
-  const arr = [];
-  for (let i = 0; i < seq.length; i++) {
-    arr.push(seq[i]);
-  }
-  return arr;
-};
-
-// deno-lint-ignore no-explicit-any
-const toNumber = (bn: any): number => {
-  if (bn && typeof bn.toNumber === 'function') {
-    return bn.toNumber();
-  }
-  return bn;
-};
-
-// deno-lint-ignore no-explicit-any
-const dafnyStringToJs = (seq: any): string => {
-  if (typeof seq === 'string') return seq;
-  if (seq.toVerbatimString) return seq.toVerbatimString(false);
-  return Array.from(seq).join('');
-};
-
-// deno-lint-ignore no-explicit-any
-const setToArray = (set: any): any[] => {
-  if (!set || !set.Elements) return [];
-  return Array.from(set.Elements);
-};
-
-// ============================================================================
-// Option helpers
-// ============================================================================
-
-// deno-lint-ignore no-explicit-any
-const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
-  if (opt.is_None) return null;
-  return converter(opt.dtor_value);
-};
-
-// deno-lint-ignore no-explicit-any
-const jsToOption = (val: any, converter: (x: any) => any = (x) => x): any => {
-  if (val === null || val === undefined) {
-    return TodoDomain.Option.create_None();
-  }
-  return TodoDomain.Option.create_Some(converter(val));
-};
-
-// ============================================================================
-// Date conversion
-// ============================================================================
-
-interface DateJson {
-  year: number;
-  month: number;
-  day: number;
-}
-
-// deno-lint-ignore no-explicit-any
-const dateToJs = (date: any): DateJson => {
-  return {
-    year: toNumber(date.dtor_year),
-    month: toNumber(date.dtor_month),
-    day: toNumber(date.dtor_day)
-  };
-};
-
-const jsToDate = (obj: DateJson): any => {
-  return TodoDomain.Date.create_Date(
-    new BigNumber(obj.year),
-    new BigNumber(obj.month),
-    new BigNumber(obj.day)
-  );
-};
-
-// ============================================================================
-// Task conversion
-// ============================================================================
-
-interface TaskJson {
-  title: string;
-  notes: string;
-  completed: boolean;
-  starred: boolean;
-  dueDate: DateJson | null;
-  assignees: string[];
-  tags: number[];
-  deleted: boolean;
-  deletedBy: string | null;
-  deletedFromList: number | null;
-}
-
-// deno-lint-ignore no-explicit-any
-const taskToJs = (task: any): TaskJson => {
-  return {
-    title: dafnyStringToJs(task.dtor_title),
-    notes: dafnyStringToJs(task.dtor_notes),
-    completed: task.dtor_completed,
-    starred: task.dtor_starred,
-    dueDate: optionToJs(task.dtor_dueDate, dateToJs),
-    assignees: setToArray(task.dtor_assignees).map(dafnyStringToJs),
-    tags: setToArray(task.dtor_tags).map(toNumber),
-    deleted: task.dtor_deleted,
-    deletedBy: optionToJs(task.dtor_deletedBy, dafnyStringToJs),
-    deletedFromList: optionToJs(task.dtor_deletedFromList, toNumber)
-  };
-};
-
-// ============================================================================
-// Model conversion
-// ============================================================================
-
-interface Model {
-  mode: 'Personal' | 'Collaborative';
-  owner: string;
-  members: string[];
-  lists: number[];
-  listNames: Record<number, string>;
-  tasks: Record<number, number[]>;
-  taskData: Record<number, TaskJson>;
-  tags: Record<number, { name: string }>;
-  nextListId: number;
-  nextTaskId: number;
-  nextTagId: number;
-}
-
-// deno-lint-ignore no-explicit-any
-export const modelFromJson = (json: Model): any => {
-  // Mode
-  const mode = json.mode === 'Collaborative'
-    ? TodoDomain.ProjectMode.create_Collaborative()
-    : TodoDomain.ProjectMode.create_Personal();
-
-  // Owner and members
-  const owner = _dafny.Seq.UnicodeFromString(json.owner || '');
-  let members = _dafny.Set.Empty;
-  for (const m of (json.members || [])) {
-    members = members.Union(_dafny.Set.fromElements(_dafny.Seq.UnicodeFromString(m)));
-  }
-
-  // Lists
-  const lists = _dafny.Seq.of(...(json.lists || []).map((id: number) => new BigNumber(id)));
-
-  // ListNames
-  let listNames = _dafny.Map.Empty;
-  for (const [id, name] of Object.entries(json.listNames || {})) {
-    listNames = listNames.update(new BigNumber(id), _dafny.Seq.UnicodeFromString(name));
-  }
-
-  // Tasks (listId -> seq<taskId>)
-  let tasks = _dafny.Map.Empty;
-  for (const [listId, taskIds] of Object.entries(json.tasks || {})) {
-    const key = new BigNumber(listId);
-    const value = _dafny.Seq.of(...(taskIds as number[]).map((id: number) => new BigNumber(id)));
-    tasks = tasks.update(key, value);
-  }
-
-  // TaskData
-  let taskData = _dafny.Map.Empty;
-  for (const [taskId, task] of Object.entries(json.taskData || {})) {
-    const key = new BigNumber(taskId);
-    const t = task as TaskJson;
-
-    // Convert assignees to Dafny set of strings
-    let assignees = _dafny.Set.Empty;
-    for (const a of (t.assignees || [])) {
-      assignees = assignees.Union(_dafny.Set.fromElements(_dafny.Seq.UnicodeFromString(a)));
-    }
-
-    // Convert tags to Dafny set of nats
-    let tags = _dafny.Set.Empty;
-    for (const tagId of (t.tags || [])) {
-      tags = tags.Union(_dafny.Set.fromElements(new BigNumber(tagId)));
-    }
-
-    // Convert dueDate
-    const dueDate = t.dueDate
-      ? TodoDomain.Option.create_Some(jsToDate(t.dueDate))
-      : TodoDomain.Option.create_None();
-
-    // Convert deletedBy
-    const deletedBy = t.deletedBy
-      ? TodoDomain.Option.create_Some(_dafny.Seq.UnicodeFromString(t.deletedBy))
-      : TodoDomain.Option.create_None();
-
-    // Convert deletedFromList
-    const deletedFromList = t.deletedFromList !== null && t.deletedFromList !== undefined
-      ? TodoDomain.Option.create_Some(new BigNumber(t.deletedFromList))
-      : TodoDomain.Option.create_None();
-
-    const value = TodoDomain.Task.create_Task(
-      _dafny.Seq.UnicodeFromString(t.title || ''),
-      _dafny.Seq.UnicodeFromString(t.notes || ''),
-      t.completed || false,
-      t.starred || false,
-      dueDate,
-      assignees,
-      tags,
-      t.deleted || false,
-      deletedBy,
-      deletedFromList
-    );
-    taskData = taskData.update(key, value);
-  }
-
-  // Tags
-  let tagsMap = _dafny.Map.Empty;
-  for (const [tagId, tag] of Object.entries(json.tags || {})) {
-    const key = new BigNumber(tagId);
-    const value = TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString((tag as { name: string }).name || ''));
-    tagsMap = tagsMap.update(key, value);
-  }
-
-  return TodoDomain.Model.create_Model(
-    mode,
-    owner,
-    members,
-    lists,
-    listNames,
-    tasks,
-    taskData,
-    tagsMap,
-    new BigNumber(json.nextListId || 0),
-    new BigNumber(json.nextTaskId || 0),
-    new BigNumber(json.nextTagId || 0)
-  );
-};
-
-// deno-lint-ignore no-explicit-any
-export const modelToJson = (m: any): Model => {
-  const mode = m.dtor_mode.is_Collaborative ? 'Collaborative' : 'Personal';
-  const owner = dafnyStringToJs(m.dtor_owner);
-  const members = setToArray(m.dtor_members).map(dafnyStringToJs);
-  const lists = seqToArray(m.dtor_lists).map(toNumber);
-
-  const listNames: Record<number, string> = {};
-  if (m.dtor_listNames && m.dtor_listNames.Keys) {
-    for (const key of m.dtor_listNames.Keys.Elements) {
-      listNames[toNumber(key)] = dafnyStringToJs(m.dtor_listNames.get(key));
-    }
-  }
-
-  const tasks: Record<number, number[]> = {};
-  if (m.dtor_tasks && m.dtor_tasks.Keys) {
-    for (const key of m.dtor_tasks.Keys.Elements) {
-      tasks[toNumber(key)] = seqToArray(m.dtor_tasks.get(key)).map(toNumber);
-    }
-  }
-
-  const taskData: Record<number, TaskJson> = {};
-  if (m.dtor_taskData && m.dtor_taskData.Keys) {
-    for (const key of m.dtor_taskData.Keys.Elements) {
-      taskData[toNumber(key)] = taskToJs(m.dtor_taskData.get(key));
-    }
-  }
-
-  const tags: Record<number, { name: string }> = {};
-  if (m.dtor_tags && m.dtor_tags.Keys) {
-    for (const key of m.dtor_tags.Keys.Elements) {
-      tags[toNumber(key)] = { name: dafnyStringToJs(m.dtor_tags.get(key).dtor_name) };
-    }
-  }
-
-  return {
-    mode: mode as 'Personal' | 'Collaborative',
-    owner,
-    members,
-    lists,
-    listNames,
-    tasks,
-    taskData,
-    tags,
-    nextListId: toNumber(m.dtor_nextListId),
-    nextTaskId: toNumber(m.dtor_nextTaskId),
-    nextTagId: toNumber(m.dtor_nextTagId)
-  };
-};
-
-// ============================================================================
-// Place conversion
-// ============================================================================
-
-interface Place {
-  type: 'AtEnd' | 'Before' | 'After';
-  anchor?: number;
-}
-
-interface ListPlace {
-  type: 'ListAtEnd' | 'ListBefore' | 'ListAfter';
-  anchor?: number;
-}
-
-const placeFromJson = (json: Place | undefined): any => {
-  if (!json || json.type === 'AtEnd') {
-    return TodoDomain.Place.create_AtEnd();
-  } else if (json.type === 'Before') {
-    return TodoDomain.Place.create_Before(new BigNumber(json.anchor!));
-  } else if (json.type === 'After') {
-    return TodoDomain.Place.create_After(new BigNumber(json.anchor!));
-  }
-  return TodoDomain.Place.create_AtEnd();
-};
-
-// deno-lint-ignore no-explicit-any
-const placeToJson = (place: any): Place => {
-  if (place.is_AtEnd) return { type: 'AtEnd' };
-  if (place.is_Before) return { type: 'Before', anchor: toNumber(place.dtor_anchor) };
-  if (place.is_After) return { type: 'After', anchor: toNumber(place.dtor_anchor) };
-  return { type: 'AtEnd' };
-};
-
-const listPlaceFromJson = (json: ListPlace | undefined): any => {
-  if (!json || json.type === 'ListAtEnd') {
-    return TodoDomain.ListPlace.create_ListAtEnd();
-  } else if (json.type === 'ListBefore') {
-    return TodoDomain.ListPlace.create_ListBefore(new BigNumber(json.anchor!));
-  } else if (json.type === 'ListAfter') {
-    return TodoDomain.ListPlace.create_ListAfter(new BigNumber(json.anchor!));
-  }
-  return TodoDomain.ListPlace.create_ListAtEnd();
-};
-
-// deno-lint-ignore no-explicit-any
-const listPlaceToJson = (place: any): ListPlace => {
-  if (place.is_ListAtEnd) return { type: 'ListAtEnd' };
-  if (place.is_ListBefore) return { type: 'ListBefore', anchor: toNumber(place.dtor_anchor) };
-  if (place.is_ListAfter) return { type: 'ListAfter', anchor: toNumber(place.dtor_anchor) };
-  return { type: 'ListAtEnd' };
-};
-
-// ============================================================================
-// Action conversion
-// ============================================================================
-
-interface Action {
-  type: string;
-  // deno-lint-ignore no-explicit-any
-  [key: string]: any;
-}
-
-// deno-lint-ignore no-explicit-any
-export const actionFromJson = (json: Action): any => {
-  switch (json.type) {
-    case 'NoOp':
-      return TodoDomain.Action.create_NoOp();
-
-    // List operations
-    case 'AddList':
-      return TodoDomain.Action.create_AddList(_dafny.Seq.UnicodeFromString(json.name));
-    case 'RenameList':
-      return TodoDomain.Action.create_RenameList(
-        new BigNumber(json.listId),
-        _dafny.Seq.UnicodeFromString(json.newName)
-      );
-    case 'DeleteList':
-      return TodoDomain.Action.create_DeleteList(new BigNumber(json.listId));
-    case 'MoveList':
-      return TodoDomain.Action.create_MoveList(
-        new BigNumber(json.listId),
-        listPlaceFromJson(json.listPlace)
-      );
-
-    // Task CRUD
-    case 'AddTask':
-      return TodoDomain.Action.create_AddTask(
-        new BigNumber(json.listId),
-        _dafny.Seq.UnicodeFromString(json.title)
-      );
-    case 'EditTask':
-      return TodoDomain.Action.create_EditTask(
-        new BigNumber(json.taskId),
-        _dafny.Seq.UnicodeFromString(json.title),
-        _dafny.Seq.UnicodeFromString(json.notes || '')
-      );
-    case 'DeleteTask':
-      return TodoDomain.Action.create_DeleteTask(
-        new BigNumber(json.taskId),
-        _dafny.Seq.UnicodeFromString(json.userId)
-      );
-    case 'RestoreTask':
-      return TodoDomain.Action.create_RestoreTask(new BigNumber(json.taskId));
-    case 'MoveTask':
-      return TodoDomain.Action.create_MoveTask(
-        new BigNumber(json.taskId),
-        new BigNumber(json.toList),
-        placeFromJson(json.taskPlace)
-      );
-
-    // Task status
-    case 'CompleteTask':
-      return TodoDomain.Action.create_CompleteTask(new BigNumber(json.taskId));
-    case 'UncompleteTask':
-      return TodoDomain.Action.create_UncompleteTask(new BigNumber(json.taskId));
-    case 'StarTask':
-      return TodoDomain.Action.create_StarTask(new BigNumber(json.taskId));
-    case 'UnstarTask':
-      return TodoDomain.Action.create_UnstarTask(new BigNumber(json.taskId));
-
-    // Due date
-    case 'SetDueDate':
-      return TodoDomain.Action.create_SetDueDate(
-        new BigNumber(json.taskId),
-        jsToOption(json.dueDate, jsToDate)
-      );
-
-    // Assignment
-    case 'AssignTask':
-      return TodoDomain.Action.create_AssignTask(
-        new BigNumber(json.taskId),
-        _dafny.Seq.UnicodeFromString(json.userId)
-      );
-    case 'UnassignTask':
-      return TodoDomain.Action.create_UnassignTask(
-        new BigNumber(json.taskId),
-        _dafny.Seq.UnicodeFromString(json.userId)
-      );
-
-    // Tags on tasks
-    case 'AddTagToTask':
-      return TodoDomain.Action.create_AddTagToTask(
-        new BigNumber(json.taskId),
-        new BigNumber(json.tagId)
-      );
-    case 'RemoveTagFromTask':
-      return TodoDomain.Action.create_RemoveTagFromTask(
-        new BigNumber(json.taskId),
-        new BigNumber(json.tagId)
-      );
-
-    // Tag CRUD
-    case 'CreateTag':
-      return TodoDomain.Action.create_CreateTag(_dafny.Seq.UnicodeFromString(json.name));
-    case 'RenameTag':
-      return TodoDomain.Action.create_RenameTag(
-        new BigNumber(json.tagId),
-        _dafny.Seq.UnicodeFromString(json.newName)
-      );
-    case 'DeleteTag':
-      return TodoDomain.Action.create_DeleteTag(new BigNumber(json.tagId));
-
-    // Project mode
-    case 'MakeCollaborative':
-      return TodoDomain.Action.create_MakeCollaborative();
-
-    // Membership
-    case 'AddMember':
-      return TodoDomain.Action.create_AddMember(_dafny.Seq.UnicodeFromString(json.userId));
-    case 'RemoveMember':
-      return TodoDomain.Action.create_RemoveMember(_dafny.Seq.UnicodeFromString(json.userId));
-
-    default:
-      return TodoDomain.Action.create_NoOp();
-  }
-};
-
-// deno-lint-ignore no-explicit-any
-export const actionToJson = (action: any): Action => {
-  if (action.is_NoOp) return { type: 'NoOp' };
-
-  // List operations
-  if (action.is_AddList) return { type: 'AddList', name: dafnyStringToJs(action.dtor_name) };
-  if (action.is_RenameList) return {
-    type: 'RenameList',
-    listId: toNumber(action.dtor_listId),
-    newName: dafnyStringToJs(action.dtor_newName)
-  };
-  if (action.is_DeleteList) return { type: 'DeleteList', listId: toNumber(action.dtor_listId) };
-  if (action.is_MoveList) return {
-    type: 'MoveList',
-    listId: toNumber(action.dtor_listId),
-    listPlace: listPlaceToJson(action.dtor_listPlace)
-  };
-
-  // Task CRUD
-  if (action.is_AddTask) return {
-    type: 'AddTask',
-    listId: toNumber(action.dtor_listId),
-    title: dafnyStringToJs(action.dtor_title)
-  };
-  if (action.is_EditTask) return {
-    type: 'EditTask',
-    taskId: toNumber(action.dtor_taskId),
-    title: dafnyStringToJs(action.dtor_title),
-    notes: dafnyStringToJs(action.dtor_notes)
-  };
-  if (action.is_DeleteTask) return {
-    type: 'DeleteTask',
-    taskId: toNumber(action.dtor_taskId),
-    userId: dafnyStringToJs(action.dtor_userId)
-  };
-  if (action.is_RestoreTask) return { type: 'RestoreTask', taskId: toNumber(action.dtor_taskId) };
-  if (action.is_MoveTask) return {
-    type: 'MoveTask',
-    taskId: toNumber(action.dtor_taskId),
-    toList: toNumber(action.dtor_toList),
-    taskPlace: placeToJson(action.dtor_taskPlace)
-  };
-
-  // Task status
-  if (action.is_CompleteTask) return { type: 'CompleteTask', taskId: toNumber(action.dtor_taskId) };
-  if (action.is_UncompleteTask) return { type: 'UncompleteTask', taskId: toNumber(action.dtor_taskId) };
-  if (action.is_StarTask) return { type: 'StarTask', taskId: toNumber(action.dtor_taskId) };
-  if (action.is_UnstarTask) return { type: 'UnstarTask', taskId: toNumber(action.dtor_taskId) };
-
-  // Due date
-  if (action.is_SetDueDate) return {
-    type: 'SetDueDate',
-    taskId: toNumber(action.dtor_taskId),
-    dueDate: optionToJs(action.dtor_dueDate, dateToJs)
-  };
-
-  // Assignment
-  if (action.is_AssignTask) return {
-    type: 'AssignTask',
-    taskId: toNumber(action.dtor_taskId),
-    userId: dafnyStringToJs(action.dtor_userId)
-  };
-  if (action.is_UnassignTask) return {
-    type: 'UnassignTask',
-    taskId: toNumber(action.dtor_taskId),
-    userId: dafnyStringToJs(action.dtor_userId)
-  };
-
-  // Tags on tasks
-  if (action.is_AddTagToTask) return {
-    type: 'AddTagToTask',
-    taskId: toNumber(action.dtor_taskId),
-    tagId: toNumber(action.dtor_tagId)
-  };
-  if (action.is_RemoveTagFromTask) return {
-    type: 'RemoveTagFromTask',
-    taskId: toNumber(action.dtor_taskId),
-    tagId: toNumber(action.dtor_tagId)
-  };
-
-  // Tag CRUD
-  if (action.is_CreateTag) return { type: 'CreateTag', name: dafnyStringToJs(action.dtor_name) };
-  if (action.is_RenameTag) return {
-    type: 'RenameTag',
-    tagId: toNumber(action.dtor_tagId),
-    newName: dafnyStringToJs(action.dtor_newName)
-  };
-  if (action.is_DeleteTag) return { type: 'DeleteTag', tagId: toNumber(action.dtor_tagId) };
-
-  // Project mode
-  if (action.is_MakeCollaborative) return { type: 'MakeCollaborative' };
-
-  // Membership
-  if (action.is_AddMember) return { type: 'AddMember', userId: dafnyStringToJs(action.dtor_userId) };
-  if (action.is_RemoveMember) return { type: 'RemoveMember', userId: dafnyStringToJs(action.dtor_userId) };
-
-  return { type: 'NoOp' };
-};
-
-// ============================================================================
-// ServerState conversion (for verified Dispatch)
-// ============================================================================
-
-interface ServerStateJson {
-  present: Model;
-  appliedLog: Action[];
-  auditLog?: AuditRecord[];
-}
-
-interface AuditRecord {
-  baseVersion: number;
-  orig: Action;
-  rebased: Action;
-  chosen: Action;
-  outcome: {
-    type: 'accepted' | 'rejected';
-    applied?: Action;
-    noChange?: boolean;
-    reason?: string;
-  };
-}
-
-// deno-lint-ignore no-explicit-any
-export const serverStateFromJson = (json: ServerStateJson): any => {
-  const present = modelFromJson(json.present);
-
-  // Convert appliedLog: Action[] -> Dafny seq<Action>
-  const appliedActions = (json.appliedLog || []).map(actionFromJson);
-  const appliedLog = _dafny.Seq.of(...appliedActions);
-
-  // Convert auditLog: AuditRecord[] -> Dafny seq<RequestRecord>
-  const auditRecords = (json.auditLog || []).map((rec: AuditRecord) => {
-    const outcome = rec.outcome.type === 'accepted'
-      ? TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
-          actionFromJson(rec.outcome.applied!),
-          rec.outcome.noChange || false
-        )
-      : TodoMultiCollaboration.RequestOutcome.create_AuditRejected(
-          TodoMultiCollaboration.RejectReason.create_DomainInvalid(),
-          actionFromJson(rec.outcome.applied || rec.rebased)
-        );
-
-    return TodoMultiCollaboration.RequestRecord.create_Req(
-      new BigNumber(rec.baseVersion),
-      actionFromJson(rec.orig),
-      actionFromJson(rec.rebased),
-      actionFromJson(rec.chosen),
-      outcome
-    );
-  });
-  const auditLog = _dafny.Seq.of(...auditRecords);
-
-  return TodoMultiCollaboration.ServerState.create_ServerState(
-    present,
-    appliedLog,
-    auditLog
-  );
-};
-
-// deno-lint-ignore no-explicit-any
-export const serverStateToJson = (s: any): ServerStateJson => {
-  const present = modelToJson(s.dtor_present);
-
-  // Convert appliedLog: Dafny seq<Action> -> Action[]
-  const appliedLog = seqToArray(s.dtor_appliedLog).map(actionToJson);
-
-  // Convert auditLog: Dafny seq<RequestRecord> -> AuditRecord[]
-  // deno-lint-ignore no-explicit-any
-  const auditLog = seqToArray(s.dtor_auditLog).map((rec: any) => {
-    const outcome = rec.dtor_outcome;
-    return {
-      baseVersion: toNumber(rec.dtor_baseVersion),
-      orig: actionToJson(rec.dtor_orig),
-      rebased: actionToJson(rec.dtor_rebased),
-      chosen: actionToJson(rec.dtor_chosen),
-      outcome: outcome.is_AuditAccepted
-        ? {
-            type: 'accepted' as const,
-            applied: actionToJson(outcome.dtor_applied),
-            noChange: outcome.dtor_noChange
-          }
-        : {
-            type: 'rejected' as const,
-            reason: 'DomainInvalid',
-            applied: actionToJson(outcome.dtor_rebased)
-          }
-    };
-  });
-
-  return { present, appliedLog, auditLog };
-};
-
-// ============================================================================
-// Verified Dispatch (uses TodoMultiCollaboration.Dispatch directly)
-// ============================================================================
-
-export interface DispatchResult {
-  status: 'accepted' | 'rejected';
-  state?: Model;
-  appliedAction?: Action;
-  newVersion?: number;
-  noChange?: boolean;
-  appliedLog?: Action[];
-  auditLog?: AuditRecord[];
-  reason?: string;
-}
-
-/**
- * Dispatch using the VERIFIED Dafny MultiCollaboration.Dispatch function.
- *
- * This uses the Dafny-verified Dispatch function, which handles:
- * - Rebasing through the suffix
- * - Generating candidates
- * - Choosing the first valid candidate
- * - Preserving invariants (proven)
- */
-export function dispatch(
-  stateJson: Model,
-  appliedLog: Action[],
-  baseVersion: number,
-  actionJson: Action,
-  auditLog?: AuditRecord[]
-): DispatchResult {
-  // Build ServerState from JSON
-  const serverState = serverStateFromJson({
-    present: stateJson,
-    appliedLog: appliedLog,
-    auditLog: auditLog || []
-  });
-
-  // Call VERIFIED Dispatch
-  const action = actionFromJson(actionJson);
-  const result = TodoMultiCollaboration.__default.Dispatch(
-    serverState,
-    new BigNumber(baseVersion),
-    action
-  );
-
-  // Result is a tuple: [newServerState, reply]
-  const newServerState = result[0];
-  const reply = result[1];
-
-  // Extract new state
-  const newStateJson = serverStateToJson(newServerState);
-
-  // Check reply type using TodoAppCore helpers
-  if (TodoAppCore.__default.IsAccepted(reply)) {
-    return {
-      status: 'accepted',
-      state: newStateJson.present,
-      newVersion: toNumber(reply.dtor_newVersion),
-      appliedAction: actionToJson(reply.dtor_applied),
-      noChange: reply.dtor_noChange,
-      appliedLog: newStateJson.appliedLog,
-      auditLog: newStateJson.auditLog
-    };
-  } else {
-    // Rejected
-    return {
-      status: 'rejected',
-      reason: 'DomainInvalid',
-      // Include the rebased action for debugging
-      appliedAction: actionToJson(reply.dtor_rebased)
-    };
-  }
-}

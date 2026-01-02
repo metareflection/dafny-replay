@@ -59,4 +59,10 @@ dafny translate js --no-verify -o generated/ColorWheel --include-runtime ColorWh
 echo "Copying to colorwheel project..."
 cp generated/ColorWheel.js colorwheel/src/dafny/ColorWheel.cjs
 
+echo "Compiling TodoMultiCollaboration to JavaScript..."
+dafny translate js --no-verify -o generated/TodoMulti --include-runtime collab-todo/TodoMultiCollaboration.dfy
+
+echo "Copying to collab-todo project..."
+cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
+
 echo "Done."

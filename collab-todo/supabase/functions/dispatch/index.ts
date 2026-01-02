@@ -3,7 +3,7 @@
 // JWT verified at gateway level
 //
 // Trust boundary: Only JSON conversion is unverified.
-// The dispatch function uses KanbanMultiCollaboration.__default.Dispatch directly.
+// The dispatch function uses TodoMultiCollaboration.__default.Dispatch directly.
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'

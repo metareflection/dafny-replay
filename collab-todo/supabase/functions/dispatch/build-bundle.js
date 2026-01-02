@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Read the compiled Dafny code
-const dafnyCodePath = join(__dirname, '../../../src/dafny/KanbanMulti.cjs');
+const dafnyCodePath = join(__dirname, '../../../src/dafny/TodoMulti.cjs');
 let dafnyCode;
 try {
   dafnyCode = readFileSync(dafnyCodePath, 'utf-8');
@@ -26,7 +26,7 @@ const escapedCode = dafnyCode
   .replace(/\$/g, '\\$');
 
 // Generate the Deno-compatible bundle
-const bundle = `// Dafny Kanban Domain Bundle for Deno Edge Function
+const bundle = `// Dafny Todo Domain Bundle for Deno Edge Function
 // AUTO-GENERATED - DO NOT EDIT
 // Regenerate with: node build-bundle.js
 
@@ -48,12 +48,12 @@ const module = { exports };
 // Evaluate Dafny code
 const initDafny = new Function('require', 'exports', 'module', \`
 ${escapedCode}
-  return { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore };
+  return { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore };
 \`);
 
-const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require, exports, module);
+const { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore } = initDafny(require, exports, module);
 
-export { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore, BigNumber };
+export { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore, BigNumber };
 
 // ============================================================================
 // Helper functions
@@ -83,22 +83,315 @@ const dafnyStringToJs = (seq: any): string => {
   return Array.from(seq).join('');
 };
 
+// deno-lint-ignore no-explicit-any
+const setToArray = (set: any): any[] => {
+  if (!set || !set.Elements) return [];
+  return Array.from(set.Elements);
+};
+
+// ============================================================================
+// Option helpers
+// ============================================================================
+
+// deno-lint-ignore no-explicit-any
+const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
+  if (opt.is_None) return null;
+  return converter(opt.dtor_value);
+};
+
+// deno-lint-ignore no-explicit-any
+const jsToOption = (val: any, converter: (x: any) => any = (x) => x): any => {
+  if (val === null || val === undefined) {
+    return TodoDomain.Option.create_None();
+  }
+  return TodoDomain.Option.create_Some(converter(val));
+};
+
+// ============================================================================
+// Date conversion
+// ============================================================================
+
+interface DateJson {
+  year: number;
+  month: number;
+  day: number;
+}
+
+// deno-lint-ignore no-explicit-any
+const dateToJs = (date: any): DateJson => {
+  return {
+    year: toNumber(date.dtor_year),
+    month: toNumber(date.dtor_month),
+    day: toNumber(date.dtor_day)
+  };
+};
+
+const jsToDate = (obj: DateJson): any => {
+  return TodoDomain.Date.create_Date(
+    new BigNumber(obj.year),
+    new BigNumber(obj.month),
+    new BigNumber(obj.day)
+  );
+};
+
+// ============================================================================
+// Task conversion
+// ============================================================================
+
+interface TaskJson {
+  title: string;
+  notes: string;
+  completed: boolean;
+  starred: boolean;
+  dueDate: DateJson | null;
+  assignees: string[];
+  tags: number[];
+  deleted: boolean;
+  deletedBy: string | null;
+  deletedFromList: number | null;
+}
+
+// deno-lint-ignore no-explicit-any
+const taskToJs = (task: any): TaskJson => {
+  return {
+    title: dafnyStringToJs(task.dtor_title),
+    notes: dafnyStringToJs(task.dtor_notes),
+    completed: task.dtor_completed,
+    starred: task.dtor_starred,
+    dueDate: optionToJs(task.dtor_dueDate, dateToJs),
+    assignees: setToArray(task.dtor_assignees).map(dafnyStringToJs),
+    tags: setToArray(task.dtor_tags).map(toNumber),
+    deleted: task.dtor_deleted,
+    deletedBy: optionToJs(task.dtor_deletedBy, dafnyStringToJs),
+    deletedFromList: optionToJs(task.dtor_deletedFromList, toNumber)
+  };
+};
+
 // ============================================================================
 // Model conversion
 // ============================================================================
 
 interface Model {
-  cols: string[];
-  lanes: Record<string, number[]>;
-  wip: Record<string, number>;
-  cards: Record<number, { title: string }>;
-  nextId: number;
+  mode: 'Personal' | 'Collaborative';
+  owner: string;
+  members: string[];
+  lists: number[];
+  listNames: Record<number, string>;
+  tasks: Record<number, number[]>;
+  taskData: Record<number, TaskJson>;
+  tags: Record<number, { name: string }>;
+  nextListId: number;
+  nextTaskId: number;
+  nextTagId: number;
 }
+
+// deno-lint-ignore no-explicit-any
+export const modelFromJson = (json: Model): any => {
+  // Mode
+  const mode = json.mode === 'Collaborative'
+    ? TodoDomain.ProjectMode.create_Collaborative()
+    : TodoDomain.ProjectMode.create_Personal();
+
+  // Owner and members
+  const owner = _dafny.Seq.UnicodeFromString(json.owner || '');
+  let members = _dafny.Set.Empty;
+  for (const m of (json.members || [])) {
+    members = members.Union(_dafny.Set.fromElements(_dafny.Seq.UnicodeFromString(m)));
+  }
+
+  // Lists
+  const lists = _dafny.Seq.of(...(json.lists || []).map((id: number) => new BigNumber(id)));
+
+  // ListNames
+  let listNames = _dafny.Map.Empty;
+  for (const [id, name] of Object.entries(json.listNames || {})) {
+    listNames = listNames.update(new BigNumber(id), _dafny.Seq.UnicodeFromString(name));
+  }
+
+  // Tasks (listId -> seq<taskId>)
+  let tasks = _dafny.Map.Empty;
+  for (const [listId, taskIds] of Object.entries(json.tasks || {})) {
+    const key = new BigNumber(listId);
+    const value = _dafny.Seq.of(...(taskIds as number[]).map((id: number) => new BigNumber(id)));
+    tasks = tasks.update(key, value);
+  }
+
+  // TaskData
+  let taskData = _dafny.Map.Empty;
+  for (const [taskId, task] of Object.entries(json.taskData || {})) {
+    const key = new BigNumber(taskId);
+    const t = task as TaskJson;
+
+    // Convert assignees to Dafny set of strings
+    let assignees = _dafny.Set.Empty;
+    for (const a of (t.assignees || [])) {
+      assignees = assignees.Union(_dafny.Set.fromElements(_dafny.Seq.UnicodeFromString(a)));
+    }
+
+    // Convert tags to Dafny set of nats
+    let tags = _dafny.Set.Empty;
+    for (const tagId of (t.tags || [])) {
+      tags = tags.Union(_dafny.Set.fromElements(new BigNumber(tagId)));
+    }
+
+    // Convert dueDate
+    const dueDate = t.dueDate
+      ? TodoDomain.Option.create_Some(jsToDate(t.dueDate))
+      : TodoDomain.Option.create_None();
+
+    // Convert deletedBy
+    const deletedBy = t.deletedBy
+      ? TodoDomain.Option.create_Some(_dafny.Seq.UnicodeFromString(t.deletedBy))
+      : TodoDomain.Option.create_None();
+
+    // Convert deletedFromList
+    const deletedFromList = t.deletedFromList !== null && t.deletedFromList !== undefined
+      ? TodoDomain.Option.create_Some(new BigNumber(t.deletedFromList))
+      : TodoDomain.Option.create_None();
+
+    const value = TodoDomain.Task.create_Task(
+      _dafny.Seq.UnicodeFromString(t.title || ''),
+      _dafny.Seq.UnicodeFromString(t.notes || ''),
+      t.completed || false,
+      t.starred || false,
+      dueDate,
+      assignees,
+      tags,
+      t.deleted || false,
+      deletedBy,
+      deletedFromList
+    );
+    taskData = taskData.update(key, value);
+  }
+
+  // Tags
+  let tagsMap = _dafny.Map.Empty;
+  for (const [tagId, tag] of Object.entries(json.tags || {})) {
+    const key = new BigNumber(tagId);
+    const value = TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString((tag as { name: string }).name || ''));
+    tagsMap = tagsMap.update(key, value);
+  }
+
+  return TodoDomain.Model.create_Model(
+    mode,
+    owner,
+    members,
+    lists,
+    listNames,
+    tasks,
+    taskData,
+    tagsMap,
+    new BigNumber(json.nextListId || 0),
+    new BigNumber(json.nextTaskId || 0),
+    new BigNumber(json.nextTagId || 0)
+  );
+};
+
+// deno-lint-ignore no-explicit-any
+export const modelToJson = (m: any): Model => {
+  const mode = m.dtor_mode.is_Collaborative ? 'Collaborative' : 'Personal';
+  const owner = dafnyStringToJs(m.dtor_owner);
+  const members = setToArray(m.dtor_members).map(dafnyStringToJs);
+  const lists = seqToArray(m.dtor_lists).map(toNumber);
+
+  const listNames: Record<number, string> = {};
+  if (m.dtor_listNames && m.dtor_listNames.Keys) {
+    for (const key of m.dtor_listNames.Keys.Elements) {
+      listNames[toNumber(key)] = dafnyStringToJs(m.dtor_listNames.get(key));
+    }
+  }
+
+  const tasks: Record<number, number[]> = {};
+  if (m.dtor_tasks && m.dtor_tasks.Keys) {
+    for (const key of m.dtor_tasks.Keys.Elements) {
+      tasks[toNumber(key)] = seqToArray(m.dtor_tasks.get(key)).map(toNumber);
+    }
+  }
+
+  const taskData: Record<number, TaskJson> = {};
+  if (m.dtor_taskData && m.dtor_taskData.Keys) {
+    for (const key of m.dtor_taskData.Keys.Elements) {
+      taskData[toNumber(key)] = taskToJs(m.dtor_taskData.get(key));
+    }
+  }
+
+  const tags: Record<number, { name: string }> = {};
+  if (m.dtor_tags && m.dtor_tags.Keys) {
+    for (const key of m.dtor_tags.Keys.Elements) {
+      tags[toNumber(key)] = { name: dafnyStringToJs(m.dtor_tags.get(key).dtor_name) };
+    }
+  }
+
+  return {
+    mode: mode as 'Personal' | 'Collaborative',
+    owner,
+    members,
+    lists,
+    listNames,
+    tasks,
+    taskData,
+    tags,
+    nextListId: toNumber(m.dtor_nextListId),
+    nextTaskId: toNumber(m.dtor_nextTaskId),
+    nextTagId: toNumber(m.dtor_nextTagId)
+  };
+};
+
+// ============================================================================
+// Place conversion
+// ============================================================================
 
 interface Place {
   type: 'AtEnd' | 'Before' | 'After';
   anchor?: number;
 }
+
+interface ListPlace {
+  type: 'ListAtEnd' | 'ListBefore' | 'ListAfter';
+  anchor?: number;
+}
+
+const placeFromJson = (json: Place | undefined): any => {
+  if (!json || json.type === 'AtEnd') {
+    return TodoDomain.Place.create_AtEnd();
+  } else if (json.type === 'Before') {
+    return TodoDomain.Place.create_Before(new BigNumber(json.anchor!));
+  } else if (json.type === 'After') {
+    return TodoDomain.Place.create_After(new BigNumber(json.anchor!));
+  }
+  return TodoDomain.Place.create_AtEnd();
+};
+
+// deno-lint-ignore no-explicit-any
+const placeToJson = (place: any): Place => {
+  if (place.is_AtEnd) return { type: 'AtEnd' };
+  if (place.is_Before) return { type: 'Before', anchor: toNumber(place.dtor_anchor) };
+  if (place.is_After) return { type: 'After', anchor: toNumber(place.dtor_anchor) };
+  return { type: 'AtEnd' };
+};
+
+const listPlaceFromJson = (json: ListPlace | undefined): any => {
+  if (!json || json.type === 'ListAtEnd') {
+    return TodoDomain.ListPlace.create_ListAtEnd();
+  } else if (json.type === 'ListBefore') {
+    return TodoDomain.ListPlace.create_ListBefore(new BigNumber(json.anchor!));
+  } else if (json.type === 'ListAfter') {
+    return TodoDomain.ListPlace.create_ListAfter(new BigNumber(json.anchor!));
+  }
+  return TodoDomain.ListPlace.create_ListAtEnd();
+};
+
+// deno-lint-ignore no-explicit-any
+const listPlaceToJson = (place: any): ListPlace => {
+  if (place.is_ListAtEnd) return { type: 'ListAtEnd' };
+  if (place.is_ListBefore) return { type: 'ListBefore', anchor: toNumber(place.dtor_anchor) };
+  if (place.is_ListAfter) return { type: 'ListAfter', anchor: toNumber(place.dtor_anchor) };
+  return { type: 'ListAtEnd' };
+};
+
+// ============================================================================
+// Action conversion
+// ============================================================================
 
 interface Action {
   type: string;
@@ -107,216 +400,217 @@ interface Action {
 }
 
 // deno-lint-ignore no-explicit-any
-export const modelFromJson = (json: Model): any => {
-  const cols = _dafny.Seq.of(
-    ...(json.cols || []).map((c: string) => _dafny.Seq.UnicodeFromString(c))
-  );
-
-  let lanesMap = _dafny.Map.Empty;
-  for (const [colName, cardIds] of Object.entries(json.lanes || {})) {
-    const key = _dafny.Seq.UnicodeFromString(colName);
-    const value = _dafny.Seq.of(...(cardIds as number[]).map((id: number) => new BigNumber(id)));
-    lanesMap = lanesMap.update(key, value);
-  }
-
-  let wipMap = _dafny.Map.Empty;
-  for (const [colName, limit] of Object.entries(json.wip || {})) {
-    const key = _dafny.Seq.UnicodeFromString(colName);
-    wipMap = wipMap.update(key, new BigNumber(limit as number));
-  }
-
-  let cardsMap = _dafny.Map.Empty;
-  for (const [cardId, card] of Object.entries(json.cards || {})) {
-    const key = new BigNumber(cardId);
-    const value = _dafny.Seq.UnicodeFromString((card as { title: string }).title);
-    cardsMap = cardsMap.update(key, value);
-  }
-
-  return KanbanDomain.Model.create_Model(
-    cols,
-    lanesMap,
-    wipMap,
-    cardsMap,
-    new BigNumber(json.nextId || 0)
-  );
-};
-
-// deno-lint-ignore no-explicit-any
-export const modelToJson = (m: any): Model => {
-  const cols = seqToArray(m.dtor_cols).map((c: unknown) => dafnyStringToJs(c));
-
-  const lanes: Record<string, number[]> = {};
-  const wip: Record<string, number> = {};
-  const cards: Record<number, { title: string }> = {};
-
-  if (m.dtor_lanes && m.dtor_lanes.Keys) {
-    for (const key of m.dtor_lanes.Keys.Elements) {
-      const colName = dafnyStringToJs(key);
-      const cardIds = m.dtor_lanes.get(key);
-      lanes[colName] = seqToArray(cardIds).map((id: unknown) => toNumber(id));
-    }
-  }
-
-  if (m.dtor_wip && m.dtor_wip.Keys) {
-    for (const key of m.dtor_wip.Keys.Elements) {
-      wip[dafnyStringToJs(key)] = toNumber(m.dtor_wip.get(key));
-    }
-  }
-
-  if (m.dtor_cards && m.dtor_cards.Keys) {
-    for (const key of m.dtor_cards.Keys.Elements) {
-      const card = m.dtor_cards.get(key);
-      const title = card.dtor_title !== undefined
-        ? dafnyStringToJs(card.dtor_title)
-        : dafnyStringToJs(card);
-      cards[toNumber(key)] = { title };
-    }
-  }
-
-  return {
-    cols,
-    lanes,
-    wip,
-    cards,
-    nextId: toNumber(m.dtor_nextId)
-  };
-};
-
-// ============================================================================
-// Action conversion
-// ============================================================================
-
-// deno-lint-ignore no-explicit-any
 export const actionFromJson = (json: Action): any => {
   switch (json.type) {
     case 'NoOp':
-      return KanbanDomain.Action.create_NoOp();
-    case 'AddColumn':
-      return KanbanDomain.Action.create_AddColumn(
-        _dafny.Seq.UnicodeFromString(json.col),
-        new BigNumber(json.limit)
+      return TodoDomain.Action.create_NoOp();
+
+    // List operations
+    case 'AddList':
+      return TodoDomain.Action.create_AddList(_dafny.Seq.UnicodeFromString(json.name));
+    case 'RenameList':
+      return TodoDomain.Action.create_RenameList(
+        new BigNumber(json.listId),
+        _dafny.Seq.UnicodeFromString(json.newName)
       );
-    case 'SetWip':
-      return KanbanDomain.Action.create_SetWip(
-        _dafny.Seq.UnicodeFromString(json.col),
-        new BigNumber(json.limit)
+    case 'DeleteList':
+      return TodoDomain.Action.create_DeleteList(new BigNumber(json.listId));
+    case 'MoveList':
+      return TodoDomain.Action.create_MoveList(
+        new BigNumber(json.listId),
+        listPlaceFromJson(json.listPlace)
       );
-    case 'AddCard':
-      return KanbanDomain.Action.create_AddCard(
-        _dafny.Seq.UnicodeFromString(json.col),
+
+    // Task CRUD
+    case 'AddTask':
+      return TodoDomain.Action.create_AddTask(
+        new BigNumber(json.listId),
         _dafny.Seq.UnicodeFromString(json.title)
       );
-    case 'MoveCard': {
-      const place = json.place?.type === 'Before'
-        ? KanbanDomain.Place.create_Before(new BigNumber(json.place.anchor))
-        : json.place?.type === 'After'
-        ? KanbanDomain.Place.create_After(new BigNumber(json.place.anchor))
-        : KanbanDomain.Place.create_AtEnd();
-      return KanbanDomain.Action.create_MoveCard(
-        new BigNumber(json.id),
-        _dafny.Seq.UnicodeFromString(json.toCol),
-        place
+    case 'EditTask':
+      return TodoDomain.Action.create_EditTask(
+        new BigNumber(json.taskId),
+        _dafny.Seq.UnicodeFromString(json.title),
+        _dafny.Seq.UnicodeFromString(json.notes || '')
       );
-    }
-    case 'EditTitle':
-      return KanbanDomain.Action.create_EditTitle(
-        new BigNumber(json.id),
-        _dafny.Seq.UnicodeFromString(json.title)
+    case 'DeleteTask':
+      return TodoDomain.Action.create_DeleteTask(
+        new BigNumber(json.taskId),
+        _dafny.Seq.UnicodeFromString(json.userId)
       );
+    case 'RestoreTask':
+      return TodoDomain.Action.create_RestoreTask(new BigNumber(json.taskId));
+    case 'MoveTask':
+      return TodoDomain.Action.create_MoveTask(
+        new BigNumber(json.taskId),
+        new BigNumber(json.toList),
+        placeFromJson(json.taskPlace)
+      );
+
+    // Task status
+    case 'CompleteTask':
+      return TodoDomain.Action.create_CompleteTask(new BigNumber(json.taskId));
+    case 'UncompleteTask':
+      return TodoDomain.Action.create_UncompleteTask(new BigNumber(json.taskId));
+    case 'StarTask':
+      return TodoDomain.Action.create_StarTask(new BigNumber(json.taskId));
+    case 'UnstarTask':
+      return TodoDomain.Action.create_UnstarTask(new BigNumber(json.taskId));
+
+    // Due date
+    case 'SetDueDate':
+      return TodoDomain.Action.create_SetDueDate(
+        new BigNumber(json.taskId),
+        jsToOption(json.dueDate, jsToDate)
+      );
+
+    // Assignment
+    case 'AssignTask':
+      return TodoDomain.Action.create_AssignTask(
+        new BigNumber(json.taskId),
+        _dafny.Seq.UnicodeFromString(json.userId)
+      );
+    case 'UnassignTask':
+      return TodoDomain.Action.create_UnassignTask(
+        new BigNumber(json.taskId),
+        _dafny.Seq.UnicodeFromString(json.userId)
+      );
+
+    // Tags on tasks
+    case 'AddTagToTask':
+      return TodoDomain.Action.create_AddTagToTask(
+        new BigNumber(json.taskId),
+        new BigNumber(json.tagId)
+      );
+    case 'RemoveTagFromTask':
+      return TodoDomain.Action.create_RemoveTagFromTask(
+        new BigNumber(json.taskId),
+        new BigNumber(json.tagId)
+      );
+
+    // Tag CRUD
+    case 'CreateTag':
+      return TodoDomain.Action.create_CreateTag(_dafny.Seq.UnicodeFromString(json.name));
+    case 'RenameTag':
+      return TodoDomain.Action.create_RenameTag(
+        new BigNumber(json.tagId),
+        _dafny.Seq.UnicodeFromString(json.newName)
+      );
+    case 'DeleteTag':
+      return TodoDomain.Action.create_DeleteTag(new BigNumber(json.tagId));
+
+    // Project mode
+    case 'MakeCollaborative':
+      return TodoDomain.Action.create_MakeCollaborative();
+
+    // Membership
+    case 'AddMember':
+      return TodoDomain.Action.create_AddMember(_dafny.Seq.UnicodeFromString(json.userId));
+    case 'RemoveMember':
+      return TodoDomain.Action.create_RemoveMember(_dafny.Seq.UnicodeFromString(json.userId));
+
     default:
-      return KanbanDomain.Action.create_NoOp();
+      return TodoDomain.Action.create_NoOp();
   }
 };
 
 // deno-lint-ignore no-explicit-any
 export const actionToJson = (action: any): Action => {
-  if (action.is_NoOp) {
-    return { type: 'NoOp' };
-  }
-  if (action.is_AddColumn) {
-    return {
-      type: 'AddColumn',
-      col: dafnyStringToJs(action.dtor_col),
-      limit: toNumber(action.dtor_limit)
-    };
-  }
-  if (action.is_SetWip) {
-    return {
-      type: 'SetWip',
-      col: dafnyStringToJs(action.dtor_col),
-      limit: toNumber(action.dtor_limit)
-    };
-  }
-  if (action.is_AddCard) {
-    return {
-      type: 'AddCard',
-      col: dafnyStringToJs(action.dtor_col),
-      title: dafnyStringToJs(action.dtor_title)
-    };
-  }
-  if (action.is_MoveCard) {
-    const place = action.dtor_place;
-    let placeJson: Place;
-    if (place.is_AtEnd) {
-      placeJson = { type: 'AtEnd' };
-    } else if (place.is_Before) {
-      placeJson = { type: 'Before', anchor: toNumber(place.dtor_anchor) };
-    } else {
-      placeJson = { type: 'After', anchor: toNumber(place.dtor_anchor) };
-    }
-    return {
-      type: 'MoveCard',
-      id: toNumber(action.dtor_id),
-      toCol: dafnyStringToJs(action.dtor_toCol),
-      place: placeJson
-    };
-  }
-  if (action.is_EditTitle) {
-    return {
-      type: 'EditTitle',
-      id: toNumber(action.dtor_id),
-      title: dafnyStringToJs(action.dtor_title)
-    };
-  }
+  if (action.is_NoOp) return { type: 'NoOp' };
+
+  // List operations
+  if (action.is_AddList) return { type: 'AddList', name: dafnyStringToJs(action.dtor_name) };
+  if (action.is_RenameList) return {
+    type: 'RenameList',
+    listId: toNumber(action.dtor_listId),
+    newName: dafnyStringToJs(action.dtor_newName)
+  };
+  if (action.is_DeleteList) return { type: 'DeleteList', listId: toNumber(action.dtor_listId) };
+  if (action.is_MoveList) return {
+    type: 'MoveList',
+    listId: toNumber(action.dtor_listId),
+    listPlace: listPlaceToJson(action.dtor_listPlace)
+  };
+
+  // Task CRUD
+  if (action.is_AddTask) return {
+    type: 'AddTask',
+    listId: toNumber(action.dtor_listId),
+    title: dafnyStringToJs(action.dtor_title)
+  };
+  if (action.is_EditTask) return {
+    type: 'EditTask',
+    taskId: toNumber(action.dtor_taskId),
+    title: dafnyStringToJs(action.dtor_title),
+    notes: dafnyStringToJs(action.dtor_notes)
+  };
+  if (action.is_DeleteTask) return {
+    type: 'DeleteTask',
+    taskId: toNumber(action.dtor_taskId),
+    userId: dafnyStringToJs(action.dtor_userId)
+  };
+  if (action.is_RestoreTask) return { type: 'RestoreTask', taskId: toNumber(action.dtor_taskId) };
+  if (action.is_MoveTask) return {
+    type: 'MoveTask',
+    taskId: toNumber(action.dtor_taskId),
+    toList: toNumber(action.dtor_toList),
+    taskPlace: placeToJson(action.dtor_taskPlace)
+  };
+
+  // Task status
+  if (action.is_CompleteTask) return { type: 'CompleteTask', taskId: toNumber(action.dtor_taskId) };
+  if (action.is_UncompleteTask) return { type: 'UncompleteTask', taskId: toNumber(action.dtor_taskId) };
+  if (action.is_StarTask) return { type: 'StarTask', taskId: toNumber(action.dtor_taskId) };
+  if (action.is_UnstarTask) return { type: 'UnstarTask', taskId: toNumber(action.dtor_taskId) };
+
+  // Due date
+  if (action.is_SetDueDate) return {
+    type: 'SetDueDate',
+    taskId: toNumber(action.dtor_taskId),
+    dueDate: optionToJs(action.dtor_dueDate, dateToJs)
+  };
+
+  // Assignment
+  if (action.is_AssignTask) return {
+    type: 'AssignTask',
+    taskId: toNumber(action.dtor_taskId),
+    userId: dafnyStringToJs(action.dtor_userId)
+  };
+  if (action.is_UnassignTask) return {
+    type: 'UnassignTask',
+    taskId: toNumber(action.dtor_taskId),
+    userId: dafnyStringToJs(action.dtor_userId)
+  };
+
+  // Tags on tasks
+  if (action.is_AddTagToTask) return {
+    type: 'AddTagToTask',
+    taskId: toNumber(action.dtor_taskId),
+    tagId: toNumber(action.dtor_tagId)
+  };
+  if (action.is_RemoveTagFromTask) return {
+    type: 'RemoveTagFromTask',
+    taskId: toNumber(action.dtor_taskId),
+    tagId: toNumber(action.dtor_tagId)
+  };
+
+  // Tag CRUD
+  if (action.is_CreateTag) return { type: 'CreateTag', name: dafnyStringToJs(action.dtor_name) };
+  if (action.is_RenameTag) return {
+    type: 'RenameTag',
+    tagId: toNumber(action.dtor_tagId),
+    newName: dafnyStringToJs(action.dtor_newName)
+  };
+  if (action.is_DeleteTag) return { type: 'DeleteTag', tagId: toNumber(action.dtor_tagId) };
+
+  // Project mode
+  if (action.is_MakeCollaborative) return { type: 'MakeCollaborative' };
+
+  // Membership
+  if (action.is_AddMember) return { type: 'AddMember', userId: dafnyStringToJs(action.dtor_userId) };
+  if (action.is_RemoveMember) return { type: 'RemoveMember', userId: dafnyStringToJs(action.dtor_userId) };
+
   return { type: 'NoOp' };
-};
-
-// ============================================================================
-// Domain operations using actual Dafny code
-// ============================================================================
-
-export const tryStep = (modelJson: Model, actionJson: Action): { ok: boolean; value?: Model } => {
-  const model = modelFromJson(modelJson);
-  const action = actionFromJson(actionJson);
-  const result = KanbanDomain.__default.TryStep(model, action);
-
-  if (result.is_Ok) {
-    return { ok: true, value: modelToJson(result.dtor_value) };
-  }
-  return { ok: false };
-};
-
-export const rebaseAction = (remoteJson: Action, localJson: Action): Action => {
-  const remote = actionFromJson(remoteJson);
-  const local = actionFromJson(localJson);
-  const rebased = KanbanDomain.__default.Rebase(remote, local);
-  return actionToJson(rebased);
-};
-
-export const getCandidates = (modelJson: Model, actionJson: Action): Action[] => {
-  const model = modelFromJson(modelJson);
-  const action = actionFromJson(actionJson);
-  const candidates = KanbanDomain.__default.Candidates(model, action);
-  return seqToArray(candidates).map(actionToJson);
-};
-
-export const rebaseThroughSuffix = (suffix: Action[], actionJson: Action): Action => {
-  let action = actionFromJson(actionJson);
-  for (let i = suffix.length - 1; i >= 0; i--) {
-    const remote = actionFromJson(suffix[i]);
-    action = KanbanDomain.__default.Rebase(remote, action);
-  }
-  return actionToJson(action);
 };
 
 // ============================================================================
@@ -353,16 +647,16 @@ export const serverStateFromJson = (json: ServerStateJson): any => {
   // Convert auditLog: AuditRecord[] -> Dafny seq<RequestRecord>
   const auditRecords = (json.auditLog || []).map((rec: AuditRecord) => {
     const outcome = rec.outcome.type === 'accepted'
-      ? KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(
+      ? TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
           actionFromJson(rec.outcome.applied!),
           rec.outcome.noChange || false
         )
-      : KanbanMultiCollaboration.RequestOutcome.create_AuditRejected(
-          KanbanMultiCollaboration.RejectReason.create_DomainInvalid(),
+      : TodoMultiCollaboration.RequestOutcome.create_AuditRejected(
+          TodoMultiCollaboration.RejectReason.create_DomainInvalid(),
           actionFromJson(rec.outcome.applied || rec.rebased)
         );
 
-    return KanbanMultiCollaboration.RequestRecord.create_Req(
+    return TodoMultiCollaboration.RequestRecord.create_Req(
       new BigNumber(rec.baseVersion),
       actionFromJson(rec.orig),
       actionFromJson(rec.rebased),
@@ -372,7 +666,7 @@ export const serverStateFromJson = (json: ServerStateJson): any => {
   });
   const auditLog = _dafny.Seq.of(...auditRecords);
 
-  return KanbanMultiCollaboration.ServerState.create_ServerState(
+  return TodoMultiCollaboration.ServerState.create_ServerState(
     present,
     appliedLog,
     auditLog
@@ -387,6 +681,7 @@ export const serverStateToJson = (s: any): ServerStateJson => {
   const appliedLog = seqToArray(s.dtor_appliedLog).map(actionToJson);
 
   // Convert auditLog: Dafny seq<RequestRecord> -> AuditRecord[]
+  // deno-lint-ignore no-explicit-any
   const auditLog = seqToArray(s.dtor_auditLog).map((rec: any) => {
     const outcome = rec.dtor_outcome;
     return {
@@ -412,7 +707,7 @@ export const serverStateToJson = (s: any): ServerStateJson => {
 };
 
 // ============================================================================
-// Verified Dispatch (uses KanbanMultiCollaboration.Dispatch directly)
+// Verified Dispatch (uses TodoMultiCollaboration.Dispatch directly)
 // ============================================================================
 
 export interface DispatchResult {
@@ -429,8 +724,7 @@ export interface DispatchResult {
 /**
  * Dispatch using the VERIFIED Dafny MultiCollaboration.Dispatch function.
  *
- * This replaces the previous unverified TypeScript orchestration with a single
- * call to the Dafny-verified Dispatch function, which handles:
+ * This uses the Dafny-verified Dispatch function, which handles:
  * - Rebasing through the suffix
  * - Generating candidates
  * - Choosing the first valid candidate
@@ -452,7 +746,7 @@ export function dispatch(
 
   // Call VERIFIED Dispatch
   const action = actionFromJson(actionJson);
-  const result = KanbanMultiCollaboration.__default.Dispatch(
+  const result = TodoMultiCollaboration.__default.Dispatch(
     serverState,
     new BigNumber(baseVersion),
     action
@@ -465,8 +759,8 @@ export function dispatch(
   // Extract new state
   const newStateJson = serverStateToJson(newServerState);
 
-  // Check reply type using KanbanAppCore helpers
-  if (KanbanAppCore.__default.IsAccepted(reply)) {
+  // Check reply type using TodoAppCore helpers
+  if (TodoAppCore.__default.IsAccepted(reply)) {
     return {
       status: 'accepted',
       state: newStateJson.present,
@@ -486,26 +780,6 @@ export function dispatch(
     };
   }
 }
-
-// ============================================================================
-// Legacy dispatch (for backwards compatibility during migration)
-// Uses the same verified Dispatch but with simpler interface
-// ============================================================================
-
-export function dispatchSimple(
-  stateJson: Model,
-  appliedLog: Action[],
-  baseVersion: number,
-  actionJson: Action
-): { status: 'accepted' | 'rejected'; state?: Model; appliedAction?: Action; reason?: string } {
-  const result = dispatch(stateJson, appliedLog, baseVersion, actionJson);
-  return {
-    status: result.status,
-    state: result.state,
-    appliedAction: result.appliedAction,
-    reason: result.reason
-  };
-}
 `;
 
 // Write the bundle
@@ -514,7 +788,7 @@ writeFileSync(outputPath, bundle);
 console.log(`Generated ${outputPath}`);
 console.log('');
 console.log('The bundle uses VERIFIED Dafny code:');
-console.log('  - KanbanMultiCollaboration.Dispatch (full verified reconciliation)');
-console.log('  - KanbanAppCore.IsAccepted/IsRejected (reply inspection)');
+console.log('  - TodoMultiCollaboration.Dispatch (full verified reconciliation)');
+console.log('  - TodoAppCore.IsAccepted/IsRejected (reply inspection)');
 console.log('');
 console.log('Trust boundary: Only JSON conversion is unverified.');

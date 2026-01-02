@@ -636,6 +636,391 @@
   }
 }
 
+/* Task List Styles */
+.task-list {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 320px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.list-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  cursor: pointer;
+  flex: 1;
+}
+
+.list-header h3:hover {
+  color: #646cff;
+}
+
+.list-count {
+  font-size: 0.8rem;
+  color: #888;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.list-rename-form {
+  flex: 1;
+}
+
+.list-rename-form input {
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.collapse-btn,
+.delete-list-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 0.9rem;
+  padding: 0.2em 0.4em;
+  cursor: pointer;
+}
+
+.collapse-btn:hover,
+.delete-list-btn:hover {
+  color: #888;
+}
+
+.delete-list-btn:hover {
+  color: #ff6b6b;
+}
+
+.add-task-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.add-task-form input {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.add-task-form button {
+  padding: 0.4em 0.8em;
+  font-size: 1rem;
+}
+
+.add-list-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.add-list-form input {
+  flex: 1;
+  max-width: 250px;
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Task Item */
+.task-item {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.task-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.task-item.completed {
+  opacity: 0.6;
+}
+
+.task-item.starred {
+  border-left: 3px solid #ffd700;
+}
+
+.task-main {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 2px solid #666;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  color: #4caf50;
+  padding: 0;
+}
+
+.checkbox.checked {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.task-content {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+.task-item.completed .task-title {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.task-notes {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.25rem;
+  word-break: break-word;
+}
+
+.task-due-date {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
+.task-due-date.overdue {
+  color: #ff6b6b;
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.task-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+  border-radius: 3px;
+}
+
+.task-assignees {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.task-assignee {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border-radius: 3px;
+}
+
+.task-actions {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.star-btn,
+.move-btn,
+.delete-btn {
+  background: transparent;
+  border: none;
+  padding: 0.2em 0.4em;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.star-btn:hover {
+  color: #ffd700;
+}
+
+.star-btn.starred {
+  color: #ffd700;
+}
+
+.move-btn:hover {
+  color: #646cff;
+}
+
+.delete-btn:hover {
+  color: #ff6b6b;
+}
+
+.move-menu-container {
+  position: relative;
+}
+
+.move-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.25rem;
+  min-width: 120px;
+  z-index: 100;
+}
+
+.move-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.move-menu button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.task-edit-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-edit-form input,
+.task-edit-form textarea {
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.4rem;
+  border: 1px solid #646cff;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.task-edit-form textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+
+.task-edit-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.task-edit-buttons button {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.3em 0.6em;
+}
+
+/* Tags Panel */
+.tags-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tags-panel h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.tag-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0.5rem;
+  background: rgba(100, 108, 255, 0.1);
+  border-radius: 4px;
+}
+
+.tag-name {
+  font-size: 0.85rem;
+}
+
+.delete-tag-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 0.8rem;
+  padding: 0 0.3em;
+  cursor: pointer;
+}
+
+.delete-tag-btn:hover {
+  color: #ff6b6b;
+}
+
+.add-tag-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-tag-form input {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.4rem;
+}
+
+.add-tag-form button {
+  padding: 0.3em 0.6em;
+  font-size: 0.9rem;
+}
+
+/* Mode Badge */
+.mode-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+}
+
 /* Light mode */
 @media (prefers-color-scheme: light) {
   .header {
