@@ -126,23 +126,14 @@ dafny translate js --no-verify -o generated/TodoMultiProject --include-runtime T
 echo "Copying TodoMultiProjectDomain to collab-todo project..."
 cp generated/TodoMultiProject.js collab-todo/src/dafny/TodoMultiProject.cjs
 
-echo "Compiling TodoEffectStateMachine to JavaScript..."
-dafny translate js --no-verify -o generated/TodoEffect --include-runtime TodoEffectStateMachine.dfy
-
 echo "Compiling TodoMultiProjectEffectStateMachine to JavaScript..."
 dafny translate js --no-verify -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy
 
 echo "Copying TodoMultiProjectEffectStateMachine to collab-todo project..."
 cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEffect.cjs
 
-echo "Generating collab-todo app-multi.js..."
-(cd dafny2js && dotnet run --no-build -- --file ../TodoMultiProjectEffectStateMachine.dfy --app-core TodoMultiProjectEffectAppCore --cjs-name TodoMultiProjectEffect.cjs --output ../collab-todo/src/dafny/app-multi.js)
-
-echo "Generating collab-todo app.js..."
-(cd dafny2js && dotnet run --no-build -- --file ../TodoEffectStateMachine.dfy --app-core TodoEffectAppCore --cjs-name TodoEffect.cjs --output ../collab-todo/src/dafny/app.js)
-
-echo "Copying TodoEffectStateMachine to collab-todo project..."
-cp generated/TodoEffect.js collab-todo/src/dafny/TodoEffect.cjs
+echo "Generating collab-todo app.js (multi-project)..."
+(cd dafny2js && dotnet run --no-build -- --file ../TodoMultiProjectEffectStateMachine.dfy --app-core TodoMultiProjectEffectAppCore --cjs-name TodoMultiProjectEffect.cjs --output ../collab-todo/src/dafny/app.js)
 
 echo "Building Deno bundle for collab-todo Edge Function..."
 (cd collab-todo/supabase/functions/dispatch && node build-bundle.js)

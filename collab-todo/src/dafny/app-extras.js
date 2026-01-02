@@ -1,12 +1,29 @@
 // App-specific convenience wrappers for collab-todo
 // This file adds aliases and helpers on top of the generated app.js
+// It supports BOTH single-project and multi-project operations.
 
 import GeneratedApp from './app.js';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, TodoDomain, TodoAppCore } = GeneratedApp._internal;
+const { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore } = GeneratedApp._internal;
 
-// Helper to convert seq to array
+// -------------------------------------------------------------------------
+// Basic Helpers
+// -------------------------------------------------------------------------
+
+const toNumber = (bn) => {
+  if (bn && typeof bn.toNumber === 'function') {
+    return bn.toNumber();
+  }
+  return bn;
+};
+
+const dafnyStringToJs = (seq) => {
+  if (typeof seq === 'string') return seq;
+  if (seq.toVerbatimString) return seq.toVerbatimString(false);
+  return Array.from(seq).join('');
+};
+
 const seqToArray = (seq) => {
   const arr = [];
   for (let i = 0; i < seq.length; i++) {
@@ -15,19 +32,19 @@ const seqToArray = (seq) => {
   return arr;
 };
 
-// Helper to convert Dafny string to JS string
-const dafnyStringToJs = (seq) => {
-  if (typeof seq === 'string') return seq;
-  if (seq.toVerbatimString) return seq.toVerbatimString(false);
-  return Array.from(seq).join('');
+const dafnyMapToObject = (dafnyMap, keyFn, valFn) => {
+  const result = {};
+  if (dafnyMap && dafnyMap.Keys) {
+    for (const k of dafnyMap.Keys.Elements) {
+      result[keyFn(k)] = valFn(dafnyMap.get(k));
+    }
+  }
+  return result;
 };
 
-// Helper to convert BigNumber to JS number
-const toNumber = (bn) => {
-  if (bn && typeof bn.toNumber === 'function') {
-    return bn.toNumber();
-  }
-  return bn;
+const dafnySetToArray = (dafnySet, elemFn) => {
+  if (!dafnySet || !dafnySet.Elements) return [];
+  return Array.from(dafnySet.Elements).map(elemFn);
 };
 
 // -------------------------------------------------------------------------
@@ -41,30 +58,17 @@ const taggedOptionToNull = (opt) => {
   return opt;
 };
 
-// Convert task JSON from generated taskToJson to null-based Options (for UI)
-const taskToPlainJs = (dafnyTask) => {
-  const json = GeneratedApp.taskToJson(dafnyTask);
-  return {
-    ...json,
-    dueDate: taggedOptionToNull(json.dueDate),
-    deletedBy: taggedOptionToNull(json.deletedBy),
-    deletedFromList: taggedOptionToNull(json.deletedFromList)
-  };
+// Helper to convert null to { type: 'None' }
+const fixOption = (val) => {
+  if (val === null || val === undefined) return { type: 'None' };
+  if (val && val.type) return val; // Already in correct format
+  return { type: 'Some', value: val };
 };
 
 // Preprocess model JSON: convert null Option fields to { type: 'None' } format
-// so the generated modelFromJson can handle them
 const preprocessModelJson = (json) => {
   if (!json) return json;
 
-  // Helper to convert null to { type: 'None' }
-  const fixOption = (val) => {
-    if (val === null || val === undefined) return { type: 'None' };
-    if (val && val.type) return val; // Already in correct format
-    return { type: 'Some', value: val };
-  };
-
-  // Preprocess taskData map
   const taskData = {};
   if (json.taskData) {
     for (const [id, task] of Object.entries(json.taskData)) {
@@ -80,12 +84,50 @@ const preprocessModelJson = (json) => {
   return { ...json, taskData };
 };
 
+// Preprocess models map (for multi-project)
+const preprocessModelsJson = (modelsJson) => {
+  if (!modelsJson) return modelsJson;
+  const result = {};
+  for (const [projectId, model] of Object.entries(modelsJson)) {
+    result[projectId] = preprocessModelJson(model);
+  }
+  return result;
+};
+
+// Convert task JSON to null-based Options (for UI)
+const taskToPlainJs = (dafnyTask) => {
+  const json = GeneratedApp.taskToJson(dafnyTask);
+  return {
+    ...json,
+    dueDate: taggedOptionToNull(json.dueDate),
+    deletedBy: taggedOptionToNull(json.deletedBy),
+    deletedFromList: taggedOptionToNull(json.deletedFromList)
+  };
+};
+
+// -------------------------------------------------------------------------
 // Re-export everything from generated app, plus extras
+// -------------------------------------------------------------------------
+
 const App = {
   ...GeneratedApp,
 
   // -------------------------------------------------------------------------
-  // Domain TryStep (for optimistic updates)
+  // Model preprocessing (for DB data with null Options)
+  // -------------------------------------------------------------------------
+
+  modelFromJson: (json) => GeneratedApp.modelFromJson(preprocessModelJson(json)),
+
+  multimodelFromJson: (json) => {
+    if (!json || !json.projects) return GeneratedApp.multimodelFromJson(json);
+    return GeneratedApp.multimodelFromJson({
+      ...json,
+      projects: preprocessModelsJson(json.projects)
+    });
+  },
+
+  // -------------------------------------------------------------------------
+  // Domain TryStep (for single-project optimistic updates)
   // -------------------------------------------------------------------------
 
   TryStep: (model, action) => {
@@ -97,50 +139,16 @@ const App = {
   },
 
   // -------------------------------------------------------------------------
-  // ClientState management (JSON-accepting wrappers)
+  // Model accessors (convenience aliases for single Model)
   // -------------------------------------------------------------------------
 
-  // Override modelFromJson to handle null Option fields from database
-  modelFromJson: (json) => GeneratedApp.modelFromJson(preprocessModelJson(json)),
-
-  // Initialize a new client state from server sync response
-  InitClient: (version, modelJson) => {
-    const model = GeneratedApp.modelFromJson(preprocessModelJson(modelJson));
-    return TodoAppCore.ClientState.create_ClientState(
-      new BigNumber(version),
-      model,
-      _dafny.Seq.of()
-    );
-  },
-
-  // Client-side local dispatch (optimistic update)
-  LocalDispatch: (client, action) => {
-    return GeneratedApp.ClientLocalDispatch(client, action);
-  },
-
-  // -------------------------------------------------------------------------
-  // ClientState accessors (aliases)
-  // -------------------------------------------------------------------------
-
-  GetPendingCount: (client) => GeneratedApp.PendingCount(client),
-  GetBaseVersion: (client) => GeneratedApp.ClientVersion(client),
-  GetPresent: (client) => GeneratedApp.ClientModel(client),
-
-  GetPendingActions: (client) => {
-    return seqToArray(client.dtor_pending);
-  },
-
-  // -------------------------------------------------------------------------
-  // Model accessors (convenience aliases)
-  // -------------------------------------------------------------------------
-
-  // Get list name by ID (alias for GetListNames)
+  // Get list name by ID
   GetListName: (m, listId) => GeneratedApp.GetListNames(m, listId) || '',
 
-  // Get tasks in a list (alias for GetTasks)
+  // Get tasks in a list
   GetTasksInList: (m, listId) => GeneratedApp.GetTasks(m, listId) || [],
 
-  // Get task data by ID (with proper date conversion)
+  // Get task data by ID (with proper null-based options)
   GetTask: (m, taskId) => {
     const dafnyKey = new BigNumber(taskId);
     if (m.dtor_taskData.contains(dafnyKey)) {
@@ -171,7 +179,6 @@ const App = {
   // Due date convenience methods
   // -------------------------------------------------------------------------
 
-  // Set due date with year/month/day values
   SetDueDateValue: (taskId, year, month, day) => TodoDomain.Action.create_SetDueDate(
     new BigNumber(taskId),
     TodoDomain.Option.create_Some(
@@ -179,13 +186,11 @@ const App = {
     )
   ),
 
-  // Clear due date
   ClearDueDate: (taskId) => TodoDomain.Action.create_SetDueDate(
     new BigNumber(taskId),
     TodoDomain.Option.create_None()
   ),
 
-  // Create Some(Date) option
   SomeDate: (year, month, day) => TodoDomain.Option.create_Some(
     TodoDomain.Date.create_Date(new BigNumber(year), new BigNumber(month), new BigNumber(day))
   ),
@@ -194,8 +199,9 @@ const App = {
   // Effect State Machine - JSON-accepting wrappers
   // -------------------------------------------------------------------------
 
-  EffectInit: (version, modelJson) =>
-    GeneratedApp.EffectInit(version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
+  // Initialize with JSON versions and models
+  EffectInit: (versionsJson, modelsJson) =>
+    GeneratedApp.EffectInit(versionsJson, preprocessModelsJson(modelsJson)),
 
   // Step returns tuple, convert to array for JS
   EffectStep: (effectState, event) => {
@@ -203,15 +209,25 @@ const App = {
     return [result[0], result[1]];
   },
 
+  // -------------------------------------------------------------------------
   // Event constructors - JSON-accepting variants
+  // -------------------------------------------------------------------------
+
   EffectEvent: {
     UserAction: (action) => GeneratedApp.EffectUserAction(action),
-    DispatchAccepted: (version, modelJson) =>
-      GeneratedApp.EffectDispatchAccepted(version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
-    DispatchConflict: (version, modelJson) =>
-      GeneratedApp.EffectDispatchConflict(version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
-    DispatchRejected: (version, modelJson) =>
-      GeneratedApp.EffectDispatchRejected(version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
+
+    // Single-project action convenience (wraps in MultiAction.Single)
+    SingleUserAction: (projectId, action) => GeneratedApp.EffectSingleUserAction(projectId, action),
+
+    DispatchAccepted: (versionsJson, modelsJson) =>
+      GeneratedApp.EffectDispatchAccepted(versionsJson, preprocessModelsJson(modelsJson)),
+
+    DispatchConflict: (versionsJson, modelsJson) =>
+      GeneratedApp.EffectDispatchConflict(versionsJson, preprocessModelsJson(modelsJson)),
+
+    DispatchRejected: (versionsJson, modelsJson) =>
+      GeneratedApp.EffectDispatchRejected(versionsJson, preprocessModelsJson(modelsJson)),
+
     NetworkError: () => GeneratedApp.EffectNetworkError(),
     NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
     ManualGoOffline: () => GeneratedApp.EffectManualGoOffline(),
@@ -219,36 +235,143 @@ const App = {
     Tick: () => GeneratedApp.EffectTick(),
   },
 
-  // Command inspection - just aliases
+  // -------------------------------------------------------------------------
+  // Command inspection
+  // -------------------------------------------------------------------------
+
   EffectCommand: {
     isNoOp: (cmd) => GeneratedApp.EffectIsNoOp(cmd),
     isSendDispatch: (cmd) => GeneratedApp.EffectIsSendDispatch(cmd),
-    getBaseVersion: (cmd) => GeneratedApp.EffectGetBaseVersion(cmd),
-    getAction: (cmd) => GeneratedApp.EffectGetAction(cmd),
+    isFetchFreshState: (cmd) => GeneratedApp.EffectIsFetchFreshState(cmd),
+
+    // Get command details (for SendDispatch)
+    getTouchedProjects: (cmd) => {
+      const set = GeneratedApp.EffectGetTouchedProjects(cmd);
+      return dafnySetToArray(set, dafnyStringToJs);
+    },
+
+    getBaseVersions: (cmd) => {
+      const map = GeneratedApp.EffectGetBaseVersionsFromCmd(cmd);
+      return dafnyMapToObject(map, dafnyStringToJs, toNumber);
+    },
+
+    getAction: (cmd) => GeneratedApp.EffectGetMultiAction(cmd),
+
+    getActionJson: (cmd) => GeneratedApp.multiactionToJson(GeneratedApp.EffectGetMultiAction(cmd)),
   },
 
-  // EffectState accessors - just aliases
+  // -------------------------------------------------------------------------
+  // EffectState accessors
+  // -------------------------------------------------------------------------
+
   EffectState: {
     getClient: (es) => GeneratedApp.EffectGetClient(es),
-    getServerVersion: (es) => GeneratedApp.EffectGetServerVersion(es),
+
+    getMultiModel: (es) => GeneratedApp.EffectGetMultiModel(es),
+
+    getMultiModelJson: (es) => GeneratedApp.multimodelToJson(GeneratedApp.EffectGetMultiModel(es)),
+
+    getBaseVersions: (es) => {
+      const map = GeneratedApp.EffectGetBaseVersions(es);
+      return dafnyMapToObject(map, dafnyStringToJs, toNumber);
+    },
+
+    getPending: (es) => GeneratedApp.EffectGetPending(es),
+
     isOnline: (es) => GeneratedApp.EffectIsOnline(es),
     isIdle: (es) => GeneratedApp.EffectIsIdle(es),
-    isDispatching: (es) => es.dtor_mode.is_Dispatching,
+    isDispatching: (es) => GeneratedApp.EffectIsDispatching(es),
     hasPending: (es) => GeneratedApp.EffectHasPending(es),
     getPendingCount: (es) => GeneratedApp.EffectPendingCount(es),
   },
 
-  // Handle realtime update with JSON
-  HandleRealtimeUpdate: (client, serverVersion, serverModelJson) =>
-    GeneratedApp.HandleRealtimeUpdate(client, serverVersion, GeneratedApp.modelFromJson(preprocessModelJson(serverModelJson))),
+  // -------------------------------------------------------------------------
+  // MultiAction constructors
+  // -------------------------------------------------------------------------
+
+  MultiAction: {
+    // Wrap a single-project action
+    Single: (projectId, action) => GeneratedApp.MakeSingleAction(projectId, action),
+
+    // Cross-project: move task
+    MoveTaskTo: (srcProject, dstProject, taskId, dstList, anchor = GeneratedApp.AtEnd()) =>
+      GeneratedApp.MakeMoveTaskTo(srcProject, dstProject, taskId, dstList, anchor),
+
+    // Cross-project: copy task
+    CopyTaskTo: (srcProject, dstProject, taskId, dstList) =>
+      GeneratedApp.MakeCopyTaskTo(srcProject, dstProject, taskId, dstList),
+
+    // Check type
+    isSingle: (ma) => GeneratedApp.IsSingleAction(ma),
+    isMoveTaskTo: (ma) => GeneratedApp.IsMoveTaskTo(ma),
+    isCopyTaskTo: (ma) => GeneratedApp.IsCopyTaskTo(ma),
+
+    // Get touched projects as array
+    getTouchedProjects: (ma) => {
+      const set = GeneratedApp.GetTouchedProjects(ma);
+      return dafnySetToArray(set, dafnyStringToJs);
+    },
+
+    // Convert to JSON
+    toJson: (ma) => GeneratedApp.multiactionToJson(ma),
+    fromJson: (json) => GeneratedApp.multiactionFromJson(json),
+  },
+
+  // -------------------------------------------------------------------------
+  // MultiModel helpers
+  // -------------------------------------------------------------------------
+
+  MultiModel: {
+    // Get a project's model
+    getProject: (mm, projectId) => {
+      if (GeneratedApp.HasProject(mm, projectId)) {
+        return GeneratedApp.GetProjectModel(mm, projectId);
+      }
+      return null;
+    },
+
+    // Check if project exists
+    hasProject: (mm, projectId) => GeneratedApp.HasProject(mm, projectId),
+
+    // Get all project IDs
+    getProjectIds: (mm) => {
+      const set = GeneratedApp.GetProjectIds(mm);
+      return dafnySetToArray(set, dafnyStringToJs);
+    },
+
+    // Convert to JSON
+    toJson: (mm) => GeneratedApp.multimodelToJson(mm),
+    fromJson: (json) => App.multimodelFromJson(json),
+  },
+
+  // -------------------------------------------------------------------------
+  // Domain operations (multi-project)
+  // -------------------------------------------------------------------------
+
+  // Try a multi-step (returns result with is_Ok)
+  TryMultiStep: (mm, action) => {
+    const result = GeneratedApp.TryMultiStep(mm, action);
+    return {
+      is_Ok: result.is_Ok,
+      value: result.is_Ok ? result.dtor_value : null,
+      error: result.is_Err ? GeneratedApp.multierrToJson(result.dtor_error) : null
+    };
+  },
+
+  // Rebase action through project logs
+  MultiRebase: (projectLogs, baseVersions, action) =>
+    GeneratedApp.MultiRebase(projectLogs, baseVersions, action),
+
+  // Get candidates for action
+  MultiCandidates: (mm, action) => GeneratedApp.MultiCandidates(mm, action),
 };
 
 // ============================================================================
-// Domain Adapter (for useCollaborativeProject hook)
+// Domain Adapter (for useCollaborativeProject hook - backwards compatible)
 // ============================================================================
 
 export const todoDomain = {
-  // Try applying an action to a model
+  // Try applying an action to a model (single-project)
   TryStep: (model, action) => {
     const result = TodoDomain.__default.TryStep(model, action);
     return {
@@ -264,7 +387,10 @@ export const todoDomain = {
   actionFromJson: GeneratedApp.actionFromJson,
 };
 
-// Export Option helpers for use elsewhere
-export { taggedOptionToNull };
+// ============================================================================
+// Export helpers
+// ============================================================================
+
+export { taggedOptionToNull, preprocessModelJson, preprocessModelsJson, taskToPlainJs };
 
 export default App;
