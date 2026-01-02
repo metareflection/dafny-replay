@@ -307,6 +307,7 @@ const App = {
   Dispatch: (h, a) => AppCore.__default.Dispatch(h, a),
   Undo: (h) => AppCore.__default.Undo(h),
   Redo: (h) => AppCore.__default.Redo(h),
+  CanonHistory: (h) => AppCore.__default.CanonHistory(h),
   Present: (h) => AppCore.__default.Present(h),
   CanUndo: (h) => AppCore.__default.CanUndo(h),
   CanRedo: (h) => AppCore.__default.CanRedo(h),

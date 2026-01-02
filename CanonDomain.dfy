@@ -158,6 +158,14 @@ module AppCore {
   function Undo(h: K.History): K.History { K.Undo(h) }
   function Redo(h: K.History): K.History { K.Redo(h) }
 
+  // Apply Canon to the present model, preserving history
+  function CanonHistory(h: K.History): K.History
+    requires K.HistInv(h)
+    ensures K.HistInv(CanonHistory(h))
+  {
+    K.History(h.past, C.Canon(h.present), h.future)
+  }
+
   // Selectors
   function Present(h: K.History): D.Model { h.present }
   function CanUndo(h: K.History): bool { |h.past| > 0 }

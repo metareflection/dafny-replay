@@ -4,7 +4,7 @@
 import GeneratedApp from './app.js';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, CanonDomain, Canon, CanonKernel, AppCore } = GeneratedApp._internal;
+const { _dafny, CanonDomain, CanonKernel, AppCore } = GeneratedApp._internal;
 
 const App = {
   ...GeneratedApp,
@@ -44,16 +44,7 @@ const App = {
   },
 
   // Canon - apply constraints to canonicalize positions
-  Canon: (h) => {
-    const present = h.dtor_present;
-    const canonicalized = Canon.__default.Canon(present);
-    // Create new history with canonicalized present (History is in CanonKernel)
-    return CanonKernel.History.create_History(
-      h.dtor_past,
-      canonicalized,
-      h.dtor_future
-    );
-  },
+  Canon: (h) => GeneratedApp.CanonHistory(h),
 
   // Persistence
   Serialize: (model) => {

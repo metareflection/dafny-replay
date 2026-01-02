@@ -6,6 +6,8 @@
 // It uses MC.ReapplyPending and MC.HandleRealtimeUpdate for the core logic,
 // adding mode awareness (Normal | Flushing | Offline) on top.
 
+// It is not used in compiled JS, just for modeling.
+
 include "MultiCollaboration.dfy"
 
 abstract module RealtimeCollaboration {
