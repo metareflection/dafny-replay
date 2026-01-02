@@ -46,12 +46,10 @@
 .task-item {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-sm);
-  border-radius: var(--radius-md);
-  transition: 
-    background var(--transition-fast),
-    transform var(--transition-fast);
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
 .task-item:hover {
@@ -66,18 +64,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border: 2px solid var(--color-border);
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-full);
   color: transparent;
-  margin-top: 1px;
   transition: 
     border-color var(--transition-fast),
     background var(--transition-fast),
-    color var(--transition-fast),
-    transform var(--transition-fast);
+    color var(--transition-fast);
 }
 
 .task-item__checkbox:hover {
@@ -104,7 +102,7 @@
 
 .task-item__title {
   font-size: var(--font-size-md);
-  line-height: var(--line-height-normal);
+  line-height: 22px;
   word-break: break-word;
   color: var(--color-text-primary);
 }
@@ -132,6 +130,10 @@
   color: var(--color-text-tertiary);
 }
 
+.task-item__meta:empty {
+  display: none;
+}
+
 .task-item__project {
   color: var(--color-accent);
   font-weight: var(--font-weight-medium);
@@ -157,6 +159,8 @@
   align-items: center;
   gap: var(--space-xxs);
   opacity: 0;
+  flex-shrink: 0;
+  height: 22px;
   transition: opacity var(--transition-normal);
 }
 
@@ -168,14 +172,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   color: var(--color-text-tertiary);
   border-radius: var(--radius-sm);
+  flex-shrink: 0;
   transition: 
     color var(--transition-fast),
-    background var(--transition-fast),
-    transform var(--transition-fast);
+    background var(--transition-fast);
 }
 
 .task-item__star:hover {
@@ -200,8 +204,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   color: var(--color-text-tertiary);
   border-radius: var(--radius-sm);
   transition: 

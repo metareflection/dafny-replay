@@ -99,19 +99,21 @@ export function TaskItem({
             {task.notes && (
               <div className="task-item__notes">{task.notes}</div>
             )}
-            <div className="task-item__meta">
-              {showProject && projectName && (
-                <span className="task-item__project">{projectName}</span>
-              )}
-              {task.dueDate && (
-                <span className={`task-item__due ${isOverdue(task.dueDate) ? 'task-item__due--overdue' : ''}`}>
-                  {formatDueDate(task.dueDate)}
-                </span>
-              )}
-              {task.tags && task.tags.length > 0 && (
-                <span className="task-item__tags-count">{task.tags.length} tags</span>
-              )}
-            </div>
+            {((showProject && projectName) || task.dueDate || (task.tags && task.tags.length > 0)) && (
+              <div className="task-item__meta">
+                {showProject && projectName && (
+                  <span className="task-item__project">{projectName}</span>
+                )}
+                {task.dueDate && (
+                  <span className={`task-item__due ${isOverdue(task.dueDate) ? 'task-item__due--overdue' : ''}`}>
+                    {formatDueDate(task.dueDate)}
+                  </span>
+                )}
+                {task.tags && task.tags.length > 0 && (
+                  <span className="task-item__tags-count">{task.tags.length} tags</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="task-item__actions">

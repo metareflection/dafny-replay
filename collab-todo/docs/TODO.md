@@ -1,3 +1,4 @@
-- [ ] make it prettier
+- [x] make it prettier
 - [ ] run remaining proofs
-- [ ] add a right side for markdown notes 
+- [ ] add a right side for markdown notes
+- [ ] show sync status by adding a checkmark to the top bar or a warning sign if there are conflicts to review or if sync failed 
