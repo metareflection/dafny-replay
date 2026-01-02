@@ -120,12 +120,6 @@ dafny translate js --no-verify -o generated/TodoMulti --include-runtime TodoMult
 echo "Copying to collab-todo project..."
 cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
 
-echo "Compiling TodoMultiProjectDomain to JavaScript..."
-dafny translate js --no-verify -o generated/TodoMultiProject --include-runtime TodoMultiProjectDomain.dfy
-
-echo "Copying TodoMultiProjectDomain to collab-todo project..."
-cp generated/TodoMultiProject.js collab-todo/src/dafny/TodoMultiProject.cjs
-
 echo "Compiling TodoMultiProjectEffectStateMachine to JavaScript..."
 dafny translate js --no-verify -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy
 
