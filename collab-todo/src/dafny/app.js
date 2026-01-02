@@ -56,26 +56,26 @@ const dafnyStringToJs = (seq) => {
 // Datatype Conversions
 // ============================================================================
 
-const optionFromJson = (json) => {
+const optionFromJson = (json, T_fromJson) => {
   switch (json.type) {
     case 'None':
       return TodoDomain.Option.create_None();
     case 'Some':
       return TodoDomain.Option.create_Some(
-        json.value
+        T_fromJson(json.value)
       );
     default:
       throw new Error(`Unknown Option type: ${json.type}`);
   }
 };
 
-const optionToJson = (value) => {
+const optionToJson = (value, T_toJson) => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
     return {
       type: 'Some',
-      value: value.dtor_value
+      value: T_toJson(value.dtor_value)
     };
   }
   return { type: 'Unknown' };
@@ -103,12 +103,12 @@ const taskFromJson = (json) => {
     _dafny.Seq.UnicodeFromString(json.notes),
     json.completed,
     json.starred,
-    optionFromJson(json.dueDate),
+    optionFromJson(json.dueDate, dateFromJson),
     _dafny.Set.fromElements(...(json.assignees || []).map(x => _dafny.Seq.UnicodeFromString(x))),
     _dafny.Set.fromElements(...(json.tags || []).map(x => new BigNumber(x))),
     json.deleted,
-    optionFromJson(json.deletedBy),
-    optionFromJson(json.deletedFromList)
+    optionFromJson(json.deletedBy, (x) => _dafny.Seq.UnicodeFromString(x)),
+    optionFromJson(json.deletedFromList, (x) => new BigNumber(x))
   );
 };
 
@@ -118,12 +118,12 @@ const taskToJson = (value) => {
     notes: dafnyStringToJs(value.dtor_notes),
     completed: value.dtor_completed,
     starred: value.dtor_starred,
-    dueDate: optionToJson(value.dtor_dueDate),
+    dueDate: optionToJson(value.dtor_dueDate, dateToJson),
     assignees: Array.from(value.dtor_assignees.Elements).map(x => dafnyStringToJs(x)),
     tags: Array.from(value.dtor_tags.Elements).map(x => toNumber(x)),
     deleted: value.dtor_deleted,
-    deletedBy: optionToJson(value.dtor_deletedBy),
-    deletedFromList: optionToJson(value.dtor_deletedFromList)
+    deletedBy: optionToJson(value.dtor_deletedBy, dafnyStringToJs),
+    deletedFromList: optionToJson(value.dtor_deletedFromList, toNumber)
   };
 };
 
@@ -450,7 +450,7 @@ const actionFromJson = (json) => {
     case 'SetDueDate':
       return TodoDomain.Action.create_SetDueDate(
         new BigNumber(json.taskId),
-        optionFromJson(json.dueDate)
+        optionFromJson(json.dueDate, dateFromJson)
       );
     case 'AssignTask':
       return TodoDomain.Action.create_AssignTask(
@@ -580,7 +580,7 @@ const actionToJson = (value) => {
     return {
       type: 'SetDueDate',
       taskId: toNumber(value.dtor_taskId),
-      dueDate: optionToJson(value.dtor_dueDate)
+      dueDate: optionToJson(value.dtor_dueDate, dateToJson)
     };
   } else if (value.is_AssignTask) {
     return {
@@ -778,31 +778,31 @@ const viewstateToJson = (value) => {
   };
 };
 
-const resultFromJson = (json) => {
+const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
     case 'Ok':
       return TodoDomain.Result.create_Ok(
-        json.value
+        T_fromJson(json.value)
       );
     case 'Err':
       return TodoDomain.Result.create_Err(
-        json.error
+        E_fromJson(json.error)
       );
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
 };
 
-const resultToJson = (value) => {
+const resultToJson = (value, T_toJson, E_toJson) => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
-      value: value.dtor_value
+      value: T_toJson(value.dtor_value)
     };
   } else if (value.is_Err) {
     return {
       type: 'Err',
-      error: value.dtor_error
+      error: E_toJson(value.dtor_error)
     };
   }
   return { type: 'Unknown' };
@@ -1083,7 +1083,7 @@ const App = {
   Date: (year, month, day) => TodoDomain.Date.create_Date(new BigNumber(year), new BigNumber(month), new BigNumber(day)),
 
   // Task constructors
-  Task: (title, notes, completed, starred, dueDate, assignees, tags, deleted, deletedBy, deletedFromList) => TodoDomain.Task.create_Task(_dafny.Seq.UnicodeFromString(title), _dafny.Seq.UnicodeFromString(notes), completed, starred, optionFromJson(dueDate), _dafny.Set.fromElements(...(assignees || []).map(x => _dafny.Seq.UnicodeFromString(x))), _dafny.Set.fromElements(...(tags || []).map(x => new BigNumber(x))), deleted, optionFromJson(deletedBy), optionFromJson(deletedFromList)),
+  Task: (title, notes, completed, starred, dueDate, assignees, tags, deleted, deletedBy, deletedFromList) => TodoDomain.Task.create_Task(_dafny.Seq.UnicodeFromString(title), _dafny.Seq.UnicodeFromString(notes), completed, starred, optionFromJson(dueDate, dateFromJson), _dafny.Set.fromElements(...(assignees || []).map(x => _dafny.Seq.UnicodeFromString(x))), _dafny.Set.fromElements(...(tags || []).map(x => new BigNumber(x))), deleted, optionFromJson(deletedBy, (x) => _dafny.Seq.UnicodeFromString(x)), optionFromJson(deletedFromList, (x) => new BigNumber(x))),
 
   // Tag constructors
   Tag: (name) => TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString(name)),

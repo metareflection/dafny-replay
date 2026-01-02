@@ -121,31 +121,31 @@ const modelToJson = (value) => {
   };
 };
 
-const resultFromJson = (json) => {
+const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
     case 'Ok':
       return ClearSplit.Result.create_Ok(
-        json.value
+        T_fromJson(json.value)
       );
     case 'Error':
       return ClearSplit.Result.create_Error(
-        json.error
+        E_fromJson(json.error)
       );
     default:
       throw new Error(`Unknown Result type: ${json.type}`);
   }
 };
 
-const resultToJson = (value) => {
+const resultToJson = (value, T_toJson, E_toJson) => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
-      value: value.dtor_value
+      value: T_toJson(value.dtor_value)
     };
   } else if (value.is_Error) {
     return {
       type: 'Error',
-      error: value.dtor_error
+      error: E_toJson(value.dtor_error)
     };
   }
   return { type: 'Unknown' };

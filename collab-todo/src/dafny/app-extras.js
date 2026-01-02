@@ -34,43 +34,23 @@ const toNumber = (bn) => {
 // Option handling (null-based, matching existing DB data)
 // -------------------------------------------------------------------------
 
-// Convert Dafny Option to JS (None -> null)
-const optionToJs = (opt, converter = (x) => x) => {
-  if (opt.is_None) return null;
-  return converter(opt.dtor_value);
+// Convert tagged Option JSON to null-based (for UI display)
+const taggedOptionToNull = (opt) => {
+  if (opt && opt.type === 'None') return null;
+  if (opt && opt.type === 'Some') return opt.value;
+  return opt;
 };
 
-// Convert JS to Dafny Option (null/undefined -> None)
-const jsToOption = (val, converter = (x) => x) => {
-  if (val === null || val === undefined) {
-    return TodoDomain.Option.create_None();
-  }
-  return TodoDomain.Option.create_Some(converter(val));
+// Convert task JSON from generated taskToJson to null-based Options (for UI)
+const taskToPlainJs = (dafnyTask) => {
+  const json = GeneratedApp.taskToJson(dafnyTask);
+  return {
+    ...json,
+    dueDate: taggedOptionToNull(json.dueDate),
+    deletedBy: taggedOptionToNull(json.deletedBy),
+    deletedFromList: taggedOptionToNull(json.deletedFromList)
+  };
 };
-
-// Convert Dafny Date to plain JS object
-const dateToJs = (dafnyDate) => ({
-  year: toNumber(dafnyDate.dtor_year),
-  month: toNumber(dafnyDate.dtor_month),
-  day: toNumber(dafnyDate.dtor_day)
-});
-
-// Convert Option<Date> to JS (None -> null, Some -> { year, month, day })
-const dateOptionToJs = (opt) => optionToJs(opt, dateToJs);
-
-// Convert task from Dafny to plain JS with proper date handling
-const taskToPlainJs = (dafnyTask) => ({
-  title: dafnyStringToJs(dafnyTask.dtor_title),
-  notes: dafnyStringToJs(dafnyTask.dtor_notes),
-  completed: dafnyTask.dtor_completed,
-  starred: dafnyTask.dtor_starred,
-  dueDate: dateOptionToJs(dafnyTask.dtor_dueDate),
-  assignees: Array.from(dafnyTask.dtor_assignees.Elements).map(x => dafnyStringToJs(x)),
-  tags: Array.from(dafnyTask.dtor_tags.Elements).map(x => toNumber(x)),
-  deleted: dafnyTask.dtor_deleted,
-  deletedBy: optionToJs(dafnyTask.dtor_deletedBy, dafnyStringToJs),
-  deletedFromList: optionToJs(dafnyTask.dtor_deletedFromList, toNumber)
-});
 
 // Preprocess model JSON: convert null Option fields to { type: 'None' } format
 // so the generated modelFromJson can handle them
@@ -285,6 +265,6 @@ export const todoDomain = {
 };
 
 // Export Option helpers for use elsewhere
-export { optionToJs, jsToOption };
+export { taggedOptionToNull };
 
 export default App;

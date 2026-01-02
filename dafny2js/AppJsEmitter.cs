@@ -266,13 +266,26 @@ public class AppJsEmitter
   void GenerateFromJson(DatatypeInfo dt)
   {
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}FromJson";
-    _sb.AppendLine($"const {funcName} = (json) => {{");
+    var typeParams = dt.GetTypeParams();
+
+    // For parameterized types, add converter function parameters
+    var paramList = typeParams.Count > 0
+      ? $"json, {string.Join(", ", typeParams.Select(p => $"{p}_fromJson"))}"
+      : "json";
+
+    _sb.AppendLine($"const {funcName} = ({paramList}) => {{");
+
+    // Build a map from type param name to converter expression for use in field conversion
+    var typeParamConverters = typeParams.ToDictionary(
+      p => p,
+      p => $"{p}_fromJson"
+    );
 
     if (dt.Constructors.Count == 1)
     {
       // Single constructor - no switch needed
       var ctor = dt.Constructors[0];
-      GenerateConstructorFromJson(dt, ctor, "  ");
+      GenerateConstructorFromJson(dt, ctor, "  ", typeParamConverters);
     }
     else if (IsEnumLike(dt))
     {
@@ -294,7 +307,7 @@ public class AppJsEmitter
       foreach (var ctor in dt.Constructors)
       {
         _sb.AppendLine($"    case '{ctor.Name}':");
-        GenerateConstructorFromJson(dt, ctor, "      ");
+        GenerateConstructorFromJson(dt, ctor, "      ", typeParamConverters);
       }
       _sb.AppendLine("    default:");
       _sb.AppendLine($"      throw new Error(`Unknown {dt.Name} type: ${{json.type}}`);");
@@ -304,7 +317,7 @@ public class AppJsEmitter
     _sb.AppendLine("};");
   }
 
-  void GenerateConstructorFromJson(DatatypeInfo dt, ConstructorInfo ctor, string indent)
+  void GenerateConstructorFromJson(DatatypeInfo dt, ConstructorInfo ctor, string indent, Dictionary<string, string> typeParamConverters)
   {
     if (ctor.Fields.Count == 0)
     {
@@ -317,14 +330,14 @@ public class AppJsEmitter
     foreach (var field in ctor.Fields)
     {
       var jsonAccess = $"json.{field.Name}";
-      var converted = TypeMapper.JsonToDafny(field.Type, jsonAccess, dt.ModuleName + ".");
+      var converted = TypeMapper.JsonToDafny(field.Type, jsonAccess, dt.ModuleName + ".", typeParamConverters);
 
       // Handle map types specially (need multi-line code)
       if (field.Type.Kind == TypeKind.Map)
       {
         var tempVar = $"__{field.Name}";
         var mapBlock = TypeMapper.GenerateMapFromJsonBlock(
-          field.Type, jsonAccess, tempVar, dt.ModuleName + ".", indent);
+          field.Type, jsonAccess, tempVar, dt.ModuleName + ".", indent, typeParamConverters);
         _sb.AppendLine(mapBlock);
         args.Add(tempVar);
       }
@@ -343,13 +356,26 @@ public class AppJsEmitter
   void GenerateToJson(DatatypeInfo dt)
   {
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}ToJson";
-    _sb.AppendLine($"const {funcName} = (value) => {{");
+    var typeParams = dt.GetTypeParams();
+
+    // For parameterized types, add converter function parameters
+    var paramList = typeParams.Count > 0
+      ? $"value, {string.Join(", ", typeParams.Select(p => $"{p}_toJson"))}"
+      : "value";
+
+    _sb.AppendLine($"const {funcName} = ({paramList}) => {{");
+
+    // Build a map from type param name to converter expression for use in field conversion
+    var typeParamConverters = typeParams.ToDictionary(
+      p => p,
+      p => $"{p}_toJson"
+    );
 
     if (dt.Constructors.Count == 1)
     {
       // Single constructor
       var ctor = dt.Constructors[0];
-      GenerateConstructorToJson(dt, ctor, "  ", false);
+      GenerateConstructorToJson(dt, ctor, "  ", false, typeParamConverters);
     }
     else if (IsEnumLike(dt))
     {
@@ -372,7 +398,7 @@ public class AppJsEmitter
         var ctor = dt.Constructors[i];
         var prefix = i == 0 ? "if" : "} else if";
         _sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
-        GenerateConstructorToJson(dt, ctor, "    ", true);
+        GenerateConstructorToJson(dt, ctor, "    ", true, typeParamConverters);
       }
       _sb.AppendLine("  }");
       _sb.AppendLine("  return { type: 'Unknown' };");
@@ -381,7 +407,7 @@ public class AppJsEmitter
     _sb.AppendLine("};");
   }
 
-  void GenerateConstructorToJson(DatatypeInfo dt, ConstructorInfo ctor, string indent, bool includeType)
+  void GenerateConstructorToJson(DatatypeInfo dt, ConstructorInfo ctor, string indent, bool includeType, Dictionary<string, string> typeParamConverters)
   {
     if (ctor.Fields.Count == 0)
     {
@@ -399,7 +425,7 @@ public class AppJsEmitter
     {
       var dafnyAccess = $"value.dtor_{mapField.Name}";
       var tempVar = $"__{mapField.Name}Json";
-      GenerateMapToJsonBlock(mapField.Type, dafnyAccess, tempVar, indent);
+      GenerateMapToJsonBlock(mapField.Type, dafnyAccess, tempVar, indent, typeParamConverters);
     }
 
     _sb.AppendLine($"{indent}return {{");
@@ -419,7 +445,7 @@ public class AppJsEmitter
       }
       else
       {
-        converted = TypeMapper.DafnyToJson(field.Type, dafnyAccess, _domainModule + ".");
+        converted = TypeMapper.DafnyToJson(field.Type, dafnyAccess, _domainModule + ".", typeParamConverters);
       }
 
       var comma = i < ctor.Fields.Count - 1 ? "," : "";
@@ -429,15 +455,15 @@ public class AppJsEmitter
     _sb.AppendLine($"{indent}}};");
   }
 
-  void GenerateMapToJsonBlock(TypeRef mapType, string dafnyVar, string resultVar, string indent)
+  void GenerateMapToJsonBlock(TypeRef mapType, string dafnyVar, string resultVar, string indent, Dictionary<string, string> typeParamConverters)
   {
     if (mapType.TypeArgs.Count < 2) return;
 
     var keyType = mapType.TypeArgs[0];
     var valType = mapType.TypeArgs[1];
 
-    var keyConvert = TypeMapper.DafnyToJson(keyType, "k", _domainModule + ".");
-    var valConvert = TypeMapper.DafnyToJson(valType, "v", _domainModule + ".");
+    var keyConvert = TypeMapper.DafnyToJson(keyType, "k", _domainModule + ".", typeParamConverters);
+    var valConvert = TypeMapper.DafnyToJson(valType, "v", _domainModule + ".", typeParamConverters);
 
     _sb.AppendLine($"{indent}const {resultVar} = {{}};");
     _sb.AppendLine($"{indent}if ({dafnyVar} && {dafnyVar}.Keys) {{");
