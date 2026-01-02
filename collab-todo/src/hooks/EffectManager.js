@@ -1,7 +1,7 @@
-// EffectManager: Verified effect orchestration for collaborative state
+// EffectManager: Verified effect orchestration for collaborative state (single project)
 //
-// Uses the COMPILED Dafny EffectStateMachine.Step for all state transitions.
-// Exposes subscribe/getSnapshot for React's useSyncExternalStore.
+// Uses the MultiProjectEffectManager internally, wrapping single-project
+// operations into multi-project format for the verified state machine.
 //
 // The verified Step function guarantees:
 // - Correct dispatch/retry logic
@@ -14,7 +14,7 @@ import { supabase, isSupabaseConfigured } from '../supabase.js'
 import App from '../dafny/app-extras.js'
 
 export class EffectManager {
-  #state = null           // EffectState (Dafny datatype)
+  #state = null           // EffectState (Dafny datatype - multi-project internally)
   #projectId
   #listeners = new Set()  // For useSyncExternalStore
   #realtimeChannel = null
@@ -26,13 +26,19 @@ export class EffectManager {
   }
 
   // For useSyncExternalStore - must be stable references
+  // Returns single-project ClientState for backwards compatibility
   subscribe = (listener) => {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
   }
 
   getSnapshot = () => {
-    return this.#state ? App.EffectState.getClient(this.#state) : null
+    if (!this.#state) return null
+    // Return a client-state-like object for backwards compatibility
+    const mm = App.EffectState.getMultiModel(this.#state)
+    const model = App.MultiModel.getProject(mm, this.#projectId)
+    const pending = App.EffectState.getPending(this.#state)
+    return { present: model, pending }
   }
 
   #notify() {
@@ -70,11 +76,17 @@ export class EffectManager {
       this.#setStatus('pending')
 
       try {
+        const baseVersions = App.EffectCommand.getBaseVersions(command)
+        const action = App.EffectCommand.getAction(command)
+        // Unwrap the MultiAction.Single to get the inner action
+        const actionJson = App.MultiAction.toJson(action)
+        const innerAction = actionJson.action // The single-project action
+
         const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
           body: {
             projectId: this.#projectId,
-            baseVersion: App.EffectCommand.getBaseVersion(command),
-            action: App.actionToJson(App.EffectCommand.getAction(command))
+            baseVersion: baseVersions[this.#projectId] || 0,
+            action: innerAction
           }
         })
 
@@ -82,19 +94,29 @@ export class EffectManager {
 
         let event
         if (data.status === 'accepted') {
-          event = App.EffectEvent.DispatchAccepted(data.version, data.state)
+          // Wrap response in multi-project format
+          event = App.EffectEvent.DispatchAccepted(
+            { [this.#projectId]: data.version },
+            { [this.#projectId]: data.state }
+          )
           this.#setStatus('synced')
           this.#setError(null)
         } else if (data.status === 'conflict') {
           const { data: fresh } = await supabase
             .from('projects').select('state, version')
             .eq('id', this.#projectId).single()
-          event = App.EffectEvent.DispatchConflict(fresh.version, fresh.state)
+          event = App.EffectEvent.DispatchConflict(
+            { [this.#projectId]: fresh.version },
+            { [this.#projectId]: fresh.state }
+          )
         } else if (data.status === 'rejected') {
           const { data: fresh } = await supabase
             .from('projects').select('state, version')
             .eq('id', this.#projectId).single()
-          event = App.EffectEvent.DispatchRejected(fresh.version, fresh.state)
+          event = App.EffectEvent.DispatchRejected(
+            { [this.#projectId]: fresh.version },
+            { [this.#projectId]: fresh.state }
+          )
           this.#setError(`Action rejected: ${data.reason || 'Unknown'}`)
         } else if (data.error) {
           throw new Error(data.error)
@@ -130,8 +152,11 @@ export class EffectManager {
 
       if (error) throw error
 
-      // Initialize via VERIFIED Init
-      this.#state = App.EffectInit(data.version, data.state)
+      // Initialize via VERIFIED Init - wrap in multi-project format
+      this.#state = App.EffectInit(
+        { [this.#projectId]: data.version },
+        { [this.#projectId]: data.state }
+      )
       this.#notify()
       this.#setStatus('synced')
       this.#setError(null)
@@ -152,9 +177,10 @@ export class EffectManager {
     window.removeEventListener('offline', this.#handleOffline)
   }
 
-  // Public: dispatch user action
+  // Public: dispatch user action (wraps in MultiAction.Single)
   dispatch(action) {
-    const cmd = this.#transition(App.EffectEvent.UserAction(action))
+    const event = App.EffectEvent.SingleUserAction(this.#projectId, action)
+    const cmd = this.#transition(event)
     if (cmd) this.#executeCommand(cmd)
   }
 
@@ -167,7 +193,10 @@ export class EffectManager {
         .from('projects').select('state, version')
         .eq('id', this.#projectId).single()
       if (error) throw error
-      this.#state = App.EffectInit(data.version, data.state)
+      this.#state = App.EffectInit(
+        { [this.#projectId]: data.version },
+        { [this.#projectId]: data.state }
+      )
       this.#notify()
       this.#setStatus('synced')
       this.#setError(null)
@@ -201,15 +230,15 @@ export class EffectManager {
         if (!App.EffectState.isOnline(this.#state)) return
         if (App.EffectState.isDispatching(this.#state)) return
 
-        if (payload.new.version > App.EffectState.getServerVersion(this.#state)) {
-          // Use HandleRealtimeUpdate on client, then reinit effect state
-          const client = App.EffectState.getClient(this.#state)
-          const newClient = App.HandleRealtimeUpdate(client, payload.new.version, payload.new.state)
-          // Reinit with new version but preserve the updated client
-          this.#state = App.EffectInit(payload.new.version, payload.new.state)
-          // The pending actions are in newClient, need to re-dispatch them
-          // Actually, EffectInit creates fresh state - we need a different approach
-          // For now, just update and notify
+        const baseVersions = App.EffectState.getBaseVersions(this.#state)
+        const currentVersion = baseVersions[this.#projectId] || 0
+
+        if (payload.new.version > currentVersion) {
+          // Reinit with new version in multi-project format
+          this.#state = App.EffectInit(
+            { [this.#projectId]: payload.new.version },
+            { [this.#projectId]: payload.new.state }
+          )
           this.#notify()
         }
       })
@@ -229,5 +258,9 @@ export class EffectManager {
   // Accessors
   get isOnline() { return this.#state ? App.EffectState.isOnline(this.#state) : true }
   get isDispatching() { return this.#state ? App.EffectState.isDispatching(this.#state) : false }
-  get serverVersion() { return this.#state ? App.EffectState.getServerVersion(this.#state) : 0 }
+  get serverVersion() {
+    if (!this.#state) return 0
+    const baseVersions = App.EffectState.getBaseVersions(this.#state)
+    return baseVersions[this.#projectId] || 0
+  }
 }

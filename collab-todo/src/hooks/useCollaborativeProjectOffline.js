@@ -1,74 +1,72 @@
 // useCollaborativeProjectOffline: React hook with VERIFIED offline support
 //
-// Uses EffectManager which is backed by the compiled Dafny EffectStateMachine.
-// All state transitions go through the verified Step function.
+// Uses MultiProjectEffectManager which is backed by the compiled Dafny
+// MultiProjectEffectStateMachine. All state transitions go through the verified Step function.
 
 import { useEffect, useState, useCallback, useRef, useSyncExternalStore } from 'react'
 import { isSupabaseConfigured } from '../supabase.js'
 import App from '../dafny/app-extras.js'
-import { EffectManager } from './EffectManager.js'
+import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 
 export function useCollaborativeProjectOffline(projectId) {
   const [status, setStatus] = useState('syncing')
   const [error, setError] = useState(null)
-  const effectsRef = useRef(null)
+  const managerRef = useRef(null)
   const currentProjectIdRef = useRef(null)
 
-  // Create or recreate effect manager when projectId changes
+  // Create or recreate manager when projectId changes
   if (projectId && isSupabaseConfigured() && currentProjectIdRef.current !== projectId) {
     // Stop old manager if it exists
-    if (effectsRef.current) {
-      effectsRef.current.stop()
+    if (managerRef.current) {
+      managerRef.current.stop()
     }
-    effectsRef.current = new EffectManager(projectId)
+    managerRef.current = new MultiProjectEffectManager([projectId])
     currentProjectIdRef.current = projectId
   }
 
-  const effects = effectsRef.current
+  const manager = managerRef.current
 
-  // Subscribe to client state via useSyncExternalStore
-  const clientState = useSyncExternalStore(
-    effects?.subscribe ?? (() => () => {}),
-    effects?.getSnapshot ?? (() => null),
-    effects?.getSnapshot ?? (() => null)
+  // Subscribe to multi-model state via useSyncExternalStore
+  const multiModel = useSyncExternalStore(
+    manager?.subscribe ?? (() => () => {}),
+    manager?.getSnapshot ?? (() => null),
+    manager?.getSnapshot ?? (() => null)
   )
 
   // Wire up callbacks and start/stop
   useEffect(() => {
-    if (!effects) return
-    effects.setCallbacks(setStatus, setError)
-    effects.start()
-    return () => effects.stop()
-  }, [effects])
+    if (!manager) return
+    manager.setCallbacks(setStatus, setError)
+    manager.start()
+    return () => manager.stop()
+  }, [manager])
 
-  // Dispatch - synchronous, calls verified Step
+  // Dispatch - synchronous, calls verified Step (wraps in single-project action)
   const dispatch = useCallback((action) => {
-    effects?.dispatch(action)
-  }, [effects])
+    manager?.dispatchSingle(projectId, action)
+  }, [manager, projectId])
 
-  const sync = useCallback(() => effects?.sync(), [effects])
-  const flush = useCallback(() => effects?.sync(), [effects])
-  const toggleOffline = useCallback(() => effects?.toggleOffline() ?? false, [effects])
+  const sync = useCallback(() => manager?.sync(), [manager])
+  const flush = useCallback(() => manager?.sync(), [manager])
+  const toggleOffline = useCallback(() => manager?.toggleOffline() ?? false, [manager])
 
-  // Derived state
-  const model = clientState ? App.GetPresent(clientState) : null
-  const pendingCount = clientState ? App.GetPendingCount(clientState) : 0
-  const pendingActions = clientState
-    ? App.GetPendingActions(clientState).map(a => App.actionToJson(a))
-    : []
+  // Derived state - get single project model from multi-model
+  const model = multiModel ? App.MultiModel.getProject(multiModel, projectId) : null
+  const pendingCount = manager?.pendingCount ?? 0
+  const version = manager?.getBaseVersions()[projectId] ?? 0
 
   return {
     model,
-    version: effects?.serverVersion ?? 0,
+    version,
     dispatch,
     sync,
     pendingCount,
-    pendingActions,
+    pendingActions: [], // TODO: filter to this project's actions if needed
     error,
     status,
-    isOffline: effects ? !effects.isOnline : false,
+    isOffline: manager ? !manager.isOnline : false,
     toggleOffline,
     flush,
-    isFlushing: effects?.isDispatching ?? false
+    isFlushing: manager?.isDispatching ?? false
   }
 }

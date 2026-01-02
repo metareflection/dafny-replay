@@ -66,6 +66,7 @@ const fixOption = (val) => {
 };
 
 // Preprocess model JSON: convert null Option fields to { type: 'None' } format
+// and provide default values for missing fields
 const preprocessModelJson = (json) => {
   if (!json) return json;
 
@@ -81,7 +82,12 @@ const preprocessModelJson = (json) => {
     }
   }
 
-  return { ...json, taskData };
+  return {
+    ...json,
+    taskData,
+    // Default mode to 'Collaborative' for existing data without mode field
+    mode: json.mode ?? 'Collaborative'
+  };
 };
 
 // Preprocess models map (for multi-project)
