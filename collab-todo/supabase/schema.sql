@@ -198,6 +198,103 @@ END;
 $$;
 
 -- ============================================================================
+-- Multi-Project Functions (for cross-project operations)
+-- ============================================================================
+
+-- Check if user is member of ALL specified projects
+CREATE OR REPLACE FUNCTION is_member_of_all_projects(p_project_ids UUID[])
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT (
+    SELECT COUNT(DISTINCT project_id)
+    FROM project_members
+    WHERE project_id = ANY(p_project_ids)
+    AND user_id = auth.uid()
+  ) = array_length(p_project_ids, 1)
+$$;
+
+-- Save multi-project update atomically
+-- Used by /multi-dispatch for cross-project operations
+-- Each update contains: id, state, expectedVersion, newVersion, newLogEntry
+CREATE OR REPLACE FUNCTION save_multi_update(updates JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  u RECORD;
+  project_ids UUID[];
+  updated_projects JSONB := '[]'::jsonb;
+BEGIN
+  -- Extract project IDs for permission check
+  SELECT array_agg((value->>'id')::UUID)
+  INTO project_ids
+  FROM jsonb_array_elements(updates);
+
+  -- Verify user has access to all projects
+  IF NOT is_member_of_all_projects(project_ids) THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Not a member of all projects'
+    );
+  END IF;
+
+  -- Process each update
+  FOR u IN SELECT * FROM jsonb_array_elements(updates) AS elem
+  LOOP
+    UPDATE projects
+    SET state = (u.elem->>'state')::jsonb,
+        version = (u.elem->>'newVersion')::int,
+        applied_log = applied_log || (u.elem->'newLogEntry'),
+        updated_at = now()
+    WHERE id = (u.elem->>'id')::uuid
+    AND version = (u.elem->>'expectedVersion')::int;
+
+    IF NOT FOUND THEN
+      -- Conflict detected - rollback
+      RAISE EXCEPTION 'Version conflict on project %', u.elem->>'id';
+    END IF;
+
+    -- Track updated project
+    updated_projects := updated_projects || jsonb_build_object(
+      'id', u.elem->>'id',
+      'version', (u.elem->>'newVersion')::int
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'updated', updated_projects
+  );
+END;
+$$;
+
+-- Load projects for cross-project dispatch
+-- Returns state, version, and applied_log for each project
+CREATE OR REPLACE FUNCTION load_projects_for_dispatch(p_project_ids UUID[])
+RETURNS TABLE (
+  id UUID,
+  state JSONB,
+  version INT,
+  applied_log JSONB
+)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT p.id, p.state, p.version, p.applied_log
+  FROM projects p
+  WHERE p.id = ANY(p_project_ids)
+  AND is_project_member(p.id)
+$$;
+
+-- ============================================================================
 -- Realtime
 -- ============================================================================
 
