@@ -2191,6 +2191,15 @@ let KanbanMultiCollaboration = (function() {
         return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, _1_reappliedPresent, _0_rest);
       }
     };
+    static ClientRejectReply(client, freshVersion, freshModel) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, freshModel, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = KanbanMultiCollaboration.__default.ReapplyPending(freshModel, _0_rest);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
     static PendingCount(client) {
       return new BigNumber(((client).dtor_pending).length);
     };
@@ -2704,7 +2713,7 @@ let KanbanEffectStateMachine = (function() {
           let _22_freshVersion = (_source0).freshVersion;
           let _23_freshModel = (_source0).freshModel;
           if (((es).dtor_mode).is_Dispatching) {
-            let _24_newClient = KanbanMultiCollaboration.__default.InitClient(_22_freshVersion, _23_freshModel);
+            let _24_newClient = KanbanMultiCollaboration.__default.ClientRejectReply((es).dtor_client, _22_freshVersion, _23_freshModel);
             let _25_newState = KanbanEffectStateMachine.EffectState.create_EffectState((es).dtor_network, KanbanEffectStateMachine.EffectMode.create_Idle(), _24_newClient, _22_freshVersion);
             if (KanbanEffectStateMachine.__default.CanStartDispatch(_25_newState)) {
               return _dafny.Tuple.of(function (_pat_let10_0) {

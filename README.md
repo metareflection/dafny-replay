@@ -22,6 +22,7 @@ This repository contains:
 * a **generic replay kernel** proved once,
 * a **generic authority kernel** for server-authoritative client–server protocols,
 * a **generic multi-collaboration kernel** for server-authoritative protocols with offline clients,
+* a **generic effect state machine** for client-side effect orchestration with bounded retries,
 * multiple **concrete domains** proved against these kernels,
 * a **React demo pipeline** using the compiled JavaScript.
 
@@ -34,6 +35,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Replay                 | Local UI state                 | Undo/redo preserves global invariants |
 | Authority              | Client–server                  | State always satisfies invariants |
 | Multi-Collaboration    | Client–server, offline clients | State satisfies invariants; Anchor-based moves, candidate fallback, minimal rejection |
+| Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, invariant preservation |
 
 ### List of Apps
 
@@ -157,6 +159,55 @@ The kernel is designed for domains where "intent" matters more than exact positi
 
 - See the app kanban-multi-collaboration/ for an example with a non-persistent server.
 - See the app kanban-supabase/ for an example with user management and database persistence via Supabase.
+</details>
+
+---
+
+## The Effect State Machine
+
+<details>
+<summary>A verified model of client-side effect orchestration.</summary>
+
+See also the [SUPABASE](SUPABASE.md) design note for how this kernel integrates with Supabase.
+
+The Effect State Machine (`EffectStateMachine.dfy`) models the client-side logic that governs:
+
+* **When to flush** pending actions to the server
+* **How to handle responses** (accept, conflict, reject)
+* **Offline/online transitions** with automatic retry on reconnection
+* **Bounded retry logic** to prevent infinite loops
+
+The state machine maintains:
+
+```text
+EffectState = { network, mode, client, serverVersion }
+```
+
+where `network` is `Online | Offline`, `mode` is `Idle | Dispatching(retries)`, and `client` is the verified `ClientState` from MultiCollaboration.
+
+Events include user actions, dispatch responses, network errors, and manual offline toggles. Each event produces a new state and an optional command (e.g., `SendDispatch`, `FetchFreshState`).
+
+**Key invariants:**
+
+1. **Mode consistency**
+   If dispatching, there must be pending actions.
+
+2. **Bounded retries**
+   Retry count never exceeds `MaxRetries` (default 5).
+
+3. **Invariant preservation**
+   All state transitions preserve the invariant.
+
+**Key properties proved:**
+
+* `RetriesAreBounded` — retries never exceed the maximum
+* `TickStartsDispatch` — if online, idle, and has pending, a Tick starts dispatch
+* `MaxRetriesLeadsToIdle` — exceeding max retries transitions to Idle
+* `StepPreservesInv` — all transitions preserve the invariant
+
+The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
+
+See kanban-supabase/ for a complete example using the Effect State Machine with Supabase.
 </details>
 
 ---
@@ -381,6 +432,7 @@ This is an experimental methodology that ensures **correctness by construction**
 * ✔ Generic replay kernel proved
 * ✔ Generic authority kernel for client–server architectures proved
 * ✔ Generic multi-collaboration kernel for client–server architectures proved
+* ✔ Generic effect state machine for client-side orchestration proved
 * ✔ JavaScript compilation
 * ✔ React integration
 * ✔ Supabase integration (experimental)

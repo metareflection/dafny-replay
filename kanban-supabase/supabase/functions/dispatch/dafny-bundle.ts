@@ -2212,6 +2212,15 @@ let KanbanMultiCollaboration = (function() {
         return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, _1_reappliedPresent, _0_rest);
       }
     };
+    static ClientRejectReply(client, freshVersion, freshModel) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, freshModel, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = KanbanMultiCollaboration.__default.ReapplyPending(freshModel, _0_rest);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(freshVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
     static PendingCount(client) {
       return new BigNumber(((client).dtor_pending).length);
     };

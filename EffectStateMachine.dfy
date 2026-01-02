@@ -146,8 +146,8 @@ abstract module EffectStateMachine {
 
       case DispatchRejected(freshVersion, freshModel) =>
         if es.mode.Dispatching? then
-          // Action rejected by domain - sync to fresh state (drops the rejected action)
-          var newClient := MC.InitClient(freshVersion, freshModel);
+          // Action rejected by domain - drop the rejected action but preserve other pending
+          var newClient := MC.ClientRejectReply(es.client, freshVersion, freshModel);
           var newState := EffectState(es.network, Idle, newClient, freshVersion);
           // If more pending, continue
           if CanStartDispatch(newState) then

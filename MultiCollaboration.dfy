@@ -314,6 +314,22 @@ abstract module {:compile false} MultiCollaboration {
       ClientState(newVersion, reappliedPresent, rest)
   }
 
+  // Handle rejected reply from server - drops the rejected action but preserves the rest
+  // Used when a dispatch is rejected by the domain and we need to sync to server state
+  // while keeping any other pending actions
+  function ClientRejectReply(client: ClientState, freshVersion: nat, freshModel: D.Model): ClientState
+  {
+    if |client.pending| == 0 then
+      // No pending actions (shouldn't happen in normal flow, but handle gracefully)
+      ClientState(freshVersion, freshModel, [])
+    else
+      // Drop the first pending action (the rejected one)
+      // and re-apply the remaining pending actions on top of the fresh server state
+      var rest := client.pending[1..];
+      var reappliedPresent := ReapplyPending(freshModel, rest);
+      ClientState(freshVersion, reappliedPresent, rest)
+  }
+
   // ===========================================================================
   // Client state accessors
   // ===========================================================================
