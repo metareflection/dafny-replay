@@ -2182,6 +2182,15 @@ let KanbanMultiCollaboration = (function() {
         }
       }
     };
+    static ClientAcceptReply(client, newVersion, newPresent) {
+      if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
+        return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, newPresent, _dafny.Seq.of());
+      } else {
+        let _0_rest = ((client).dtor_pending).slice(_dafny.ONE);
+        let _1_reappliedPresent = KanbanMultiCollaboration.__default.ReapplyPending(newPresent, _0_rest);
+        return KanbanMultiCollaboration.ClientState.create_ClientState(newVersion, _1_reappliedPresent, _0_rest);
+      }
+    };
     static PendingCount(client) {
       return new BigNumber(((client).dtor_pending).length);
     };
@@ -2595,6 +2604,9 @@ let KanbanAppCore = (function() {
     };
     static HandleRealtimeUpdate(client, serverVersion, serverModel) {
       return KanbanMultiCollaboration.__default.HandleRealtimeUpdate(client, serverVersion, serverModel);
+    };
+    static ClientAcceptReply(client, newVersion, newPresent) {
+      return KanbanMultiCollaboration.__default.ClientAcceptReply(client, newVersion, newPresent);
     };
     static Sync(server) {
       return KanbanMultiCollaboration.__default.Sync(server);

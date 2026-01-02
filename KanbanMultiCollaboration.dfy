@@ -1585,6 +1585,11 @@ module KanbanAppCore {
     MC.HandleRealtimeUpdate(client, serverVersion, serverModel)
   }
 
+  function ClientAcceptReply(client: ClientState, newVersion: nat, newPresent: K.Model): ClientState
+  {
+    MC.ClientAcceptReply(client, newVersion, newPresent)
+  }
+
   function Sync(server: MC.ServerState): ClientState
   {
     MC.Sync(server)

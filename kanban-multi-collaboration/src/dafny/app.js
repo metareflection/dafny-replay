@@ -524,6 +524,7 @@ const App = {
   InitClientFromServer: (server) => KanbanAppCore.__default.InitClientFromServer(server),
   ClientLocalDispatch: (client, action) => KanbanAppCore.__default.ClientLocalDispatch(client, action),
   HandleRealtimeUpdate: (client, serverVersion, serverModel) => KanbanAppCore.__default.HandleRealtimeUpdate(client, new BigNumber(serverVersion), serverModel),
+  ClientAcceptReply: (client, newVersion, newPresent) => KanbanAppCore.__default.ClientAcceptReply(client, new BigNumber(newVersion), newPresent),
   Sync: (server) => KanbanAppCore.__default.Sync(server),
   ServerVersion: (server) => toNumber(KanbanAppCore.__default.ServerVersion(server)),
   ServerModel: (server) => KanbanAppCore.__default.ServerModel(server),

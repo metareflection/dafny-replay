@@ -85,12 +85,18 @@ export function useCollaborativeProjectOffline(projectId) {
   // ============================================================================
 
   const dispatch = useCallback(async (action) => {
-    if (!projectId || !clientState || !isSupabaseConfigured()) return
+    if (!projectId || !isSupabaseConfigured()) return
 
     // 1. Optimistic local update using VERIFIED ClientLocalDispatch
     //    This adds the action to the pending queue and applies it optimistically
-    const newClientState = App.LocalDispatch(clientState, action)
-    setClientState(newClientState)
+    //    IMPORTANT: Use functional update to avoid stale closure issues when
+    //    multiple dispatches happen rapidly before React re-renders
+    let baseVersion
+    setClientState(currentState => {
+      if (!currentState) return currentState
+      baseVersion = App.GetBaseVersion(currentState)
+      return App.LocalDispatch(currentState, action)
+    })
 
     // If offline, just keep the optimistic update
     if (isOffline) {
@@ -98,9 +104,8 @@ export function useCollaborativeProjectOffline(projectId) {
       return
     }
 
-    // Avoid concurrent dispatches
+    // Avoid concurrent dispatches - action is already queued in pending
     if (dispatchingRef.current) {
-      // Action is queued in pending, will be flushed later
       return
     }
 
@@ -108,8 +113,7 @@ export function useCollaborativeProjectOffline(projectId) {
     setStatus('pending')
 
     try {
-      // Get base version from the PREVIOUS client state (before local dispatch)
-      const baseVersion = App.GetBaseVersion(clientState)
+      // baseVersion was captured in the functional update above
 
       // 2. Send to server via Edge Function (which uses VERIFIED Dispatch)
       const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
@@ -126,12 +130,17 @@ export function useCollaborativeProjectOffline(projectId) {
       }
 
       if (data.status === 'accepted') {
-        // 3. Re-initialize client from server state
-        //    This clears the pending queue for this action since it's now confirmed
+        // 3. Use VERIFIED ClientAcceptReply to update client state
+        //    This removes the dispatched action and preserves any actions
+        //    that were added to pending while this dispatch was in progress
         setServerVersion(data.version)
-        const syncedClient = App.InitClient(data.version, data.state)
-        setClientState(syncedClient)
-        setStatus('synced')
+        setClientState(currentState => {
+          if (!currentState) {
+            return App.InitClient(data.version, data.state)
+          }
+          return App.ClientAcceptReply(currentState, data.version, data.state)
+        })
+        setStatus(s => s === 'pending' ? 'synced' : s)
         setError(null)
       } else if (data.status === 'conflict') {
         // Concurrent modification - resync
@@ -164,8 +173,17 @@ export function useCollaborativeProjectOffline(projectId) {
       }
     } finally {
       dispatchingRef.current = false
+      // Check if there are remaining pending actions and continue flushing
+      // Use functional update to get latest state
+      setClientState(currentState => {
+        if (currentState && App.GetPendingCount(currentState) > 0 && !isOffline) {
+          // Schedule flush for remaining pending actions
+          setTimeout(() => flushRef.current?.(), 0)
+        }
+        return currentState
+      })
     }
-  }, [projectId, clientState, isOffline, sync])
+  }, [projectId, isOffline, sync])
 
   // ============================================================================
   // Flush: Send all pending actions to server (for going back online)

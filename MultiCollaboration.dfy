@@ -295,6 +295,26 @@ abstract module {:compile false} MultiCollaboration {
   }
 
   // ===========================================================================
+  // Client reply handling
+  // ===========================================================================
+
+  // Handle accepted reply from server - removes the dispatched action and preserves the rest
+  // Used when a dispatch succeeds and we need to update the client state while keeping
+  // any actions that were added to pending while the dispatch was in progress
+  function ClientAcceptReply(client: ClientState, newVersion: nat, newPresent: D.Model): ClientState
+  {
+    if |client.pending| == 0 then
+      // No pending actions (shouldn't happen in normal flow, but handle gracefully)
+      ClientState(newVersion, newPresent, [])
+    else
+      // Remove the first pending action (the one that was just dispatched)
+      // and re-apply the remaining pending actions on top of the new server state
+      var rest := client.pending[1..];
+      var reappliedPresent := ReapplyPending(newPresent, rest);
+      ClientState(newVersion, reappliedPresent, rest)
+  }
+
+  // ===========================================================================
   // Client state accessors
   // ===========================================================================
 

@@ -65,6 +65,17 @@ const App = {
     );
   },
 
+  // ClientAcceptReply: handle accepted server reply while preserving pending actions
+  // Removes the first pending action (the dispatched one) and re-applies the rest
+  ClientAcceptReply: (client, newVersion, newPresentJson) => {
+    const newPresent = GeneratedApp.modelFromJson(newPresentJson);
+    return KanbanAppCore.__default.ClientAcceptReply(
+      client,
+      new BigNumber(newVersion),
+      newPresent
+    );
+  },
+
   // -------------------------------------------------------------------------
   // Model accessors
   // -------------------------------------------------------------------------
