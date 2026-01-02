@@ -330,6 +330,7 @@ const App = {
   MultiModel: {
     // Get a project's model
     getProject: (mm, projectId) => {
+      if (!projectId || !mm) return null;
       if (GeneratedApp.HasProject(mm, projectId)) {
         return GeneratedApp.GetProjectModel(mm, projectId);
       }
@@ -337,7 +338,10 @@ const App = {
     },
 
     // Check if project exists
-    hasProject: (mm, projectId) => GeneratedApp.HasProject(mm, projectId),
+    hasProject: (mm, projectId) => {
+      if (!projectId || !mm) return false;
+      return GeneratedApp.HasProject(mm, projectId);
+    },
 
     // Get all project IDs
     getProjectIds: (mm) => {

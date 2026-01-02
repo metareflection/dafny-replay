@@ -232,7 +232,7 @@ function TodoApp({ user, onSignOut }) {
     getProjectModel,
     getProjectLists,
     getListTaskCount
-  } = useAllProjects(viewMode === 'all' ? projectIds : [])
+  } = useAllProjects(projectIds) // Always load for smart lists
 
   // Show errors as toast
   useEffect(() => {
@@ -383,7 +383,7 @@ function TodoApp({ user, onSignOut }) {
       const taskIds = App.GetTasksInList(singleModel, listId)
       for (const taskId of taskIds) {
         const task = App.GetTask(singleModel, taskId)
-        if (task.completed && !task.deleted) {
+        if (task && task.completed && !task.deleted) {
           tasks.push({
             id: taskId,
             projectId: selectedProjectId,
@@ -410,41 +410,27 @@ function TodoApp({ user, onSignOut }) {
   const renderContent = () => {
     // Smart list views
     if (selectedView === 'priority') {
-      const tasks = viewMode === 'all' ? priorityTasks : singlePriorityTasks
+      // Smart lists always show tasks from all projects
       return (
         <PriorityView
-          tasks={tasks}
-          onCompleteTask={viewMode === 'all' ? handleCompleteTaskAll : (_, taskId, completed) =>
-            singleDispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
-          }
-          onStarTask={viewMode === 'all' ? handleStarTaskAll : (_, taskId, starred) =>
-            singleDispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
-          }
-          onEditTask={viewMode === 'all' ? handleEditTaskAll : (_, taskId, title, notes) =>
-            singleDispatch(App.EditTask(taskId, title, notes))
-          }
-          onDeleteTask={viewMode === 'all' ? handleDeleteTaskAll : (_, taskId) =>
-            singleDispatch(App.DeleteTask(taskId, user.id))
-          }
-          onMoveTask={viewMode === 'all' ? handleMoveTaskAll : (_, taskId, listId) =>
-            singleDispatch(App.MoveTask(taskId, listId, App.AtEnd()))
-          }
-          getAvailableLists={viewMode === 'all' ? getAvailableListsForProject : () => singleProjectLists}
+          tasks={priorityTasks}
+          onCompleteTask={handleCompleteTaskAll}
+          onStarTask={handleStarTaskAll}
+          onEditTask={handleEditTaskAll}
+          onDeleteTask={handleDeleteTaskAll}
+          onMoveTask={handleMoveTaskAll}
+          getAvailableLists={getAvailableListsForProject}
         />
       )
     }
 
     if (selectedView === 'logbook') {
-      const tasks = viewMode === 'all' ? logbookTasks : singleLogbookTasks
+      // Smart lists always show tasks from all projects
       return (
         <LogbookView
-          tasks={tasks}
-          onCompleteTask={viewMode === 'all' ? handleCompleteTaskAll : (_, taskId, completed) =>
-            singleDispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
-          }
-          onStarTask={viewMode === 'all' ? handleStarTaskAll : (_, taskId, starred) =>
-            singleDispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
-          }
+          tasks={logbookTasks}
+          onCompleteTask={handleCompleteTaskAll}
+          onStarTask={handleStarTaskAll}
         />
       )
     }
