@@ -1,0 +1,3 @@
+- [ ] make it prettier
+- [ ] run remaining proofs
+- [ ] add a right side for markdown notes 
