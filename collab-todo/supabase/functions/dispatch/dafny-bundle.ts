@@ -4315,8 +4315,8 @@ export function dispatch(
   // Extract new state
   const newStateJson = serverStateToJson(newServerState);
 
-  // Check reply type using TodoAppCore helpers
-  if (TodoAppCore.__default.IsAccepted(reply)) {
+  // Check reply type using Dafny datatype discriminator
+  if (reply.is_Accepted) {
     return {
       status: 'accepted',
       state: newStateJson.present,

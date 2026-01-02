@@ -131,3 +131,187 @@ Discussed the three categories of unverified properties:
 1. Build JS adapter and React UI
 2. Supabase schema and Edge Functions
 3. (Optional) Prove remaining axioms with manual induction lemmas
+
+---
+
+## Session #3 - UI Integration & Supabase Setup
+
+**Date:** 2026-01-01
+
+### Goals
+Compile Dafny spec to JavaScript, create the JS adapter, build React UI components, and update Supabase schema for the Todo domain.
+
+### Work Completed
+
+**Dafny Compilation:**
+- Compiled `TodoMultiCollaboration.dfy` to JavaScript (~128KB)
+- Generated modules: `TodoDomain`, `TodoMultiCollaboration`, `TodoAppCore`
+- Updated `compile.sh` to include collab-todo project
+
+**JS Adapter (`src/dafny/app.js`):**
+- Type conversions for Task, Date, Option, Place, ListPlace
+- Model JSON serialization (`modelToJson`/`modelFromJson`)
+- Action JSON serialization for all 22+ action types
+- `todoDomain` export for `useCollaborativeProject` hook
+- `App` API with action constructors and model accessors
+
+**React UI (`src/App.jsx`):**
+- `TaskItem` - Checkbox, star, notes, due date, tags, assignees, move/delete
+- `TaskList` - Collapsible lists with add/rename/delete, task count
+- `TagsPanel` - Create and manage project tags
+- `TodoBoard` - Main layout with sidebar (projects, members, tags) and board
+- `ProjectSelector` - Create/select projects
+- `MembersPanel` - View/invite/remove members
+- `Toast` - Error notifications
+
+**Supabase Schema (`supabase/schema.sql`):**
+- Updated default state to Todo model structure:
+  ```json
+  {
+    "mode": "Personal",
+    "owner": "",
+    "members": [],
+    "lists": [],
+    "listNames": {},
+    "tasks": {},
+    "taskData": {},
+    "tags": {},
+    "nextListId": 0,
+    "nextTaskId": 0,
+    "nextTagId": 0
+  }
+  ```
+- Updated `create_project()` function to initialize owner in Dafny model state
+- Added migration comment for existing Kanban data
+
+**Edge Function (`supabase/functions/dispatch/`):**
+- Rewrote `build-bundle.js` for Todo domain types
+- Updated `index.ts` comment to reference TodoMultiCollaboration
+- Regenerated `dafny-bundle.ts` with Todo-specific:
+  - Task/Date/Option conversions
+  - Model conversion (11 fields)
+  - Action conversion (22+ action types)
+  - Place/ListPlace conversions
+  - ServerState/AuditRecord conversions
+
+### Files Created/Modified
+
+| File | Changes |
+|------|---------|
+| `src/dafny/TodoMulti.cjs` | Generated - compiled Dafny code |
+| `src/dafny/app.js` | Rewritten - Todo-specific adapter |
+| `src/App.jsx` | Rewritten - Todo UI components |
+| `src/App.css` | Extended - Task/List/Tag styles |
+| `package.json` | Updated name to `collab-todo` |
+| `supabase/schema.sql` | Updated for Todo model |
+| `supabase/functions/dispatch/build-bundle.js` | Rewritten for Todo |
+| `supabase/functions/dispatch/dafny-bundle.ts` | Regenerated |
+| `supabase/functions/dispatch/index.ts` | Updated comment |
+| `compile.sh` (root) | Added collab-todo compilation step |
+
+### Testing
+- `npm install` - success
+- `npm run dev` - Vite server started successfully
+- Edge Function bundle generated successfully
+
+### Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         React UI                                │
+│  (App.jsx: TaskItem, TaskList, TagsPanel, TodoBoard)           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      JS Adapter (app.js)                        │
+│  - Action constructors (AddTask, CompleteTask, etc.)           │
+│  - Model accessors (GetLists, GetTask, etc.)                   │
+│  - JSON conversion (modelToJson, actionFromJson, etc.)         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Compiled Dafny (TodoMulti.cjs)                  │
+│  - TodoDomain: Model, Action, TryStep, Rebase                  │
+│  - TodoMultiCollaboration: ServerState, Dispatch               │
+│  - TodoAppCore: ClientState, ClientLocalDispatch               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┴─────────────────────┐
+        │ Client (optimistic)     │ Server (verified) │
+        ▼                         ▼
+┌───────────────────┐   ┌─────────────────────────────┐
+│ useCollaborative  │   │ Edge Function (dispatch)     │
+│ ProjectOffline    │   │ - dafny-bundle.ts           │
+│ - pending queue   │◄─►│ - Verified Dispatch         │
+│ - offline support │   │ - Supabase persistence      │
+└───────────────────┘   └─────────────────────────────┘
+```
+
+### Open Items
+1. Deploy to Supabase and test end-to-end
+2. Add due date picker UI
+3. Add tag assignment UI on tasks
+4. Add member assignment UI on tasks
+5. (Optional) Trash view for soft-deleted tasks
+
+---
+
+## Session #4 - Edge Function Deployment & Debugging
+
+**Date:** 2026-01-01
+
+### Goals
+Deploy the Edge Function to Supabase and debug runtime errors to get end-to-end functionality working.
+
+### Issues Encountered & Resolved
+
+**1. CORS Error (Function Not Deployed)**
+- Initial error: `Response to preflight request doesn't pass access control check`
+- Cause: Edge Function wasn't actually deployed to Supabase
+- Fix: Required Docker Desktop running, then `supabase functions deploy dispatch`
+
+**2. 500 Error - IsAccepted Not a Function**
+- Error: `TypeError: TodoAppCore.__default.IsAccepted is not a function`
+- Cause: `dafny-bundle.ts` was calling a non-existent helper function
+- Root cause: The `build-bundle.js` generated code assumed a helper `IsAccepted()` existed in TodoAppCore, but Dafny compiles datatype discriminators as properties, not functions
+
+**Fix Applied:**
+```typescript
+// Before (incorrect)
+if (TodoAppCore.__default.IsAccepted(reply)) {
+
+// After (correct - using Dafny datatype discriminator property)
+if (reply.is_Accepted) {
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/dispatch/index.ts` | Added try/catch around dispatch call with detailed error logging |
+| `supabase/functions/dispatch/dafny-bundle.ts` | Fixed `is_Accepted` check (line 4319) |
+
+### Key Technical Insight
+
+**Dafny Datatype Discriminators:**
+- Dafny compiles datatype variants with `is_VariantName` properties (not functions)
+- For `datatype Reply = Accepted(...) | Rejected(...)`:
+  - `reply.is_Accepted` → boolean property
+  - `reply.is_Rejected` → boolean property
+- Similarly for destructors: `reply.dtor_fieldName`
+
+### Deployment Commands
+```bash
+cd collab-todo
+supabase link --project-ref <project-ref>
+supabase functions deploy dispatch --project-ref <project-ref>
+```
+
+### Open Items
+1. Verify end-to-end list creation works
+2. Test full CRUD operations (tasks, tags, etc.)
+3. Add due date picker UI
+4. Add tag/member assignment UI on tasks
+5. (Optional) Trash view for soft-deleted tasks

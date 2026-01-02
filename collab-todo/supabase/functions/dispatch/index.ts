@@ -115,13 +115,26 @@ serve(async (req) => {
     // Run VERIFIED Dafny MultiCollaboration.Dispatch
     // ========================================================================
 
-    const result = dispatch(
-      project.state,
-      project.applied_log || [],
-      baseVersion,
-      action,
-      project.audit_log || []  // Pass audit log for full ServerState
-    )
+    let result;
+    try {
+      result = dispatch(
+        project.state,
+        project.applied_log || [],
+        baseVersion,
+        action,
+        project.audit_log || []  // Pass audit log for full ServerState
+      )
+    } catch (dispatchError) {
+      console.error('Dispatch call failed:', dispatchError)
+      return new Response(JSON.stringify({
+        error: 'Dispatch failed',
+        details: String(dispatchError),
+        stack: dispatchError instanceof Error ? dispatchError.stack : undefined
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     if (result.status === 'rejected') {
       return new Response(JSON.stringify({
