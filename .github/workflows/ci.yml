@@ -46,3 +46,11 @@ jobs:
       - name: Run integration tests
         working-directory: kanban-multi-collaboration
         run: npm test
+
+      - name: Install kanban-supabase dependencies
+        working-directory: kanban-supabase
+        run: npm ci
+
+      - name: Run kanban-supabase tests
+        working-directory: kanban-supabase
+        run: npm test
