@@ -318,6 +318,18 @@ abstract module EffectStateMachine {
     // Note: ModeConsistent ensures HasPending when Dispatching
   }
 
+  // Property 9: Strongest - exact sequence preservation on accept/reject
+  lemma PendingSequencePreserved(es: EffectState, event: Event)
+    requires Inv(es)
+    requires es.mode.Dispatching?
+    requires event.DispatchAccepted? || event.DispatchRejected?
+    ensures var (es', _) := Step(es, event);
+            Pending(es') == Pending(es)[1..]  // Exact sequence equality
+  {
+    // ClientAcceptReply and ClientRejectReply both set pending to rest = pending[1..]
+    // The model is reapplied but the pending sequence is exactly preserved
+  }
+
   // ===========================================================================
   // Progress Property (Liveness)
   // ===========================================================================
