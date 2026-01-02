@@ -727,14 +727,38 @@ npm run dev
 | Network I/O | No (JS) |
 | React rendering | No (JS) |
 
-## Reference Implementation
+## Reference Implementations
 
-See `kanban-supabase/` for a complete working example with:
+### Kanban (Complex Reconciliation)
+
+See `kanban-supabase/` for an example with complex reconciliation:
 - Full Kanban domain (columns, cards, WIP limits, moves)
+- Non-trivial Rebase (degrade placement when anchor moves)
+- Multiple Candidates (try original, then AtEnd, then Before(first))
 - Verified effect state machine
 - Supabase Edge Function with bundled Dafny code
-- React UI with offline toggle
-- Realtime collaboration
+
+### ClearSplit (Simple Reconciliation)
+
+See `clear-split-supabase/` for an example with trivial reconciliation:
+- Expense splitting domain (expenses, settlements, balances)
+- Identity Rebase (append-only operations never conflict)
+- Single Candidate (just the original action)
+- Simpler code, easier to understand the pattern
+
+**Why is ClearSplit simpler?** Expenses and settlements are append-only. Adding an expense doesn't conflict with adding another expense - they can both succeed. This is different from Kanban, where moving a card might conflict with deleting its anchor card.
+
+## Compilation
+
+After modifying Dafny files, regenerate JavaScript:
+
+```bash
+./compile.sh
+```
+
+This compiles all Dafny files to JavaScript and generates:
+- `app.js` for each project (using dafny2js)
+- `dafny-bundle.ts` for Edge Functions (using build-bundle.js)
 
 ## Next Steps
 

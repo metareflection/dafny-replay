@@ -81,6 +81,21 @@ cp generated/ClearSplit.js clear-split/src/dafny/ClearSplit.cjs
 echo "Generating clear-split app.js..."
 (cd dafny2js && dotnet run --no-build -- --file ../ClearSplit.dfy --app-core ClearSplitAppCore --cjs-name ClearSplit.cjs --output ../clear-split/src/dafny/app.js)
 
+echo "Compiling ClearSplitMultiCollaboration to JavaScript..."
+dafny translate js --no-verify -o generated/ClearSplitMulti --include-runtime ClearSplitMultiCollaboration.dfy
+
+echo "Compiling ClearSplitEffectStateMachine to JavaScript..."
+dafny translate js --no-verify -o generated/ClearSplitEffect --include-runtime ClearSplitEffectStateMachine.dfy
+
+echo "Copying to clear-split-supabase project..."
+cp generated/ClearSplitEffect.js clear-split-supabase/src/dafny/ClearSplitEffect.cjs
+
+echo "Generating clear-split-supabase app.js..."
+(cd dafny2js && dotnet run --no-build -- --file ../ClearSplitEffectStateMachine.dfy --app-core ClearSplitEffectAppCore --cjs-name ClearSplitEffect.cjs --output ../clear-split-supabase/src/dafny/app.js)
+
+echo "Building Deno bundle for clear-split-supabase Edge Function..."
+(cd clear-split-supabase/supabase/functions/dispatch && node build-bundle.js)
+
 echo "Compiling CanonDomain to JavaScript..."
 dafny translate js --no-verify -o generated/CanonReplay --include-runtime CanonDomain.dfy
 
