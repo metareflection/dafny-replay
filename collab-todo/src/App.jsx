@@ -1,743 +1,546 @@
-import { useState, useEffect } from 'react'
-import App from './dafny/app.js'
-import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
-import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Star, CheckSquare, Circle } from 'lucide-react'
+import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
+import { useProjects } from './hooks/useCollaborativeProject.js'
 import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
-import { Check, Star, ArrowRight, X, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
-import './App.css'
+import { useAllProjects } from './hooks/useAllProjects.js'
+import App from './dafny/app.js'
+
+// Components
+import { AuthForm } from './components/auth'
+import { Toast } from './components/common'
+import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
+import { TaskList, TaskItem } from './components/tasks'
+import { ProjectHeader, FilterTabs } from './components/project'
+
+// Styles
+import './styles/global.css'
+import './components/layout/layout.css'
 
 // ============================================================================
-// Auth Form Component
+// Smart List Views
 // ============================================================================
 
-function AuthForm() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  if (!isSupabaseConfigured()) {
-    return (
-      <div className="auth-form">
-        <h2>Configuration Required</h2>
-        <p className="dev-warning">
-          Supabase is not configured. Please copy .env.example to .env and fill in your Supabase credentials.
-        </p>
-        <p style={{ color: '#888', fontSize: '0.85rem' }}>
-          See the README for setup instructions.
-        </p>
-      </div>
-    )
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists }) {
+  if (tasks.length === 0) {
+    return <EmptyState icon={Star} message="No priority tasks. Star a task to add it here." />
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+  return (
+    <div className="project-view">
+      <ProjectHeader
+        title="Priority"
+        icon={Star}
+        showNotes={false}
+      />
+      <div className="project-view__section">
+        {tasks.map(task => (
+          <TaskItem
+            key={`${task.projectId}-${task.id}`}
+            taskId={task.id}
+            task={task}
+            projectName={task.listName}
+            showProject={true}
+            onComplete={(id, completed) => onCompleteTask(task.projectId, id, completed)}
+            onStar={(id, starred) => onStarTask(task.projectId, id, starred)}
+            onEdit={(id, title, notes) => onEditTask(task.projectId, id, title, notes)}
+            onDelete={(id) => onDeleteTask(task.projectId, id)}
+            onMove={(id, listId) => onMoveTask(task.projectId, id, listId)}
+            availableLists={getAvailableLists(task.projectId)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
-    try {
-      if (isSignUp) {
-        await signUp(email, password)
-        setError('Check your email for confirmation link')
+function LogbookView({ tasks, onCompleteTask, onStarTask }) {
+  if (tasks.length === 0) {
+    return <EmptyState icon={CheckSquare} message="No completed tasks yet." />
+  }
+
+  return (
+    <div className="project-view">
+      <ProjectHeader
+        title="Logbook"
+        icon={CheckSquare}
+        showNotes={false}
+      />
+      <div className="project-view__section">
+        {tasks.map(task => (
+          <TaskItem
+            key={`${task.projectId}-${task.id}`}
+            taskId={task.id}
+            task={task}
+            projectName={task.listName}
+            showProject={true}
+            onComplete={(id, completed) => onCompleteTask(task.projectId, id, completed)}
+            onStar={(id, starred) => onStarTask(task.projectId, id, starred)}
+            onEdit={() => {}}
+            onDelete={() => {}}
+            onMove={() => {}}
+            availableLists={[]}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Project View
+// ============================================================================
+
+function ProjectView({
+  project,
+  model,
+  userId,
+  dispatch,
+  filterTab,
+  onFilterChange,
+  onRenameList,
+  onDeleteList
+}) {
+  const [collapsedLists, setCollapsedLists] = useState(new Set())
+
+  const lists = useMemo(() => {
+    if (!model) return []
+    return App.GetLists(model).map(id => ({
+      id,
+      name: App.GetListName(model, id)
+    }))
+  }, [model])
+
+  const getTasksForList = useCallback((listId) => {
+    if (!model) return []
+    const taskIds = App.GetTasksInList(model, listId)
+    return taskIds
+      .map(id => ({ id, ...App.GetTask(model, id) }))
+      .filter(t => !t.deleted)
+      .filter(t => filterTab === 'all' || (filterTab === 'important' && t.starred))
+  }, [model, filterTab])
+
+  const toggleCollapse = (listId) => {
+    setCollapsedLists(prev => {
+      const next = new Set(prev)
+      if (next.has(listId)) {
+        next.delete(listId)
       } else {
-        await signIn(email, password)
+        next.add(listId)
       }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+      return next
+    })
   }
 
-  const handleGoogleSignIn = async () => {
-    setError(null)
-    try {
-      await signInWithGoogle()
-    } catch (err) {
-      setError(err.message)
-    }
+  if (!model) {
+    return <LoadingState message="Loading project..." />
   }
 
   return (
-    <div className="auth-form">
-      <h2>{isSignUp ? 'Sign Up' : 'Sign In'}</h2>
-      {error && <div className="auth-error">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-        </button>
-      </form>
-      <button onClick={handleGoogleSignIn} className="google-btn">
-        Sign in with Google
-      </button>
-      <p className="auth-toggle">
-        {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-        <button onClick={() => setIsSignUp(!isSignUp)}>
-          {isSignUp ? 'Sign In' : 'Sign Up'}
-        </button>
-      </p>
-    </div>
-  )
-}
+    <div className="project-view">
+      <ProjectHeader
+        title={project.name}
+        icon={Circle}
+        subtitle={project.isOwner ? 'Owner' : 'Member'}
+        showNotes={false}
+      />
 
-// ============================================================================
-// Task Item Component
-// ============================================================================
+      <FilterTabs
+        tabs={[
+          { id: 'all', label: 'All' },
+          { id: 'important', label: 'Important' }
+        ]}
+        activeTab={filterTab}
+        onTabChange={onFilterChange}
+      />
 
-function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onDelete, onMove, lists }) {
-  const [editing, setEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(task.title)
-  const [editNotes, setEditNotes] = useState(task.notes)
-  const [showMoveMenu, setShowMoveMenu] = useState(false)
-
-  const handleSubmitEdit = (e) => {
-    e.preventDefault()
-    if (editTitle.trim()) {
-      onEdit(taskId, editTitle.trim(), editNotes)
-    }
-    setEditing(false)
-  }
-
-  const formatDueDate = (dueDate) => {
-    if (!dueDate) return null
-    return `${dueDate.year}-${String(dueDate.month).padStart(2, '0')}-${String(dueDate.day).padStart(2, '0')}`
-  }
-
-  const isOverdue = (dueDate) => {
-    if (!dueDate) return false
-    const today = new Date()
-    const due = new Date(dueDate.year, dueDate.month - 1, dueDate.day)
-    return due < today && !task.completed
-  }
-
-  return (
-    <div className={`task-item ${task.completed ? 'completed' : ''} ${task.starred ? 'starred' : ''}`}>
-      <div className="task-main">
-        <button
-          className={`checkbox ${task.completed ? 'checked' : ''}`}
-          onClick={() => onComplete(taskId, !task.completed)}
-          title={task.completed ? 'Mark incomplete' : 'Mark complete'}
-        >
-          {task.completed ? <Check size={14} /> : ''}
-        </button>
-
-        {editing ? (
-          <form onSubmit={handleSubmitEdit} className="task-edit-form">
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="Task title"
-              autoFocus
-            />
-            <textarea
-              value={editNotes}
-              onChange={(e) => setEditNotes(e.target.value)}
-              placeholder="Notes..."
-              rows={2}
-            />
-            <div className="task-edit-buttons">
-              <button type="submit">Save</button>
-              <button type="button" onClick={() => setEditing(false)}>Cancel</button>
-            </div>
-          </form>
-        ) : (
-          <div className="task-content" onClick={() => setEditing(true)}>
-            <div className="task-title">{task.title}</div>
-            {task.notes && <div className="task-notes">{task.notes}</div>}
-            {task.dueDate && (
-              <div className={`task-due-date ${isOverdue(task.dueDate) ? 'overdue' : ''}`}>
-                Due: {formatDueDate(task.dueDate)}
-              </div>
-            )}
-            {task.tags.length > 0 && (
-              <div className="task-tags">
-                {task.tags.map(tagId => (
-                  <span key={tagId} className="task-tag">
-                    {App.GetTagName(model, tagId)}
-                  </span>
-                ))}
-              </div>
-            )}
-            {task.assignees.length > 0 && (
-              <div className="task-assignees">
-                {task.assignees.map(a => (
-                  <span key={a} className="task-assignee" title={a}>
-                    {a.slice(0, 8)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="task-actions">
-          <button
-            className={`star-btn ${task.starred ? 'starred' : ''}`}
-            onClick={() => onStar(taskId, !task.starred)}
-            title={task.starred ? 'Remove star' : 'Add star'}
-          >
-            <Star size={16} fill={task.starred ? 'currentColor' : 'none'} />
-          </button>
-
-          <div className="move-menu-container">
-            <button
-              className="move-btn"
-              onClick={() => setShowMoveMenu(!showMoveMenu)}
-              title="Move to list"
-            >
-              <ArrowRight size={16} />
-            </button>
-            {showMoveMenu && (
-              <div className="move-menu">
-                {lists.map(listId => (
-                  <button
-                    key={listId}
-                    onClick={() => {
-                      onMove(taskId, listId)
-                      setShowMoveMenu(false)
-                    }}
-                  >
-                    {App.GetListName(model, listId)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            className="delete-btn"
-            onClick={() => onDelete(taskId)}
-            title="Delete task"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// List Component
-// ============================================================================
-
-function TaskList({ listId, listName, model, userId, dispatch, lists, onRenameList, onDeleteList }) {
-  const [newTaskTitle, setNewTaskTitle] = useState('')
-  const [editingName, setEditingName] = useState(false)
-  const [editName, setEditName] = useState(listName)
-  const [collapsed, setCollapsed] = useState(false)
-
-  const taskIds = App.GetTasksInList(model, listId)
-  const tasks = taskIds.map(id => ({ id, ...App.GetTask(model, id) })).filter(t => !t.deleted)
-
-  // Sort: starred first, then by position
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.starred && !b.starred) return -1
-    if (!a.starred && b.starred) return 1
-    return 0
-  })
-
-  const completedCount = tasks.filter(t => t.completed).length
-  const totalCount = tasks.length
-
-  const handleAddTask = (e) => {
-    e.preventDefault()
-    if (newTaskTitle.trim()) {
-      dispatch(App.AddTask(listId, newTaskTitle.trim()))
-      setNewTaskTitle('')
-    }
-  }
-
-  const handleRename = (e) => {
-    e.preventDefault()
-    if (editName.trim() && editName.trim() !== listName) {
-      onRenameList(listId, editName.trim())
-    }
-    setEditingName(false)
-  }
-
-  return (
-    <div className="task-list">
-      <div className="list-header">
-        {editingName ? (
-          <form onSubmit={handleRename} className="list-rename-form">
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              autoFocus
-              onBlur={handleRename}
-            />
-          </form>
-        ) : (
-          <h3 onClick={() => setEditingName(true)}>{listName}</h3>
-        )}
-        <span className="list-count">{completedCount}/{totalCount}</span>
-        <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>
-          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
-        <button className="delete-list-btn" onClick={() => onDeleteList(listId)} title="Delete list">
-          <X size={16} />
-        </button>
-      </div>
-
-      {!collapsed && (
-        <>
-          <form className="add-task-form" onSubmit={handleAddTask}>
-            <input
-              type="text"
-              placeholder="Add task..."
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-            />
-            <button type="submit" disabled={!newTaskTitle.trim()}>+</button>
-          </form>
-
-          <div className="tasks">
-            {sortedTasks.map(task => (
-              <TaskItem
-                key={task.id}
-                taskId={task.id}
-                task={task}
-                model={model}
-                userId={userId}
-                lists={lists}
-                onComplete={(id, completed) =>
-                  dispatch(completed ? App.CompleteTask(id) : App.UncompleteTask(id))
-                }
-                onStar={(id, starred) =>
-                  dispatch(starred ? App.StarTask(id) : App.UnstarTask(id))
-                }
-                onEdit={(id, title, notes) =>
-                  dispatch(App.EditTask(id, title, notes))
-                }
-                onDelete={(id) =>
-                  dispatch(App.DeleteTask(id, userId))
-                }
-                onMove={(id, toListId) =>
-                  dispatch(App.MoveTask(id, toListId, App.AtEnd()))
-                }
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Tags Panel
-// ============================================================================
-
-function TagsPanel({ model, dispatch }) {
-  const [newTagName, setNewTagName] = useState('')
-  const tags = App.GetTags(model)
-  const tagIds = Object.keys(tags).map(Number)
-
-  const handleCreateTag = (e) => {
-    e.preventDefault()
-    if (newTagName.trim()) {
-      dispatch(App.CreateTag(newTagName.trim()))
-      setNewTagName('')
-    }
-  }
-
-  return (
-    <div className="tags-panel">
-      <h4>Tags</h4>
-      <div className="tags-list">
-        {tagIds.map(tagId => (
-          <div key={tagId} className="tag-item">
-            <span className="tag-name">{tags[tagId].name}</span>
-            <button
-              className="delete-tag-btn"
-              onClick={() => dispatch(App.DeleteTag(tagId))}
-              title="Delete tag"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
-      </div>
-      <form onSubmit={handleCreateTag} className="add-tag-form">
-        <input
-          type="text"
-          placeholder="New tag..."
-          value={newTagName}
-          onChange={(e) => setNewTagName(e.target.value)}
-        />
-        <button type="submit" disabled={!newTagName.trim()}>+</button>
-      </form>
-    </div>
-  )
-}
-
-// ============================================================================
-// Toast Component
-// ============================================================================
-
-function Toast({ message, onClose }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 4000)
-    return () => clearTimeout(timer)
-  }, [onClose])
-
-  return (
-    <div className="toast">
-      {message}
-    </div>
-  )
-}
-
-// ============================================================================
-// Project Selector
-// ============================================================================
-
-function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
-  const { projects, loading, refresh, createProject } = useProjects()
-  const [showCreate, setShowCreate] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [creating, setCreating] = useState(false)
-
-  const handleCreate = async (e) => {
-    e.preventDefault()
-    if (!newName.trim() || creating) return
-
-    setCreating(true)
-    try {
-      const projectId = await createProject(newName.trim())
-      setNewName('')
-      setShowCreate(false)
-      onSelect(projectId)
-      onIsOwnerChange?.(true)
-    } catch (err) {
-      console.error('Failed to create project:', err)
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  return (
-    <div className="project-selector">
-      <div className="project-header">
-        <h4>Projects</h4>
-        <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : <RefreshCw size={14} />}
-        </button>
-      </div>
-      <ul className="project-list">
-        {projects.map((project) => (
-          <li
-            key={project.id}
-            className={project.id === currentProjectId ? 'selected' : ''}
-            onClick={() => {
-              onSelect(project.id)
-              onIsOwnerChange?.(project.isOwner)
-            }}
-          >
-            <span className="project-name">{project.name}</span>
-            {project.isOwner && <span className="owner-badge">owner</span>}
-            {!project.isOwner && <span className="member-badge">member</span>}
-          </li>
-        ))}
-      </ul>
-      {projects.length === 0 && !loading && (
-        <p className="no-projects">No projects yet</p>
-      )}
-      {showCreate ? (
-        <form onSubmit={handleCreate} className="new-project-form">
-          <input
-            type="text"
-            placeholder="Project name..."
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            autoFocus
-          />
-          <div className="new-project-buttons">
-            <button type="submit" disabled={!newName.trim() || creating}>
-              {creating ? '...' : 'Create'}
-            </button>
-            <button type="button" onClick={() => setShowCreate(false)} className="cancel-btn">
-              Cancel
-            </button>
-          </div>
-        </form>
+      {lists.length === 0 ? (
+        <EmptyState message="No lists yet. Create one using the top bar." />
       ) : (
-        <button onClick={() => setShowCreate(true)} className="new-project-btn">
-          + New Project
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
-// Members Panel
-// ============================================================================
-
-function MembersPanel({ projectId, isOwner, currentUserId }) {
-  const { members, loading, error, refresh, inviteMember, removeMember } = useProjectMembers(projectId)
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviting, setInviting] = useState(false)
-  const [inviteError, setInviteError] = useState(null)
-
-  const handleInvite = async (e) => {
-    e.preventDefault()
-    if (!inviteEmail.trim() || inviting) return
-
-    setInviting(true)
-    setInviteError(null)
-    try {
-      await inviteMember(inviteEmail.trim())
-      setInviteEmail('')
-    } catch (err) {
-      setInviteError(err.message)
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  const handleRemove = async (userId) => {
-    try {
-      await removeMember(userId)
-    } catch (err) {
-      console.error('Failed to remove member:', err)
-    }
-  }
-
-  if (!projectId) return null
-
-  return (
-    <div className="members-panel">
-      <div className="members-header">
-        <h4>Members</h4>
-        <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : <RefreshCw size={14} />}
-        </button>
-      </div>
-      {error && <div className="members-error">{error}</div>}
-      <ul className="members-list">
-        {members.map((member) => (
-          <li key={member.user_id}>
-            <span className="member-email">{member.email}</span>
-            {member.role === 'owner' && <span className="owner-badge">owner</span>}
-            {isOwner && member.user_id !== currentUserId && member.role !== 'owner' && (
-              <button
-                className="remove-member-btn"
-                onClick={() => handleRemove(member.user_id)}
-                title="Remove member"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {members.length === 0 && !loading && (
-        <p className="no-members">No members</p>
-      )}
-      {isOwner && (
-        <form onSubmit={handleInvite} className="invite-form">
-          <input
-            type="email"
-            placeholder="Email to invite..."
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
+        lists.map(list => (
+          <TaskList
+            key={list.id}
+            listId={list.id}
+            listName={list.name}
+            tasks={getTasksForList(list.id)}
+            collapsed={collapsedLists.has(list.id)}
+            onToggleCollapse={() => toggleCollapse(list.id)}
+            onAddTask={(listId, title) => dispatch(App.AddTask(listId, title))}
+            onRenameList={onRenameList}
+            onDeleteList={onDeleteList}
+            onCompleteTask={(taskId, completed) =>
+              dispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
+            }
+            onStarTask={(taskId, starred) =>
+              dispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
+            }
+            onEditTask={(taskId, title, notes) =>
+              dispatch(App.EditTask(taskId, title, notes))
+            }
+            onDeleteTask={(taskId) =>
+              dispatch(App.DeleteTask(taskId, userId))
+            }
+            onMoveTask={(taskId, toListId) =>
+              dispatch(App.MoveTask(taskId, toListId, App.AtEnd()))
+            }
+            availableLists={lists}
           />
-          <button type="submit" disabled={!inviteEmail.trim() || inviting}>
-            {inviting ? '...' : 'Invite'}
-          </button>
-          {inviteError && <div className="invite-error">{inviteError}</div>}
-        </form>
+        ))
       )}
     </div>
   )
 }
 
 // ============================================================================
-// Main Todo Board
+// Main Todo App
 // ============================================================================
 
-function TodoBoard({ user, onSignOut }) {
-  const [currentProjectId, setCurrentProjectId] = useState(null)
-  const [isOwner, setIsOwner] = useState(false)
-  const [newListName, setNewListName] = useState('')
+function TodoApp({ user, onSignOut }) {
+  // View state
+  const [viewMode, setViewMode] = useState('single') // 'single' | 'all'
+  const [selectedView, setSelectedView] = useState(null) // 'priority' | 'logbook' | null
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [selectedListId, setSelectedListId] = useState(null)
+  const [filterTab, setFilterTab] = useState('all')
   const [toast, setToast] = useState(null)
 
+  // Projects list
+  const { projects, loading: projectsLoading, createProject, refresh: refreshProjects } = useProjects()
+
+  // Single project mode
   const {
-    model,
+    model: singleModel,
     version,
-    dispatch,
+    dispatch: singleDispatch,
     sync,
     pendingCount,
-    error,
+    error: singleError,
     status,
     isOffline,
     toggleOffline,
     isFlushing
-  } = useCollaborativeProjectOffline(currentProjectId)
+  } = useCollaborativeProjectOffline(selectedProjectId)
 
-  const handleAddList = (e) => {
-    e.preventDefault()
-    if (newListName.trim()) {
-      dispatch(App.AddList(newListName.trim()))
-      setNewListName('')
+  // All projects mode
+  const projectIds = useMemo(() => projects.map(p => p.id), [projects])
+  const {
+    projectData,
+    loading: allLoading,
+    createDispatch,
+    priorityTasks,
+    logbookTasks,
+    getProjectModel,
+    getProjectLists,
+    getListTaskCount
+  } = useAllProjects(viewMode === 'all' ? projectIds : [])
+
+  // Show errors as toast
+  useEffect(() => {
+    if (singleError) {
+      setToast({ message: singleError, type: 'error' })
+    }
+  }, [singleError])
+
+  // Handlers
+  const handleSelectProject = (projectId) => {
+    setSelectedProjectId(projectId)
+    setSelectedListId(null)
+    setSelectedView(null)
+  }
+
+  const handleSelectList = (projectId, listId) => {
+    setSelectedProjectId(projectId)
+    setSelectedListId(listId)
+    setSelectedView(null)
+  }
+
+  const handleSelectView = (view) => {
+    setSelectedView(view)
+    setSelectedProjectId(null)
+    setSelectedListId(null)
+  }
+
+  const handleAddList = (name) => {
+    if (viewMode === 'single' && singleModel) {
+      singleDispatch(App.AddList(name))
     }
   }
 
   const handleRenameList = (listId, newName) => {
-    dispatch(App.RenameList(listId, newName))
+    if (viewMode === 'single') {
+      singleDispatch(App.RenameList(listId, newName))
+    }
   }
 
   const handleDeleteList = (listId) => {
     if (confirm('Delete this list? All tasks in it will be permanently deleted.')) {
-      dispatch(App.DeleteList(listId))
+      if (viewMode === 'single') {
+        singleDispatch(App.DeleteList(listId))
+      }
     }
   }
 
-  // Show error as toast
-  useEffect(() => {
-    if (error) {
-      setToast(error)
-    }
-  }, [error])
+  const handleCreateProject = async (name) => {
+    const projectId = await createProject(name)
+    setSelectedProjectId(projectId)
+    setSelectedView(null)
+    return projectId
+  }
 
-  const lists = model ? App.GetLists(model) : []
+  // Task handlers for all-projects mode
+  const handleCompleteTaskAll = (projectId, taskId, completed) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
+  }
+
+  const handleStarTaskAll = (projectId, taskId, starred) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
+  }
+
+  const handleEditTaskAll = (projectId, taskId, title, notes) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.EditTask(taskId, title, notes))
+  }
+
+  const handleDeleteTaskAll = (projectId, taskId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.DeleteTask(taskId, user.id))
+  }
+
+  const handleMoveTaskAll = (projectId, taskId, listId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.MoveTask(taskId, listId, App.AtEnd()))
+  }
+
+  const getAvailableListsForProject = (projectId) => {
+    return getProjectLists(projectId)
+  }
+
+  // Count calculations for sidebar
+  const priorityCount = useMemo(() => {
+    if (viewMode === 'all') {
+      return priorityTasks.length
+    }
+    if (!singleModel) return 0
+    const lists = App.GetLists(singleModel)
+    let count = 0
+    for (const listId of lists) {
+      const taskIds = App.GetTasksInList(singleModel, listId)
+      for (const taskId of taskIds) {
+        const task = App.GetTask(singleModel, taskId)
+        if (task.starred && !task.completed && !task.deleted) count++
+      }
+    }
+    return count
+  }, [viewMode, singleModel, priorityTasks])
+
+  const logbookCount = useMemo(() => {
+    if (viewMode === 'all') {
+      return logbookTasks.length
+    }
+    if (!singleModel) return 0
+    const lists = App.GetLists(singleModel)
+    let count = 0
+    for (const listId of lists) {
+      const taskIds = App.GetTasksInList(singleModel, listId)
+      for (const taskId of taskIds) {
+        const task = App.GetTask(singleModel, taskId)
+        if (task.completed && !task.deleted) count++
+      }
+    }
+    return count
+  }, [viewMode, singleModel, logbookTasks])
+
+  // Get single-mode priority/logbook tasks
+  const singlePriorityTasks = useMemo(() => {
+    if (!singleModel) return []
+    const tasks = []
+    const lists = App.GetLists(singleModel)
+    for (const listId of lists) {
+      const taskIds = App.GetTasksInList(singleModel, listId)
+      for (const taskId of taskIds) {
+        const task = App.GetTask(singleModel, taskId)
+        if (task.starred && !task.completed && !task.deleted) {
+          tasks.push({
+            id: taskId,
+            projectId: selectedProjectId,
+            listId,
+            listName: App.GetListName(singleModel, listId),
+            ...task
+          })
+        }
+      }
+    }
+    return tasks
+  }, [singleModel, selectedProjectId])
+
+  const singleLogbookTasks = useMemo(() => {
+    if (!singleModel) return []
+    const tasks = []
+    const lists = App.GetLists(singleModel)
+    for (const listId of lists) {
+      const taskIds = App.GetTasksInList(singleModel, listId)
+      for (const taskId of taskIds) {
+        const task = App.GetTask(singleModel, taskId)
+        if (task.completed && !task.deleted) {
+          tasks.push({
+            id: taskId,
+            projectId: selectedProjectId,
+            listId,
+            listName: App.GetListName(singleModel, listId),
+            ...task
+          })
+        }
+      }
+    }
+    return tasks
+  }, [singleModel, selectedProjectId])
+
+  // Get lists for single project mode
+  const singleProjectLists = useMemo(() => {
+    if (!singleModel) return []
+    return App.GetLists(singleModel).map(id => ({
+      id,
+      name: App.GetListName(singleModel, id)
+    }))
+  }, [singleModel])
+
+  // Render main content
+  const renderContent = () => {
+    // Smart list views
+    if (selectedView === 'priority') {
+      const tasks = viewMode === 'all' ? priorityTasks : singlePriorityTasks
+      return (
+        <PriorityView
+          tasks={tasks}
+          onCompleteTask={viewMode === 'all' ? handleCompleteTaskAll : (_, taskId, completed) =>
+            singleDispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
+          }
+          onStarTask={viewMode === 'all' ? handleStarTaskAll : (_, taskId, starred) =>
+            singleDispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
+          }
+          onEditTask={viewMode === 'all' ? handleEditTaskAll : (_, taskId, title, notes) =>
+            singleDispatch(App.EditTask(taskId, title, notes))
+          }
+          onDeleteTask={viewMode === 'all' ? handleDeleteTaskAll : (_, taskId) =>
+            singleDispatch(App.DeleteTask(taskId, user.id))
+          }
+          onMoveTask={viewMode === 'all' ? handleMoveTaskAll : (_, taskId, listId) =>
+            singleDispatch(App.MoveTask(taskId, listId, App.AtEnd()))
+          }
+          getAvailableLists={viewMode === 'all' ? getAvailableListsForProject : () => singleProjectLists}
+        />
+      )
+    }
+
+    if (selectedView === 'logbook') {
+      const tasks = viewMode === 'all' ? logbookTasks : singleLogbookTasks
+      return (
+        <LogbookView
+          tasks={tasks}
+          onCompleteTask={viewMode === 'all' ? handleCompleteTaskAll : (_, taskId, completed) =>
+            singleDispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
+          }
+          onStarTask={viewMode === 'all' ? handleStarTaskAll : (_, taskId, starred) =>
+            singleDispatch(starred ? App.StarTask(taskId) : App.UnstarTask(taskId))
+          }
+        />
+      )
+    }
+
+    // Project view
+    if (selectedProjectId && viewMode === 'single') {
+      const project = projects.find(p => p.id === selectedProjectId)
+      if (!project) return <EmptyState message="Project not found" />
+
+      return (
+        <ProjectView
+          project={project}
+          model={singleModel}
+          userId={user.id}
+          dispatch={singleDispatch}
+          filterTab={filterTab}
+          onFilterChange={setFilterTab}
+          onRenameList={handleRenameList}
+          onDeleteList={handleDeleteList}
+        />
+      )
+    }
+
+    // No selection
+    return <EmptyState message="Select a project or smart list to get started" />
+  }
 
   return (
-    <>
-      <div className="header">
-        <div>
-          <h1>Todo Collab</h1>
-          <p className="subtitle">Dafny-verified collaborative todos</p>
-        </div>
-        <div className="user-info">
-          <span className="user-email">{user.email}</span>
-          <button onClick={onSignOut} className="sign-out-btn">Sign Out</button>
-        </div>
-        <div className="controls">
-          <button
-            onClick={toggleOffline}
-            disabled={isFlushing}
-            className={isOffline ? 'offline-btn' : 'online-btn'}
-          >
-            {isFlushing ? 'Flushing...' : isOffline ? 'Go Online' : 'Go Offline'}
-          </button>
-          <button onClick={sync} disabled={isOffline || isFlushing || status === 'syncing'}>
-            Sync
-          </button>
-        </div>
+    <div className="app-layout">
+      <TopBar
+        user={user}
+        onSignOut={onSignOut}
+        onSync={sync}
+        onToggleOffline={toggleOffline}
+        isOffline={isOffline}
+        isFlushing={isFlushing}
+        status={status}
+        pendingCount={pendingCount}
+        onAddList={handleAddList}
+        showAddList={viewMode === 'single' && selectedProjectId && singleModel}
+      />
+
+      <div className="content-wrapper">
+        <Sidebar
+          selectedView={selectedView}
+          onSelectView={handleSelectView}
+          projects={projects}
+          selectedProjectId={selectedProjectId}
+          selectedListId={selectedListId}
+          onSelectProject={handleSelectProject}
+          onSelectList={handleSelectList}
+          onCreateProject={handleCreateProject}
+          projectsLoading={projectsLoading}
+          getProjectLists={viewMode === 'all' ? getProjectLists : (projectId) => {
+            if (projectId === selectedProjectId && singleModel) {
+              return App.GetLists(singleModel).map(id => ({
+                id,
+                name: App.GetListName(singleModel, id)
+              }))
+            }
+            return []
+          }}
+          getListTaskCount={viewMode === 'all' ? getListTaskCount : (projectId, listId) => {
+            if (projectId === selectedProjectId && singleModel) {
+              const taskIds = App.GetTasksInList(singleModel, listId)
+              return taskIds.filter(id => {
+                const task = App.GetTask(singleModel, id)
+                return !task.deleted && !task.completed
+              }).length
+            }
+            return 0
+          }}
+          priorityCount={priorityCount}
+          logbookCount={logbookCount}
+          viewMode={viewMode}
+          onToggleViewMode={setViewMode}
+        />
+
+        <MainContent>
+          {renderContent()}
+        </MainContent>
       </div>
 
-      <div className="status-bar">
-        <span>v{version}</span>
-        <span className={`status ${status === 'error' ? 'error' : ''} ${isOffline ? 'offline' : ''}`}>
-          {status}
-        </span>
-        {pendingCount > 0 && (
-          <span className="pending-badge">{pendingCount} pending</span>
-        )}
-        {model && (
-          <span className="mode-badge">{App.GetMode(model)}</span>
-        )}
-      </div>
-
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-
-      <div className="main-content">
-        <div className="sidebar">
-          <ProjectSelector
-            currentProjectId={currentProjectId}
-            onSelect={setCurrentProjectId}
-            onIsOwnerChange={setIsOwner}
-          />
-          <MembersPanel
-            projectId={currentProjectId}
-            isOwner={isOwner}
-            currentUserId={user.id}
-          />
-          {model && <TagsPanel model={model} dispatch={dispatch} />}
-        </div>
-
-        <div className="board-section">
-          {!currentProjectId ? (
-            <div className="empty-board">
-              <p>Select a project or create a new one to get started.</p>
-            </div>
-          ) : !model ? (
-            <div className="loading">
-              <p>Loading project...</p>
-            </div>
-          ) : (
-            <>
-              <form className="add-list-form" onSubmit={handleAddList}>
-                <input
-                  type="text"
-                  placeholder="New list name..."
-                  value={newListName}
-                  onChange={(e) => setNewListName(e.target.value)}
-                />
-                <button type="submit" disabled={!newListName.trim()}>
-                  Add List
-                </button>
-              </form>
-
-              {lists.length === 0 ? (
-                <div className="empty-board">
-                  <p>No lists yet. Add a list to get started!</p>
-                </div>
-              ) : (
-                <div className="board">
-                  {lists.map((listId) => (
-                    <TaskList
-                      key={listId}
-                      listId={listId}
-                      listName={App.GetListName(model, listId)}
-                      model={model}
-                      userId={user.id}
-                      dispatch={dispatch}
-                      lists={lists}
-                      onRenameList={handleRenameList}
-                      onDeleteList={handleDeleteList}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <p className="info">
-        Dafny-verified domain invariants and offline support.
-        <br />
-        Actions queue locally while offline, flush on reconnect.
-        <br />
-        created with &lt;3 with <a href="https://github.com/metareflection/dafny-replay" target="_blank" rel="noopener noreferrer">dafny-replay</a>
-      </p>
-    </>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
   )
 }
 
 // ============================================================================
-// App Container
+// App Container (Auth wrapper)
 // ============================================================================
 
 function AppContainer() {
@@ -750,13 +553,11 @@ function AppContainer() {
       return
     }
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
@@ -770,9 +571,9 @@ function AppContainer() {
 
   if (loading) {
     return (
-      <div className="loading">
-        <h1>Todo Collab</h1>
-        <p>Loading...</p>
+      <div className="auth-container">
+        <h1 className="auth-container__title">Todo</h1>
+        <p className="auth-container__subtitle">Loading...</p>
       </div>
     )
   }
@@ -780,14 +581,14 @@ function AppContainer() {
   if (!user) {
     return (
       <div className="auth-container">
-        <h1>Todo Collab</h1>
-        <p className="subtitle">Dafny-verified collaborative todos</p>
+        <h1 className="auth-container__title">Todo</h1>
+        <p className="auth-container__subtitle">Collaborative task management</p>
         <AuthForm />
       </div>
     )
   }
 
-  return <TodoBoard user={user} onSignOut={handleSignOut} />
+  return <TodoApp user={user} onSignOut={handleSignOut} />
 }
 
 export default AppContainer

@@ -524,3 +524,149 @@ Since actions come from untrusted sources (UI, remote collaborators, potentially
 2. Wire AddMember/RemoveMember to dispatch Dafny actions (currently DB-only)
 3. (Optional) MoveList drag-and-drop
 4. (Optional) Trash view for RestoreTask
+
+---
+
+## Session #9 - UI Refactor to Things-like Design
+
+**Date:** 2026-01-02
+
+### Goals
+Refactor the app to:
+1. Match Things for Mac aesthetic (light theme, minimal, compact, no rounded corners)
+2. Make it highly modular with separated components and concerns
+3. Add smart list views (Priority, Logbook)
+4. Support toggling between single project and all projects view
+
+### Design Decisions
+
+**Simplified Smart Lists (vs Full Things):**
+- Removed: Inbox, Someday, Upcoming, Trash
+- Kept: Priority (starred tasks), Logbook (completed tasks)
+- Reason: Work with existing spec without modifications
+
+**View Mode Toggle:**
+- Single: Load one project at a time (existing behavior)
+- All: Load all projects, aggregate tasks for smart lists
+
+**Styling:**
+- Light theme (white/gray background)
+- No rounded corners
+- Compact spacing
+- Minimal color use (accent blue, star gold, danger red)
+- No gradients
+
+**Top Bar (not Bottom):**
+- Contains: Add list form, sync controls, offline toggle, user info
+
+### Files Created
+
+**Folder Structure:**
+```
+src/
+├── components/
+│   ├── auth/
+│   │   ├── AuthForm.jsx
+│   │   ├── auth.css
+│   │   └── index.js
+│   ├── common/
+│   │   ├── Badge.jsx
+│   │   ├── Toast.jsx
+│   │   ├── common.css
+│   │   └── index.js
+│   ├── layout/
+│   │   ├── TopBar.jsx
+│   │   ├── Sidebar.jsx
+│   │   ├── MainContent.jsx
+│   │   ├── layout.css
+│   │   └── index.js
+│   ├── sidebar/
+│   │   ├── SidebarItem.jsx
+│   │   ├── SmartLists.jsx
+│   │   ├── ProjectList.jsx
+│   │   ├── sidebar.css
+│   │   └── index.js
+│   ├── tasks/
+│   │   ├── TaskItem.jsx
+│   │   ├── TaskList.jsx
+│   │   ├── TaskInput.jsx
+│   │   ├── tasks.css
+│   │   └── index.js
+│   └── project/
+│       ├── ProjectHeader.jsx
+│       ├── FilterTabs.jsx
+│       ├── project.css
+│       └── index.js
+├── hooks/
+│   └── useAllProjects.js (new)
+├── styles/
+│   ├── variables.css
+│   └── global.css
+└── App.jsx (rewritten)
+```
+
+### Component Architecture
+
+| Component | Purpose |
+|-----------|---------|
+| `AuthForm` | Login/signup with email or Google |
+| `TopBar` | App header with controls and user info |
+| `Sidebar` | Contains SmartLists + ProjectList + view toggle |
+| `SmartLists` | Priority and Logbook navigation items |
+| `ProjectList` | Expandable project tree with lists |
+| `SidebarItem` | Reusable sidebar row with icon, label, count |
+| `MainContent` | Main content area container |
+| `TaskList` | Collapsible list with header, add form, tasks |
+| `TaskItem` | Individual task with checkbox, star, menu |
+| `TaskInput` | Add task input field |
+| `ProjectHeader` | Project/view title with icon |
+| `FilterTabs` | All/Important filter tabs |
+| `Badge` | Small label/count badge |
+| `Toast` | Notification popup |
+
+### Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `useAllProjects` | Load multiple projects, aggregate tasks, create dispatchers per project |
+
+### Key Implementation Details
+
+**View Modes:**
+- `viewMode: 'single' | 'all'` - Toggle in sidebar
+- Single mode uses `useCollaborativeProjectOffline` for one project
+- All mode uses `useAllProjects` to load all project IDs
+
+**Smart List Filtering:**
+- Priority: `task.starred && !task.completed && !task.deleted`
+- Logbook: `task.completed && !task.deleted`
+- Works in both single and all modes
+
+**Dispatch Routing:**
+- In all mode, `createDispatch(projectId)` returns a dispatch function for that project
+- Task actions include `projectId` to route correctly
+
+### CSS Design Tokens
+
+```css
+--color-bg: #ffffff;
+--color-bg-secondary: #f5f5f7;
+--color-accent: #007aff;
+--color-star: #ff9f0a;
+--color-success: #30d158;
+--color-danger: #ff3b30;
+--radius-*: 0; /* No rounded corners */
+--space-*: compact values (2px, 4px, 8px, 12px, 16px)
+```
+
+### Verification
+- Vite dev server starts successfully
+- No compile errors
+- App loads without runtime errors
+
+### Open Items
+1. Test with actual Supabase data
+2. Fine-tune styling details
+3. Add keyboard shortcuts
+4. (Optional) Drag-and-drop for task reordering
+5. (Optional) Members panel in sidebar

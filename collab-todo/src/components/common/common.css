@@ -1,0 +1,149 @@
+/* Common component styles */
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-medium);
+}
+
+.badge--sm {
+  font-size: var(--font-size-xs);
+  padding: 1px 6px;
+}
+
+.badge--md {
+  font-size: var(--font-size-sm);
+  padding: 2px 8px;
+}
+
+.badge--default {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.badge--accent {
+  background: var(--color-accent);
+  color: white;
+}
+
+.badge--success {
+  background: var(--color-success);
+  color: white;
+}
+
+.badge--warning {
+  background: var(--color-warning);
+  color: white;
+}
+
+/* Count Badge - for sidebar items */
+.count-badge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  min-width: 18px;
+  text-align: right;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  animation: toast-slide-up 200ms ease-out;
+}
+
+.toast--error {
+  background: var(--color-danger);
+  color: white;
+}
+
+.toast--success {
+  background: var(--color-success);
+  color: white;
+}
+
+.toast--warning {
+  background: var(--color-warning);
+  color: white;
+}
+
+.toast__message {
+  flex: 1;
+}
+
+.toast__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+}
+
+.toast__close:hover {
+  opacity: 1;
+}
+
+@keyframes toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Icon button - reusable */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.icon-btn:hover {
+  color: var(--color-text-secondary);
+}
+
+.icon-btn--danger:hover {
+  color: var(--color-danger);
+}
+
+.icon-btn--star:hover {
+  color: var(--color-star);
+}
+
+.icon-btn--star.active {
+  color: var(--color-star);
+}
+
+/* Loading spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  animation: spin 600ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

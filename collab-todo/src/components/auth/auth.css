@@ -1,0 +1,112 @@
+/* Auth component styles */
+
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl);
+}
+
+.auth-container__title {
+  font-size: var(--font-size-xxl);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-xs);
+}
+
+.auth-container__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xl);
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 320px;
+  padding: var(--space-xl);
+  background: var(--color-bg-secondary);
+}
+
+.auth-form__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}
+
+.auth-form__error {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--color-danger);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+}
+
+.auth-form__warning {
+  color: var(--color-warning);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+}
+
+.auth-form__hint {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.auth-form__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.auth-form__input {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-md);
+}
+
+.auth-form__submit {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.auth-form__submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.auth-form__submit:disabled {
+  opacity: 0.5;
+}
+
+.auth-form__google {
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: #4285f4;
+  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.auth-form__google:hover {
+  background: #357abd;
+}
+
+.auth-form__toggle {
+  margin-top: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.auth-form__toggle-btn {
+  color: var(--color-accent);
+  margin-left: var(--space-xs);
+}
+
+.auth-form__toggle-btn:hover {
+  text-decoration: underline;
+}

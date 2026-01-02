@@ -1,0 +1,129 @@
+/* Global styles - Things for Mac inspired */
+@import './variables.css';
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reset button styles */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Reset input styles */
+input, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  padding: var(--space-sm) var(--space-md);
+  outline: none;
+  width: 100%;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--color-accent);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* Reset list styles */
+ul, ol {
+  list-style: none;
+}
+
+/* Reset link styles */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent);
+  color: white;
+}
+
+/* Utility classes */
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-tertiary {
+  color: var(--color-text-tertiary);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
