@@ -1,153 +1,95 @@
 // useAllProjects: React hook for loading multiple projects and aggregating task data
 // Used for "All Projects" view mode where smart lists show tasks across all projects
+//
+// Now backed by MultiProjectEffectManager for verified state transitions,
+// offline support, and cross-project operations.
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { supabase, isSupabaseConfigured } from '../supabase.js'
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
+import { isSupabaseConfigured } from '../supabase.js'
 import App from '../dafny/app-extras.js'
+import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 
 /**
  * Hook for loading and managing multiple projects simultaneously
+ * Uses MultiProjectEffectManager for verified state transitions.
  *
  * @param {string[]} projectIds - Array of project IDs to load
  * @returns {object} - Aggregated project data and dispatch functions
  */
 export function useAllProjects(projectIds) {
-  const [projectData, setProjectData] = useState({}) // { [projectId]: { model, version } }
-  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState('syncing')
   const [error, setError] = useState(null)
+  const managerRef = useRef(null)
+  const currentProjectIdsRef = useRef(null)
 
-  const baseVersions = useRef({})
-
-  // Load all projects
-  const loadProjects = useCallback(async () => {
-    if (!projectIds || projectIds.length === 0 || !isSupabaseConfigured()) {
-      setLoading(false)
-      return
+  // Create or recreate manager when projectIds change
+  const projectIdsKey = projectIds?.sort().join(',') || ''
+  if (isSupabaseConfigured() && currentProjectIdsRef.current !== projectIdsKey) {
+    // Stop old manager if it exists
+    if (managerRef.current) {
+      managerRef.current.stop()
     }
+    managerRef.current = projectIds?.length > 0 ? new MultiProjectEffectManager(projectIds) : null
+    currentProjectIdsRef.current = projectIdsKey
+  }
 
-    setLoading(true)
-    setError(null)
+  const manager = managerRef.current
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('projects')
-        .select('id, state, version')
-        .in('id', projectIds)
+  // Subscribe to multi-project state via useSyncExternalStore
+  const multiModel = useSyncExternalStore(
+    manager?.subscribe ?? (() => () => {}),
+    manager?.getSnapshot ?? (() => null),
+    manager?.getSnapshot ?? (() => null)
+  )
 
-      if (fetchError) throw fetchError
+  // Wire up callbacks and start/stop
+  useEffect(() => {
+    if (!manager) return
+    manager.setCallbacks(setStatus, setError)
+    manager.start()
+    return () => manager.stop()
+  }, [manager])
 
-      const newData = {}
-      for (const project of data || []) {
-        const model = App.modelFromJson(project.state)
-        newData[project.id] = { model, version: project.version }
-        baseVersions.current[project.id] = project.version
+  // Derive loading state from status
+  const loading = status === 'syncing'
+
+  // Build projectData from multiModel for backwards compatibility
+  const projectData = useMemo(() => {
+    if (!multiModel) return {}
+
+    const data = {}
+    const projectIdsList = App.MultiModel.getProjectIds(multiModel)
+    const baseVersions = manager?.getBaseVersions() || {}
+
+    for (const projectId of projectIdsList) {
+      const model = App.MultiModel.getProject(multiModel, projectId)
+      if (model) {
+        data[projectId] = { model, version: baseVersions[projectId] || 0 }
       }
-
-      setProjectData(newData)
-    } catch (e) {
-      console.error('Error loading projects:', e)
-      setError(e.message)
-    } finally {
-      setLoading(false)
     }
-  }, [projectIds])
+    return data
+  }, [multiModel, manager])
 
-  useEffect(() => {
-    loadProjects()
-  }, [loadProjects])
-
-  // Subscribe to realtime updates for all projects
-  useEffect(() => {
-    if (!projectIds || projectIds.length === 0 || !isSupabaseConfigured()) return
-
-    const channels = projectIds.map(projectId => {
-      return supabase
-        .channel(`project:${projectId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'projects',
-            filter: `id=eq.${projectId}`
-          },
-          (payload) => {
-            if (payload.new.version > (baseVersions.current[projectId] || 0)) {
-              const model = App.modelFromJson(payload.new.state)
-              setProjectData(prev => ({
-                ...prev,
-                [projectId]: { model, version: payload.new.version }
-              }))
-              baseVersions.current[projectId] = payload.new.version
-            }
-          }
-        )
-        .subscribe()
-    })
-
-    return () => {
-      channels.forEach(channel => supabase.removeChannel(channel))
-    }
-  }, [projectIds])
-
-  // Create dispatch function for a specific project
+  // Create dispatch function for a specific project (single-project action)
   const createDispatch = useCallback((projectId) => {
-    return async (action) => {
-      const currentData = projectData[projectId]
-      if (!currentData || !currentData.model) return
-
-      // Optimistic update
-      const result = App.TryStep(currentData.model, action)
-      if (result.is_Ok && result.dtor_value) {
-        setProjectData(prev => ({
-          ...prev,
-          [projectId]: { ...prev[projectId], model: result.dtor_value }
-        }))
-      }
-
-      try {
-        const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
-          body: {
-            projectId,
-            baseVersion: baseVersions.current[projectId] || 0,
-            action: App.actionToJson(action)
-          }
-        })
-
-        if (invokeError) throw invokeError
-
-        if (data.status === 'accepted') {
-          const newModel = App.modelFromJson(data.state)
-          setProjectData(prev => ({
-            ...prev,
-            [projectId]: { model: newModel, version: data.version }
-          }))
-          baseVersions.current[projectId] = data.version
-        } else if (data.status === 'conflict' || data.status === 'rejected') {
-          // Resync this project
-          const { data: refreshed } = await supabase
-            .from('projects')
-            .select('state, version')
-            .eq('id', projectId)
-            .single()
-
-          if (refreshed) {
-            const model = App.modelFromJson(refreshed.state)
-            setProjectData(prev => ({
-              ...prev,
-              [projectId]: { model, version: refreshed.version }
-            }))
-            baseVersions.current[projectId] = refreshed.version
-          }
-        }
-      } catch (e) {
-        console.error('Dispatch error:', e)
-        setError(e.message)
-        // Resync on error
-        loadProjects()
-      }
+    return (action) => {
+      manager?.dispatchSingle(projectId, action)
     }
-  }, [projectData, loadProjects])
+  }, [manager])
+
+  // Dispatch any MultiAction (for cross-project operations)
+  const dispatch = useCallback((multiAction) => {
+    manager?.dispatch(multiAction)
+  }, [manager])
+
+  // Cross-project operations
+  const moveTaskToProject = useCallback((srcProject, dstProject, taskId, dstList, anchor = null) => {
+    manager?.moveTaskToProject(srcProject, dstProject, taskId, dstList, anchor)
+  }, [manager])
+
+  const copyTaskToProject = useCallback((srcProject, dstProject, taskId, dstList) => {
+    manager?.copyTaskToProject(srcProject, dstProject, taskId, dstList)
+  }, [manager])
 
   // Aggregate all tasks across projects
   const aggregatedTasks = useMemo(() => {
@@ -215,17 +157,45 @@ export function useAllProjects(projectIds) {
     }).length
   }, [projectData])
 
+  // Sync / refresh
+  const refresh = useCallback(() => manager?.sync(), [manager])
+
+  // Offline support
+  const toggleOffline = useCallback(() => manager?.toggleOffline() ?? false, [manager])
+
   return {
+    // State
     projectData,
+    multiModel,
     loading,
     error,
-    refresh: loadProjects,
+    status,
+
+    // Single-project dispatch (backwards compatible)
     createDispatch,
+
+    // Multi-project dispatch (new)
+    dispatch,
+    moveTaskToProject,
+    copyTaskToProject,
+
+    // Aggregations
     aggregatedTasks,
     priorityTasks,
     logbookTasks,
+
+    // Helpers
     getProjectModel,
     getProjectLists,
-    getListTaskCount
+    getListTaskCount,
+
+    // Actions
+    refresh,
+    toggleOffline,
+
+    // Manager status
+    isOffline: manager ? !manager.isOnline : false,
+    hasPending: manager?.hasPending ?? false,
+    pendingCount: manager?.pendingCount ?? 0
   }
 }
