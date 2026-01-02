@@ -155,7 +155,7 @@ function ProjectView({
       />
 
       {lists.length === 0 ? (
-        <EmptyState message="No lists yet. Create one using the top bar." />
+        <EmptyState message="No lists yet. Click the + on the project in the sidebar." />
       ) : (
         lists.map(list => (
           <TaskList
@@ -483,8 +483,6 @@ function TodoApp({ user, onSignOut }) {
         isFlushing={isFlushing}
         status={status}
         pendingCount={pendingCount}
-        onAddList={handleAddList}
-        showAddList={viewMode === 'single' && selectedProjectId && singleModel}
       />
 
       <div className="content-wrapper">
@@ -497,6 +495,7 @@ function TodoApp({ user, onSignOut }) {
           onSelectProject={handleSelectProject}
           onSelectList={handleSelectList}
           onCreateProject={handleCreateProject}
+          onAddList={handleAddList}
           projectsLoading={projectsLoading}
           getProjectLists={viewMode === 'all' ? getProjectLists : (projectId) => {
             if (projectId === selectedProjectId && singleModel) {

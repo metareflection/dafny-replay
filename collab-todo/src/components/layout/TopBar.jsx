@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Plus, RefreshCw, Wifi, WifiOff } from 'lucide-react'
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import './layout.css'
 
 export function TopBar({
@@ -10,37 +9,11 @@ export function TopBar({
   isOffline,
   isFlushing,
   status,
-  pendingCount,
-  onAddList,
-  showAddList = true
+  pendingCount
 }) {
-  const [newListName, setNewListName] = useState('')
-
-  const handleAddList = (e) => {
-    e.preventDefault()
-    if (newListName.trim()) {
-      onAddList(newListName.trim())
-      setNewListName('')
-    }
-  }
-
   return (
     <div className="topbar">
       <div className="topbar__left">
-        {showAddList && (
-          <form className="topbar__add-form" onSubmit={handleAddList}>
-            <button type="button" className="topbar__add-btn" onClick={handleAddList}>
-              <Plus size={16} />
-            </button>
-            <input
-              type="text"
-              placeholder="New List"
-              value={newListName}
-              onChange={(e) => setNewListName(e.target.value)}
-              className="topbar__add-input"
-            />
-          </form>
-        )}
       </div>
 
       <div className="topbar__center">

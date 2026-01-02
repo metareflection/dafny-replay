@@ -6,7 +6,6 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border-light);
 }
 
 .task-input__btn {
@@ -44,7 +43,6 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border-light);
 }
 
 .task-item:hover {
@@ -264,7 +262,6 @@
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border);
 }
 
 .task-list__collapse-btn {
@@ -322,6 +319,34 @@
 
 .task-list__action-btn--danger:hover {
   color: var(--color-danger);
+}
+
+.task-list__action-btn--add {
+  opacity: 1 !important;
+  color: var(--color-text-tertiary);
+}
+
+.task-list__action-btn--add:hover {
+  color: var(--color-accent);
+}
+
+.task-list__add-form {
+  padding: var(--space-xs) 0;
+  margin-bottom: var(--space-xs);
+}
+
+.task-list__add-form input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.task-list__add-form input:focus {
+  outline: none;
+  border-color: var(--color-accent);
 }
 
 .task-list__rename-form {

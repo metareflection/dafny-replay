@@ -1,4 +1,4 @@
-import { Circle, MoreHorizontal } from 'lucide-react'
+import { Circle } from 'lucide-react'
 import './project.css'
 
 export function ProjectHeader({
@@ -21,9 +21,6 @@ export function ProjectHeader({
             <span className="project-header__subtitle">{subtitle}</span>
           )}
         </div>
-        <button className="project-header__menu">
-          <MoreHorizontal size={20} />
-        </button>
       </div>
 
       {showNotes && (

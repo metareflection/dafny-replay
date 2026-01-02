@@ -10,6 +10,7 @@ export function ProjectList({
   onSelectProject,
   onSelectList,
   onCreateProject,
+  onAddList,
   getProjectLists,
   getListTaskCount,
   loading
@@ -18,6 +19,8 @@ export function ProjectList({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [showAddListForm, setShowAddListForm] = useState(null) // projectId or null
+  const [newListName, setNewListName] = useState('')
 
   const toggleExpand = (projectId) => {
     setExpandedProjects(prev => {
@@ -45,6 +48,18 @@ export function ProjectList({
     } finally {
       setCreating(false)
     }
+  }
+
+  const handleAddList = (e, projectId) => {
+    e.preventDefault()
+    if (!newListName.trim()) return
+
+    // First select the project so onAddList works in single mode
+    onSelectProject(projectId)
+    // Then add the list
+    onAddList?.(newListName.trim())
+    setNewListName('')
+    setShowAddListForm(null)
   }
 
   return (
@@ -111,22 +126,58 @@ export function ProjectList({
                   <Circle size={14} className="project-list__project-icon" />
                   <span className="project-list__project-name">{project.name}</span>
                 </button>
+                {isExpanded && (
+                  <button
+                    className="project-list__add-list-btn"
+                    onClick={() => setShowAddListForm(project.id)}
+                    title="Add list"
+                  >
+                    <Plus size={12} />
+                  </button>
+                )}
               </div>
 
-              {isExpanded && lists.length > 0 && (
-                <ul className="project-list__lists">
-                  {lists.map(list => (
-                    <li key={list.id}>
-                      <SidebarItem
-                        label={list.name}
-                        count={getListTaskCount ? getListTaskCount(project.id, list.id) : 0}
-                        selected={selectedProjectId === project.id && selectedListId === list.id}
-                        onClick={() => onSelectList(project.id, list.id)}
-                        indent
+              {isExpanded && (
+                <>
+                  {showAddListForm === project.id && (
+                    <form
+                      className="project-list__add-list-form"
+                      onSubmit={(e) => handleAddList(e, project.id)}
+                    >
+                      <input
+                        type="text"
+                        placeholder="List name..."
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        autoFocus
+                        onBlur={() => {
+                          if (!newListName.trim()) setShowAddListForm(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setNewListName('')
+                            setShowAddListForm(null)
+                          }
+                        }}
                       />
-                    </li>
-                  ))}
-                </ul>
+                    </form>
+                  )}
+                  {lists.length > 0 && (
+                    <ul className="project-list__lists">
+                      {lists.map(list => (
+                        <li key={list.id}>
+                          <SidebarItem
+                            label={list.name}
+                            count={getListTaskCount ? getListTaskCount(project.id, list.id) : 0}
+                            selected={selectedProjectId === project.id && selectedListId === list.id}
+                            onClick={() => onSelectList(project.id, list.id)}
+                            indent
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </li>
           )

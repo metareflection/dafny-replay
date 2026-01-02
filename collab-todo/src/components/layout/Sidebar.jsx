@@ -13,6 +13,7 @@ export function Sidebar({
   onSelectProject,
   onSelectList,
   onCreateProject,
+  onAddList,
   projectsLoading,
 
   // Data accessors
@@ -58,6 +59,7 @@ export function Sidebar({
         onSelectProject={onSelectProject}
         onSelectList={onSelectList}
         onCreateProject={onCreateProject}
+        onAddList={onAddList}
         getProjectLists={getProjectLists}
         getListTaskCount={getListTaskCount}
         loading={projectsLoading}

@@ -54,11 +54,11 @@
   --sidebar-width: 220px;
   --topbar-height: 44px;
 
-  /* No rounded corners */
+  /* Subtle rounded corners */
   --radius-none: 0;
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
   /* Shadows - subtle */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);

@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, X, Edit2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, X, Edit2, Plus } from 'lucide-react'
 import { TaskItem } from './TaskItem.jsx'
-import { TaskInput } from './TaskInput.jsx'
 import './tasks.css'
 
 export function TaskList({
@@ -26,6 +25,8 @@ export function TaskList({
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editName, setEditName] = useState(listName)
+  const [showAddInput, setShowAddInput] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
 
   const completedCount = tasks.filter(t => t.completed).length
   const totalCount = tasks.length
@@ -36,6 +37,15 @@ export function TaskList({
       onRenameList?.(listId, editName.trim())
     }
     setEditingName(false)
+  }
+
+  const handleAddTask = (e) => {
+    e.preventDefault()
+    if (newTaskTitle.trim()) {
+      onAddTask?.(listId, newTaskTitle.trim())
+      setNewTaskTitle('')
+      setShowAddInput(false)
+    }
   }
 
   // Sort: starred first, then incomplete, then completed
@@ -78,6 +88,15 @@ export function TaskList({
           <span className="task-list__count">{completedCount}/{totalCount}</span>
 
           <div className="task-list__actions">
+            {showAddTask && (
+              <button
+                className="task-list__action-btn task-list__action-btn--add"
+                onClick={() => setShowAddInput(true)}
+                title="Add task"
+              >
+                <Plus size={14} />
+              </button>
+            )}
             <button
               className="task-list__action-btn"
               onClick={() => setEditingName(true)}
@@ -98,11 +117,25 @@ export function TaskList({
 
       {!collapsed && (
         <div className="task-list__content">
-          {showAddTask && (
-            <TaskInput
-              onSubmit={(title) => onAddTask?.(listId, title)}
-              placeholder="Add task..."
-            />
+          {showAddInput && (
+            <form className="task-list__add-form" onSubmit={handleAddTask}>
+              <input
+                type="text"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Task title..."
+                autoFocus
+                onBlur={() => {
+                  if (!newTaskTitle.trim()) setShowAddInput(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setNewTaskTitle('')
+                    setShowAddInput(false)
+                  }
+                }}
+              />
+            </form>
           )}
 
           <div className="task-list__items">

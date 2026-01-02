@@ -190,3 +190,37 @@
   display: flex;
   flex-direction: column;
 }
+
+.project-list__add-list-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  margin-right: var(--space-xs);
+}
+
+.project-list__add-list-btn:hover {
+  color: var(--color-accent);
+}
+
+.project-list__add-list-form {
+  padding: var(--space-xs) var(--space-sm);
+  padding-left: var(--space-xl);
+}
+
+.project-list__add-list-form input {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.project-list__add-list-form input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
