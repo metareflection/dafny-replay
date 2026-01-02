@@ -217,6 +217,9 @@ module TodoDomain refines Domain {
     // D: Every non-deleted task appears in exactly one list
     && (forall id :: id in m.taskData && !m.taskData[id].deleted ==> CountInLists(m, id) == 1)
 
+    // D': Deleted tasks are not in any list (required for RestoreTask correctness)
+    && (forall id :: id in m.taskData && m.taskData[id].deleted ==> CountInLists(m, id) == 0)
+
     // E: No duplicate task IDs within any single list
     && (forall l :: l in m.tasks ==> NoDupSeq(m.tasks[l]))
 
