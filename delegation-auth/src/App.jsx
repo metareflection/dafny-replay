@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app-extras.js'
 import './App.css'
 
 function SubjectsPanel({ subjects, onAddSubject }) {

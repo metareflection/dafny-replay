@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app-extras.js'
 import './App.css'
 
 const API_BASE = '/api'

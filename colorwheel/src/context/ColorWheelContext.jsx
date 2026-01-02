@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useRef } from 'react';
-import App from '../dafny/app.js';
+import App from '../dafny/app-extras.js';
 
 const ColorWheelContext = createContext(null);
 

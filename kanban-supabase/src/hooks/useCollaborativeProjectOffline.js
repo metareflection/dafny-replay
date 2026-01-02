@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-import App from '../dafny/app.js'
+import App from '../dafny/app-extras.js'
 
 /**
  * Hook for managing a collaborative project with Dafny-verified state and offline support.
