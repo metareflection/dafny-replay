@@ -2490,6 +2490,9 @@ let AppCore = (function() {
     static Redo(h) {
       return CanonKernel.__default.Redo(h);
     };
+    static CanonHistory(h) {
+      return CanonKernel.History.create_History((h).dtor_past, Canon.__default.Canon((h).dtor_present), (h).dtor_future);
+    };
     static Present(h) {
       return (h).dtor_present;
     };
