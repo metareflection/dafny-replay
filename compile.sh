@@ -3,6 +3,12 @@ set -e
 
 mkdir -p generated
 
+# Clone dafny repo if not present (needed for DafnyRuntime)
+if [ ! -d "dafny" ]; then
+    echo "Cloning dafny repository..."
+    git clone --depth 1 https://github.com/dafny-lang/dafny.git
+fi
+
 # Build dafny2js first
 echo "Building dafny2js..."
 (cd dafny2js && dotnet build --verbosity quiet)
