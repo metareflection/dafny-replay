@@ -246,6 +246,10 @@ module TodoDomain refines Domain {
     // L: Due dates are valid if present
     && (forall id :: id in m.taskData && m.taskData[id].dueDate.Some?
           ==> ValidDate(m.taskData[id].dueDate.value))
+
+    // M: List names are unique within the project
+    && (forall l1, l2 :: l1 in m.listNames && l2 in m.listNames && l1 != l2
+          ==> m.listNames[l1] != m.listNames[l2])
   }
 
   // ===========================================================================
@@ -398,6 +402,39 @@ module TodoDomain refines Domain {
            t.assignees - {userId}, t.tags, t.deleted, t.deletedBy, t.deletedFromList)
   }
 
+  // ---------------------------------------------------------------------------
+  // Case-insensitive string comparison
+  // ---------------------------------------------------------------------------
+
+  // Convert a single character to lowercase
+  function ToLowerChar(c: char): char
+  {
+    if 'A' <= c <= 'Z' then (c as int - 'A' as int + 'a' as int) as char
+    else c
+  }
+
+  // Convert a string to lowercase
+  function ToLower(s: string): string
+  {
+    if |s| == 0 then ""
+    else [ToLowerChar(s[0])] + ToLower(s[1..])
+  }
+
+  // Case-insensitive string equality
+  predicate EqIgnoreCase(a: string, b: string)
+  {
+    ToLower(a) == ToLower(b)
+  }
+
+  // Check if a list name exists (optionally excluding one list, for rename)
+  // Uses case-insensitive comparison
+  predicate ListNameExists(m: Model, name: string, excludeList: Option<ListId>)
+  {
+    exists l :: l in m.listNames &&
+      (excludeList.None? || l != excludeList.value) &&
+      EqIgnoreCase(m.listNames[l], name)
+  }
+
   // ===========================================================================
   // TryStep: Apply an action to the model
   // ===========================================================================
@@ -413,18 +450,21 @@ module TodoDomain refines Domain {
       // -----------------------------------------------------------------------
 
       case AddList(name) =>
-        var id := m.nextListId;
-        Ok(Model(
-          m.mode, m.owner, m.members,
-          m.lists + [id],
-          m.listNames[id := name],
-          m.tasks[id := []],
-          m.taskData, m.tags,
-          m.nextListId + 1, m.nextTaskId, m.nextTagId
-        ))
+        if ListNameExists(m, name, None) then Err(DuplicateList)
+        else
+          var id := m.nextListId;
+          Ok(Model(
+            m.mode, m.owner, m.members,
+            m.lists + [id],
+            m.listNames[id := name],
+            m.tasks[id := []],
+            m.taskData, m.tags,
+            m.nextListId + 1, m.nextTaskId, m.nextTagId
+          ))
 
       case RenameList(listId, newName) =>
         if !SeqContains(m.lists, listId) then Err(MissingList)
+        else if ListNameExists(m, newName, Some(listId)) then Err(DuplicateList)
         else Ok(Model(
           m.mode, m.owner, m.members, m.lists,
           m.listNames[listId := newName],

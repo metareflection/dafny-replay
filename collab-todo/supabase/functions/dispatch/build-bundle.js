@@ -759,8 +759,8 @@ export function dispatch(
   // Extract new state
   const newStateJson = serverStateToJson(newServerState);
 
-  // Check reply type using TodoAppCore helpers
-  if (TodoAppCore.__default.IsAccepted(reply)) {
+  // Check reply type using Dafny datatype discriminator property
+  if (reply.is_Accepted) {
     return {
       status: 'accepted',
       state: newStateJson.present,
@@ -789,6 +789,6 @@ console.log(`Generated ${outputPath}`);
 console.log('');
 console.log('The bundle uses VERIFIED Dafny code:');
 console.log('  - TodoMultiCollaboration.Dispatch (full verified reconciliation)');
-console.log('  - TodoAppCore.IsAccepted/IsRejected (reply inspection)');
+console.log('  - Reply.is_Accepted property (Dafny datatype discriminator)');
 console.log('');
 console.log('Trust boundary: Only JSON conversion is unverified.');

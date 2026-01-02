@@ -1450,6 +1450,35 @@ let TodoDomain = (function() {
         return _coll0;
       }();
     };
+    static ToLowerChar(c) {
+      if (((new _dafny.CodePoint('A'.codePointAt(0))).isLessThanOrEqual(c)) && ((c).isLessThanOrEqual(new _dafny.CodePoint('Z'.codePointAt(0))))) {
+        return new _dafny.CodePoint((((new BigNumber((c).value)).minus(new BigNumber((new _dafny.CodePoint('A'.codePointAt(0))).value))).plus(new BigNumber((new _dafny.CodePoint('a'.codePointAt(0))).value))).toNumber());
+      } else {
+        return c;
+      }
+    };
+    static ToLower(s) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((s).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.UnicodeFromString(""));
+        } else {
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of(TodoDomain.__default.ToLowerChar((s)[_dafny.ZERO])));
+          let _in0 = (s).slice(_dafny.ONE);
+          s = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static EqIgnoreCase(a, b) {
+      return _dafny.areEqual(TodoDomain.__default.ToLower(a), TodoDomain.__default.ToLower(b));
+    };
+    static ListNameExists(m, name, excludeList) {
+      return _dafny.Quantifier(((m).dtor_listNames).Keys.Elements, false, function (_exists_var_0) {
+        let _0_l = _exists_var_0;
+        return ((((m).dtor_listNames).contains(_0_l)) && (((excludeList).is_None) || (!(_0_l).isEqualTo((excludeList).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase(((m).dtor_listNames).get(_0_l), name));
+      });
+    };
     static TryStep(m, a) {
       let _source0 = a;
       {
@@ -1460,8 +1489,12 @@ let TodoDomain = (function() {
       {
         if (_source0.is_AddList) {
           let _0_name = (_source0).name;
-          let _1_id = (m).dtor_nextListId;
-          return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, _dafny.Seq.Concat((m).dtor_lists, _dafny.Seq.of(_1_id)), ((m).dtor_listNames).update(_1_id, _0_name), ((m).dtor_tasks).update(_1_id, _dafny.Seq.of()), (m).dtor_taskData, (m).dtor_tags, ((m).dtor_nextListId).plus(_dafny.ONE), (m).dtor_nextTaskId, (m).dtor_nextTagId));
+          if (TodoDomain.__default.ListNameExists(m, _0_name, TodoDomain.Option.create_None())) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateList());
+          } else {
+            let _1_id = (m).dtor_nextListId;
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, _dafny.Seq.Concat((m).dtor_lists, _dafny.Seq.of(_1_id)), ((m).dtor_listNames).update(_1_id, _0_name), ((m).dtor_tasks).update(_1_id, _dafny.Seq.of()), (m).dtor_taskData, (m).dtor_tags, ((m).dtor_nextListId).plus(_dafny.ONE), (m).dtor_nextTaskId, (m).dtor_nextTagId));
+          }
         }
       }
       {
@@ -1470,6 +1503,8 @@ let TodoDomain = (function() {
           let _3_newName = (_source0).newName;
           if (!(TodoDomain.__default.SeqContains((m).dtor_lists, _2_listId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_MissingList());
+          } else if (TodoDomain.__default.ListNameExists(m, _3_newName, TodoDomain.Option.create_Some(_2_listId))) {
+            return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateList());
           } else {
             return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, ((m).dtor_listNames).update(_2_listId, _3_newName), (m).dtor_tasks, (m).dtor_taskData, (m).dtor_tags, (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }

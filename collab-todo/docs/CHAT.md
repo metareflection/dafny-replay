@@ -318,8 +318,90 @@ supabase functions deploy dispatch --project-ref <project-ref>
 
 ---
 
-## Session #5 - Bug in Dafny -> JS Compiler 
+## Session #5 - Bug in Dafny -> JS Compiler
 
 **Date:** 2026-01-01
 
 See BUGS.md in org repo
+
+---
+
+## Session #6 - Unique List Names Constraint
+
+**Date:** 2026-01-01
+
+### Goals
+Add validation to prevent duplicate list names within a project.
+
+### Issue Identified
+User could create multiple lists with identical names (e.g., two "Shopping" lists). The spec had a `DuplicateList` error defined but never used.
+
+### Changes Made
+
+**1. Added Invariant M** (line 250-252):
+```dafny
+// M: List names are unique within the project
+&& (forall l1, l2 :: l1 in m.listNames && l2 in m.listNames && l1 != l2
+      ==> m.listNames[l1] != m.listNames[l2])
+```
+
+**2. Added Case-Insensitive Comparison** (lines 405-427):
+```dafny
+function ToLowerChar(c: char): char
+function ToLower(s: string): string
+predicate EqIgnoreCase(a: string, b: string)
+```
+
+**3. Added `ListNameExists` Predicate** (lines 429-432):
+```dafny
+predicate ListNameExists(m: Model, name: string, excludeList: Option<ListId>)
+{
+  exists l :: l in m.listNames &&
+    (excludeList.None? || l != excludeList.value) &&
+    EqIgnoreCase(m.listNames[l], name)
+}
+```
+
+**4. Updated `AddList`** (line 448-449):
+```dafny
+case AddList(name) =>
+  if ListNameExists(m, name, None) then Err(DuplicateList)
+  else ...
+```
+
+**5. Updated `RenameList`** (line 463):
+```dafny
+else if ListNameExists(m, newName, Some(listId)) then Err(DuplicateList)
+```
+
+### Bug Fix: IsAccepted Not a Function
+
+During deployment, encountered error:
+```
+TypeError: TodoAppCore.__default.IsAccepted is not a function
+```
+
+**Fix in `build-bundle.js`:**
+```javascript
+// Before (incorrect)
+if (TodoAppCore.__default.IsAccepted(reply)) {
+
+// After (correct - using Dafny datatype discriminator property)
+if (reply.is_Accepted) {
+```
+
+### Verification Status
+- **25 verified, 0 errors**
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiCollaboration.dfy` | Added invariant M, case-insensitive helpers, `ListNameExists`, updated `AddList`/`RenameList` |
+| `supabase/functions/dispatch/build-bundle.js` | Fixed `is_Accepted` property access |
+
+### Behavior
+- "Shopping" and "shopping" are now treated as duplicates (case-insensitive)
+- Adding duplicate returns `DuplicateList` error
+- Renaming to existing name returns `DuplicateList` error
+- Renaming to same name (idempotent) succeeds
