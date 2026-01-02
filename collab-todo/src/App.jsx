@@ -352,51 +352,6 @@ function TodoApp({ user, onSignOut }) {
     return count
   }, [viewMode, singleModel, logbookTasks])
 
-  // Get single-mode priority/logbook tasks
-  const singlePriorityTasks = useMemo(() => {
-    if (!singleModel) return []
-    const tasks = []
-    const lists = App.GetLists(singleModel)
-    for (const listId of lists) {
-      const taskIds = App.GetTasksInList(singleModel, listId)
-      for (const taskId of taskIds) {
-        const task = App.GetTask(singleModel, taskId)
-        if (task.starred && !task.completed && !task.deleted) {
-          tasks.push({
-            id: taskId,
-            projectId: selectedProjectId,
-            listId,
-            listName: App.GetListName(singleModel, listId),
-            ...task
-          })
-        }
-      }
-    }
-    return tasks
-  }, [singleModel, selectedProjectId])
-
-  const singleLogbookTasks = useMemo(() => {
-    if (!singleModel) return []
-    const tasks = []
-    const lists = App.GetLists(singleModel)
-    for (const listId of lists) {
-      const taskIds = App.GetTasksInList(singleModel, listId)
-      for (const taskId of taskIds) {
-        const task = App.GetTask(singleModel, taskId)
-        if (task && task.completed && !task.deleted) {
-          tasks.push({
-            id: taskId,
-            projectId: selectedProjectId,
-            listId,
-            listName: App.GetListName(singleModel, listId),
-            ...task
-          })
-        }
-      }
-    }
-    return tasks
-  }, [singleModel, selectedProjectId])
-
   // Get lists for single project mode
   const singleProjectLists = useMemo(() => {
     if (!singleModel) return []
