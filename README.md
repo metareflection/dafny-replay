@@ -192,8 +192,8 @@ Events include user actions, dispatch responses, network errors, and manual offl
 1. **Mode consistency**
    If dispatching, there must be pending actions.
 
-2. **Bounded retries**
-   Retry count never exceeds `MaxRetries` (default 5).
+2. **Bounded retries with eventual retry**
+   Immediate retries bounded by `MaxRetries` (default 5). After max retries, goes idle; next Tick retries with fresh count. This provides bounded hammering + persistent eventual success.
 
 3. **Invariant preservation**
    All state transitions preserve the invariant.
