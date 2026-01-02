@@ -330,6 +330,25 @@ abstract module EffectStateMachine {
     // The model is reapplied but the pending sequence is exactly preserved
   }
 
+  // Property 10: DispatchConflict preserves pending exactly
+  lemma ConflictPreservesPendingExactly(es: EffectState, freshVersion: nat, freshModel: Model)
+    requires Inv(es)
+    requires es.mode.Dispatching?
+    ensures var (es', _) := Step(es, DispatchConflict(freshVersion, freshModel));
+            Pending(es') == Pending(es)  // Exact sequence equality - nothing removed
+  {
+    // HandleRealtimeUpdate preserves pending exactly
+  }
+
+  // Property 11: UserAction always appends exactly one action
+  lemma UserActionAppendsOne(es: EffectState, action: Action)
+    requires Inv(es)
+    ensures var (es', _) := Step(es, UserAction(action));
+            |Pending(es')| == |Pending(es)| + 1
+  {
+    // ClientLocalDispatch always appends action to pending
+  }
+
   // ===========================================================================
   // Progress Property (Liveness)
   // ===========================================================================
