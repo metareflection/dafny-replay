@@ -1037,3 +1037,112 @@ The verified `Step` function guarantees:
 1. Test end-to-end with Supabase
 2. Implement remaining UI features (due dates, tags, assignees)
 3. (Optional) Prove remaining axioms in proof file
+
+---
+
+## Session #13 - Project Name Uniqueness & Error UI
+
+**Date:** 2026-01-02
+
+### Goals
+Investigate and fix duplicate name handling across the app.
+
+### Investigation
+
+User reported being able to create duplicate names. We investigated the uniqueness constraints:
+
+**Tested Edge Function via curl:**
+```bash
+# Duplicate list - REJECTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "New List"}}'
+# Returns: {"status":"rejected","reason":"DomainInvalid"}
+
+# Case-insensitive duplicate - REJECTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "NEW LIST"}}'
+# Returns: {"status":"rejected","reason":"DomainInvalid"}
+
+# Unique list - ACCEPTED ✓
+curl -X POST .../dispatch -d '{"action": {"type": "AddList", "name": "Groceries"}}'
+# Returns: {"status":"accepted",...}
+```
+
+**Findings:**
+| Item | Uniqueness | Location |
+|------|------------|----------|
+| List names | ✓ Working | Dafny spec (Session #6) |
+| Task titles | ✓ Working | Dafny spec (Session #7) |
+| Tag names | ✓ Working | Dafny spec (Session #7) |
+| Project names | ✗ Missing | SQL `create_project()` |
+
+### Root Cause
+
+Projects are NOT in the Dafny spec - they're managed at the Supabase level:
+- Projects table: `id, name, owner_id, state, version`
+- `create_project()` SQL function had no uniqueness check
+- Existing duplicate projects (e.g., 4 projects named "Foo") confirmed this
+
+### Changes Made
+
+**1. Added project name uniqueness to SQL function** (`supabase/schema.sql`):
+```sql
+CREATE OR REPLACE FUNCTION create_project(project_name TEXT)
+...
+BEGIN
+  -- Check for duplicate project name (case-insensitive) for this user
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(project_name)
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+  ...
+END;
+```
+
+**2. Added UI error handling** (`src/components/sidebar/ProjectList.jsx`):
+- Added `createError` state
+- Display error message below input when creation fails
+- Clear error when typing or canceling
+- Friendly message: "A project with this name already exists"
+
+**3. Added error styling** (`src/components/sidebar/sidebar.css`):
+```css
+.project-list__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/schema.sql` | Added case-insensitive duplicate check in `create_project()` |
+| `src/components/sidebar/ProjectList.jsx` | Added error state and display |
+| `src/components/sidebar/sidebar.css` | Added `.project-list__error` style |
+
+### Architecture Note
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Uniqueness Enforcement                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Projects     → SQL function (create_project)                   │
+│  Lists        → Dafny TryStep (DuplicateList error)            │
+│  Tasks        → Dafny TryStep (DuplicateTask error)            │
+│  Tags         → Dafny TryStep (DuplicateTag error)             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Projects live outside the Dafny spec because they're a Supabase-level concept (rows in a table), while lists/tasks/tags are part of the collaborative Model state.
+
+### Deployment Required
+
+User must run the updated `create_project` function in Supabase SQL Editor to enable project name uniqueness.
+
+### Verification
+- Duplicate project creation now shows error in UI
+- Error clears when typing new name or canceling
+- Case-insensitive matching (e.g., "Foo" and "foo" are duplicates)
