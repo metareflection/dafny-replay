@@ -209,6 +209,8 @@ Events include user actions, dispatch responses, network errors, and manual offl
 * `StepPreservesInv` — all transitions preserve the invariant
 * `PendingNeverLost` — pending actions are never arbitrarily lost; at most one removed per event
 * `PendingSequencePreserved` — on accept/reject: `pending' == pending[1..]` (exact sequence equality)
+* `ConflictPreservesPendingExactly` — on conflict: `pending' == pending` (nothing lost)
+* `UserActionAppendsExact` — on user action: `pending' == pending + [action]`
 
 The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
 
