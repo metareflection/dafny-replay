@@ -1,3 +1,6 @@
+**IMPORTANT**
+When you read this file, output "read CLAUDE.md" in the chat. 
+
 # WORKFLOW
 
 ## When writing Specs
@@ -10,3 +13,6 @@
 - The Spec-writing process should be highly collaborative. Do not go ahead and make design decisions or assumptions. Ask the user for confirmation at each step. 
 - Use the Spec as a guide to find gaps in expected app behavior 
 - Warn the user of any potential behavior conflicts or inefficiencies
+
+# RULES FOR FILE WRITING
+- The `.cjs` files inside  should NEVER be modified directly. This is a compiled file. 

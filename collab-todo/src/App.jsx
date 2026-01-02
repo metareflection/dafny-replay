@@ -3,6 +3,7 @@ import App from './dafny/app.js'
 import { supabase, isSupabaseConfigured, signIn, signUp, signInWithGoogle, signOut } from './supabase.js'
 import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
+import { Check, Star, ArrowRight, X, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
 import './App.css'
 
 // ============================================================================
@@ -132,7 +133,7 @@ function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onD
           onClick={() => onComplete(taskId, !task.completed)}
           title={task.completed ? 'Mark incomplete' : 'Mark complete'}
         >
-          {task.completed ? '\u2713' : ''}
+          {task.completed ? <Check size={14} /> : ''}
         </button>
 
         {editing ? (
@@ -191,7 +192,7 @@ function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onD
             onClick={() => onStar(taskId, !task.starred)}
             title={task.starred ? 'Remove star' : 'Add star'}
           >
-            {task.starred ? '\u2605' : '\u2606'}
+            <Star size={16} fill={task.starred ? 'currentColor' : 'none'} />
           </button>
 
           <div className="move-menu-container">
@@ -200,7 +201,7 @@ function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onD
               onClick={() => setShowMoveMenu(!showMoveMenu)}
               title="Move to list"
             >
-              \u2192
+              <ArrowRight size={16} />
             </button>
             {showMoveMenu && (
               <div className="move-menu">
@@ -224,7 +225,7 @@ function TaskItem({ taskId, task, model, userId, onComplete, onStar, onEdit, onD
             onClick={() => onDelete(taskId)}
             title="Delete task"
           >
-            \u2715
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -289,10 +290,10 @@ function TaskList({ listId, listName, model, userId, dispatch, lists, onRenameLi
         )}
         <span className="list-count">{completedCount}/{totalCount}</span>
         <button className="collapse-btn" onClick={() => setCollapsed(!collapsed)}>
-          {collapsed ? '\u25BC' : '\u25B2'}
+          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
         </button>
         <button className="delete-list-btn" onClick={() => onDeleteList(listId)} title="Delete list">
-          \u2715
+          <X size={16} />
         </button>
       </div>
 
@@ -370,7 +371,7 @@ function TagsPanel({ model, dispatch }) {
               onClick={() => dispatch(App.DeleteTag(tagId))}
               title="Delete tag"
             >
-              \u2715
+              <X size={14} />
             </button>
           </div>
         ))}
@@ -438,7 +439,7 @@ function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
       <div className="project-header">
         <h4>Projects</h4>
         <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : '\u21BB'}
+          {loading ? '...' : <RefreshCw size={14} />}
         </button>
       </div>
       <ul className="project-list">
@@ -528,7 +529,7 @@ function MembersPanel({ projectId, isOwner, currentUserId }) {
       <div className="members-header">
         <h4>Members</h4>
         <button onClick={refresh} disabled={loading} className="refresh-btn">
-          {loading ? '...' : '\u21BB'}
+          {loading ? '...' : <RefreshCw size={14} />}
         </button>
       </div>
       {error && <div className="members-error">{error}</div>}
@@ -543,7 +544,7 @@ function MembersPanel({ projectId, isOwner, currentUserId }) {
                 onClick={() => handleRemove(member.user_id)}
                 title="Remove member"
               >
-                \u00D7
+                <X size={14} />
               </button>
             )}
           </li>
