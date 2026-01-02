@@ -451,6 +451,153 @@ describe('Rejection Mid-Flush', () => {
   });
 });
 
+describe('Two Clients Offline Concurrently', () => {
+  it('should sync both clients after concurrent offline edits', () => {
+    // Scenario:
+    // - Client1 goes offline, adds 2 cards to Todo
+    // - Client2 goes offline, adds 2 cards to Todo
+    // - Client1 comes online, flushes
+    // - Client2 comes online, flushes (will conflict but should resolve)
+    // - Both clients should see all 4 cards
+
+    const server = new TestServer();
+    const { version: v0, model: m0 } = server.sync();
+
+    // Setup: Create Todo column while both online
+    let es1 = EffectInit(v0, m0);
+    let es2 = EffectInit(v0, m0);
+    let cmd;
+
+    // Client1 creates the column
+    [es1, cmd] = EffectStep(es1, EffectEvent.UserAction({ type: 'AddColumn', col: 'Todo', limit: 20 }));
+    let result = server.dispatch(EffectCommand.getBaseVersion(cmd), actionToJson(EffectCommand.getAction(cmd)));
+    [es1, cmd] = EffectStep(es1, EffectEvent.DispatchAccepted(result.version, result.model));
+
+    // Both clients sync to get the column
+    const syncState = server.sync();
+    es1 = EffectInit(syncState.version, syncState.model);
+    es2 = EffectInit(syncState.version, syncState.model);
+
+    console.log('Initial state:', syncState);
+    console.log('Both clients synced at version:', syncState.version);
+
+    // ========== CLIENT 1 GOES OFFLINE ==========
+    [es1] = EffectStep(es1, EffectEvent.ManualGoOffline());
+    assert.strictEqual(EffectState.isOnline(es1), false);
+
+    // Client1 adds 2 cards while offline
+    [es1] = EffectStep(es1, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'Client1-Task1' }));
+    [es1] = EffectStep(es1, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'Client1-Task2' }));
+
+    assert.strictEqual(EffectState.getPendingCount(es1), 2, 'Client1 should have 2 pending');
+
+    // ========== CLIENT 2 GOES OFFLINE ==========
+    [es2] = EffectStep(es2, EffectEvent.ManualGoOffline());
+    assert.strictEqual(EffectState.isOnline(es2), false);
+
+    // Client2 adds 2 cards while offline
+    [es2] = EffectStep(es2, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'Client2-Task1' }));
+    [es2] = EffectStep(es2, EffectEvent.UserAction({ type: 'AddCard', col: 'Todo', title: 'Client2-Task2' }));
+
+    assert.strictEqual(EffectState.getPendingCount(es2), 2, 'Client2 should have 2 pending');
+
+    // ========== CLIENT 1 COMES ONLINE ==========
+    console.log('\n--- Client1 coming online ---');
+    [es1, cmd] = EffectStep(es1, EffectEvent.ManualGoOnline());
+
+    // Flush Client1's pending actions
+    let client1Results = [];
+    while (EffectCommand.isSendDispatch(cmd)) {
+      const action = actionToJson(EffectCommand.getAction(cmd));
+      const baseVer = EffectCommand.getBaseVersion(cmd);
+      const dispatchResult = server.dispatch(baseVer, action);
+      client1Results.push({ action: action.title, status: dispatchResult.status, newVersion: dispatchResult.version });
+
+      if (dispatchResult.status === 'accepted') {
+        [es1, cmd] = EffectStep(es1, EffectEvent.DispatchAccepted(dispatchResult.version, dispatchResult.model));
+      } else if (dispatchResult.status === 'conflict') {
+        const fresh = server.sync();
+        [es1, cmd] = EffectStep(es1, EffectEvent.DispatchConflict(fresh.version, fresh.model));
+      } else {
+        const fresh = server.sync();
+        [es1, cmd] = EffectStep(es1, EffectEvent.DispatchRejected(fresh.version, fresh.model));
+      }
+    }
+
+    console.log('Client1 results:', client1Results);
+    assert.strictEqual(EffectState.hasPending(es1), false, 'Client1 should have no pending after flush');
+
+    // Server should now have 2 cards
+    let midState = server.sync();
+    console.log('Server after Client1:', midState.model.lanes['Todo']?.length, 'cards');
+    assert.strictEqual(midState.model.lanes['Todo'].length, 2, 'Server should have 2 cards after Client1');
+
+    // ========== CLIENT 2 COMES ONLINE ==========
+    console.log('\n--- Client2 coming online ---');
+    [es2, cmd] = EffectStep(es2, EffectEvent.ManualGoOnline());
+
+    // Flush Client2's pending actions (these will conflict since server changed!)
+    let client2Results = [];
+    let iterations = 0;
+    while (EffectCommand.isSendDispatch(cmd) && iterations < 20) {
+      iterations++;
+      const action = actionToJson(EffectCommand.getAction(cmd));
+      const baseVer = EffectCommand.getBaseVersion(cmd);
+      const dispatchResult = server.dispatch(baseVer, action);
+
+      // Check if this is a conflict (baseVersion doesn't match server)
+      const serverVer = server.sync().version;
+      const isConflict = dispatchResult.status === 'accepted' && baseVer < serverVer - 1;
+
+      client2Results.push({
+        action: action.title,
+        status: dispatchResult.status,
+        baseVer,
+        serverVer: dispatchResult.version || serverVer
+      });
+
+      if (dispatchResult.status === 'accepted') {
+        [es2, cmd] = EffectStep(es2, EffectEvent.DispatchAccepted(dispatchResult.version, dispatchResult.model));
+      } else if (dispatchResult.status === 'conflict') {
+        const fresh = server.sync();
+        [es2, cmd] = EffectStep(es2, EffectEvent.DispatchConflict(fresh.version, fresh.model));
+      } else {
+        const fresh = server.sync();
+        [es2, cmd] = EffectStep(es2, EffectEvent.DispatchRejected(fresh.version, fresh.model));
+      }
+    }
+
+    console.log('Client2 results:', client2Results);
+    assert.strictEqual(EffectState.hasPending(es2), false, 'Client2 should have no pending after flush');
+
+    // ========== VERIFY FINAL STATE ==========
+    const finalState = server.sync();
+    console.log('\n--- Final State ---');
+    console.log('Version:', finalState.version);
+    console.log('Todo cards:', finalState.model.lanes['Todo'].length);
+
+    const todoTitles = finalState.model.lanes['Todo'].map(id => finalState.model.cards[id].title);
+    console.log('Card titles:', todoTitles);
+
+    // Should have all 4 cards
+    assert.strictEqual(finalState.model.lanes['Todo'].length, 4, 'Should have 4 cards total');
+
+    // Verify all cards are present
+    assert.ok(todoTitles.includes('Client1-Task1'), 'Client1-Task1 should exist');
+    assert.ok(todoTitles.includes('Client1-Task2'), 'Client1-Task2 should exist');
+    assert.ok(todoTitles.includes('Client2-Task1'), 'Client2-Task1 should exist');
+    assert.ok(todoTitles.includes('Client2-Task2'), 'Client2-Task2 should exist');
+
+    // Both clients should now sync to the same state
+    const finalSync = server.sync();
+    es1 = EffectInit(finalSync.version, finalSync.model);
+    es2 = EffectInit(finalSync.version, finalSync.model);
+
+    assert.strictEqual(EffectState.getServerVersion(es1), EffectState.getServerVersion(es2),
+      'Both clients should have same version after sync');
+  });
+});
+
 describe('Full Client-Server Simulation', () => {
   it('should handle complete offline-online cycle', () => {
     const server = new TestServer();
