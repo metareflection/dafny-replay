@@ -4,7 +4,7 @@ set -e
 # Usage: ./compile.sh [project]
 # If no project specified, compiles all. Otherwise compiles only the specified project.
 # Projects: counter, kanban, delegation-auth, counter-authority, kanban-multi-collaboration,
-#           kanban-supabase, clear-split, clear-split-supabase, canon, colorwheel
+#           kanban-supabase, clear-split, clear-split-supabase, canon, colorwheel, collab-todo
 
 TARGET="$1"
 
@@ -145,25 +145,27 @@ if should_build colorwheel; then
     (cd dafny2js && dotnet run --no-build -- --file ../ColorWheelDomain.dfy --app-core AppCore --cjs-name ColorWheel.cjs --output ../colorwheel/src/dafny/app.js)
 fi
 
-echo "Compiling TodoMultiCollaboration to JavaScript..."
+if should_build collab-todo; then
+    echo "Compiling TodoMultiCollaboration to JavaScript..."
 dafny translate js --no-verify --optimize-erasable-datatype-wrapper:false -o generated/TodoMulti --include-runtime TodoMultiCollaboration.dfy
 
-echo "Copying to collab-todo project..."
-cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
+    echo "Copying to collab-todo project..."
+    cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
 
-echo "Compiling TodoMultiProjectEffectStateMachine to JavaScript..."
-dafny translate js --no-verify --optimize-erasable-datatype-wrapper:false -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy
+    echo "Compiling TodoMultiProjectEffectStateMachine to JavaScript..."
+    dafny translate js --no-verify --optimize-erasable-datatype-wrapper:false -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy
 
-echo "Copying TodoMultiProjectEffectStateMachine to collab-todo project..."
-cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEffect.cjs
+    echo "Copying TodoMultiProjectEffectStateMachine to collab-todo project..."
+    cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEffect.cjs
 
-echo "Generating collab-todo app.js (multi-project)..."
-(cd dafny2js && dotnet run --no-build -- --file ../TodoMultiProjectEffectStateMachine.dfy --app-core TodoMultiProjectEffectAppCore --cjs-name TodoMultiProjectEffect.cjs --output ../collab-todo/src/dafny/app.js)
+    echo "Generating collab-todo app.js (multi-project)..."
+    (cd dafny2js && dotnet run --no-build -- --file ../TodoMultiProjectEffectStateMachine.dfy --app-core TodoMultiProjectEffectAppCore --cjs-name TodoMultiProjectEffect.cjs --output ../collab-todo/src/dafny/app.js)
 
-echo "Building Deno bundle for collab-todo dispatch Edge Function..."
-(cd collab-todo/supabase/functions/dispatch && node build-bundle.js)
+    echo "Building Deno bundle for collab-todo dispatch Edge Function..."
+    (cd collab-todo/supabase/functions/dispatch && node build-bundle.js)
 
-echo "Building Deno bundle for collab-todo multi-dispatch Edge Function..."
-(cd collab-todo/supabase/functions/multi-dispatch && node build-bundle.js)
+    echo "Building Deno bundle for collab-todo multi-dispatch Edge Function..."
+    (cd collab-todo/supabase/functions/multi-dispatch && node build-bundle.js)
+fi
 
 echo "Done."
