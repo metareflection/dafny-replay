@@ -3132,6 +3132,19 @@ let ClearSplitCrossGroup = (function() {
       let _2_totalOwes = ClearSplitCrossGroup.__default.SumNegative(_0_balances);
       return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(_1_totalOwed, _2_totalOwes, (_1_totalOwed).minus(_2_totalOwes), _0_balances);
     };
+    static SumAllBalances(balances) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((balances).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          _0___accumulator = (_0___accumulator).plus(((balances)[_dafny.ZERO]).dtor_balance);
+          let _in0 = (balances).slice(_dafny.ONE);
+          balances = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
   };
 
   \$module.GroupEntry = class GroupEntry {
