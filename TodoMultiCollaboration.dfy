@@ -972,8 +972,8 @@ module TodoDomain refines TodoDomainSpec {
   // Sum is equal
 
   // Wrapper that takes concrete newTasks map (avoids map comprehension in postcondition)
-  // Uses axiom because Dafny can't unify map comprehension with local variable
-  lemma {:axiom} CountUnchangedAfterRemove_Wrapper(
+  // Uses extensional requires instead of map comprehension equality
+  lemma CountUnchangedAfterRemove_Wrapper(
     lists: seq<ListId>,
     tasks: map<ListId, seq<TaskId>>,
     newTasks: map<ListId, seq<TaskId>>,
@@ -982,8 +982,28 @@ module TodoDomain refines TodoDomainSpec {
   )
     requires removedId != otherId
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
-    requires newTasks == map l | l in tasks :: RemoveFirst(tasks[l], removedId)
+    // Extensional equality instead of map comprehension equality
+    requires newTasks.Keys == tasks.Keys
+    requires forall l :: l in newTasks ==> newTasks[l] == RemoveFirst(tasks[l], removedId)
     ensures CountInListsHelper(lists, newTasks, otherId) == CountInListsHelper(lists, tasks, otherId)
+    decreases |lists|
+  {
+    if |lists| == 0 {
+    } else {
+      var l := lists[0];
+      // Inductive hypothesis for tail
+      CountUnchangedAfterRemove_Wrapper(lists[1..], tasks, newTasks, removedId, otherId);
+
+      // Head contribution: show it's the same in both maps
+      if l in tasks {
+        assert l in newTasks;
+        assert newTasks[l] == RemoveFirst(tasks[l], removedId);
+        // By RemoveFirst_NotContains: SeqContains(RemoveFirst(s, x), y) == SeqContains(s, y) when x != y
+        RemoveFirst_NotContains(tasks[l], removedId, otherId);
+        assert SeqContains(newTasks[l], otherId) == SeqContains(tasks[l], otherId);
+      }
+    }
+  }
 
   // Wrapper for CountAfterRemoveAll
   // Takes concrete newTasks map instead of map comprehension in postcondition
@@ -1093,7 +1113,8 @@ module TodoDomain refines TodoDomainSpec {
   }
 
   // Wrapper for CountAfterMoveTask with concrete tasks1 map
-  lemma {:axiom} CountAfterMoveTask_Wrapper(
+  // Uses extensional requires instead of map comprehension equality
+  lemma CountAfterMoveTask_Wrapper(
     lists: seq<ListId>,
     tasks: map<ListId, seq<TaskId>>,
     tasks1: map<ListId, seq<TaskId>>,
@@ -1104,12 +1125,33 @@ module TodoDomain refines TodoDomainSpec {
     requires NoDupSeq(lists)
     requires SeqContains(lists, targetList)
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
-    requires tasks1 == map l | l in tasks :: RemoveFirst(tasks[l], id)
+    // Extensional equality instead of map comprehension equality
+    requires tasks1.Keys == tasks.Keys
+    requires forall l :: l in tasks1 ==> tasks1[l] == RemoveFirst(tasks[l], id)
     requires SeqContains(newLane, id)
     requires NoDupSeq(newLane)
     ensures CountInListsHelper(lists, tasks1[targetList := newLane], id) == 1
+  {
+    // After RemoveFirst, id is not in any list of tasks1
+    // Adding newLane (which contains id) to targetList makes count = 1
+    var finalTasks := tasks1[targetList := newLane];
+
+    // Use CountInListsHelper_ExactlyInOne: id appears in exactly targetList
+    // First show id is not in tasks1[l] for any l (by CountAfterRemoveAll_Core logic)
+    forall l | l in tasks1
+      ensures !SeqContains(tasks1[l], id)
+    {
+      assert tasks1[l] == RemoveFirst(tasks[l], id);
+      RemoveFirstSeqContains(tasks[l], id, id);
+    }
+
+    // Now finalTasks has id only in newLane at targetList
+    CountInListsHelper_ExactlyInOne(lists, finalTasks, targetList, id);
+  }
 
   // Wrapper for CountUnchangedAfterRemove for MoveTask
+  // Still uses {:axiom} - requires bidirectional preservation of otherId in newLane
+  // which is complex to prove at call sites
   lemma {:axiom} CountUnchangedAfterMoveTask_Wrapper(
     lists: seq<ListId>,
     tasks: map<ListId, seq<TaskId>>,
@@ -1124,7 +1166,8 @@ module TodoDomain refines TodoDomainSpec {
     requires SeqContains(lists, targetList)
     requires targetList in tasks
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
-    requires tasks1 == map l | l in tasks :: RemoveFirst(tasks[l], movedId)
+    requires tasks1.Keys == tasks.Keys
+    requires forall l :: l in tasks1 ==> tasks1[l] == RemoveFirst(tasks[l], movedId)
     requires NoDupSeq(newLane)
     requires !SeqContains(newLane, otherId) || SeqContains(tasks[targetList], otherId)
     ensures CountInListsHelper(lists, tasks1[targetList := newLane], otherId) ==
