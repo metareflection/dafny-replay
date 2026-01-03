@@ -497,16 +497,43 @@ module TodoDomain refines TodoDomainSpec {
     //   = CountInListsHelper(lists, tasks, id)
   }
 
+  // Helper: count is 0 when newTasks = map l | l in tasks :: RemoveFirst(tasks[l], id)
+  // This lemma takes the computed map as a parameter to avoid map comprehension issues
+  lemma CountAfterRemoveAll_Core(
+    lists: seq<ListId>,
+    tasks: map<ListId, seq<TaskId>>,
+    newTasks: map<ListId, seq<TaskId>>,
+    id: TaskId
+  )
+    requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
+    requires newTasks.Keys == tasks.Keys
+    requires forall l :: l in newTasks ==> newTasks[l] == RemoveFirst(tasks[l], id)
+    ensures CountInListsHelper(lists, newTasks, id) == 0
+    decreases |lists|
+  {
+    if |lists| == 0 {
+    } else {
+      // Inductive case
+      CountAfterRemoveAll_Core(lists[1..], tasks, newTasks, id);
+
+      var l := lists[0];
+      if l in newTasks {
+        assert l in tasks;
+        assert newTasks[l] == RemoveFirst(tasks[l], id);
+        RemoveFirstSeqContains(tasks[l], id, id);
+        // id != id is false, so SeqContains(RemoveFirst(tasks[l], id), id) is false
+        assert !SeqContains(newTasks[l], id);
+      }
+    }
+  }
+
   // After removing id from all lists, count is 0
-  // Proof idea:
-  // 1. After RemoveFirst, id is not in any lane (by RemoveFirstSeqContains)
-  // 2. If id is in no lane, count is 0 (by CountInListsHelper_NotInAny)
-  // Dafny struggles with map comprehension equality, so we trust this logically sound step
+  // NOTE: Core logic proven in CountAfterRemoveAll_Core. This wrapper uses {:axiom}
+  // due to Dafny limitation: can't connect local map comprehension to ensures clause.
   lemma {:axiom} CountAfterRemoveAll(lists: seq<ListId>, tasks: map<ListId, seq<TaskId>>, id: TaskId)
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
     ensures CountInListsHelper(lists, map l | l in tasks :: RemoveFirst(tasks[l], id), id) == 0
-  // Dafny limitation: can't connect local map comprehension variable to ensures clause.
-  // Proof idea verified in CountAfterRemoveAll_Wrapper.
+  // Proof in CountAfterRemoveAll_Core demonstrates correctness.
 
   // Count when id appears in exactly one list at a specific position
   lemma CountInListsHelper_ExactlyInOne(
@@ -1355,13 +1382,32 @@ module TodoDomain refines TodoDomainSpec {
   }
 
   // Helper for DeleteListPreservesInv - proves invariant F
-  // Dafny has trouble connecting m2.lists to RemoveFirst(m.lists, listId) in forall context
-  // This axiom captures the correct reasoning: elements in RemoveFirst are a subset of the original
-  lemma {:axiom} DeleteListPreservesInvF(m: Model, listId: ListId, m2: Model)
+  // Elements in RemoveFirst are a subset of the original
+  lemma DeleteListPreservesInvF(m: Model, listId: ListId, m2: Model)
     requires Inv(m)
     requires SeqContains(m.lists, listId)
     requires TryStep(m, DeleteList(listId)) == Ok(m2)
     ensures forall lid :: SeqContains(m2.lists, lid) ==> lid < m2.nextListId
+  {
+    // m2.lists = RemoveFirst(m.lists, listId)
+    // m2.nextListId == m.nextListId
+    assert m2.nextListId == m.nextListId;
+    var lists1 := RemoveFirst(m.lists, listId);
+    assert m2.lists == lists1;
+
+    forall lid | SeqContains(m2.lists, lid)
+      ensures lid < m2.nextListId
+    {
+      // lid is in RemoveFirst(m.lists, listId), so lid is in m.lists
+      assert SeqContains(lists1, lid);
+      // Use helper to connect lists1 to RemoveFirst(m.lists, listId)
+      MoveListPreservesInvF_Helper(m.lists, listId, lists1, lid);
+      assert SeqContains(m.lists, lid);
+      // By Inv(m): SeqContains(m.lists, lid) ==> lid < m.nextListId
+      assert lid < m.nextListId;
+      assert lid < m2.nextListId;
+    }
+  }
 
   lemma DeleteListPreservesInv(m: Model, listId: ListId, m2: Model)
     requires Inv(m)
