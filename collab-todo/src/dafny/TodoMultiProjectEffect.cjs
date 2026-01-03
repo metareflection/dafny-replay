@@ -5265,6 +5265,15 @@ let TodoMultiProjectEffectStateMachine = (function() {
       let _2_reappliedModel = TodoMultiProjectEffectStateMachine.__default.ReapplyPending(_1_mergedM, (client).dtor_pending);
       return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(_0_mergedV, _2_reappliedModel, (client).dtor_pending);
     };
+    static HandleRealtimeUpdate(client, projectId, version, model) {
+      let _0_newVersions = _dafny.Map.Empty.slice().updateUnsafe(projectId,version);
+      let _1_newModels = _dafny.Map.Empty.slice().updateUnsafe(projectId,model);
+      let _let_tmp_rhs0 = TodoMultiProjectEffectStateMachine.__default.MergeUpdates(client, _0_newVersions, _1_newModels);
+      let _2_mergedV = (_let_tmp_rhs0)[0];
+      let _3_mergedM = (_let_tmp_rhs0)[1];
+      let _4_reappliedModel = TodoMultiProjectEffectStateMachine.__default.ReapplyPending(_3_mergedM, (client).dtor_pending);
+      return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(_2_mergedV, _4_reappliedModel, (client).dtor_pending);
+    };
     static Step(es, event) {
       let _source0 = event;
       {
@@ -5488,19 +5497,40 @@ let TodoMultiProjectEffectStateMachine = (function() {
         }
       }
       {
-        if (TodoMultiProjectEffectStateMachine.__default.CanStartDispatch(es)) {
-          let _62_firstAction = TodoMultiProjectEffectStateMachine.__default.FirstPendingAction(es);
-          let _63_touched = TodoMultiProjectDomain.__default.TouchedProjects(_62_firstAction);
-          let _64_versions = TodoMultiProjectEffectStateMachine.__default.BaseVersionsForAction((es).dtor_client, _62_firstAction);
-          return _dafny.Tuple.of(function (_pat_let29_0) {
-  return function (_65_dt__update__tmp_h12) {
+        if (_source0.is_RealtimeUpdate) {
+          let _62_projectId = (_source0).projectId;
+          let _63_version = (_source0).version;
+          let _64_model = (_source0).model;
+          if (((es).dtor_mode).is_Dispatching) {
+            return _dafny.Tuple.of(es, TodoMultiProjectEffectStateMachine.Command.create_NoOp());
+          } else {
+            let _65_newClient = TodoMultiProjectEffectStateMachine.__default.HandleRealtimeUpdate((es).dtor_client, _62_projectId, _63_version, _64_model);
+            return _dafny.Tuple.of(function (_pat_let29_0) {
+  return function (_66_dt__update__tmp_h12) {
     return function (_pat_let30_0) {
-      return function (_66_dt__update_hmode_h9) {
-        return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState((_65_dt__update__tmp_h12).dtor_network, _66_dt__update_hmode_h9, (_65_dt__update__tmp_h12).dtor_client);
+      return function (_67_dt__update_hclient_h1) {
+        return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState((_66_dt__update__tmp_h12).dtor_network, (_66_dt__update__tmp_h12).dtor_mode, _67_dt__update_hclient_h1);
       }(_pat_let30_0);
-    }(TodoMultiProjectEffectStateMachine.EffectMode.create_Dispatching(_dafny.ZERO));
+    }(_65_newClient);
   }(_pat_let29_0);
-}(es), TodoMultiProjectEffectStateMachine.Command.create_SendDispatch(_63_touched, _64_versions, _62_firstAction));
+}(es), TodoMultiProjectEffectStateMachine.Command.create_NoOp());
+          }
+        }
+      }
+      {
+        if (TodoMultiProjectEffectStateMachine.__default.CanStartDispatch(es)) {
+          let _68_firstAction = TodoMultiProjectEffectStateMachine.__default.FirstPendingAction(es);
+          let _69_touched = TodoMultiProjectDomain.__default.TouchedProjects(_68_firstAction);
+          let _70_versions = TodoMultiProjectEffectStateMachine.__default.BaseVersionsForAction((es).dtor_client, _68_firstAction);
+          return _dafny.Tuple.of(function (_pat_let31_0) {
+  return function (_71_dt__update__tmp_h13) {
+    return function (_pat_let32_0) {
+      return function (_72_dt__update_hmode_h9) {
+        return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState((_71_dt__update__tmp_h13).dtor_network, _72_dt__update_hmode_h9, (_71_dt__update__tmp_h13).dtor_client);
+      }(_pat_let32_0);
+    }(TodoMultiProjectEffectStateMachine.EffectMode.create_Dispatching(_dafny.ZERO));
+  }(_pat_let31_0);
+}(es), TodoMultiProjectEffectStateMachine.Command.create_SendDispatch(_69_touched, _70_versions, _68_firstAction));
         } else {
           return _dafny.Tuple.of(es, TodoMultiProjectEffectStateMachine.Command.create_NoOp());
         }
@@ -5746,40 +5776,51 @@ let TodoMultiProjectEffectStateMachine = (function() {
       $dt.freshModels = freshModels;
       return $dt;
     }
-    static create_NetworkError() {
+    static create_RealtimeUpdate(projectId, version, model) {
       let $dt = new Event(4);
+      $dt.projectId = projectId;
+      $dt.version = version;
+      $dt.model = model;
       return $dt;
     }
-    static create_NetworkRestored() {
+    static create_NetworkError() {
       let $dt = new Event(5);
       return $dt;
     }
-    static create_ManualGoOffline() {
+    static create_NetworkRestored() {
       let $dt = new Event(6);
       return $dt;
     }
-    static create_ManualGoOnline() {
+    static create_ManualGoOffline() {
       let $dt = new Event(7);
       return $dt;
     }
-    static create_Tick() {
+    static create_ManualGoOnline() {
       let $dt = new Event(8);
+      return $dt;
+    }
+    static create_Tick() {
+      let $dt = new Event(9);
       return $dt;
     }
     get is_UserAction() { return this.$tag === 0; }
     get is_DispatchAccepted() { return this.$tag === 1; }
     get is_DispatchConflict() { return this.$tag === 2; }
     get is_DispatchRejected() { return this.$tag === 3; }
-    get is_NetworkError() { return this.$tag === 4; }
-    get is_NetworkRestored() { return this.$tag === 5; }
-    get is_ManualGoOffline() { return this.$tag === 6; }
-    get is_ManualGoOnline() { return this.$tag === 7; }
-    get is_Tick() { return this.$tag === 8; }
+    get is_RealtimeUpdate() { return this.$tag === 4; }
+    get is_NetworkError() { return this.$tag === 5; }
+    get is_NetworkRestored() { return this.$tag === 6; }
+    get is_ManualGoOffline() { return this.$tag === 7; }
+    get is_ManualGoOnline() { return this.$tag === 8; }
+    get is_Tick() { return this.$tag === 9; }
     get dtor_action() { return this.action; }
     get dtor_newVersions() { return this.newVersions; }
     get dtor_newModels() { return this.newModels; }
     get dtor_freshVersions() { return this.freshVersions; }
     get dtor_freshModels() { return this.freshModels; }
+    get dtor_projectId() { return this.projectId; }
+    get dtor_version() { return this.version; }
+    get dtor_model() { return this.model; }
     toString() {
       if (this.$tag === 0) {
         return "TodoMultiProjectEffectStateMachine.Event.UserAction" + "(" + _dafny.toString(this.action) + ")";
@@ -5790,14 +5831,16 @@ let TodoMultiProjectEffectStateMachine = (function() {
       } else if (this.$tag === 3) {
         return "TodoMultiProjectEffectStateMachine.Event.DispatchRejected" + "(" + _dafny.toString(this.freshVersions) + ", " + _dafny.toString(this.freshModels) + ")";
       } else if (this.$tag === 4) {
-        return "TodoMultiProjectEffectStateMachine.Event.NetworkError";
+        return "TodoMultiProjectEffectStateMachine.Event.RealtimeUpdate" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.version) + ", " + _dafny.toString(this.model) + ")";
       } else if (this.$tag === 5) {
-        return "TodoMultiProjectEffectStateMachine.Event.NetworkRestored";
+        return "TodoMultiProjectEffectStateMachine.Event.NetworkError";
       } else if (this.$tag === 6) {
-        return "TodoMultiProjectEffectStateMachine.Event.ManualGoOffline";
+        return "TodoMultiProjectEffectStateMachine.Event.NetworkRestored";
       } else if (this.$tag === 7) {
-        return "TodoMultiProjectEffectStateMachine.Event.ManualGoOnline";
+        return "TodoMultiProjectEffectStateMachine.Event.ManualGoOffline";
       } else if (this.$tag === 8) {
+        return "TodoMultiProjectEffectStateMachine.Event.ManualGoOnline";
+      } else if (this.$tag === 9) {
         return "TodoMultiProjectEffectStateMachine.Event.Tick";
       } else  {
         return "<unexpected>";
@@ -5815,7 +5858,7 @@ let TodoMultiProjectEffectStateMachine = (function() {
       } else if (this.$tag === 3) {
         return other.$tag === 3 && _dafny.areEqual(this.freshVersions, other.freshVersions) && _dafny.areEqual(this.freshModels, other.freshModels);
       } else if (this.$tag === 4) {
-        return other.$tag === 4;
+        return other.$tag === 4 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.version, other.version) && _dafny.areEqual(this.model, other.model);
       } else if (this.$tag === 5) {
         return other.$tag === 5;
       } else if (this.$tag === 6) {
@@ -5824,6 +5867,8 @@ let TodoMultiProjectEffectStateMachine = (function() {
         return other.$tag === 7;
       } else if (this.$tag === 8) {
         return other.$tag === 8;
+      } else if (this.$tag === 9) {
+        return other.$tag === 9;
       } else  {
         return false; // unexpected
       }
@@ -5961,6 +6006,9 @@ let TodoMultiProjectEffectAppCore = (function() {
     };
     static EffectDispatchRejected(freshVersions, freshModels) {
       return TodoMultiProjectEffectStateMachine.Event.create_DispatchRejected(freshVersions, freshModels);
+    };
+    static EffectRealtimeUpdate(projectId, version, model) {
+      return TodoMultiProjectEffectStateMachine.Event.create_RealtimeUpdate(projectId, version, model);
     };
     static EffectNetworkError() {
       return TodoMultiProjectEffectStateMachine.Event.create_NetworkError();

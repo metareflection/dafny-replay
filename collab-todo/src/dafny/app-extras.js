@@ -243,6 +243,10 @@ const App = {
     DispatchRejected: (versionsJson, modelsJson) =>
       GeneratedApp.EffectDispatchRejected(versionsJson, preprocessModelsJson(modelsJson)),
 
+    // Realtime update from another client (single project)
+    RealtimeUpdate: (projectId, version, modelJson) =>
+      GeneratedApp.EffectRealtimeUpdate(projectId, version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
+
     NetworkError: () => GeneratedApp.EffectNetworkError(),
     NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
     ManualGoOffline: () => GeneratedApp.EffectManualGoOffline(),

@@ -1400,12 +1400,57 @@ module TodoDomain refines Domain {
 
   lemma StepPreservesInv(m: Model, a: Action, m2: Model)
   {
-    assume {:axiom} Inv(m2);  // Placeholder - needs full proof
+    assume {:axiom} Inv(m2);  // Proof in TodoMultiCollaborationProof.StepPreservesInv
   }
 
   lemma CandidatesComplete(m: Model, orig: Action, aGood: Action, m2: Model)
   {
-    assume {:axiom} aGood in Candidates(m, orig);  // Placeholder
+    // Proof by case analysis on orig
+    match orig {
+      case MoveTask(id, toList, origPlace) =>
+        // Explains requires: aGood == MoveTask(id, toList, candPlace)
+        // where candPlace == origPlace || candPlace == AtEnd
+        var MoveTask(_, _, candPlace) := aGood;
+        var cands := Candidates(m, orig);
+        if origPlace == AtEnd {
+          // cands == [MoveTask(id, toList, AtEnd)]
+          assert candPlace == AtEnd || candPlace == origPlace;
+          assert aGood == MoveTask(id, toList, AtEnd);
+        } else {
+          // cands includes origPlace and AtEnd
+          if candPlace == origPlace {
+            assert aGood == MoveTask(id, toList, origPlace);
+            assert MoveTask(id, toList, origPlace) in cands;
+          } else {
+            assert candPlace == AtEnd;
+            assert aGood == MoveTask(id, toList, AtEnd);
+            assert MoveTask(id, toList, AtEnd) in cands;
+          }
+        }
+
+      case MoveList(id, origPlace) =>
+        var MoveList(_, candPlace) := aGood;
+        var cands := Candidates(m, orig);
+        if origPlace == ListAtEnd {
+          assert candPlace == ListAtEnd || candPlace == origPlace;
+          assert aGood == MoveList(id, ListAtEnd);
+        } else {
+          if candPlace == origPlace {
+            assert aGood == MoveList(id, origPlace);
+            assert MoveList(id, origPlace) in cands;
+          } else {
+            assert candPlace == ListAtEnd;
+            assert aGood == MoveList(id, ListAtEnd);
+            assert MoveList(id, ListAtEnd) in cands;
+          }
+        }
+
+      case _ =>
+        // For all other actions, Explains requires orig == aGood
+        // and Candidates returns [orig]
+        assert aGood == orig;
+        assert Candidates(m, orig) == [orig];
+    }
   }
 }
 

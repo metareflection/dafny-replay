@@ -1102,6 +1102,13 @@ const eventFromJson = (json) => {
         __freshModels
       );
     }
+    case 'RealtimeUpdate': {
+      return TodoMultiProjectEffectStateMachine.Event.create_RealtimeUpdate(
+        _dafny.Seq.UnicodeFromString(json.projectId),
+        new BigNumber(json.version),
+        modelFromJson(json.model)
+      );
+    }
     case 'NetworkError': {
       return TodoMultiProjectEffectStateMachine.Event.create_NetworkError();
     }
@@ -1187,6 +1194,13 @@ const eventToJson = (value) => {
       type: 'DispatchRejected',
       freshVersions: __freshVersionsJson,
       freshModels: __freshModelsJson
+    };
+  } else if (value.is_RealtimeUpdate) {
+    return {
+      type: 'RealtimeUpdate',
+      projectId: dafnyStringToJs(value.dtor_projectId),
+      version: toNumber(value.dtor_version),
+      model: modelToJson(value.dtor_model)
     };
   } else if (value.is_NetworkError) {
     return { type: 'NetworkError' };
@@ -1417,6 +1431,7 @@ const App = {
   EffectDispatchAccepted: (newVersions, newModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchAccepted(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(newVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(newModels)),
   EffectDispatchConflict: (freshVersions, freshModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchConflict(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
   EffectDispatchRejected: (freshVersions, freshModels) => TodoMultiProjectEffectAppCore.__default.EffectDispatchRejected(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
+  EffectRealtimeUpdate: (projectId, version, model) => TodoMultiProjectEffectAppCore.__default.EffectRealtimeUpdate(_dafny.Seq.UnicodeFromString(projectId), new BigNumber(version), model),
   EffectNetworkError: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkError(),
   EffectNetworkRestored: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkRestored(),
   EffectManualGoOffline: () => TodoMultiProjectEffectAppCore.__default.EffectManualGoOffline(),

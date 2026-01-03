@@ -114,9 +114,19 @@ module TodoMultiProjectDomain refines MultiProject {
     MC.D.TryStep(m, MC.D.Action.DeleteTask(taskId, userId))
   }
 
+  lemma RemoveTaskFromProjectPreservesInv(m: Model, taskId: TaskId, userId: UserId, m2: Model)
+    requires Inv(m)
+    requires RemoveTaskFromProject(m, taskId, userId) == MC.D.Result.Ok(m2)
+    ensures Inv(m2)
+  {
+    MC.D.StepPreservesInv(m, MC.D.Action.DeleteTask(taskId, userId), m2);
+  }
+
   // Helper: Add task to destination project
   function AddTaskToProject(m: Model, listId: ListId, task: Task, anchor: Place): MC.D.Result<Model, MC.D.Err>
   {
+    // Note: This function chains multiple TryStep calls.
+    // AddTaskToProjectPreservesInv below proves invariant preservation.
     // First add a basic task
     var addResult := MC.D.TryStep(m, MC.D.Action.AddTask(listId, task.title));
     if addResult.Err? then addResult
@@ -152,6 +162,54 @@ module TodoMultiProjectDomain refines MultiProject {
         else m4;
 
         MC.D.Result.Ok(m5)
+  }
+
+  lemma AddTaskToProjectPreservesInv(m: Model, listId: ListId, task: Task, anchor: Place, mFinal: Model)
+    requires Inv(m)
+    requires AddTaskToProject(m, listId, task, anchor) == MC.D.Result.Ok(mFinal)
+    ensures Inv(mFinal)
+  {
+    // Chain of TryStep calls, each preserving Inv
+    var addResult := MC.D.TryStep(m, MC.D.Action.AddTask(listId, task.title));
+    var m1 := addResult.value;
+    var newTaskId := m.nextTaskId;
+    MC.D.StepPreservesInv(m, MC.D.Action.AddTask(listId, task.title), m1);
+
+    var editResult := MC.D.TryStep(m1, MC.D.Action.EditTask(newTaskId, task.title, task.notes));
+    var m2 := editResult.value;
+    MC.D.StepPreservesInv(m1, MC.D.Action.EditTask(newTaskId, task.title, task.notes), m2);
+
+    // Starred: either step succeeds or m3 = m2
+    var m3 := if task.starred then
+      (match MC.D.TryStep(m2, MC.D.Action.StarTask(newTaskId))
+       case Ok(mx) => mx
+       case Err(_) => m2)
+    else m2;
+    if task.starred && MC.D.TryStep(m2, MC.D.Action.StarTask(newTaskId)).Ok? {
+      MC.D.StepPreservesInv(m2, MC.D.Action.StarTask(newTaskId), m3);
+    }
+
+    // Completed: either step succeeds or m4 = m3
+    var m4 := if task.completed then
+      (match MC.D.TryStep(m3, MC.D.Action.CompleteTask(newTaskId))
+       case Ok(mx) => mx
+       case Err(_) => m3)
+    else m3;
+    if task.completed && MC.D.TryStep(m3, MC.D.Action.CompleteTask(newTaskId)).Ok? {
+      MC.D.StepPreservesInv(m3, MC.D.Action.CompleteTask(newTaskId), m4);
+    }
+
+    // DueDate: either step succeeds or m5 = m4
+    var m5 := if task.dueDate.Some? then
+      (match MC.D.TryStep(m4, MC.D.Action.SetDueDate(newTaskId, task.dueDate))
+       case Ok(mx) => mx
+       case Err(_) => m4)
+    else m4;
+    if task.dueDate.Some? && MC.D.TryStep(m4, MC.D.Action.SetDueDate(newTaskId, task.dueDate)).Ok? {
+      MC.D.StepPreservesInv(m4, MC.D.Action.SetDueDate(newTaskId, task.dueDate), m5);
+    }
+
+    assert mFinal == m5;
   }
 
   // ===========================================================================
@@ -244,7 +302,54 @@ module TodoMultiProjectDomain refines MultiProject {
 
   lemma MultiStepPreservesInv(mm: MultiModel, a: MultiAction, mm2: MultiModel)
   {
-    assume {:axiom} MultiInv(mm2);  // TODO: Full proof
+    // Proof that MultiStep preserves MultiInv
+    // MultiInv(mm) = forall pid :: pid in mm.projects ==> Inv(mm.projects[pid])
+    // Need to show: forall pid :: pid in mm2.projects ==> Inv(mm2.projects[pid])
+
+    match a {
+      case Single(pid, action) =>
+        // mm2.projects = mm.projects[pid := newModel]
+        // where TryStep(mm.projects[pid], action) == Ok(newModel)
+        var model := mm.projects[pid];
+        var result := MC.D.TryStep(model, action);
+        if result.Ok? {
+          var newModel := result.value;
+          // Use StepPreservesInv for the changed project
+          MC.D.StepPreservesInv(model, action, newModel);
+          // Other projects unchanged
+        }
+
+      case MoveTaskTo(src, dst, taskId, dstList, anchor) =>
+        var srcModel := mm.projects[src];
+        var dstModel := mm.projects[dst];
+        var extractResult := ExtractTaskData(srcModel, taskId);
+        var taskData := extractResult.value;
+        var removeResult := RemoveTaskFromProject(srcModel, taskId, "");
+        var newSrc := removeResult.value;
+        var addResult := AddTaskToProject(dstModel, dstList, taskData, anchor);
+        var newDst := addResult.value;
+
+        // src project: RemoveTaskFromProject preserves Inv
+        RemoveTaskFromProjectPreservesInv(srcModel, taskId, "", newSrc);
+
+        // dst project: AddTaskToProject preserves Inv
+        AddTaskToProjectPreservesInv(dstModel, dstList, taskData, anchor, newDst);
+
+        // Other projects unchanged
+
+      case CopyTaskTo(src, dst, taskId, dstList) =>
+        var srcModel := mm.projects[src];
+        var dstModel := mm.projects[dst];
+        var extractResult := ExtractTaskData(srcModel, taskId);
+        var taskData := extractResult.value;
+        var addResult := AddTaskToProject(dstModel, dstList, taskData, MC.D.Place.AtEnd);
+        var newDst := addResult.value;
+
+        // dst project: AddTaskToProject preserves Inv
+        AddTaskToProjectPreservesInv(dstModel, dstList, taskData, MC.D.Place.AtEnd, newDst);
+
+        // src and other projects unchanged
+    }
   }
 
   // ===========================================================================

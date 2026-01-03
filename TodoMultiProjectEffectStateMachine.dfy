@@ -95,6 +95,11 @@ module TodoMultiProjectEffectAppCore {
     E.Event.DispatchRejected(freshVersions, freshModels)
   }
 
+  function EffectRealtimeUpdate(projectId: ProjectId, version: nat, model: Model): EffectEvent
+  {
+    E.Event.RealtimeUpdate(projectId, version, model)
+  }
+
   function EffectNetworkError(): EffectEvent { E.Event.NetworkError }
   function EffectNetworkRestored(): EffectEvent { E.Event.NetworkRestored }
   function EffectManualGoOffline(): EffectEvent { E.Event.ManualGoOffline }

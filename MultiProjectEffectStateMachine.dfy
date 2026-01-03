@@ -65,6 +65,11 @@ abstract module MultiProjectEffectStateMachine {
         freshVersions: map<ProjectId, nat>,
         freshModels: map<ProjectId, Model>
       )
+    | RealtimeUpdate(
+        projectId: ProjectId,               // Which project was updated by another client
+        version: nat,                       // New version from server
+        model: Model                        // New model from server
+      )
     | NetworkError
     | NetworkRestored
     | ManualGoOffline
@@ -243,6 +248,21 @@ abstract module MultiProjectEffectStateMachine {
     MultiClientState(mergedV, reappliedModel, client.pending)
   }
 
+  // Handle realtime update from another client (preserves pending actions)
+  function HandleRealtimeUpdate(
+    client: MultiClientState,
+    projectId: ProjectId,
+    version: nat,
+    model: Model
+  ): MultiClientState
+  {
+    var newVersions := map[projectId := version];
+    var newModels := map[projectId := model];
+    var (mergedV, mergedM) := MergeUpdates(client, newVersions, newModels);
+    var reappliedModel := ReapplyPending(mergedM, client.pending);
+    MultiClientState(mergedV, reappliedModel, client.pending)
+  }
+
   // ===========================================================================
   // State Transitions
   // ===========================================================================
@@ -338,6 +358,15 @@ abstract module MultiProjectEffectStateMachine {
         else
           (newState, NoOp)
 
+      case RealtimeUpdate(projectId, version, model) =>
+        // Skip realtime updates while dispatching - dispatch response will bring fresh state
+        if es.mode.Dispatching? then
+          (es, NoOp)
+        else
+          // Merge update and reapply pending actions (preserving them)
+          var newClient := HandleRealtimeUpdate(es.client, projectId, version, model);
+          (es.(client := newClient), NoOp)
+
       case Tick =>
         if CanStartDispatch(es) then
           var firstAction := FirstPendingAction(es);
@@ -398,6 +427,7 @@ abstract module MultiProjectEffectStateMachine {
               case DispatchAccepted(_, _) => PendingCount(es') >= PendingCount(es) - 1
               case DispatchRejected(_, _) => PendingCount(es') >= PendingCount(es) - 1
               case DispatchConflict(_, _) => PendingCount(es') == PendingCount(es)
+              case RealtimeUpdate(_, _, _) => PendingCount(es') == PendingCount(es)
               case NetworkError => PendingCount(es') == PendingCount(es)
               case NetworkRestored => PendingCount(es') == PendingCount(es)
               case ManualGoOffline => PendingCount(es') == PendingCount(es)
@@ -410,6 +440,13 @@ abstract module MultiProjectEffectStateMachine {
     requires Inv(es)
     requires es.mode.Dispatching?
     ensures var (es', _) := Step(es, DispatchConflict(freshVersions, freshModels));
+            Pending(es') == Pending(es)
+  {}
+
+  // Property: RealtimeUpdate preserves pending exactly
+  lemma RealtimeUpdatePreservesPendingExactly(es: EffectState, projectId: ProjectId, version: nat, model: Model)
+    requires Inv(es)
+    ensures var (es', _) := Step(es, RealtimeUpdate(projectId, version, model));
             Pending(es') == Pending(es)
   {}
 

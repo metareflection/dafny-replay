@@ -358,26 +358,17 @@ export class MultiProjectEffectManager {
       }, (payload) => {
         if (!this.#state) return
         if (!App.EffectState.isOnline(this.#state)) return
-        if (App.EffectState.isDispatching(this.#state)) return
 
         const currentVersions = App.EffectState.getBaseVersions(this.#state)
         const serverVersion = currentVersions[projectId] || 0
 
         if (payload.new.version > serverVersion) {
-          // Realtime update for this project
-          // For now, just merge the new state
-          const newVersions = { [projectId]: payload.new.version }
-          const newStates = { [projectId]: payload.new.state }
-
-          // Use DispatchAccepted-like event to merge (no action was pending from us)
-          // Actually we should have a RealtimeUpdate event, but for now use accepted
-          // This is a simplification - proper handling would preserve pending actions
-          const currentModelsJson = App.EffectState.getMultiModelJson(this.#state)
-          const allVersions = { ...currentVersions, ...newVersions }
-          const allModels = { ...currentModelsJson.projects, ...newStates }
-
-          this.#state = App.EffectInit(allVersions, allModels)
-          this.#notify()
+          // VERIFIED: Use RealtimeUpdate event (preserves pending actions)
+          this.#transition(App.EffectEvent.RealtimeUpdate(
+            projectId,
+            payload.new.version,
+            payload.new.state
+          ))
         }
       })
       .subscribe()

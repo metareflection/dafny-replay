@@ -388,6 +388,8 @@ module TodoMultiCollaborationProof {
   lemma {:axiom} CountAfterRemoveAll(lists: seq<ListId>, tasks: map<ListId, seq<TaskId>>, id: TaskId)
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
     ensures CountInListsHelper(lists, map l | l in tasks :: RemoveFirst(tasks[l], id), id) == 0
+  // Dafny limitation: can't connect local map comprehension variable to ensures clause.
+  // Proof idea verified in CountAfterRemoveAll_Wrapper.
 
   // Count when id appears in exactly one list at a specific position
   lemma CountInListsHelper_ExactlyInOne(
@@ -840,8 +842,8 @@ module TodoMultiCollaborationProof {
     ensures CountInListsHelper(lists, newTasks, otherId) == CountInListsHelper(lists, tasks, otherId)
 
   // Wrapper for CountAfterRemoveAll
-  // Uses axiom because Dafny can't unify map comprehension with local variable
-  lemma {:axiom} CountAfterRemoveAll_Wrapper(
+  // Takes concrete newTasks map instead of map comprehension in postcondition
+  lemma CountAfterRemoveAll_Wrapper(
     lists: seq<ListId>,
     tasks: map<ListId, seq<TaskId>>,
     newTasks: map<ListId, seq<TaskId>>,
@@ -850,6 +852,24 @@ module TodoMultiCollaborationProof {
     requires forall l :: l in tasks ==> NoDupSeq(tasks[l])
     requires newTasks == map l | l in tasks :: RemoveFirst(tasks[l], id)
     ensures CountInListsHelper(lists, newTasks, id) == 0
+    decreases |lists|
+  {
+    if |lists| == 0 {
+      // Base case
+    } else {
+      var head := lists[0];
+      // Induction
+      CountAfterRemoveAll_Wrapper(lists[1..], tasks, newTasks, id);
+
+      // Show head doesn't contribute
+      if head in newTasks {
+        assert head in tasks;
+        assert newTasks[head] == RemoveFirst(tasks[head], id);
+        RemoveFirstSeqContains(tasks[head], id, id);
+        assert !SeqContains(newTasks[head], id);
+      }
+    }
+  }
 
   // If task is in a list that's in the sequence, count is at least 1
   lemma CountInListsHelper_HasOne(
