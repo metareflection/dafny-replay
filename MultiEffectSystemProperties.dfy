@@ -154,6 +154,9 @@ abstract module MultiEffectSystemProperties {
         case ManualGoOnline =>
         case Tick =>
           // All these preserve pending
+
+        case RealtimeUpdate(_, _, _) =>
+          // Realtime updates from other clients preserve pending
       }
     }
   }
@@ -239,6 +242,9 @@ abstract module MultiEffectSystemProperties {
 
       case Tick =>
         // pending unchanged
+
+      case RealtimeUpdate(_, _, _) =>
+        // Realtime updates from other clients preserve pending
     }
   }
 

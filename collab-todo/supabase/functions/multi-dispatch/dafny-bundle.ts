@@ -2482,175 +2482,6 @@ let TodoDomain = (function() {
     static GetTags(m) {
       return ((m).dtor_tags).Keys;
     };
-    static EmptyMultiModel() {
-      return _dafny.Map.Empty.slice();
-    };
-    static SetProject(mm, projectId, model) {
-      return ((mm)).update(projectId, model);
-    };
-    static RemoveProject(mm, projectId) {
-      return ((mm)).Subtract(_dafny.Set.fromElements(projectId));
-    };
-    static GetProject(mm, projectId) {
-      if (((mm)).contains(projectId)) {
-        return TodoDomain.Option.create_Some(((mm)).get(projectId));
-      } else {
-        return TodoDomain.Option.create_None();
-      }
-    };
-    static GetProjectIds(mm) {
-      return ((mm)).Keys;
-    };
-    static CountProjects(mm) {
-      return new BigNumber(((mm)).length);
-    };
-    static GetAllPriorityTasks(mm) {
-      return function () {
-        let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm)).Keys.Elements) {
-          let _0_pid = _compr_0;
-          if (((mm)).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).Elements) {
-              let _1_tid = _compr_1;
-              if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
-                  _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
-                }
-              }
-            }
-          }
-        }
-        return _coll0;
-      }();
-    };
-    static GetAllLogbookTasks(mm) {
-      return function () {
-        let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm)).Keys.Elements) {
-          let _0_pid = _compr_0;
-          if (((mm)).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).Elements) {
-              let _1_tid = _compr_1;
-              if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
-                  _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
-                }
-              }
-            }
-          }
-        }
-        return _coll0;
-      }();
-    };
-    static GetAllSmartListTasks(mm, smartList) {
-      let _source0 = smartList;
-      {
-        if (_source0.is_Priority) {
-          return TodoDomain.__default.GetAllPriorityTasks(mm);
-        }
-      }
-      {
-        return TodoDomain.__default.GetAllLogbookTasks(mm);
-      }
-    };
-    static CountAllPriorityTasks(mm) {
-      return new BigNumber((TodoDomain.__default.GetAllPriorityTasks(mm)).length);
-    };
-    static CountAllLogbookTasks(mm) {
-      return new BigNumber((TodoDomain.__default.GetAllLogbookTasks(mm)).length);
-    };
-    static CountAllSmartListTasks(mm, smartList) {
-      return new BigNumber((TodoDomain.__default.GetAllSmartListTasks(mm, smartList)).length);
-    };
-    static InitViewState() {
-      return TodoDomain.ViewState.create_ViewState(TodoDomain.ViewMode.create_AllProjects(), TodoDomain.SidebarSelection.create_NoSelection(), TodoDomain.__default.EmptyMultiModel());
-    };
-    static SetViewMode(vs, mode) {
-      return TodoDomain.ViewState.create_ViewState(mode, (vs).dtor_selection, (vs).dtor_loadedProjects);
-    };
-    static SelectSmartList(vs, smartList) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_SmartListSelected(smartList), (vs).dtor_loadedProjects);
-    };
-    static SelectProject(vs, projectId) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_ProjectSelected(projectId), (vs).dtor_loadedProjects);
-    };
-    static SelectList(vs, projectId, listId) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_ListSelected(projectId, listId), (vs).dtor_loadedProjects);
-    };
-    static ClearSelection(vs) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, TodoDomain.SidebarSelection.create_NoSelection(), (vs).dtor_loadedProjects);
-    };
-    static LoadProject(vs, projectId, model) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, (vs).dtor_selection, TodoDomain.__default.SetProject((vs).dtor_loadedProjects, projectId, model));
-    };
-    static UnloadProject(vs, projectId) {
-      return TodoDomain.ViewState.create_ViewState((vs).dtor_viewMode, (vs).dtor_selection, TodoDomain.__default.RemoveProject((vs).dtor_loadedProjects, projectId));
-    };
-    static GetTasksToDisplay(vs) {
-      let _source0 = (vs).dtor_selection;
-      {
-        if (_source0.is_NoSelection) {
-          return _dafny.Set.fromElements();
-        }
-      }
-      {
-        if (_source0.is_SmartListSelected) {
-          let _0_smartList = (_source0).smartList;
-          return TodoDomain.__default.GetAllSmartListTasks((vs).dtor_loadedProjects, _0_smartList);
-        }
-      }
-      {
-        if (_source0.is_ProjectSelected) {
-          let _1_projectId = (_source0).projectId;
-          if ((((vs).dtor_loadedProjects)).contains(_1_projectId)) {
-            let _2_m = (((vs).dtor_loadedProjects)).get(_1_projectId);
-            return function () {
-              let _coll0 = new _dafny.Set();
-              for (const _compr_0 of (TodoDomain.__default.GetVisibleTaskIds(_2_m)).Elements) {
-                let _3_tid = _compr_0;
-                if (_System.nat._Is(_3_tid)) {
-                  if ((TodoDomain.__default.GetVisibleTaskIds(_2_m)).contains(_3_tid)) {
-                    _coll0.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_1_projectId, _3_tid));
-                  }
-                }
-              }
-              return _coll0;
-            }();
-          } else {
-            return _dafny.Set.fromElements();
-          }
-        }
-      }
-      {
-        let _4_projectId = (_source0).projectId;
-        let _5_listId = (_source0).listId;
-        if ((((vs).dtor_loadedProjects)).contains(_4_projectId)) {
-          let _6_m = (((vs).dtor_loadedProjects)).get(_4_projectId);
-          return function () {
-            let _coll1 = new _dafny.Set();
-            if (((_6_m).dtor_tasks).contains(_5_listId)) {
-              for (const _compr_1 of ((_6_m).dtor_taskData).Keys.Elements) {
-                let _7_tid = _compr_1;
-                if (_System.nat._Is(_7_tid)) {
-                  if (((((_6_m).dtor_taskData).contains(_7_tid)) && (TodoDomain.__default.SeqContains(((_6_m).dtor_tasks).get(_5_listId), _7_tid))) && (TodoDomain.__default.IsVisibleTask(((_6_m).dtor_taskData).get(_7_tid)))) {
-                    _coll1.add(TodoDomain.TaggedTaskId.create_TaggedTaskId(_4_projectId, _7_tid));
-                  }
-                }
-              }
-            }
-            return _coll1;
-          }();
-        } else {
-          return _dafny.Set.fromElements();
-        }
-      }
-    };
-    static GetSmartListCount(vs, smartList) {
-      return TodoDomain.__default.CountAllSmartListTasks((vs).dtor_loadedProjects, smartList);
-    };
-    static IsProjectLoaded(vs, projectId) {
-      return (((vs).dtor_loadedProjects)).contains(projectId);
-    };
     static RebaseThroughSuffix(suffix, a) {
       TAIL_CALL_START: while (true) {
         if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
@@ -3675,200 +3506,6 @@ let TodoDomain = (function() {
     }
   }
 
-  \$module.MultiModel = class MultiModel {
-    constructor(tag) {
-      this.\$tag = tag;
-    }
-    static create_MultiModel(projects) {
-      let \$dt = new MultiModel(0);
-      \$dt.projects = projects;
-      return \$dt;
-    }
-    get is_MultiModel() { return this.\$tag === 0; }
-    get dtor_projects() { return this.projects; }
-    toString() {
-      if (this.\$tag === 0) {
-        return "TodoDomain.MultiModel.MultiModel" + "(" + _dafny.toString(this.projects) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.projects, other.projects);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return _dafny.Map.Empty;
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return MultiModel.Default();
-        }
-      };
-    }
-  }
-
-  \$module.TaggedTaskId = class TaggedTaskId {
-    constructor(tag) {
-      this.\$tag = tag;
-    }
-    static create_TaggedTaskId(projectId, taskId) {
-      let \$dt = new TaggedTaskId(0);
-      \$dt.projectId = projectId;
-      \$dt.taskId = taskId;
-      return \$dt;
-    }
-    get is_TaggedTaskId() { return this.\$tag === 0; }
-    get dtor_projectId() { return this.projectId; }
-    get dtor_taskId() { return this.taskId; }
-    toString() {
-      if (this.\$tag === 0) {
-        return "TodoDomain.TaggedTaskId.TaggedTaskId" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.taskId) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.taskId, other.taskId);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return TodoDomain.TaggedTaskId.create_TaggedTaskId(_dafny.Seq.UnicodeFromString(""), _dafny.ZERO);
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return TaggedTaskId.Default();
-        }
-      };
-    }
-  }
-
-  \$module.SidebarSelection = class SidebarSelection {
-    constructor(tag) {
-      this.\$tag = tag;
-    }
-    static create_NoSelection() {
-      let \$dt = new SidebarSelection(0);
-      return \$dt;
-    }
-    static create_SmartListSelected(smartList) {
-      let \$dt = new SidebarSelection(1);
-      \$dt.smartList = smartList;
-      return \$dt;
-    }
-    static create_ProjectSelected(projectId) {
-      let \$dt = new SidebarSelection(2);
-      \$dt.projectId = projectId;
-      return \$dt;
-    }
-    static create_ListSelected(projectId, listId) {
-      let \$dt = new SidebarSelection(3);
-      \$dt.projectId = projectId;
-      \$dt.listId = listId;
-      return \$dt;
-    }
-    get is_NoSelection() { return this.\$tag === 0; }
-    get is_SmartListSelected() { return this.\$tag === 1; }
-    get is_ProjectSelected() { return this.\$tag === 2; }
-    get is_ListSelected() { return this.\$tag === 3; }
-    get dtor_smartList() { return this.smartList; }
-    get dtor_projectId() { return this.projectId; }
-    get dtor_listId() { return this.listId; }
-    toString() {
-      if (this.\$tag === 0) {
-        return "TodoDomain.SidebarSelection.NoSelection";
-      } else if (this.\$tag === 1) {
-        return "TodoDomain.SidebarSelection.SmartListSelected" + "(" + _dafny.toString(this.smartList) + ")";
-      } else if (this.\$tag === 2) {
-        return "TodoDomain.SidebarSelection.ProjectSelected" + "(" + this.projectId.toVerbatimString(true) + ")";
-      } else if (this.\$tag === 3) {
-        return "TodoDomain.SidebarSelection.ListSelected" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.listId) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0;
-      } else if (this.\$tag === 1) {
-        return other.\$tag === 1 && _dafny.areEqual(this.smartList, other.smartList);
-      } else if (this.\$tag === 2) {
-        return other.\$tag === 2 && _dafny.areEqual(this.projectId, other.projectId);
-      } else if (this.\$tag === 3) {
-        return other.\$tag === 3 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.listId, other.listId);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return TodoDomain.SidebarSelection.create_NoSelection();
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return SidebarSelection.Default();
-        }
-      };
-    }
-  }
-
-  \$module.ViewState = class ViewState {
-    constructor(tag) {
-      this.\$tag = tag;
-    }
-    static create_ViewState(viewMode, selection, loadedProjects) {
-      let \$dt = new ViewState(0);
-      \$dt.viewMode = viewMode;
-      \$dt.selection = selection;
-      \$dt.loadedProjects = loadedProjects;
-      return \$dt;
-    }
-    get is_ViewState() { return this.\$tag === 0; }
-    get dtor_viewMode() { return this.viewMode; }
-    get dtor_selection() { return this.selection; }
-    get dtor_loadedProjects() { return this.loadedProjects; }
-    toString() {
-      if (this.\$tag === 0) {
-        return "TodoDomain.ViewState.ViewState" + "(" + _dafny.toString(this.viewMode) + ", " + _dafny.toString(this.selection) + ", " + _dafny.toString(this.loadedProjects) + ")";
-      } else  {
-        return "<unexpected>";
-      }
-    }
-    equals(other) {
-      if (this === other) {
-        return true;
-      } else if (this.\$tag === 0) {
-        return other.\$tag === 0 && _dafny.areEqual(this.viewMode, other.viewMode) && _dafny.areEqual(this.selection, other.selection) && _dafny.areEqual(this.loadedProjects, other.loadedProjects);
-      } else  {
-        return false; // unexpected
-      }
-    }
-    static Default() {
-      return TodoDomain.ViewState.create_ViewState(TodoDomain.ViewMode.Default(), TodoDomain.SidebarSelection.Default(), _dafny.Map.Empty);
-    }
-    static Rtd() {
-      return class {
-        static get Default() {
-          return ViewState.Default();
-        }
-      };
-    }
-  }
-
   \$module.Result = class Result {
     constructor(tag) {
       this.\$tag = tag;
@@ -4753,6 +4390,77 @@ let TodoMultiProjectDomain = (function() {
         }
       }
     };
+    static GetAllPriorityTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm)).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetAllLogbookTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm)).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static GetAllSmartListTasks(mm, smartList) {
+      let _source0 = smartList;
+      {
+        if (_source0.is_Priority) {
+          return TodoMultiProjectDomain.__default.GetAllPriorityTasks(mm);
+        }
+      }
+      {
+        return TodoMultiProjectDomain.__default.GetAllLogbookTasks(mm);
+      }
+    };
+    static CountAllPriorityTasks(mm) {
+      return new BigNumber((TodoMultiProjectDomain.__default.GetAllPriorityTasks(mm)).length);
+    };
+    static CountAllLogbookTasks(mm) {
+      return new BigNumber((TodoMultiProjectDomain.__default.GetAllLogbookTasks(mm)).length);
+    };
+    static CountAllSmartListTasks(mm, smartList) {
+      return new BigNumber((TodoMultiProjectDomain.__default.GetAllSmartListTasks(mm, smartList)).length);
+    };
+    static GetProject(mm, projectId) {
+      if (((mm)).contains(projectId)) {
+        return TodoMultiProjectDomain.Option.create_Some(((mm)).get(projectId));
+      } else {
+        return TodoMultiProjectDomain.Option.create_None();
+      }
+    };
+    static GetProjectIds(mm) {
+      return ((mm)).Keys;
+    };
+    static CountProjects(mm) {
+      return new BigNumber(((mm)).length);
+    };
     static AllProjectsLoaded(mm, a) {
       return _dafny.Quantifier((TodoMultiProjectDomain.__default.TouchedProjects(a)).Elements, true, function (_forall_var_0) {
         let _0_pid = _forall_var_0;
@@ -4924,6 +4632,47 @@ let TodoMultiProjectDomain = (function() {
       return class {
         static get Default() {
           return TodoMultiErr.Default();
+        }
+      };
+    }
+  }
+
+  \$module.TaggedTaskId = class TaggedTaskId {
+    constructor(tag) {
+      this.\$tag = tag;
+    }
+    static create_TaggedTaskId(projectId, taskId) {
+      let \$dt = new TaggedTaskId(0);
+      \$dt.projectId = projectId;
+      \$dt.taskId = taskId;
+      return \$dt;
+    }
+    get is_TaggedTaskId() { return this.\$tag === 0; }
+    get dtor_projectId() { return this.projectId; }
+    get dtor_taskId() { return this.taskId; }
+    toString() {
+      if (this.\$tag === 0) {
+        return "TodoMultiProjectDomain.TaggedTaskId.TaggedTaskId" + "(" + this.projectId.toVerbatimString(true) + ", " + _dafny.toString(this.taskId) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.\$tag === 0) {
+        return other.\$tag === 0 && _dafny.areEqual(this.projectId, other.projectId) && _dafny.areEqual(this.taskId, other.taskId);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_dafny.Seq.UnicodeFromString(""), _dafny.ZERO);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return TaggedTaskId.Default();
         }
       };
     }

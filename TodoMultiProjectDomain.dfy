@@ -470,4 +470,79 @@ module TodoMultiProjectDomain refines MultiProject {
   {
     // Trivial: all branches start with [a, ...]
   }
+
+  // ===========================================================================
+  // View Layer: Multi-Project Queries (compiled)
+  // ===========================================================================
+  //
+  // These functions query across all loaded projects. They use the single
+  // MultiModel definition from MultiProject (no separate definition needed).
+
+  // Re-export SmartListType for convenience
+  type SmartListType = MC.D.SmartListType
+
+  // Tagged task ID: includes project context
+  datatype TaggedTaskId = TaggedTaskId(projectId: ProjectId, taskId: TaskId)
+
+  // Get all priority tasks across all projects
+  function GetAllPriorityTasks(mm: MultiModel): set<TaggedTaskId>
+  {
+    set pid, tid | pid in mm.projects && tid in MC.D.GetPriorityTaskIds(mm.projects[pid])
+      :: TaggedTaskId(pid, tid)
+  }
+
+  // Get all logbook tasks across all projects
+  function GetAllLogbookTasks(mm: MultiModel): set<TaggedTaskId>
+  {
+    set pid, tid | pid in mm.projects && tid in MC.D.GetLogbookTaskIds(mm.projects[pid])
+      :: TaggedTaskId(pid, tid)
+  }
+
+  // Get all tasks matching a smart list across all projects
+  function GetAllSmartListTasks(mm: MultiModel, smartList: SmartListType): set<TaggedTaskId>
+  {
+    match smartList
+      case Priority => GetAllPriorityTasks(mm)
+      case Logbook => GetAllLogbookTasks(mm)
+  }
+
+  // Count priority tasks across all projects
+  function CountAllPriorityTasks(mm: MultiModel): nat
+  {
+    |GetAllPriorityTasks(mm)|
+  }
+
+  // Count logbook tasks across all projects
+  function CountAllLogbookTasks(mm: MultiModel): nat
+  {
+    |GetAllLogbookTasks(mm)|
+  }
+
+  // Count tasks matching a smart list across all projects
+  function CountAllSmartListTasks(mm: MultiModel, smartList: SmartListType): nat
+  {
+    |GetAllSmartListTasks(mm, smartList)|
+  }
+
+  // ---------------------------------------------------------------------------
+  // MultiModel Helpers (compiled)
+  // ---------------------------------------------------------------------------
+
+  // Get a project from the multi-model
+  function GetProject(mm: MultiModel, projectId: ProjectId): Option<Model>
+  {
+    if projectId in mm.projects then Some(mm.projects[projectId]) else None
+  }
+
+  // Get all project IDs
+  function GetProjectIds(mm: MultiModel): set<ProjectId>
+  {
+    mm.projects.Keys
+  }
+
+  // Count projects
+  function CountProjects(mm: MultiModel): nat
+  {
+    |mm.projects|
+  }
 }

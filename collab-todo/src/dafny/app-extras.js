@@ -366,7 +366,7 @@ const App = {
     // Returns array of { projectId, taskId }
     getAllPriorityTasks: (mm) => {
       if (!mm) return [];
-      const taggedSet = TodoDomain.__default.GetAllPriorityTasks(mm);
+      const taggedSet = TodoMultiProjectDomain.__default.GetAllPriorityTasks(mm);
       return dafnySetToArray(taggedSet, (tagged) => ({
         projectId: dafnyStringToJs(tagged.dtor_projectId),
         taskId: toNumber(tagged.dtor_taskId)
@@ -377,7 +377,7 @@ const App = {
     // Returns array of { projectId, taskId }
     getAllLogbookTasks: (mm) => {
       if (!mm) return [];
-      const taggedSet = TodoDomain.__default.GetAllLogbookTasks(mm);
+      const taggedSet = TodoMultiProjectDomain.__default.GetAllLogbookTasks(mm);
       return dafnySetToArray(taggedSet, (tagged) => ({
         projectId: dafnyStringToJs(tagged.dtor_projectId),
         taskId: toNumber(tagged.dtor_taskId)
@@ -387,13 +387,13 @@ const App = {
     // VERIFIED: Count priority tasks
     countPriorityTasks: (mm) => {
       if (!mm) return 0;
-      return toNumber(TodoDomain.__default.CountAllPriorityTasks(mm));
+      return toNumber(TodoMultiProjectDomain.__default.CountAllPriorityTasks(mm));
     },
 
     // VERIFIED: Count logbook tasks
     countLogbookTasks: (mm) => {
       if (!mm) return 0;
-      return toNumber(TodoDomain.__default.CountAllLogbookTasks(mm));
+      return toNumber(TodoMultiProjectDomain.__default.CountAllLogbookTasks(mm));
     },
 
     // Convert to JSON
