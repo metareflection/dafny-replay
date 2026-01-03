@@ -363,6 +363,37 @@ RETURNS JSONB
 | Edge function orchestration | Unverified | I/O glue code |
 | `save_multi_update` | SQL | Tested, not formally verified |
 
+## Invariant Preservation
+
+**Both edge functions preserve invariants.** This is the core safety guarantee.
+
+```dafny
+// MultiProject.dfy
+ghost predicate MultiInv(mm: MultiModel) {
+  forall pid :: pid in mm.projects ==> Inv(mm.projects[pid])
+}
+
+lemma MultiStepPreservesInv(mm: MultiModel, a: MultiAction, mm2: MultiModel)
+  requires MultiInv(mm)
+  requires MultiStep(mm, a) == Ok(mm2)
+  ensures MultiInv(mm2)
+```
+
+The two endpoints differ in **conflict handling**, not **safety**:
+
+| Endpoint | Dafny Function | On Conflict |
+|----------|----------------|-------------|
+| `/dispatch` | `Dispatch` (full OT) | Rebase → retry → Candidates |
+| `/multi-dispatch` | `TryMultiStep` | Reject (client rebased) |
+
+| Scenario | `/dispatch` | `/multi-dispatch` |
+|----------|------------|-------------------|
+| Action succeeds | Accept ✓ | Accept ✓ |
+| Concurrent conflict | Rebase + retry | Reject |
+| Would violate invariant | Reject | Reject |
+
+For cross-project actions, the client performs `MultiRebase` before sending, so server-side rebasing is less critical. The invariant is **always** preserved by the verified Dafny code.
+
 ## Verification Summary
 
 | Module | Proofs |

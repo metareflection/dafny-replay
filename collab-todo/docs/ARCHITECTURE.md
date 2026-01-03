@@ -184,6 +184,22 @@ App.GetTasksInList(model, listId)    // → TaskId[]
 | `src/hooks/MultiProjectEffectManager.js` | Effect orchestration + I/O |
 | `src/hooks/useAllProjects.js` | React hook for multi-project state |
 
+## Edge Function Dispatch
+
+The client routes actions to two different edge functions:
+
+```javascript
+if (isSingleProject) {
+  // → 'dispatch' endpoint (full OT: Rebase + Candidates)
+} else {
+  // → 'multi-dispatch' endpoint (simpler: TryMultiStep)
+}
+```
+
+**Both endpoints preserve invariants** — neither will accept an invariant-violating state. The difference is conflict handling: `dispatch` tries harder to salvage conflicting actions via Rebase and Candidates, while `multi-dispatch` simply rejects (the client already rebased).
+
+See [MULTIPROJECT.md](../../MULTIPROJECT.md#invariant-preservation) for details on the verified invariant guarantees.
+
 ## Trust Boundaries
 
 | Layer | Verified? | Notes |
@@ -197,8 +213,9 @@ App.GetTasksInList(model, listId)    // → TaskId[]
 ## Summary
 
 1. **All state transitions** go through verified `App.EffectStep()`
-2. **Multi-project queries** use verified functions from `TodoMultiProjectDomain`
-3. **Single-project queries** use verified functions from `TodoDomain`
-4. **Single MultiModel type** — defined once in `MultiProject.dfy`, used everywhere
-5. **Reactive updates** flow via `useSyncExternalStore`
-6. **Clean architecture** — verified core, unverified I/O shell
+2. **Invariants always preserved** — both `dispatch` and `multi-dispatch` use verified Dafny
+3. **Multi-project queries** use verified functions from `TodoMultiProjectDomain`
+4. **Single-project queries** use verified functions from `TodoDomain`
+5. **Single MultiModel type** — defined once in `MultiProject.dfy`, used everywhere
+6. **Reactive updates** flow via `useSyncExternalStore`
+7. **Clean architecture** — verified core, unverified I/O shell
