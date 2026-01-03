@@ -255,7 +255,7 @@ function TodoApp({ user, onSignOut }) {
 
   const handleSelectView = (view) => {
     setSelectedView(view)
-    setSelectedProjectId(null)
+    // Keep selectedProjectId for filtering in single mode
     setSelectedListId(null)
   }
 
@@ -316,9 +316,25 @@ function TodoApp({ user, onSignOut }) {
     return getProjectLists(projectId)
   }
 
-  // Count calculations for sidebar (smart lists always show all projects)
-  const priorityCount = priorityTasks.length
-  const logbookCount = logbookTasks.length
+  // Get priority/logbook tasks - respects viewMode
+  // In single mode, filter to selected project (still uses verified Dafny data)
+  const filteredPriorityTasks = useMemo(() => {
+    if (viewMode === 'single' && selectedProjectId) {
+      return priorityTasks.filter(t => t.projectId === selectedProjectId)
+    }
+    return priorityTasks
+  }, [viewMode, selectedProjectId, priorityTasks])
+
+  const filteredLogbookTasks = useMemo(() => {
+    if (viewMode === 'single' && selectedProjectId) {
+      return logbookTasks.filter(t => t.projectId === selectedProjectId)
+    }
+    return logbookTasks
+  }, [viewMode, selectedProjectId, logbookTasks])
+
+  // Count calculations for sidebar
+  const priorityCount = filteredPriorityTasks.length
+  const logbookCount = filteredLogbookTasks.length
 
   // Get lists for single project mode
   const singleProjectLists = useMemo(() => {
@@ -333,10 +349,10 @@ function TodoApp({ user, onSignOut }) {
   const renderContent = () => {
     // Smart list views
     if (selectedView === 'priority') {
-      // Smart lists always show tasks from all projects
+      // Respects viewMode: single mode shows only selected project
       return (
         <PriorityView
-          tasks={priorityTasks}
+          tasks={filteredPriorityTasks}
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
           onEditTask={handleEditTaskAll}
@@ -348,10 +364,10 @@ function TodoApp({ user, onSignOut }) {
     }
 
     if (selectedView === 'logbook') {
-      // Smart lists always show tasks from all projects
+      // Respects viewMode: single mode shows only selected project
       return (
         <LogbookView
-          tasks={logbookTasks}
+          tasks={filteredLogbookTasks}
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
         />
