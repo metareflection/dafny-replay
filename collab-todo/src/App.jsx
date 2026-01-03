@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Star, CheckSquare, Circle } from 'lucide-react'
 import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
 import { useProjects } from './hooks/useCollaborativeProject.js'
-import { useCollaborativeProjectOffline } from './hooks/useCollaborativeProjectOffline.js'
 import { useAllProjects } from './hooks/useAllProjects.js'
 import App from './dafny/app-extras.js'
 
@@ -207,21 +206,7 @@ function TodoApp({ user, onSignOut }) {
   // Projects list
   const { projects, loading: projectsLoading, createProject, refresh: refreshProjects } = useProjects()
 
-  // Single project mode
-  const {
-    model: singleModel,
-    version,
-    dispatch: singleDispatch,
-    sync,
-    pendingCount,
-    error: singleError,
-    status,
-    isOffline,
-    toggleOffline,
-    isFlushing
-  } = useCollaborativeProjectOffline(selectedProjectId)
-
-  // All projects mode
+  // Unified multi-project state (single source of truth)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects])
   const {
     projectData,
@@ -231,15 +216,29 @@ function TodoApp({ user, onSignOut }) {
     logbookTasks,
     getProjectModel,
     getProjectLists,
-    getListTaskCount
-  } = useAllProjects(projectIds) // Always load for smart lists
+    getListTaskCount,
+    refresh: sync,
+    error,
+    status,
+    isOffline,
+    toggleOffline,
+    pendingCount,
+    hasPending: isFlushing
+  } = useAllProjects(projectIds)
+
+  // Derive single-project model from unified state
+  const singleModel = selectedProjectId ? getProjectModel(selectedProjectId) : null
+  const singleDispatch = useMemo(
+    () => selectedProjectId ? createDispatch(selectedProjectId) : () => {},
+    [selectedProjectId, createDispatch]
+  )
 
   // Show errors as toast
   useEffect(() => {
-    if (singleError) {
-      setToast({ message: singleError, type: 'error' })
+    if (error) {
+      setToast({ message: error, type: 'error' })
     }
-  }, [singleError])
+  }, [error])
 
   // Handlers
   const handleSelectProject = (projectId) => {
@@ -317,40 +316,9 @@ function TodoApp({ user, onSignOut }) {
     return getProjectLists(projectId)
   }
 
-  // Count calculations for sidebar
-  const priorityCount = useMemo(() => {
-    if (viewMode === 'all') {
-      return priorityTasks.length
-    }
-    if (!singleModel) return 0
-    const lists = App.GetLists(singleModel)
-    let count = 0
-    for (const listId of lists) {
-      const taskIds = App.GetTasksInList(singleModel, listId)
-      for (const taskId of taskIds) {
-        const task = App.GetTask(singleModel, taskId)
-        if (task.starred && !task.completed && !task.deleted) count++
-      }
-    }
-    return count
-  }, [viewMode, singleModel, priorityTasks])
-
-  const logbookCount = useMemo(() => {
-    if (viewMode === 'all') {
-      return logbookTasks.length
-    }
-    if (!singleModel) return 0
-    const lists = App.GetLists(singleModel)
-    let count = 0
-    for (const listId of lists) {
-      const taskIds = App.GetTasksInList(singleModel, listId)
-      for (const taskId of taskIds) {
-        const task = App.GetTask(singleModel, taskId)
-        if (task.completed && !task.deleted) count++
-      }
-    }
-    return count
-  }, [viewMode, singleModel, logbookTasks])
+  // Count calculations for sidebar (smart lists always show all projects)
+  const priorityCount = priorityTasks.length
+  const logbookCount = logbookTasks.length
 
   // Get lists for single project mode
   const singleProjectLists = useMemo(() => {
