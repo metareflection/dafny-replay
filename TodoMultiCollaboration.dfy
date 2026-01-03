@@ -393,6 +393,110 @@ module TodoDomain refines TodoDomainSpec {
     }
   }
 
+  // Helper: contribution of a single list to the count
+  function ListContrib(l: ListId, tasks: map<ListId, seq<TaskId>>, id: TaskId): nat
+  {
+    if l in tasks && SeqContains(tasks[l], id) then 1 else 0
+  }
+
+  // RemoveFirst from lists decreases count by the removed element's contribution
+  lemma CountInListsHelper_RemoveFirst(lists: seq<ListId>, tasks: map<ListId, seq<TaskId>>, l: ListId, id: TaskId)
+    requires NoDupSeq(lists)
+    requires SeqContains(lists, l)
+    ensures CountInListsHelper(RemoveFirst(lists, l), tasks, id) ==
+            CountInListsHelper(lists, tasks, id) - ListContrib(l, tasks, id)
+    decreases |lists|
+  {
+    if |lists| == 0 {
+      // Contradiction: SeqContains([], l) is false
+    } else if lists[0] == l {
+      // RemoveFirst(lists, l) == lists[1..]
+      assert RemoveFirst(lists, l) == lists[1..];
+      // CountInListsHelper(lists, tasks, id) = ListContrib(l, tasks, id) + CountInListsHelper(lists[1..], tasks, id)
+      // CountInListsHelper(lists[1..], tasks, id) = CountInListsHelper(lists, tasks, id) - ListContrib(l, tasks, id)
+    } else {
+      // lists[0] != l, so RemoveFirst(lists, l) = [lists[0]] + RemoveFirst(lists[1..], l)
+      NoDupSeqTail(lists);
+      assert SeqContains(lists[1..], l) by {
+        var i :| 0 <= i < |lists| && lists[i] == l;
+        assert i != 0;
+        assert lists[1..][i-1] == l;
+      }
+      CountInListsHelper_RemoveFirst(lists[1..], tasks, l, id);
+      // CountInListsHelper(RemoveFirst(lists[1..], l), tasks, id) ==
+      //   CountInListsHelper(lists[1..], tasks, id) - ListContrib(l, tasks, id)
+
+      var result := RemoveFirst(lists, l);
+      assert result == [lists[0]] + RemoveFirst(lists[1..], l);
+
+      // CountInListsHelper(result, tasks, id) = ListContrib(lists[0], tasks, id) + CountInListsHelper(RemoveFirst(lists[1..], l), tasks, id)
+      // = ListContrib(lists[0], tasks, id) + CountInListsHelper(lists[1..], tasks, id) - ListContrib(l, tasks, id)
+      // = CountInListsHelper(lists, tasks, id) - ListContrib(l, tasks, id)
+    }
+  }
+
+  // InsertAt into lists increases count by the inserted element's contribution
+  lemma CountInListsHelper_InsertAt(lists: seq<ListId>, k: nat, l: ListId, tasks: map<ListId, seq<TaskId>>, id: TaskId)
+    requires k <= |lists|
+    requires !SeqContains(lists, l)
+    ensures CountInListsHelper(InsertAt(lists, k, l), tasks, id) ==
+            CountInListsHelper(lists, tasks, id) + ListContrib(l, tasks, id)
+    decreases |lists|
+  {
+    var result := InsertAt(lists, k, l);
+    if k == 0 {
+      // result = [l] + lists
+      assert result == [l] + lists;
+      // CountInListsHelper(result, tasks, id) = ListContrib(l, tasks, id) + CountInListsHelper(lists, tasks, id)
+    } else {
+      // k > 0, result = [lists[0]] + InsertAt(lists[1..], k-1, l)
+      assert result == lists[..k] + [l] + lists[k..];
+      assert result[0] == lists[0];
+      assert result[1..] == lists[1..k] + [l] + lists[k..];
+      assert result[1..] == InsertAt(lists[1..], k-1, l);
+
+      assert !SeqContains(lists[1..], l) by {
+        if SeqContains(lists[1..], l) {
+          var i :| 0 <= i < |lists[1..]| && lists[1..][i] == l;
+          assert lists[i+1] == l;
+          assert SeqContains(lists, l);
+        }
+      }
+
+      CountInListsHelper_InsertAt(lists[1..], k-1, l, tasks, id);
+      // CountInListsHelper(InsertAt(lists[1..], k-1, l), tasks, id) ==
+      //   CountInListsHelper(lists[1..], tasks, id) + ListContrib(l, tasks, id)
+
+      // CountInListsHelper(result, tasks, id) = ListContrib(lists[0], tasks, id) + CountInListsHelper(result[1..], tasks, id)
+      // = ListContrib(lists[0], tasks, id) + CountInListsHelper(lists[1..], tasks, id) + ListContrib(l, tasks, id)
+      // = CountInListsHelper(lists, tasks, id) + ListContrib(l, tasks, id)
+    }
+  }
+
+  // Moving an element (remove then insert) preserves count
+  lemma CountInListsHelper_MovePreserves(lists: seq<ListId>, k: nat, l: ListId, tasks: map<ListId, seq<TaskId>>, id: TaskId)
+    requires NoDupSeq(lists)
+    requires SeqContains(lists, l)
+    requires k <= |RemoveFirst(lists, l)|
+    ensures CountInListsHelper(InsertAt(RemoveFirst(lists, l), k, l), tasks, id) ==
+            CountInListsHelper(lists, tasks, id)
+  {
+    var lists1 := RemoveFirst(lists, l);
+    RemoveFirstPreservesNoDup(lists, l);
+    RemoveFirstSeqContains(lists, l, l);
+    assert !SeqContains(lists1, l);
+
+    CountInListsHelper_RemoveFirst(lists, tasks, l, id);
+    // CountInListsHelper(lists1, tasks, id) == CountInListsHelper(lists, tasks, id) - ListContrib(l, tasks, id)
+
+    CountInListsHelper_InsertAt(lists1, k, l, tasks, id);
+    // CountInListsHelper(InsertAt(lists1, k, l), tasks, id) == CountInListsHelper(lists1, tasks, id) + ListContrib(l, tasks, id)
+
+    // Combining: CountInListsHelper(InsertAt(lists1, k, l), tasks, id)
+    //   = CountInListsHelper(lists, tasks, id) - ListContrib(l, tasks, id) + ListContrib(l, tasks, id)
+    //   = CountInListsHelper(lists, tasks, id)
+  }
+
   // After removing id from all lists, count is 0
   // Proof idea:
   // 1. After RemoveFirst, id is not in any lane (by RemoveFirstSeqContains)
@@ -1430,18 +1534,90 @@ module TodoDomain refines TodoDomainSpec {
 
   // Helper for MoveListPreservesInv - count invariants preserved when list order changes
   // m2.tasks = m.tasks, m2.taskData = m.taskData, so counts are identical
-  lemma {:axiom} MoveListPreservesInvCount(m: Model, listId: ListId, listPlace: ListPlace, m2: Model)
+  lemma MoveListPreservesInvCount(m: Model, listId: ListId, listPlace: ListPlace, m2: Model)
     requires Inv(m)
     requires TryStep(m, MoveList(listId, listPlace)) == Ok(m2)
     ensures forall tid :: tid in m2.taskData && !m2.taskData[tid].deleted ==> CountInLists(m2, tid) == 1
     ensures forall tid :: tid in m2.taskData && m2.taskData[tid].deleted ==> CountInLists(m2, tid) == 0
+  {
+    // MoveList only changes m.lists (reorders it), keeps m.tasks and m.taskData unchanged
+    assert m2.tasks == m.tasks;
+    assert m2.taskData == m.taskData;
+
+    // m2.lists = InsertAt(RemoveFirst(m.lists, listId), k, listId) for some k
+    var lists1 := RemoveFirst(m.lists, listId);
+    var pos := PosFromListPlace(lists1, listPlace);
+    var k := ClampPos(pos, |lists1|);
+    assert m2.lists == InsertAt(lists1, k, listId);
+
+    // Prove counts are preserved for each task
+    forall tid | tid in m2.taskData
+      ensures CountInLists(m2, tid) == CountInLists(m, tid)
+    {
+      // CountInLists(m2, tid) = CountInListsHelper(m2.lists, m2.tasks, tid)
+      //                       = CountInListsHelper(InsertAt(lists1, k, listId), m.tasks, tid)
+      CountInListsHelper_MovePreserves(m.lists, k, listId, m.tasks, tid);
+      // CountInListsHelper(InsertAt(lists1, k, listId), m.tasks, tid) == CountInListsHelper(m.lists, m.tasks, tid)
+      //                                                                = CountInLists(m, tid)
+    }
+
+    // Now the invariant properties follow from Inv(m)
+    // D: Non-deleted tasks have count 1
+    // D': Deleted tasks have count 0
+  }
 
   // Helper for MoveListPreservesInv - list IDs < nextListId preserved
   // Elements in m2.lists = InsertAt(RemoveFirst(m.lists, listId), k, listId) are same as m.lists
-  lemma {:axiom} MoveListPreservesInvF(m: Model, listId: ListId, listPlace: ListPlace, m2: Model)
+  lemma MoveListPreservesInvF(m: Model, listId: ListId, listPlace: ListPlace, m2: Model)
     requires Inv(m)
     requires TryStep(m, MoveList(listId, listPlace)) == Ok(m2)
     ensures forall lid :: SeqContains(m2.lists, lid) ==> lid < m2.nextListId
+  {
+    // m2.nextListId == m.nextListId (MoveList doesn't change it)
+    assert m2.nextListId == m.nextListId;
+
+    var lists1 := RemoveFirst(m.lists, listId);
+    var pos := PosFromListPlace(lists1, listPlace);
+    var k := ClampPos(pos, |lists1|);
+
+    // Prove: every element in m2.lists is in m.lists, hence < m.nextListId
+    forall lid | SeqContains(m2.lists, lid)
+      ensures lid < m2.nextListId
+    {
+      // m2.lists == InsertAt(lists1, k, listId)
+      assert m2.lists == InsertAt(lists1, k, listId);
+      assert SeqContains(InsertAt(lists1, k, listId), lid);
+
+      // Apply InsertAtSeqContains to get the disjunction
+      InsertAtSeqContains(lists1, k, listId, lid);
+      assert SeqContains(lists1, lid) || lid == listId;
+
+      if lid == listId {
+        // MoveList precondition requires listId in m.lists
+        assert SeqContains(m.lists, listId);
+        assert SeqContains(m.lists, lid);
+      } else {
+        // In else branch: lid != listId, so SeqContains(lists1, lid) is true
+        assert SeqContains(lists1, lid);
+        // lid is in lists1 = RemoveFirst(m.lists, listId), so lid is in m.lists
+        MoveListPreservesInvF_Helper(m.lists, listId, lists1, lid);
+        assert SeqContains(m.lists, lid);
+      }
+      // Now we have SeqContains(m.lists, lid) in both branches
+      // By Inv(m): SeqContains(m.lists, lid) ==> lid < m.nextListId
+      assert lid < m.nextListId;
+      assert lid < m2.nextListId;
+    }
+  }
+
+  // Helper: if lid in RemoveFirst(s, x), then lid in s
+  lemma MoveListPreservesInvF_Helper(s: seq<ListId>, x: ListId, rf: seq<ListId>, lid: ListId)
+    requires rf == RemoveFirst(s, x)
+    requires SeqContains(rf, lid)
+    ensures SeqContains(s, lid)
+  {
+    RemoveFirstInOriginal(s, x, lid);
+  }
 
   lemma AddTaskPreservesInv(m: Model, listId: ListId, title: string, m2: Model)
     requires Inv(m)
