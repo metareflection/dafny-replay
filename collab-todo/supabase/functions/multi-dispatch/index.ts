@@ -24,12 +24,13 @@ const corsHeaders = {
 // ============================================================================
 
 interface MultiAction {
-  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo';
+  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo' | 'MoveListTo';
   project?: string;
   action?: Record<string, unknown>;
   srcProject?: string;
   dstProject?: string;
   taskId?: number;
+  listId?: number;
   dstList?: number;
   anchor?: { type: string; anchor?: number };
 }
@@ -246,8 +247,9 @@ serve(async (req) => {
     }))
 
     // Persist atomically using save_multi_update
+    // Pass as JSON string - function expects TEXT and parses internally
     const { data: saveResult, error: saveError } = await supabaseAdmin
-      .rpc('save_multi_update', { updates: JSON.stringify(updates) })
+      .rpc('save_multi_update', { updates_json: JSON.stringify(updates) })
 
     if (saveError) {
       console.error('Save error:', saveError)

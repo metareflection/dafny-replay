@@ -2,6 +2,219 @@
 
 ---
 
+# MoveListTo Edge Function Deployment & Debugging
+
+**Date:** 2026-01-03
+
+## Problem
+
+After implementing `MoveListTo` in the client, the edge function wasn't working. Multiple errors encountered during deployment and testing.
+
+## Error Chain & Fixes
+
+### 1. React Hooks Order Error
+
+**Symptom:**
+```
+React has detected a change in the order of Hooks called by TodoApp
+26. useMemo → useCallback
+```
+
+**Cause:** Added new `useCallback` for `moveListToProject` in `useAllProjects.js`. Hot Module Replacement (HMR) couldn't reconcile the changed hook order.
+
+**Fix:** Hard refresh (Cmd+Shift+R). This is an HMR artifact, not a code bug.
+
+---
+
+### 2. Edge Function 403 Forbidden
+
+**Symptom:**
+```
+POST .../functions/v1/multi-dispatch 403 (Forbidden)
+```
+
+**Cause:** The `multi-dispatch` edge function wasn't deployed, or was outdated.
+
+**Fix:** Deploy with `supabase functions deploy multi-dispatch`.
+
+---
+
+### 3. Missing `MoveListTo` in Edge Function Bundle
+
+**Symptom:**
+```
+Action rejected: TypeError: Cannot read properties of undefined (reading 'create_MultiModel')
+```
+
+**Cause:** The edge function's `build-bundle.js` was missing the `MoveListTo` case. It had:
+```typescript
+type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo'  // Missing MoveListTo!
+```
+
+**Fixes applied to `build-bundle.js`:**
+
+1. Added `MoveListTo` to interface:
+```typescript
+interface MultiAction {
+  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo' | 'MoveListTo';
+  listId?: number;  // Added
+  ...
+}
+```
+
+2. Added switch case:
+```typescript
+case 'MoveListTo':
+  return TodoMultiProjectDomain.MultiAction.create_MoveListTo(
+    _dafny.Seq.UnicodeFromString(json.srcProject!),
+    _dafny.Seq.UnicodeFromString(json.dstProject!),
+    new BigNumber(json.listId!)
+  );
+```
+
+3. Fixed wrong module reference:
+```typescript
+// Before (WRONG):
+return TodoDomain.MultiModel.create_MultiModel(projects);
+// After (CORRECT):
+return TodoMultiProjectDomain.MultiModel.create_MultiModel(projects);
+```
+
+4. Same changes applied to `index.ts` interface.
+
+5. Rebuilt bundle: `node build-bundle.js`
+
+---
+
+### 4. PostgreSQL "cannot extract elements from a scalar"
+
+**Symptom:**
+```json
+{"error": "Failed to save updates", "details": "cannot extract elements from a scalar"}
+```
+
+**Cause:** The `save_multi_update` function expected JSONB, but Supabase RPC was having issues with how the array was being serialized.
+
+**Fix:** Changed function to accept TEXT and parse internally:
+
+**index.ts:**
+```javascript
+.rpc('save_multi_update', { updates_json: JSON.stringify(updates) })
+```
+
+**schema.sql:**
+```sql
+CREATE OR REPLACE FUNCTION save_multi_update(updates_json TEXT)
+...
+DECLARE
+  updates JSONB := updates_json::jsonb;
+```
+
+---
+
+### 5. "Not a member of all projects" (409 Conflict)
+
+**Symptom:**
+```json
+{"status":"conflict","message":"Not a member of all projects"}
+```
+
+**Cause:** The SQL function used `auth.uid()` for membership check, but edge function uses **service role** (no auth context). `auth.uid()` returns NULL with service role.
+
+**Fix:** Removed the redundant membership check from `save_multi_update` since the edge function already verifies membership before calling it:
+
+```sql
+-- REMOVED these lines:
+-- SELECT array_agg((value->>'id')::UUID) INTO project_ids FROM jsonb_array_elements(updates);
+-- IF NOT is_member_of_all_projects(project_ids) THEN ...
+```
+
+---
+
+### 6. "record u has no field elem"
+
+**Symptom:**
+```json
+{"error": "Failed to save updates", "details": "record \"u\" has no field \"elem\""}
+```
+
+**Cause:** `jsonb_array_elements()` returns a column named `value`, not the alias `elem`. The alias was for the table, not the column.
+
+**Fix:**
+```sql
+-- Before (WRONG):
+FOR u IN SELECT * FROM jsonb_array_elements(updates) AS elem
+  ... u.elem->>'state' ...
+
+-- After (CORRECT):
+FOR u IN SELECT value FROM jsonb_array_elements(updates)
+  ... u.value->>'state' ...
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/multi-dispatch/build-bundle.js` | Added `MoveListTo` to interface and switch, fixed `TodoMultiProjectDomain.MultiModel` |
+| `supabase/functions/multi-dispatch/index.ts` | Added `MoveListTo` to interface, changed to `updates_json: JSON.stringify(updates)` |
+| `supabase/functions/multi-dispatch/dafny-bundle.ts` | Regenerated with `node build-bundle.js` |
+| `supabase/schema.sql` | Changed `save_multi_update` to accept TEXT, removed auth check, fixed `u.value` |
+
+## Final Working SQL Function
+
+```sql
+CREATE OR REPLACE FUNCTION save_multi_update(updates_json TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updates JSONB := updates_json::jsonb;
+  u RECORD;
+  updated_projects JSONB := '[]'::jsonb;
+BEGIN
+  FOR u IN SELECT value FROM jsonb_array_elements(updates)
+  LOOP
+    UPDATE projects
+    SET state = (u.value->>'state')::jsonb,
+        version = (u.value->>'newVersion')::int,
+        applied_log = applied_log || (u.value->'newLogEntry'),
+        updated_at = now()
+    WHERE id = (u.value->>'id')::uuid
+    AND version = (u.value->>'expectedVersion')::int;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Version conflict on project %', u.value->>'id';
+    END IF;
+
+    updated_projects := updated_projects || jsonb_build_object(
+      'id', u.value->>'id',
+      'version', (u.value->>'newVersion')::int
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object('success', true, 'updated', updated_projects);
+END;
+$$;
+```
+
+## Key Learnings
+
+1. **HMR + Hook changes = refresh needed** - Adding hooks mid-session causes React errors
+2. **Edge function bundles are separate** - Client bundle updates don't propagate to edge functions
+3. **Supabase RPC + JSONB arrays** - Safest to pass as TEXT and parse in SQL
+4. **Service role has no auth.uid()** - Don't use `auth.uid()` in functions called with service role
+5. **jsonb_array_elements returns 'value'** - Not a custom alias
+
+## Deployment Steps
+
+1. Run SQL in Supabase Dashboard (or migrate)
+2. `cd collab-todo/supabase/functions/multi-dispatch && node build-bundle.js`
+3. `supabase functions deploy multi-dispatch`
+
+---
+
 # MoveListTo (Cross-Project) Implementation
 
 **Date:** 2026-01-02

@@ -220,50 +220,39 @@ $$;
 -- Save multi-project update atomically
 -- Used by /multi-dispatch for cross-project operations
 -- Each update contains: id, state, expectedVersion, newVersion, newLogEntry
-CREATE OR REPLACE FUNCTION save_multi_update(updates JSONB)
+-- Note: Membership check is done by the edge function before calling this.
+-- This function is called with service role, so we skip auth.uid() checks.
+CREATE OR REPLACE FUNCTION save_multi_update(updates_json TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  updates JSONB := updates_json::jsonb;
   u RECORD;
-  project_ids UUID[];
   updated_projects JSONB := '[]'::jsonb;
 BEGIN
-  -- Extract project IDs for permission check
-  SELECT array_agg((value->>'id')::UUID)
-  INTO project_ids
-  FROM jsonb_array_elements(updates);
-
-  -- Verify user has access to all projects
-  IF NOT is_member_of_all_projects(project_ids) THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Not a member of all projects'
-    );
-  END IF;
-
   -- Process each update
-  FOR u IN SELECT * FROM jsonb_array_elements(updates) AS elem
+  FOR u IN SELECT value FROM jsonb_array_elements(updates)
   LOOP
     UPDATE projects
-    SET state = (u.elem->>'state')::jsonb,
-        version = (u.elem->>'newVersion')::int,
-        applied_log = applied_log || (u.elem->'newLogEntry'),
+    SET state = (u.value->>'state')::jsonb,
+        version = (u.value->>'newVersion')::int,
+        applied_log = applied_log || (u.value->'newLogEntry'),
         updated_at = now()
-    WHERE id = (u.elem->>'id')::uuid
-    AND version = (u.elem->>'expectedVersion')::int;
+    WHERE id = (u.value->>'id')::uuid
+    AND version = (u.value->>'expectedVersion')::int;
 
     IF NOT FOUND THEN
       -- Conflict detected - rollback
-      RAISE EXCEPTION 'Version conflict on project %', u.elem->>'id';
+      RAISE EXCEPTION 'Version conflict on project %', u.value->>'id';
     END IF;
 
     -- Track updated project
     updated_projects := updated_projects || jsonb_build_object(
-      'id', u.elem->>'id',
-      'version', (u.elem->>'newVersion')::int
+      'id', u.value->>'id',
+      'version', (u.value->>'newVersion')::int
     );
   END LOOP;
 

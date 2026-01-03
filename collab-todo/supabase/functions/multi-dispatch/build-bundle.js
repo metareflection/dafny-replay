@@ -436,12 +436,13 @@ export const actionFromJson = (json: Action): any => {
 // ============================================================================
 
 interface MultiAction {
-  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo';
+  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo' | 'MoveListTo';
   project?: string;
   action?: Action;
   srcProject?: string;
   dstProject?: string;
   taskId?: number;
+  listId?: number;
   dstList?: number;
   anchor?: Place;
 }
@@ -469,6 +470,12 @@ export const multiActionFromJson = (json: MultiAction): any => {
         new BigNumber(json.taskId!),
         new BigNumber(json.dstList!)
       );
+    case 'MoveListTo':
+      return TodoMultiProjectDomain.MultiAction.create_MoveListTo(
+        _dafny.Seq.UnicodeFromString(json.srcProject!),
+        _dafny.Seq.UnicodeFromString(json.dstProject!),
+        new BigNumber(json.listId!)
+      );
     default:
       // Default to NoOp wrapped in Single
       return TodoMultiProjectDomain.MultiAction.create_Single(
@@ -495,7 +502,7 @@ export const multiModelFromJson = (json: MultiModelJson): any => {
       modelFromJson(model)
     );
   }
-  return TodoDomain.MultiModel.create_MultiModel(projects);
+  return TodoMultiProjectDomain.MultiModel.create_MultiModel(projects);
 };
 
 // deno-lint-ignore no-explicit-any
