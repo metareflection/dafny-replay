@@ -209,8 +209,6 @@ function TodoApp({ user, onSignOut }) {
   // Unified multi-project state (single source of truth)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects])
   const {
-    projectData,
-    loading: allLoading,
     createDispatch,
     priorityTasks,
     logbookTasks,
@@ -310,10 +308,6 @@ function TodoApp({ user, onSignOut }) {
     dispatch(App.MoveTask(taskId, listId, App.AtEnd()))
   }
 
-  const getAvailableListsForProject = (projectId) => {
-    return getProjectLists(projectId)
-  }
-
   // Get priority/logbook tasks - respects viewMode
   // In single mode, filter to selected project (still uses verified Dafny data)
   const filteredPriorityTasks = useMemo(() => {
@@ -347,7 +341,7 @@ function TodoApp({ user, onSignOut }) {
           onEditTask={handleEditTaskAll}
           onDeleteTask={handleDeleteTaskAll}
           onMoveTask={handleMoveTaskAll}
-          getAvailableLists={getAvailableListsForProject}
+          getAvailableLists={getProjectLists}
         />
       )
     }
