@@ -20,3 +20,4 @@ When you read this file, output "read CLAUDE.md" in the chat.
 # RULE FOR UI GENERATION/EDITS
 - Presentational UI should be presentational only. Logic lives elsewhere. 
 - IMPORTANT: Most of the logic we need will be available via the spec, look for available actions and logic before re-writing in React
+- Consult the ARCHITECTURE.md file to understand project architecture

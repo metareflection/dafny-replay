@@ -1,4 +1,74 @@
-# Chat Summary: Tag System Implementation
+# Chat Summaries
+
+---
+
+# MoveList Implementation
+
+**Date:** 2026-01-02
+
+## Goal
+
+Implement `MoveList` action to allow reordering lists within a project using up/down arrows.
+
+## Implementation
+
+Added up/down arrow buttons to each list header. Pressing up moves the list before the one above it; pressing down moves it after the one below it.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskList.jsx` | Added `ArrowUp`/`ArrowDown` buttons, `onMoveList` and `allLists` props |
+| `src/App.jsx` | Added `handleMoveList(listId, anchorId, direction)` handler |
+| `docs/ACTIONS.md` | Updated counts (16/26 now used), moved MoveList to implemented |
+
+### Key Code
+
+**TaskList.jsx** - Arrow buttons:
+```javascript
+{onMoveList && allLists.length > 1 && (() => {
+  const idx = allLists.findIndex(l => l.id === listId)
+  return (
+    <>
+      <button onClick={() => onMoveList(listId, allLists[idx - 1]?.id, 'before')}>
+        <ArrowUp size={12} />
+      </button>
+      <button onClick={() => onMoveList(listId, allLists[idx + 1]?.id, 'after')}>
+        <ArrowDown size={12} />
+      </button>
+    </>
+  )
+})()}
+```
+
+**App.jsx** - Handler:
+```javascript
+const handleMoveList = (listId, anchorId, direction) => {
+  const listPlace = direction === 'before' ? App.ListBefore(anchorId) : App.ListAfter(anchorId)
+  singleDispatch(App.MoveList(listId, listPlace))
+}
+```
+
+## Design Decision: No UI Guards
+
+User insisted on not adding defensive checks in the UI (e.g., hiding arrows at boundaries). The Dafny spec handles invalid anchors via `BadAnchor` error.
+
+## Discovered Behavior: Asymmetric Boundary Handling
+
+When pressing "up" on the first list or "down" on the last list:
+- Both pass `undefined` as anchor → `BadAnchor` error
+- Conflict recovery falls back to `ListAtEnd`
+- **Result:** "Up" on first list moves it to the end; "Down" on last list is a no-op (already at end)
+
+This asymmetry exists because the spec's fallback candidates (`ListAtEnd`, `ListBefore(first)`) were designed for conflict resolution, not UI boundary cases.
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# Tag System Implementation
 
 **Date:** 2026-01-02
 
