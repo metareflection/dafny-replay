@@ -91,42 +91,44 @@ export function useAllProjects(projectIds) {
     manager?.copyTaskToProject(srcProject, dstProject, taskId, dstList)
   }, [manager])
 
-  // Aggregate all tasks across projects
-  const aggregatedTasks = useMemo(() => {
-    const tasks = []
-
-    for (const [projectId, data] of Object.entries(projectData)) {
-      if (!data.model) continue
-
-      const lists = App.GetLists(data.model)
-      for (const listId of lists) {
-        const taskIds = App.GetTasksInList(data.model, listId)
-        for (const taskId of taskIds) {
-          const task = App.GetTask(data.model, taskId)
-          if (!task.deleted) {
-            tasks.push({
-              id: taskId,
-              projectId,
-              listId,
-              listName: App.GetListName(data.model, listId),
-              ...task
-            })
-          }
-        }
+  // Helper to enrich a tagged task ID with full task data
+  const enrichTask = useCallback((tagged) => {
+    const model = projectData[tagged.projectId]?.model
+    if (!model) return null
+    const task = App.GetTask(model, tagged.taskId)
+    if (!task) return null
+    // Find which list contains this task
+    const lists = App.GetLists(model)
+    let listId = null
+    for (const lid of lists) {
+      const taskIds = App.GetTasksInList(model, lid)
+      if (taskIds.includes(tagged.taskId)) {
+        listId = lid
+        break
       }
     }
-
-    return tasks
+    return {
+      id: tagged.taskId,
+      projectId: tagged.projectId,
+      listId,
+      listName: listId !== null ? App.GetListName(model, listId) : '',
+      ...task
+    }
   }, [projectData])
 
-  // Filter helpers
+  // VERIFIED: Get priority tasks using Dafny function
   const priorityTasks = useMemo(() => {
-    return aggregatedTasks.filter(t => t.starred && !t.completed)
-  }, [aggregatedTasks])
+    if (!multiModel) return []
+    const tagged = App.MultiModel.getAllPriorityTasks(multiModel)
+    return tagged.map(enrichTask).filter(t => t !== null)
+  }, [multiModel, enrichTask])
 
+  // VERIFIED: Get logbook tasks using Dafny function
   const logbookTasks = useMemo(() => {
-    return aggregatedTasks.filter(t => t.completed)
-  }, [aggregatedTasks])
+    if (!multiModel) return []
+    const tagged = App.MultiModel.getAllLogbookTasks(multiModel)
+    return tagged.map(enrichTask).filter(t => t !== null)
+  }, [multiModel, enrichTask])
 
   // Get project model by ID
   const getProjectModel = useCallback((projectId) => {
@@ -179,8 +181,7 @@ export function useAllProjects(projectIds) {
     moveTaskToProject,
     copyTaskToProject,
 
-    // Aggregations
-    aggregatedTasks,
+    // Smart lists (VERIFIED via Dafny)
     priorityTasks,
     logbookTasks,
 
