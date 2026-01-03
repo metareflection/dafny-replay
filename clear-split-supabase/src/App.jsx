@@ -103,6 +103,7 @@ function Auth({ onAuth }) {
 function GroupSelector({ user, onSelectGroup }) {
   const [groups, setGroups] = useState([])
   const [invites, setInvites] = useState([])
+  const [crossProjectBalances, setCrossProjectBalances] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(null)
@@ -115,7 +116,7 @@ function GroupSelector({ user, onSelectGroup }) {
   }, [])
 
   const loadData = async () => {
-    // Load user's groups
+    // Load user's groups with their states for cross-project balances
     const { data: groupData, error: groupError } = await supabase
       .from('group_members')
       .select('group_id, display_name')
@@ -124,14 +125,33 @@ function GroupSelector({ user, onSelectGroup }) {
     if (groupError) {
       setError(groupError.message)
     } else {
-      // Fetch group names using the secure function
-      const groupsWithNames = await Promise.all(
+      // Fetch group names and states
+      const groupsWithData = await Promise.all(
         (groupData || []).map(async (g) => {
-          const { data: name } = await supabase.rpc('get_group_name', { p_group_id: g.group_id })
-          return { ...g, group: { name } }
+          const { data: groupInfo } = await supabase
+            .from('groups')
+            .select('name, state')
+            .eq('id', g.group_id)
+            .single()
+          return { ...g, group: groupInfo }
         })
       )
-      setGroups(groupsWithNames)
+      setGroups(groupsWithData)
+
+      // Compute cross-project balances using verified Dafny code
+      const balances = groupsWithData.map(g => {
+        if (!g.group?.state) return { groupName: g.group?.name || 'Unknown', balance: 0 }
+        try {
+          const model = App.modelFromJson(g.group.state)
+          const allBalances = App.Balances(model)
+          const myBalance = allBalances[g.display_name] || 0
+          return { groupName: g.group.name, balance: myBalance }
+        } catch (e) {
+          console.error('Error computing balance for group:', g.group_id, e)
+          return { groupName: g.group?.name || 'Unknown', balance: 0 }
+        }
+      })
+      setCrossProjectBalances(balances)
     }
 
     // Load pending invites for this user
@@ -313,12 +333,53 @@ function GroupSelector({ user, onSelectGroup }) {
     )
   }
 
+  // Compute totals
+  const totalOwed = crossProjectBalances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0)
+  const totalOwes = crossProjectBalances.reduce((sum, b) => sum + (b.balance < 0 ? -b.balance : 0), 0)
+  const netBalance = totalOwed - totalOwes
+
   return (
     <div className="clear-split group-select">
       <div className="header">
         <h1>ClearSplit</h1>
         <div className="members">{user.email}</div>
       </div>
+
+      {crossProjectBalances.length > 0 && (
+        <div className="section">
+          <div className="section-title">Cross-Project Summary</div>
+          <div className="cross-project-summary">
+            <div className="cross-project-totals">
+              <div className="cross-project-row">
+                <span>You are owed:</span>
+                <span className={`amount ${totalOwed > 0 ? 'positive' : ''}`}>
+                  {formatMoney(totalOwed)}
+                </span>
+              </div>
+              <div className="cross-project-row">
+                <span>You owe:</span>
+                <span className={`amount ${totalOwes > 0 ? 'negative' : ''}`}>
+                  {formatMoney(totalOwes)}
+                </span>
+              </div>
+              <div className="cross-project-row net">
+                <span>Net:</span>
+                <span className={`amount ${netBalance > 0 ? 'positive' : netBalance < 0 ? 'negative' : ''}`}>
+                  {netBalance >= 0 ? '+' : ''}{formatMoney(netBalance)}
+                </span>
+              </div>
+            </div>
+            {crossProjectBalances.map((b, i) => (
+              <div key={i} className="balance-item">
+                <span className="name">{b.groupName}</span>
+                <span className={`amount ${b.balance > 0 ? 'positive' : b.balance < 0 ? 'negative' : 'zero'}`}>
+                  {b.balance > 0 ? 'owed ' : b.balance < 0 ? 'owe ' : ''}{formatMoney(Math.abs(b.balance))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {invites.length > 0 && (
         <div className="section">
@@ -780,6 +841,7 @@ function ClearSplitApp() {
   const [user, setUser] = useState(null)
   const [groupId, setGroupId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -832,10 +894,15 @@ function ClearSplitApp() {
   }
 
   if (!groupId) {
-    return <GroupSelector user={user} onSelectGroup={setGroupId} />
+    return <GroupSelector key={refreshKey} user={user} onSelectGroup={setGroupId} />
   }
 
-  return <ExpenseApp groupId={groupId} onBack={() => setGroupId(null)} />
+  const handleBack = () => {
+    setGroupId(null)
+    setRefreshKey(k => k + 1)
+  }
+
+  return <ExpenseApp groupId={groupId} onBack={handleBack} />
 }
 
 export default ClearSplitApp
