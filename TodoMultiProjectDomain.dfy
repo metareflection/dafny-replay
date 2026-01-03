@@ -281,6 +281,41 @@ module TodoMultiProjectDomain refines MultiProject {
       AddTasksToList(m1, newListId, tasks)
   }
 
+  lemma AddTasksToListPreservesInv(m: Model, listId: ListId, tasks: seq<Task>, mFinal: Model)
+    requires Inv(m)
+    requires AddTasksToList(m, listId, tasks) == MC.D.Result.Ok(mFinal)
+    ensures Inv(mFinal)
+    decreases |tasks|
+  {
+    if |tasks| == 0 {
+      // Base case: mFinal == m
+      assert mFinal == m;
+    } else {
+      var task := tasks[0];
+      var cleanTask := CleanTaskForMove(task);
+      var addResult := AddTaskToProject(m, listId, cleanTask, MC.D.Place.AtEnd);
+      var m1 := addResult.value;
+      // AddTaskToProject preserves Inv
+      AddTaskToProjectPreservesInv(m, listId, cleanTask, MC.D.Place.AtEnd, m1);
+      // Recursive call preserves Inv
+      AddTasksToListPreservesInv(m1, listId, tasks[1..], mFinal);
+    }
+  }
+
+  lemma AddListWithTasksPreservesInv(m: Model, listName: string, tasks: seq<Task>, mFinal: Model)
+    requires Inv(m)
+    requires AddListWithTasks(m, listName, tasks) == MC.D.Result.Ok(mFinal)
+    ensures Inv(mFinal)
+  {
+    var addListResult := MC.D.TryStep(m, MC.D.Action.AddList(listName));
+    var m1 := addListResult.value;
+    var newListId := m.nextListId;
+    // AddList preserves Inv
+    MC.D.StepPreservesInv(m, MC.D.Action.AddList(listName), m1);
+    // AddTasksToList preserves Inv
+    AddTasksToListPreservesInv(m1, newListId, tasks, mFinal);
+  }
+
   // Helper: Check if list was deleted in a log suffix
   function ListDeletedInLog(suffix: seq<Action>, listId: ListId): bool
   {
@@ -465,8 +500,22 @@ module TodoMultiProjectDomain refines MultiProject {
         // src and other projects unchanged
 
       case MoveListTo(src, dst, listId) =>
-        // Proof stubbed - invariant preservation for MoveListTo
-        assume {:axiom} forall pid :: pid in mm2.projects ==> Inv(mm2.projects[pid]);
+        var srcModel := mm.projects[src];
+        var dstModel := mm.projects[dst];
+        var listName := srcModel.listNames[listId];
+        var tasks := ExtractListTasks(srcModel, listId);
+
+        // Delete from source
+        var deleteResult := MC.D.TryStep(srcModel, MC.D.Action.DeleteList(listId));
+        var newSrc := deleteResult.value;
+        MC.D.StepPreservesInv(srcModel, MC.D.Action.DeleteList(listId), newSrc);
+
+        // Add to destination
+        var addResult := AddListWithTasks(dstModel, listName, tasks);
+        var newDst := addResult.value;
+        AddListWithTasksPreservesInv(dstModel, listName, tasks, newDst);
+
+        // Other projects unchanged
     }
   }
 
