@@ -1550,6 +1550,68 @@ module TodoMultiCollaborationProof {
     }
   }
 
+  // If a task is deleted, FindListForTask returns None
+  lemma FindListForTaskIsNoneForDeleted(m: Model, taskId: TaskId)
+    requires Inv(m)
+    requires taskId in m.taskData
+    requires m.taskData[taskId].deleted
+    ensures FindListForTask(m, taskId).None?
+  {
+    // By invariant D', deleted tasks have CountInLists == 0
+    assert CountInLists(m, taskId) == 0;
+    FindListForTaskIsNoneHelper(m.lists, m.tasks, taskId);
+  }
+
+  lemma FindListForTaskIsNoneHelper(lists: seq<ListId>, tasks: map<ListId, seq<TaskId>>, taskId: TaskId)
+    requires CountInListsHelper(lists, tasks, taskId) == 0
+    ensures FindListForTaskHelper(lists, tasks, taskId).None?
+    decreases |lists|
+  {
+    if |lists| == 0 {
+      // Base case: empty list returns None
+    } else {
+      var l := lists[0];
+      var lane := if l in tasks then tasks[l] else [];
+      CountInListsHelper_Decompose(lists, tasks, taskId);
+      // Count == 0 means task is not in first list and tail count == 0
+      if SeqContains(lane, taskId) {
+        // Contradiction: if task is in lane, count >= 1
+        assert CountInListsHelper(lists, tasks, taskId) >= 1;
+      } else {
+        // Task not in first list, recurse on tail
+        assert CountInListsHelper(lists[1..], tasks, taskId) == 0;
+        FindListForTaskIsNoneHelper(lists[1..], tasks, taskId);
+      }
+    }
+  }
+
+  // FindListForTask returns the unique list containing the task
+  lemma FindListForTaskUnique(m: Model, taskId: TaskId, listId: ListId, otherListId: ListId)
+    requires Inv(m)
+    requires FindListForTask(m, taskId) == Some(listId)
+    requires SeqContains(m.lists, otherListId) && otherListId in m.tasks
+    requires SeqContains(m.tasks[otherListId], taskId)
+    ensures listId == otherListId
+  {
+    FindListForTaskInList(m, taskId, listId);
+    // taskId is in both m.tasks[listId] and m.tasks[otherListId]
+    // If listId != otherListId, then CountInLists >= 2
+    if listId != otherListId {
+      CountInListsHelper_HasTwo(m.lists, m.tasks, listId, otherListId, taskId);
+      // But by invariant D, non-deleted tasks have count == 1
+      // and by invariant D', deleted tasks have count == 0
+      // Either way, count >= 2 is a contradiction
+      assert CountInLists(m, taskId) >= 2;
+      if taskId in m.taskData {
+        if m.taskData[taskId].deleted {
+          assert CountInLists(m, taskId) == 0;  // invariant D'
+        } else {
+          assert CountInLists(m, taskId) == 1;  // invariant D
+        }
+      }
+    }
+  }
+
   lemma EditTaskPreservesInv(m: Model, taskId: TaskId, title: string, notes: string, m2: Model)
     requires Inv(m)
     requires TryStep(m, EditTask(taskId, title, notes)) == Ok(m2)

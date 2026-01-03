@@ -174,6 +174,16 @@ module TodoMultiProjectEffectAppCore {
     mm.projects[projectId]
   }
 
+  // ===========================================================================
+  // Single-Project Query Helpers
+  // ===========================================================================
+
+  // Find which list contains a task
+  function FindListForTask(m: Model, taskId: TD.TaskId): TD.Option<TD.ListId>
+  {
+    TD.FindListForTask(m, taskId)
+  }
+
   function HasProject(mm: MultiModel, projectId: ProjectId): bool
   {
     projectId in mm.projects
