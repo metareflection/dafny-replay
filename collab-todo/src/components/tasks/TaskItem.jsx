@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, Star, MoreHorizontal, ArrowRight, Trash2 } from 'lucide-react'
+import { TagList, TagPicker } from '../tags'
 import './tasks.css'
 
 export function TaskItem({
@@ -12,7 +13,11 @@ export function TaskItem({
   onEdit,
   onDelete,
   onMove,
-  availableLists = []
+  availableLists = [],
+  allTags = {},
+  onAddTag,
+  onRemoveTag,
+  onCreateTag
 }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
@@ -110,13 +115,33 @@ export function TaskItem({
                   </span>
                 )}
                 {task.tags && task.tags.length > 0 && (
-                  <span className="task-item__tags-count">{task.tags.length} tags</span>
+                  <TagList
+                    tagIds={task.tags}
+                    allTags={allTags}
+                    compact={true}
+                    maxVisible={2}
+                  />
                 )}
               </div>
             )}
           </div>
 
           <div className="task-item__actions">
+            {onAddTag && (
+              <TagPicker
+                allTags={allTags}
+                selectedIds={task.tags || []}
+                onToggle={(tagId, selected) => {
+                  if (selected) {
+                    onAddTag(taskId, tagId)
+                  } else {
+                    onRemoveTag(taskId, tagId)
+                  }
+                }}
+                onCreate={onCreateTag ? (name) => onCreateTag(name) : undefined}
+              />
+            )}
+
             <button
               className={`task-item__star ${task.starred ? 'task-item__star--active' : ''}`}
               onClick={() => onStar(taskId, !task.starred)}

@@ -20,7 +20,7 @@ import './components/layout/layout.css'
 // Smart List Views
 // ============================================================================
 
-function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists }) {
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Star} message="No priority tasks. Star a task to add it here." />
   }
@@ -46,6 +46,10 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             onDelete={(id) => onDeleteTask(task.projectId, id)}
             onMove={(id, listId) => onMoveTask(task.projectId, id, listId)}
             availableLists={getAvailableLists(task.projectId)}
+            allTags={getProjectTags(task.projectId)}
+            onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
+            onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
+            onCreateTag={(name) => onCreateTag(task.projectId, name)}
           />
         ))}
       </div>
@@ -53,7 +57,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
   )
 }
 
-function LogbookView({ tasks, onCompleteTask, onStarTask }) {
+function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
   if (tasks.length === 0) {
     return <EmptyState icon={CheckSquare} message="No completed tasks yet." />
   }
@@ -79,6 +83,7 @@ function LogbookView({ tasks, onCompleteTask, onStarTask }) {
             onDelete={() => {}}
             onMove={() => {}}
             availableLists={[]}
+            allTags={getProjectTags(task.projectId)}
           />
         ))}
       </div>
@@ -98,7 +103,8 @@ function ProjectView({
   filterTab,
   onFilterChange,
   onRenameList,
-  onDeleteList
+  onDeleteList,
+  onMoveList
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
@@ -108,6 +114,11 @@ function ProjectView({
       id,
       name: App.GetListName(model, id)
     }))
+  }, [model])
+
+  const allTags = useMemo(() => {
+    if (!model) return {}
+    return App.GetAllTags(model)
   }, [model])
 
   const getTasksForList = useCallback((listId) => {
@@ -167,6 +178,8 @@ function ProjectView({
             onAddTask={(listId, title) => dispatch(App.AddTask(listId, title))}
             onRenameList={onRenameList}
             onDeleteList={onDeleteList}
+            onMoveList={onMoveList}
+            allLists={lists}
             onCompleteTask={(taskId, completed) =>
               dispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
             }
@@ -183,6 +196,16 @@ function ProjectView({
               dispatch(App.MoveTask(taskId, toListId, App.AtEnd()))
             }
             availableLists={lists}
+            allTags={allTags}
+            onAddTag={(taskId, tagId) =>
+              dispatch(App.AddTagToTask(taskId, tagId))
+            }
+            onRemoveTag={(taskId, tagId) =>
+              dispatch(App.RemoveTagFromTask(taskId, tagId))
+            }
+            onCreateTag={(name) =>
+              dispatch(App.CreateTag(name))
+            }
           />
         ))
       )}
@@ -275,6 +298,11 @@ function TodoApp({ user, onSignOut }) {
     }
   }
 
+  const handleMoveList = (listId, anchorId, direction) => {
+    const listPlace = direction === 'before' ? App.ListBefore(anchorId) : App.ListAfter(anchorId)
+    singleDispatch(App.MoveList(listId, listPlace))
+  }
+
   const handleCreateProject = async (name) => {
     const projectId = await createProject(name)
     setSelectedProjectId(projectId)
@@ -307,6 +335,27 @@ function TodoApp({ user, onSignOut }) {
     const dispatch = createDispatch(projectId)
     dispatch(App.MoveTask(taskId, listId, App.AtEnd()))
   }
+
+  const handleAddTagAll = (projectId, taskId, tagId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.AddTagToTask(taskId, tagId))
+  }
+
+  const handleRemoveTagAll = (projectId, taskId, tagId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.RemoveTagFromTask(taskId, tagId))
+  }
+
+  const handleCreateTagAll = (projectId, name) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.CreateTag(name))
+  }
+
+  const getProjectTags = useCallback((projectId) => {
+    const model = getProjectModel(projectId)
+    if (!model) return {}
+    return App.GetAllTags(model)
+  }, [getProjectModel])
 
   // Get priority/logbook tasks - respects viewMode
   // In single mode, filter to selected project (still uses verified Dafny data)
@@ -342,6 +391,10 @@ function TodoApp({ user, onSignOut }) {
           onDeleteTask={handleDeleteTaskAll}
           onMoveTask={handleMoveTaskAll}
           getAvailableLists={getProjectLists}
+          getProjectTags={getProjectTags}
+          onAddTag={handleAddTagAll}
+          onRemoveTag={handleRemoveTagAll}
+          onCreateTag={handleCreateTagAll}
         />
       )
     }
@@ -353,6 +406,7 @@ function TodoApp({ user, onSignOut }) {
           tasks={filteredLogbookTasks}
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
+          getProjectTags={getProjectTags}
         />
       )
     }
@@ -372,6 +426,7 @@ function TodoApp({ user, onSignOut }) {
           onFilterChange={setFilterTab}
           onRenameList={handleRenameList}
           onDeleteList={handleDeleteList}
+          onMoveList={handleMoveList}
         />
       )
     }
