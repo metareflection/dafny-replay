@@ -1,13 +1,10 @@
 // useCollaborativeProject: React hook for Dafny-verified collaborative projects
 // Uses Supabase for persistence + realtime, Edge Function for dispatch
 //
-// For offline support with Dafny ClientState, use useCollaborativeProjectOffline instead.
+// For multi-project offline support, use useAllProjects instead.
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-
-// Re-export the offline-capable hook for convenience
-export { useCollaborativeProjectOffline } from './useCollaborativeProjectOffline.js'
 
 /**
  * Hook for managing a collaborative project with Dafny-verified state
