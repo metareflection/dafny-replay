@@ -260,22 +260,20 @@ function TodoApp({ user, onSignOut }) {
   }
 
   const handleAddList = (name) => {
-    if (viewMode === 'single' && singleModel) {
+    if (selectedProjectId) {
       singleDispatch(App.AddList(name))
     }
   }
 
   const handleRenameList = (listId, newName) => {
-    if (viewMode === 'single') {
+    if (selectedProjectId) {
       singleDispatch(App.RenameList(listId, newName))
     }
   }
 
   const handleDeleteList = (listId) => {
-    if (confirm('Delete this list? All tasks in it will be permanently deleted.')) {
-      if (viewMode === 'single') {
-        singleDispatch(App.DeleteList(listId))
-      }
+    if (selectedProjectId && confirm('Delete this list? All tasks in it will be permanently deleted.')) {
+      singleDispatch(App.DeleteList(listId))
     }
   }
 
@@ -336,15 +334,6 @@ function TodoApp({ user, onSignOut }) {
   const priorityCount = filteredPriorityTasks.length
   const logbookCount = filteredLogbookTasks.length
 
-  // Get lists for single project mode
-  const singleProjectLists = useMemo(() => {
-    if (!singleModel) return []
-    return App.GetLists(singleModel).map(id => ({
-      id,
-      name: App.GetListName(singleModel, id)
-    }))
-  }, [singleModel])
-
   // Render main content
   const renderContent = () => {
     // Smart list views
@@ -375,7 +364,7 @@ function TodoApp({ user, onSignOut }) {
     }
 
     // Project view
-    if (selectedProjectId && viewMode === 'single') {
+    if (selectedProjectId) {
       const project = projects.find(p => p.id === selectedProjectId)
       if (!project) return <EmptyState message="Project not found" />
 
@@ -422,25 +411,8 @@ function TodoApp({ user, onSignOut }) {
           onCreateProject={handleCreateProject}
           onAddList={handleAddList}
           projectsLoading={projectsLoading}
-          getProjectLists={viewMode === 'all' ? getProjectLists : (projectId) => {
-            if (projectId === selectedProjectId && singleModel) {
-              return App.GetLists(singleModel).map(id => ({
-                id,
-                name: App.GetListName(singleModel, id)
-              }))
-            }
-            return []
-          }}
-          getListTaskCount={viewMode === 'all' ? getListTaskCount : (projectId, listId) => {
-            if (projectId === selectedProjectId && singleModel) {
-              const taskIds = App.GetTasksInList(singleModel, listId)
-              return taskIds.filter(id => {
-                const task = App.GetTask(singleModel, id)
-                return !task.deleted && !task.completed
-              }).length
-            }
-            return 0
-          }}
+          getProjectLists={getProjectLists}
+          getListTaskCount={getListTaskCount}
           priorityCount={priorityCount}
           logbookCount={logbookCount}
           viewMode={viewMode}
