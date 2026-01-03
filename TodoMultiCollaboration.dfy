@@ -2219,11 +2219,40 @@ module TodoDomain refines TodoDomainSpec {
   }
 
   lemma SeqContainsRemove<T>(s: seq<T>, i: nat, x: T)
+    requires NoDupSeq(s)
     requires i < |s|
     ensures SeqContains(s[..i] + s[i+1..], x) <==> (SeqContains(s, x) && x != s[i])
   {
-    // Proof exists in TodoMultiCollaborationProof - simplified here
-    assume {:axiom} SeqContains(s[..i] + s[i+1..], x) <==> (SeqContains(s, x) && x != s[i]);
+    var s' := s[..i] + s[i+1..];
+
+    // Forward direction: SeqContains(s', x) ==> SeqContains(s, x) && x != s[i]
+    if SeqContains(s', x) {
+      var j :| 0 <= j < |s'| && s'[j] == x;
+      // Map j back to original index in s
+      var origJ := if j < i then j else j + 1;
+      assert s[origJ] == x;
+      assert SeqContains(s, x);
+      // Since NoDupSeq(s) and x appears at origJ != i, and s[i] appears only at i
+      // we have x != s[i]
+      if x == s[i] {
+        // Then s[origJ] == s[i] with origJ != i, contradicting NoDupSeq
+        assert origJ != i;
+        assert s[origJ] == s[i];
+        assert false;  // NoDupSeq contradiction
+      }
+    }
+
+    // Backward direction: SeqContains(s, x) && x != s[i] ==> SeqContains(s', x)
+    if SeqContains(s, x) && x != s[i] {
+      var j :| 0 <= j < |s| && s[j] == x;
+      // Since x != s[i], we have j != i
+      assert j != i;
+      // Map j to index in s'
+      var newJ := if j < i then j else j - 1;
+      assert 0 <= newJ < |s'|;
+      assert s'[newJ] == x;
+      assert SeqContains(s', x);
+    }
   }
 }
 
