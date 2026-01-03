@@ -163,6 +163,15 @@ const App = {
     return null;
   },
 
+  // VERIFIED: Find which list contains a task (returns null if not found)
+  FindListForTask: (m, taskId) => {
+    const result = GeneratedApp.FindListForTask(m, taskId);
+    if (result.is_Some) {
+      return toNumber(result.dtor_value);
+    }
+    return null;
+  },
+
   // Get tag name by ID
   GetTagName: (m, tagId) => {
     const tag = GeneratedApp.GetTags(m, tagId);

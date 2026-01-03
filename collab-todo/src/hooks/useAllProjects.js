@@ -92,21 +92,14 @@ export function useAllProjects(projectIds) {
   }, [manager])
 
   // Helper to enrich a tagged task ID with full task data
+  // Uses VERIFIED FindListForTask from Dafny
   const enrichTask = useCallback((tagged) => {
     const model = projectData[tagged.projectId]?.model
     if (!model) return null
     const task = App.GetTask(model, tagged.taskId)
     if (!task) return null
-    // Find which list contains this task
-    const lists = App.GetLists(model)
-    let listId = null
-    for (const lid of lists) {
-      const taskIds = App.GetTasksInList(model, lid)
-      if (taskIds.includes(tagged.taskId)) {
-        listId = lid
-        break
-      }
-    }
+    // VERIFIED: Find which list contains this task using Dafny function
+    const listId = App.FindListForTask(model, tagged.taskId)
     return {
       id: tagged.taskId,
       projectId: tagged.projectId,

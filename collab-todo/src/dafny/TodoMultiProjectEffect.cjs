@@ -5518,6 +5518,12 @@ let TodoMultiProjectEffectStateMachine = (function() {
     static Pending(es) {
       return ((es).dtor_client).dtor_pending;
     };
+    static ProgressMeasure(es) {
+      return _dafny.Tuple.of(((es).dtor_mode).is_Dispatching, (((((es).dtor_mode).is_Dispatching) && ((((es).dtor_mode).dtor_retries).isLessThanOrEqualTo(TodoMultiProjectEffectStateMachine.__default.MaxRetries))) ? ((TodoMultiProjectEffectStateMachine.__default.MaxRetries).minus(((es).dtor_mode).dtor_retries)) : (_dafny.ZERO)), TodoMultiProjectEffectStateMachine.__default.PendingCount(es));
+    };
+    static ProgressLt(m1, m2) {
+      return ((((m1)[2]).isLessThan((m2)[2])) || (((((m1)[2]).isEqualTo((m2)[2])) && (!((m1)[0]))) && ((m2)[0]))) || (((((m1)[2]).isEqualTo((m2)[2])) && (((m1)[0]) === ((m2)[0]))) && (((m1)[1]).isLessThan((m2)[1])));
+    };
     static Init(versions, models) {
       return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState(TodoMultiProjectEffectStateMachine.NetworkStatus.create_Online(), TodoMultiProjectEffectStateMachine.EffectMode.create_Idle(), TodoMultiProjectEffectStateMachine.__default.InitClient(versions, models));
     };
@@ -6012,6 +6018,9 @@ let TodoMultiProjectEffectAppCore = (function() {
     };
     static GetProjectModel(mm, projectId) {
       return ((mm)).get(projectId);
+    };
+    static FindListForTask(m, taskId) {
+      return TodoDomain.__default.FindListForTask(m, taskId);
     };
     static HasProject(mm, projectId) {
       return ((mm)).contains(projectId);

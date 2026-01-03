@@ -1436,6 +1436,7 @@ const App = {
   IsCopyTaskTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
   GetTouchedProjects: (ma) => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
   GetProjectModel: (mm, projectId) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(mm, _dafny.Seq.UnicodeFromString(projectId)),
+  FindListForTask: (m, taskId) => TodoMultiProjectEffectAppCore.__default.FindListForTask(m, new BigNumber(taskId)),
   HasProject: (mm, projectId) => TodoMultiProjectEffectAppCore.__default.HasProject(mm, _dafny.Seq.UnicodeFromString(projectId)),
   GetProjectIds: (mm) => TodoMultiProjectEffectAppCore.__default.GetProjectIds(mm),
   TryMultiStep: (mm, action) => TodoMultiProjectEffectAppCore.__default.TryMultiStep(mm, action),
