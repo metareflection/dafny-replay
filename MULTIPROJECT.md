@@ -201,6 +201,46 @@ The manager:
 - Subscribes to Supabase Realtime for external updates
 - Handles online/offline transitions
 
+### Sync Flow
+
+```
+┌─────────────────────────────────────────────────────────────────-┐
+│                    MultiProjectEffectManager                     │
+├─────────────────────────────────────────────────────────────────-┤
+│                                                                  │
+│  1. INITIAL LOAD (start())                                       │
+│     Supabase.from('projects') → {id, state, version}             │
+│              ↓                                                   │
+│     App.EffectInit(versions, models) → Dafny EffectState         │
+│                                                                  │
+│  2. USER ACTION (dispatchSingle)                                 │
+│     App.EffectStep(state, UserAction(action))                    │
+│              ↓ optimistic update                                 │
+│     Returns Command.SendDispatch                                 │
+│              ↓                                                   │
+│     supabase.functions.invoke('dispatch', {action, baseVersion}) │
+│              ↓                                                   │
+│     Edge Function (VERIFIED Dafny on server)                     │
+│              ↓                                                   │
+│     Response: accepted/conflict/rejected                         │
+│              ↓                                                   │
+│     App.EffectStep(state, DispatchAccepted/Conflict/Rejected)    │
+│                                                                  │
+│  3. REALTIME (from other clients)                                │
+│     supabase.channel('project:X').on('postgres_changes')         │
+│              ↓                                                   │
+│     App.EffectInit(newVersions, newModels) → merge               │
+│                                                                  │
+└────────────────────────────────────────────────────────────────-─┘
+```
+
+Key points:
+- **All transitions** go through verified `App.EffectStep()`
+- **Optimistic updates**: action applied locally immediately
+- **Server validation**: Edge Function uses same Dafny to verify
+- **Conflict handling**: Dafny rebases pending actions on fresh state
+- **Realtime**: Other clients' changes merged via re-init
+
 ### app-extras.js API
 
 ```javascript
