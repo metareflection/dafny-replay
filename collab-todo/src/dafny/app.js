@@ -768,6 +768,13 @@ const multiactionFromJson = (json) => {
         new BigNumber(json.dstList)
       );
     }
+    case 'MoveListTo': {
+      return TodoMultiProjectDomain.MultiAction.create_MoveListTo(
+        _dafny.Seq.UnicodeFromString(json.srcProject),
+        _dafny.Seq.UnicodeFromString(json.dstProject),
+        new BigNumber(json.listId)
+      );
+    }
     default:
       throw new Error(`Unknown MultiAction type: ${json.type}`);
   }
@@ -796,6 +803,13 @@ const multiactionToJson = (value) => {
       dstProject: dafnyStringToJs(value.dtor_dstProject),
       taskId: toNumber(value.dtor_taskId),
       dstList: toNumber(value.dtor_dstList)
+    };
+  } else if (value.is_MoveListTo) {
+    return {
+      type: 'MoveListTo',
+      srcProject: dafnyStringToJs(value.dtor_srcProject),
+      dstProject: dafnyStringToJs(value.dtor_dstProject),
+      listId: toNumber(value.dtor_listId)
     };
   }
   return { type: 'Unknown' };
@@ -1352,9 +1366,11 @@ const App = {
   MakeSingleAction: (projectId, action) => TodoMultiProjectEffectAppCore.__default.MakeSingleAction(_dafny.Seq.UnicodeFromString(projectId), action),
   MakeMoveTaskTo: (srcProject, dstProject, taskId, dstList, anchor) => TodoMultiProjectEffectAppCore.__default.MakeMoveTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList), anchor),
   MakeCopyTaskTo: (srcProject, dstProject, taskId, dstList) => TodoMultiProjectEffectAppCore.__default.MakeCopyTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList)),
+  MakeMoveListTo: (srcProject, dstProject, listId) => TodoMultiProjectEffectAppCore.__default.MakeMoveListTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(listId)),
   IsSingleAction: (ma) => TodoMultiProjectEffectAppCore.__default.IsSingleAction(ma),
   IsMoveTaskTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsMoveTaskTo(ma),
   IsCopyTaskTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
+  IsMoveListTo: (ma) => TodoMultiProjectEffectAppCore.__default.IsMoveListTo(ma),
   GetTouchedProjects: (ma) => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
   GetProjectModel: (mm, projectId) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(mm, _dafny.Seq.UnicodeFromString(projectId)),
   FindListForTask: (m, taskId) => TodoMultiProjectEffectAppCore.__default.FindListForTask(m, new BigNumber(taskId)),

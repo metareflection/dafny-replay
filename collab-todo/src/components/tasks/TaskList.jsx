@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronRight, X, Edit2, Plus, ArrowUp, ArrowDown } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronDown, ChevronRight, X, Edit2, Plus, ArrowUp, ArrowDown, Send } from 'lucide-react'
 import { TaskItem } from './TaskItem.jsx'
 import './tasks.css'
 
@@ -27,12 +27,29 @@ export function TaskList({
   allTags = {},
   onAddTag,
   onRemoveTag,
-  onCreateTag
+  onCreateTag,
+  otherProjects = [],
+  onMoveListToProject
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editName, setEditName] = useState(listName)
   const [showAddInput, setShowAddInput] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [showMoveDropdown, setShowMoveDropdown] = useState(false)
+  const moveDropdownRef = useRef(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (moveDropdownRef.current && !moveDropdownRef.current.contains(e.target)) {
+        setShowMoveDropdown(false)
+      }
+    }
+    if (showMoveDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMoveDropdown])
 
   const completedCount = tasks.filter(t => t.completed).length
   const totalCount = tasks.length
@@ -124,6 +141,34 @@ export function TaskList({
                 </>
               )
             })()}
+            {onMoveListToProject && otherProjects.length > 0 && (
+              <div className="task-list__move-dropdown" ref={moveDropdownRef}>
+                <button
+                  className="task-list__action-btn"
+                  onClick={() => setShowMoveDropdown(!showMoveDropdown)}
+                  title="Move list to another project"
+                >
+                  <Send size={12} />
+                </button>
+                {showMoveDropdown && (
+                  <div className="task-list__move-menu">
+                    <div className="task-list__move-menu-title">Move to project:</div>
+                    {otherProjects.map(project => (
+                      <button
+                        key={project.id}
+                        className="task-list__move-menu-item"
+                        onClick={() => {
+                          onMoveListToProject(listId, project.id)
+                          setShowMoveDropdown(false)
+                        }}
+                      >
+                        {project.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <button
               className="task-list__action-btn"
               onClick={() => setEditingName(true)}

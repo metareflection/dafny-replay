@@ -91,6 +91,10 @@ export function useAllProjects(projectIds) {
     manager?.copyTaskToProject(srcProject, dstProject, taskId, dstList)
   }, [manager])
 
+  const moveListToProject = useCallback((srcProject, dstProject, listId) => {
+    manager?.moveListToProject(srcProject, dstProject, listId)
+  }, [manager])
+
   // Helper to enrich a tagged task ID with full task data
   // Uses VERIFIED FindListForTask from Dafny
   const enrichTask = useCallback((tagged) => {
@@ -173,6 +177,7 @@ export function useAllProjects(projectIds) {
     dispatch,
     moveTaskToProject,
     copyTaskToProject,
+    moveListToProject,
 
     // Smart lists (VERIFIED via Dafny)
     priorityTasks,

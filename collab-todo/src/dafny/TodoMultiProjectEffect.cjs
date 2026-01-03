@@ -4013,9 +4013,16 @@ let TodoMultiProjectDomain = (function() {
         }
       }
       {
-        let _3_src = (_source0).srcProject;
-        let _4_dst = (_source0).dstProject;
-        return _dafny.Set.fromElements(_3_src, _4_dst);
+        if (_source0.is_CopyTaskTo) {
+          let _3_src = (_source0).srcProject;
+          let _4_dst = (_source0).dstProject;
+          return _dafny.Set.fromElements(_3_src, _4_dst);
+        }
+      }
+      {
+        let _5_src = (_source0).srcProject;
+        let _6_dst = (_source0).dstProject;
+        return _dafny.Set.fromElements(_5_src, _6_dst);
       }
     };
     static ExtractTaskData(m, taskId) {
@@ -4082,6 +4089,77 @@ let TodoMultiProjectDomain = (function() {
         }
       }
     };
+    static ExtractListTasks(m, listId) {
+      if (!((m).dtor_tasks).contains(listId)) {
+        return _dafny.Seq.of();
+      } else {
+        return TodoMultiProjectDomain.__default.ExtractTasksFromSeq(((m).dtor_tasks).get(listId), (m).dtor_taskData);
+      }
+    };
+    static ExtractTasksFromSeq(taskIds, taskData) {
+      if ((new BigNumber((taskIds).length)).isEqualTo(_dafny.ZERO)) {
+        return _dafny.Seq.of();
+      } else {
+        let _0_id = (taskIds)[_dafny.ZERO];
+        let _1_rest = TodoMultiProjectDomain.__default.ExtractTasksFromSeq((taskIds).slice(_dafny.ONE), taskData);
+        if (((taskData).contains(_0_id)) && (!(((taskData).get(_0_id)).dtor_deleted))) {
+          return _dafny.Seq.Concat(_dafny.Seq.of((taskData).get(_0_id)), _1_rest);
+        } else {
+          return _1_rest;
+        }
+      }
+    };
+    static CleanTaskForMove(task) {
+      return TodoDomain.Task.create_Task((task).dtor_title, (task).dtor_notes, (task).dtor_completed, (task).dtor_starred, (task).dtor_dueDate, _dafny.Set.fromElements(), _dafny.Set.fromElements(), false, TodoDomain.Option.create_None(), TodoDomain.Option.create_None());
+    };
+    static AddTasksToList(m, listId, tasks) {
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((tasks).length)).isEqualTo(_dafny.ZERO)) {
+          return TodoDomain.Result.create_Ok(m);
+        } else {
+          let _0_task = (tasks)[_dafny.ZERO];
+          let _1_cleanTask = TodoMultiProjectDomain.__default.CleanTaskForMove(_0_task);
+          let _2_addResult = TodoMultiProjectDomain.__default.AddTaskToProject(m, listId, _1_cleanTask, TodoDomain.Place.create_AtEnd());
+          if ((_2_addResult).is_Err) {
+            return _2_addResult;
+          } else {
+            let _in0 = (_2_addResult).dtor_value;
+            let _in1 = listId;
+            let _in2 = (tasks).slice(_dafny.ONE);
+            m = _in0;
+            listId = _in1;
+            tasks = _in2;
+            continue TAIL_CALL_START;
+          }
+        }
+      }
+    };
+    static AddListWithTasks(m, listName, tasks) {
+      let _0_addListResult = TodoDomain.__default.TryStep(m, TodoDomain.Action.create_AddList(listName));
+      if ((_0_addListResult).is_Err) {
+        return _0_addListResult;
+      } else {
+        let _1_m1 = (_0_addListResult).dtor_value;
+        let _2_newListId = (m).dtor_nextListId;
+        return TodoMultiProjectDomain.__default.AddTasksToList(_1_m1, _2_newListId, tasks);
+      }
+    };
+    static ListDeletedInLog(suffix, listId) {
+      if ((new BigNumber((suffix).length)).isEqualTo(_dafny.ZERO)) {
+        return false;
+      } else {
+        let _source0 = (suffix)[_dafny.ZERO];
+        {
+          if (_source0.is_DeleteList) {
+            let _0_id = (_source0).listId;
+            return ((_0_id).isEqualTo(listId)) || (TodoMultiProjectDomain.__default.ListDeletedInLog((suffix).slice(_dafny.ONE), listId));
+          }
+        }
+        {
+          return TodoMultiProjectDomain.__default.ListDeletedInLog((suffix).slice(_dafny.ONE), listId);
+        }
+      }
+    };
     static MultiStep(mm, a) {
       let _source0 = a;
       {
@@ -4138,26 +4216,60 @@ let TodoMultiProjectDomain = (function() {
         }
       }
       {
-        let _19_src = (_source0).srcProject;
-        let _20_dst = (_source0).dstProject;
-        let _21_taskId = (_source0).taskId;
-        let _22_dstList = (_source0).dstList;
-        let _23_srcModel = ((mm).dtor_projects).get(_19_src);
-        let _24_dstModel = ((mm).dtor_projects).get(_20_dst);
-        let _25_extractResult = TodoMultiProjectDomain.__default.ExtractTaskData(_23_srcModel, _21_taskId);
-        if ((_25_extractResult).is_Err) {
-          return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Task not in source")));
-        } else {
-          let _26_taskData = (_25_extractResult).dtor_value;
-          if (!(TodoDomain.__default.SeqContains((_24_dstModel).dtor_lists, _22_dstList))) {
-            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Destination list missing")));
+        if (_source0.is_CopyTaskTo) {
+          let _19_src = (_source0).srcProject;
+          let _20_dst = (_source0).dstProject;
+          let _21_taskId = (_source0).taskId;
+          let _22_dstList = (_source0).dstList;
+          let _23_srcModel = ((mm).dtor_projects).get(_19_src);
+          let _24_dstModel = ((mm).dtor_projects).get(_20_dst);
+          let _25_extractResult = TodoMultiProjectDomain.__default.ExtractTaskData(_23_srcModel, _21_taskId);
+          if ((_25_extractResult).is_Err) {
+            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Task not in source")));
           } else {
-            let _27_addResult = TodoMultiProjectDomain.__default.AddTaskToProject(_24_dstModel, _22_dstList, _26_taskData, TodoDomain.Place.create_AtEnd());
-            if ((_27_addResult).is_Err) {
-              return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_20_dst, (_27_addResult).dtor_error));
+            let _26_taskData = (_25_extractResult).dtor_value;
+            if (!(TodoDomain.__default.SeqContains((_24_dstModel).dtor_lists, _22_dstList))) {
+              return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Destination list missing")));
             } else {
-              let _28_newDst = (_27_addResult).dtor_value;
-              return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel(((mm).dtor_projects).update(_20_dst, _28_newDst)));
+              let _27_addResult = TodoMultiProjectDomain.__default.AddTaskToProject(_24_dstModel, _22_dstList, _26_taskData, TodoDomain.Place.create_AtEnd());
+              if ((_27_addResult).is_Err) {
+                return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_20_dst, (_27_addResult).dtor_error));
+              } else {
+                let _28_newDst = (_27_addResult).dtor_value;
+                return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel(((mm).dtor_projects).update(_20_dst, _28_newDst)));
+              }
+            }
+          }
+        }
+      }
+      {
+        let _29_src = (_source0).srcProject;
+        let _30_dst = (_source0).dstProject;
+        let _31_listId = (_source0).listId;
+        let _32_srcModel = ((mm).dtor_projects).get(_29_src);
+        let _33_dstModel = ((mm).dtor_projects).get(_30_dst);
+        if (!(TodoDomain.__default.SeqContains((_32_srcModel).dtor_lists, _31_listId))) {
+          return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Source list missing")));
+        } else if (!((_32_srcModel).dtor_listNames).contains(_31_listId)) {
+          return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Source list name missing")));
+        } else {
+          let _34_listName = ((_32_srcModel).dtor_listNames).get(_31_listId);
+          if (TodoDomain.__default.ListNameExists(_33_dstModel, _34_listName, TodoDomain.Option.create_None())) {
+            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Duplicate list name in destination")));
+          } else {
+            let _35_tasks = TodoMultiProjectDomain.__default.ExtractListTasks(_32_srcModel, _31_listId);
+            let _36_deleteResult = TodoDomain.__default.TryStep(_32_srcModel, TodoDomain.Action.create_DeleteList(_31_listId));
+            if ((_36_deleteResult).is_Err) {
+              return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_29_src, (_36_deleteResult).dtor_error));
+            } else {
+              let _37_newSrc = (_36_deleteResult).dtor_value;
+              let _38_addResult = TodoMultiProjectDomain.__default.AddListWithTasks(_33_dstModel, _34_listName, _35_tasks);
+              if ((_38_addResult).is_Err) {
+                return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_30_dst, (_38_addResult).dtor_error));
+              } else {
+                let _39_newDst = (_38_addResult).dtor_value;
+                return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel((((mm).dtor_projects).update(_29_src, _37_newSrc)).update(_30_dst, _39_newDst)));
+              }
             }
           }
         }
@@ -4184,12 +4296,23 @@ let TodoMultiProjectDomain = (function() {
           }
         }
         {
-          let _3_src = (_source0).srcProject;
-          let _4_dst = (_source0).dstProject;
-          if (!((mm).dtor_projects).contains(_3_src)) {
-            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_3_src));
+          if (_source0.is_CopyTaskTo) {
+            let _3_src = (_source0).srcProject;
+            let _4_dst = (_source0).dstProject;
+            if (!((mm).dtor_projects).contains(_3_src)) {
+              return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_3_src));
+            } else {
+              return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_4_dst));
+            }
+          }
+        }
+        {
+          let _5_src = (_source0).srcProject;
+          let _6_dst = (_source0).dstProject;
+          if (!((mm).dtor_projects).contains(_5_src)) {
+            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_5_src));
           } else {
-            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_4_dst));
+            return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_6_dst));
           }
         }
       } else {
@@ -4229,13 +4352,26 @@ let TodoMultiProjectDomain = (function() {
         }
       }
       {
-        let _12_src = (_source0).srcProject;
-        let _13_dst = (_source0).dstProject;
-        let _14_taskId = (_source0).taskId;
-        let _15_dstList = (_source0).dstList;
-        let _16_srcSuffix = TodoMultiProjectDomain.__default.GetSuffix(projectLogs, baseVersions, _12_src);
-        if (TodoMultiProjectDomain.__default.TaskDeletedInLog(_16_srcSuffix, _14_taskId)) {
-          return TodoMultiProjectDomain.MultiAction.create_Single(_12_src, TodoDomain.Action.create_NoOp());
+        if (_source0.is_CopyTaskTo) {
+          let _12_src = (_source0).srcProject;
+          let _13_dst = (_source0).dstProject;
+          let _14_taskId = (_source0).taskId;
+          let _15_dstList = (_source0).dstList;
+          let _16_srcSuffix = TodoMultiProjectDomain.__default.GetSuffix(projectLogs, baseVersions, _12_src);
+          if (TodoMultiProjectDomain.__default.TaskDeletedInLog(_16_srcSuffix, _14_taskId)) {
+            return TodoMultiProjectDomain.MultiAction.create_Single(_12_src, TodoDomain.Action.create_NoOp());
+          } else {
+            return a;
+          }
+        }
+      }
+      {
+        let _17_src = (_source0).srcProject;
+        let _18_dst = (_source0).dstProject;
+        let _19_listId = (_source0).listId;
+        let _20_srcSuffix = TodoMultiProjectDomain.__default.GetSuffix(projectLogs, baseVersions, _17_src);
+        if (TodoMultiProjectDomain.__default.ListDeletedInLog(_20_srcSuffix, _19_listId)) {
+          return TodoMultiProjectDomain.MultiAction.create_Single(_17_src, TodoDomain.Action.create_NoOp());
         } else {
           return a;
         }
@@ -4349,24 +4485,32 @@ let TodoMultiProjectDomain = (function() {
         }
       }
       {
-        let _12_src = (_source0).srcProject;
-        let _13_dst = (_source0).dstProject;
-        let _14_taskId = (_source0).taskId;
-        let _15_dstList = (_source0).dstList;
-        if (!((mm).dtor_projects).contains(_13_dst)) {
-          return _dafny.Seq.of(a);
-        } else {
-          let _16_dstModel = ((mm).dtor_projects).get(_13_dst);
-          if (!(TodoDomain.__default.SeqContains((_16_dstModel).dtor_lists, _15_dstList))) {
-            if ((_dafny.ZERO).isLessThan(new BigNumber(((_16_dstModel).dtor_lists).length))) {
-              return _dafny.Seq.of(a, TodoMultiProjectDomain.MultiAction.create_CopyTaskTo(_12_src, _13_dst, _14_taskId, ((_16_dstModel).dtor_lists)[_dafny.ZERO]));
+        if (_source0.is_CopyTaskTo) {
+          let _12_src = (_source0).srcProject;
+          let _13_dst = (_source0).dstProject;
+          let _14_taskId = (_source0).taskId;
+          let _15_dstList = (_source0).dstList;
+          if (!((mm).dtor_projects).contains(_13_dst)) {
+            return _dafny.Seq.of(a);
+          } else {
+            let _16_dstModel = ((mm).dtor_projects).get(_13_dst);
+            if (!(TodoDomain.__default.SeqContains((_16_dstModel).dtor_lists, _15_dstList))) {
+              if ((_dafny.ZERO).isLessThan(new BigNumber(((_16_dstModel).dtor_lists).length))) {
+                return _dafny.Seq.of(a, TodoMultiProjectDomain.MultiAction.create_CopyTaskTo(_12_src, _13_dst, _14_taskId, ((_16_dstModel).dtor_lists)[_dafny.ZERO]));
+              } else {
+                return _dafny.Seq.of(a);
+              }
             } else {
               return _dafny.Seq.of(a);
             }
-          } else {
-            return _dafny.Seq.of(a);
           }
         }
+      }
+      {
+        let _17_src = (_source0).srcProject;
+        let _18_dst = (_source0).dstProject;
+        let _19_listId = (_source0).listId;
+        return _dafny.Seq.of(a);
       }
     };
     static GetAllPriorityTasks(mm) {
@@ -4513,9 +4657,17 @@ let TodoMultiProjectDomain = (function() {
       $dt.dstList = dstList;
       return $dt;
     }
+    static create_MoveListTo(srcProject, dstProject, listId) {
+      let $dt = new MultiAction(3);
+      $dt.srcProject = srcProject;
+      $dt.dstProject = dstProject;
+      $dt.listId = listId;
+      return $dt;
+    }
     get is_Single() { return this.$tag === 0; }
     get is_MoveTaskTo() { return this.$tag === 1; }
     get is_CopyTaskTo() { return this.$tag === 2; }
+    get is_MoveListTo() { return this.$tag === 3; }
     get dtor_project() { return this.project; }
     get dtor_action() { return this.action; }
     get dtor_srcProject() { return this.srcProject; }
@@ -4523,6 +4675,7 @@ let TodoMultiProjectDomain = (function() {
     get dtor_taskId() { return this.taskId; }
     get dtor_dstList() { return this.dstList; }
     get dtor_anchor() { return this.anchor; }
+    get dtor_listId() { return this.listId; }
     toString() {
       if (this.$tag === 0) {
         return "TodoMultiProjectDomain.MultiAction.Single" + "(" + this.project.toVerbatimString(true) + ", " + _dafny.toString(this.action) + ")";
@@ -4530,6 +4683,8 @@ let TodoMultiProjectDomain = (function() {
         return "TodoMultiProjectDomain.MultiAction.MoveTaskTo" + "(" + this.srcProject.toVerbatimString(true) + ", " + this.dstProject.toVerbatimString(true) + ", " + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.dstList) + ", " + _dafny.toString(this.anchor) + ")";
       } else if (this.$tag === 2) {
         return "TodoMultiProjectDomain.MultiAction.CopyTaskTo" + "(" + this.srcProject.toVerbatimString(true) + ", " + this.dstProject.toVerbatimString(true) + ", " + _dafny.toString(this.taskId) + ", " + _dafny.toString(this.dstList) + ")";
+      } else if (this.$tag === 3) {
+        return "TodoMultiProjectDomain.MultiAction.MoveListTo" + "(" + this.srcProject.toVerbatimString(true) + ", " + this.dstProject.toVerbatimString(true) + ", " + _dafny.toString(this.listId) + ")";
       } else  {
         return "<unexpected>";
       }
@@ -4543,6 +4698,8 @@ let TodoMultiProjectDomain = (function() {
         return other.$tag === 1 && _dafny.areEqual(this.srcProject, other.srcProject) && _dafny.areEqual(this.dstProject, other.dstProject) && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.dstList, other.dstList) && _dafny.areEqual(this.anchor, other.anchor);
       } else if (this.$tag === 2) {
         return other.$tag === 2 && _dafny.areEqual(this.srcProject, other.srcProject) && _dafny.areEqual(this.dstProject, other.dstProject) && _dafny.areEqual(this.taskId, other.taskId) && _dafny.areEqual(this.dstList, other.dstList);
+      } else if (this.$tag === 3) {
+        return other.$tag === 3 && _dafny.areEqual(this.srcProject, other.srcProject) && _dafny.areEqual(this.dstProject, other.dstProject) && _dafny.areEqual(this.listId, other.listId);
       } else  {
         return false; // unexpected
       }
@@ -5801,6 +5958,9 @@ let TodoMultiProjectEffectAppCore = (function() {
     static MakeCopyTaskTo(srcProject, dstProject, taskId, dstList) {
       return TodoMultiProjectDomain.MultiAction.create_CopyTaskTo(srcProject, dstProject, taskId, dstList);
     };
+    static MakeMoveListTo(srcProject, dstProject, listId) {
+      return TodoMultiProjectDomain.MultiAction.create_MoveListTo(srcProject, dstProject, listId);
+    };
     static IsSingleAction(ma) {
       return (ma).is_Single;
     };
@@ -5809,6 +5969,9 @@ let TodoMultiProjectEffectAppCore = (function() {
     };
     static IsCopyTaskTo(ma) {
       return (ma).is_CopyTaskTo;
+    };
+    static IsMoveListTo(ma) {
+      return (ma).is_MoveListTo;
     };
     static GetTouchedProjects(ma) {
       return TodoMultiProjectDomain.__default.TouchedProjects(ma);

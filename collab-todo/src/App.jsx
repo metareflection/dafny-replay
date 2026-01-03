@@ -104,7 +104,9 @@ function ProjectView({
   onFilterChange,
   onRenameList,
   onDeleteList,
-  onMoveList
+  onMoveList,
+  otherProjects,
+  onMoveListToProject
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
@@ -180,6 +182,8 @@ function ProjectView({
             onDeleteList={onDeleteList}
             onMoveList={onMoveList}
             allLists={lists}
+            otherProjects={otherProjects}
+            onMoveListToProject={onMoveListToProject}
             onCompleteTask={(taskId, completed) =>
               dispatch(completed ? App.CompleteTask(taskId) : App.UncompleteTask(taskId))
             }
@@ -238,6 +242,7 @@ function TodoApp({ user, onSignOut }) {
     getProjectModel,
     getProjectLists,
     getListTaskCount,
+    moveListToProject,
     refresh: sync,
     error,
     status,
@@ -301,6 +306,12 @@ function TodoApp({ user, onSignOut }) {
   const handleMoveList = (listId, anchorId, direction) => {
     const listPlace = direction === 'before' ? App.ListBefore(anchorId) : App.ListAfter(anchorId)
     singleDispatch(App.MoveList(listId, listPlace))
+  }
+
+  const handleMoveListToProject = (listId, targetProjectId) => {
+    if (selectedProjectId) {
+      moveListToProject(selectedProjectId, targetProjectId, listId)
+    }
   }
 
   const handleCreateProject = async (name) => {
@@ -427,6 +438,8 @@ function TodoApp({ user, onSignOut }) {
           onRenameList={handleRenameList}
           onDeleteList={handleDeleteList}
           onMoveList={handleMoveList}
+          otherProjects={projects.filter(p => p.id !== selectedProjectId)}
+          onMoveListToProject={handleMoveListToProject}
         />
       )
     }

@@ -7,8 +7,8 @@ This document compares actions defined in the Dafny spec against what is current
 | Category | Spec Actions | Used in UI | Missing |
 |----------|-------------|------------|---------|
 | Single-Project | 24 | 16 | 8 |
-| Multi-Project | 2 | 0 | 2 |
-| **Total** | **26** | **16** | **10** |
+| Multi-Project | 3 | 1 | 2 |
+| **Total** | **27** | **17** | **10** |
 
 ---
 
@@ -53,6 +53,12 @@ This document compares actions defined in the Dafny spec against what is current
 
 ## Multi-Project Actions (from TodoMultiProjectDomain.dfy)
 
+### Used in UI
+
+| Action | Parameters | UI Location | Trigger |
+|--------|-----------|-------------|---------|
+| MoveListTo | srcProject, dstProject, listId | TaskList | Send icon dropdown, select target project |
+
 ### Not Used in UI
 
 | Action | Parameters | Notes |
@@ -70,6 +76,7 @@ This document compares actions defined in the Dafny spec against what is current
    - `MoveTaskTo` - Move task between projects
    - `CopyTaskTo` - Copy task to another project
    - Infrastructure ready (effect manager has `moveTaskToProject` and `copyTaskToProject` methods)
+   - Note: `MoveListTo` (move entire list with tasks) is now implemented
 
 2. **Task Assignment**
    - `AssignTask` / `UnassignTask` - Collaborative task assignment

@@ -320,10 +320,15 @@ const App = {
     CopyTaskTo: (srcProject, dstProject, taskId, dstList) =>
       GeneratedApp.MakeCopyTaskTo(srcProject, dstProject, taskId, dstList),
 
+    // Cross-project: move list (with all tasks)
+    MoveListTo: (srcProject, dstProject, listId) =>
+      GeneratedApp.MakeMoveListTo(srcProject, dstProject, listId),
+
     // Check type
     isSingle: (ma) => GeneratedApp.IsSingleAction(ma),
     isMoveTaskTo: (ma) => GeneratedApp.IsMoveTaskTo(ma),
     isCopyTaskTo: (ma) => GeneratedApp.IsCopyTaskTo(ma),
+    isMoveListTo: (ma) => GeneratedApp.IsMoveListTo(ma),
 
     // Get touched projects as array
     getTouchedProjects: (ma) => {

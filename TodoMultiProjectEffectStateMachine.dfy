@@ -156,6 +156,15 @@ module TodoMultiProjectEffectAppCore {
     MP.MultiAction.CopyTaskTo(srcProject, dstProject, taskId, dstList)
   }
 
+  function MakeMoveListTo(
+    srcProject: ProjectId,
+    dstProject: ProjectId,
+    listId: TD.ListId
+  ): MultiAction
+  {
+    MP.MultiAction.MoveListTo(srcProject, dstProject, listId)
+  }
+
   // ===========================================================================
   // MultiAction Inspection
   // ===========================================================================
@@ -163,6 +172,7 @@ module TodoMultiProjectEffectAppCore {
   function IsSingleAction(ma: MultiAction): bool { ma.Single? }
   function IsMoveTaskTo(ma: MultiAction): bool { ma.MoveTaskTo? }
   function IsCopyTaskTo(ma: MultiAction): bool { ma.CopyTaskTo? }
+  function IsMoveListTo(ma: MultiAction): bool { ma.MoveListTo? }
 
   function GetTouchedProjects(ma: MultiAction): set<ProjectId>
   {

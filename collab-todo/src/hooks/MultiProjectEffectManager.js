@@ -264,6 +264,12 @@ export class MultiProjectEffectManager {
     this.dispatch(multiAction)
   }
 
+  // Public: move list to another project
+  moveListToProject(srcProject, dstProject, listId) {
+    const multiAction = App.MultiAction.MoveListTo(srcProject, dstProject, listId)
+    this.dispatch(multiAction)
+  }
+
   // Public: manual sync (reload all projects)
   async sync() {
     if (!isSupabaseConfigured()) return

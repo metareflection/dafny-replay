@@ -2,6 +2,113 @@
 
 ---
 
+# MoveListTo (Cross-Project) Implementation
+
+**Date:** 2026-01-02
+
+## Goal
+
+Implement `MoveListTo` action to move an entire list (with all its tasks) from one project to another.
+
+## Spec Changes (TodoMultiProjectDomain.dfy)
+
+Added new `MultiAction` variant:
+```dafny
+| MoveListTo(
+    srcProject: ProjectId,
+    dstProject: ProjectId,
+    listId: ListId
+  )
+```
+
+### Helper Functions Added
+
+| Function | Purpose |
+|----------|---------|
+| `ExtractListTasks` | Get all non-deleted tasks from a list |
+| `ExtractTasksFromSeq` | Recursively extract tasks from ID sequence |
+| `CleanTaskForMove` | Clear tags/assignees (project-scoped data) |
+| `AddTasksToList` | Add multiple tasks to destination list |
+| `AddListWithTasks` | Create list and populate with tasks |
+| `ListDeletedInLog` | Check if list was deleted in log suffix |
+
+### MultiStep Logic
+
+1. Check source list exists and has a name
+2. Check destination doesn't have list with same name (hard error, no fallback)
+3. Extract tasks from source list
+4. Delete list from source project
+5. Create list with same name in destination
+6. Add cleaned tasks (no tags/assignees) to new list
+
+### Rebasing Rules
+
+- If list deleted in source log → becomes `NoOp`
+- Otherwise unchanged (list always placed at end)
+
+### Candidates
+
+No fallback candidates for `MoveListTo` - duplicate name in destination is a hard error.
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `MoveListTo` variant, helpers, MultiStep/Rebase/Candidates cases |
+| `TodoMultiProjectEffectStateMachine.dfy` | Added `MakeMoveListTo`, `IsMoveListTo` |
+| `src/dafny/app-extras.js` | Added `MoveListTo` constructor, `isMoveListTo` checker |
+| `src/hooks/MultiProjectEffectManager.js` | Added `moveListToProject` method |
+| `src/hooks/useAllProjects.js` | Exposed `moveListToProject` |
+| `src/components/tasks/TaskList.jsx` | Added Send icon dropdown with project menu |
+| `src/components/tasks/tasks.css` | Added dropdown styles |
+| `src/App.jsx` | Added `handleMoveListToProject`, wired props to ProjectView |
+| `docs/ACTIONS.md` | Updated counts, added MoveListTo as implemented |
+
+## Key Code
+
+**TaskList.jsx** - Send icon dropdown:
+```javascript
+{onMoveListToProject && otherProjects.length > 0 && (
+  <div className="task-list__move-dropdown" ref={moveDropdownRef}>
+    <button onClick={() => setShowMoveDropdown(!showMoveDropdown)}>
+      <Send size={12} />
+    </button>
+    {showMoveDropdown && (
+      <div className="task-list__move-menu">
+        <div className="task-list__move-menu-title">Move to project:</div>
+        {otherProjects.map(project => (
+          <button onClick={() => onMoveListToProject(listId, project.id)}>
+            {project.name}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+```
+
+**App.jsx** - Handler:
+```javascript
+const handleMoveListToProject = (listId, targetProjectId) => {
+  if (selectedProjectId) {
+    moveListToProject(selectedProjectId, targetProjectId, listId)
+  }
+}
+```
+
+## Design Decisions
+
+1. **Tags/assignees cleared** - These are project-scoped data
+2. **Duplicate name = hard error** - No automatic rename fallback
+3. **List placed at end** - No anchor parameter needed
+4. **Proof stubbed** - `assume {:axiom}` in `MultiStepPreservesInv`
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 # MoveList Implementation
 
 **Date:** 2026-01-02

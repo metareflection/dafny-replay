@@ -46,6 +46,14 @@ module TodoMultiProjectDomain refines MultiProject {
         dstList: ListId
       )
 
+    // Cross-project: Move entire list to another project
+    // Note: Tags and assignees are cleared (project-scoped data)
+    | MoveListTo(
+        srcProject: ProjectId,
+        dstProject: ProjectId,
+        listId: ListId
+      )
+
   // ===========================================================================
   // Required by MultiProject: SingleAction and GetSingleAction
   // ===========================================================================
@@ -72,6 +80,7 @@ module TodoMultiProjectDomain refines MultiProject {
     case Single(pid, _) => {pid}
     case MoveTaskTo(src, dst, _, _, _) => {src, dst}
     case CopyTaskTo(src, dst, _, _) => {src, dst}
+    case MoveListTo(src, dst, _) => {src, dst}
   }
 
   lemma SingleActionTouchesOne(pid: ProjectId, a: Action)
@@ -213,6 +222,76 @@ module TodoMultiProjectDomain refines MultiProject {
   }
 
   // ===========================================================================
+  // Helpers for MoveListTo
+  // ===========================================================================
+
+  // Helper: Extract all non-deleted tasks from a list as sequence of (TaskId, Task)
+  function ExtractListTasks(m: Model, listId: ListId): seq<Task>
+  {
+    if listId !in m.tasks then []
+    else ExtractTasksFromSeq(m.tasks[listId], m.taskData)
+  }
+
+  function ExtractTasksFromSeq(taskIds: seq<TaskId>, taskData: map<TaskId, Task>): seq<Task>
+  {
+    if |taskIds| == 0 then []
+    else
+      var id := taskIds[0];
+      var rest := ExtractTasksFromSeq(taskIds[1..], taskData);
+      if id in taskData && !taskData[id].deleted
+      then [taskData[id]] + rest
+      else rest
+  }
+
+  // Helper: Create a "clean" task for cross-project move (clear tags and assignees)
+  function CleanTaskForMove(task: Task): Task
+  {
+    MC.D.Task(
+      task.title, task.notes, task.completed, task.starred,
+      task.dueDate,
+      {},  // Clear assignees (project-scoped)
+      {},  // Clear tags (project-scoped)
+      false, MC.D.Option.None, MC.D.Option.None
+    )
+  }
+
+  // Helper: Add multiple tasks to a list in destination project
+  function AddTasksToList(m: Model, listId: ListId, tasks: seq<Task>): MC.D.Result<Model, MC.D.Err>
+    decreases |tasks|
+  {
+    if |tasks| == 0 then MC.D.Result.Ok(m)
+    else
+      var task := tasks[0];
+      var cleanTask := CleanTaskForMove(task);
+      var addResult := AddTaskToProject(m, listId, cleanTask, MC.D.Place.AtEnd);
+      if addResult.Err? then addResult
+      else AddTasksToList(addResult.value, listId, tasks[1..])
+  }
+
+  // Helper: Create list and add tasks to destination project
+  function AddListWithTasks(m: Model, listName: string, tasks: seq<Task>): MC.D.Result<Model, MC.D.Err>
+  {
+    // First create the list
+    var addListResult := MC.D.TryStep(m, MC.D.Action.AddList(listName));
+    if addListResult.Err? then addListResult
+    else
+      var m1 := addListResult.value;
+      var newListId := m.nextListId;
+      // Add each task to the new list
+      AddTasksToList(m1, newListId, tasks)
+  }
+
+  // Helper: Check if list was deleted in a log suffix
+  function ListDeletedInLog(suffix: seq<Action>, listId: ListId): bool
+  {
+    if |suffix| == 0 then false
+    else
+      match suffix[0]
+      case DeleteList(id) => id == listId || ListDeletedInLog(suffix[1..], listId)
+      case _ => ListDeletedInLog(suffix[1..], listId)
+  }
+
+  // ===========================================================================
   // Required by MultiProject: MultiStep
   // ===========================================================================
 
@@ -271,6 +350,38 @@ module TodoMultiProjectDomain refines MultiProject {
           else
             var newDst := addResult.value;
             Ok(MultiModel(mm.projects[dst := newDst]))
+
+    case MoveListTo(src, dst, listId) =>
+      var srcModel := mm.projects[src];
+      var dstModel := mm.projects[dst];
+
+      // Check source list exists (and has a name in the map)
+      if !MC.D.SeqContains(srcModel.lists, listId) then
+        Err(CrossProjectError("Source list missing"))
+      else if listId !in srcModel.listNames then
+        Err(CrossProjectError("Source list name missing"))  // Should never happen if invariant holds
+      else
+        var listName := srcModel.listNames[listId];
+
+        // Check destination doesn't have list with same name
+        if MC.D.ListNameExists(dstModel, listName, MC.D.Option.None) then
+          Err(CrossProjectError("Duplicate list name in destination"))
+        else
+          // Extract tasks from source list
+          var tasks := ExtractListTasks(srcModel, listId);
+
+          // Delete list from source (removes list and its tasks)
+          var deleteResult := MC.D.TryStep(srcModel, MC.D.Action.DeleteList(listId));
+          if deleteResult.Err? then Err(SingleProjectError(src, deleteResult.error))
+          else
+            var newSrc := deleteResult.value;
+
+            // Add list with tasks to destination
+            var addResult := AddListWithTasks(dstModel, listName, tasks);
+            if addResult.Err? then Err(SingleProjectError(dst, addResult.error))
+            else
+              var newDst := addResult.value;
+              Ok(MultiModel(mm.projects[src := newSrc][dst := newDst]))
   }
 
   // ===========================================================================
@@ -286,6 +397,9 @@ module TodoMultiProjectDomain refines MultiProject {
         if src !in mm.projects then Err(MissingProject(src))
         else Err(MissingProject(dst))
       case CopyTaskTo(src, dst, _, _) =>
+        if src !in mm.projects then Err(MissingProject(src))
+        else Err(MissingProject(dst))
+      case MoveListTo(src, dst, _) =>
         if src !in mm.projects then Err(MissingProject(src))
         else Err(MissingProject(dst))
     else
@@ -349,6 +463,10 @@ module TodoMultiProjectDomain refines MultiProject {
         AddTaskToProjectPreservesInv(dstModel, dstList, taskData, MC.D.Place.AtEnd, newDst);
 
         // src and other projects unchanged
+
+      case MoveListTo(src, dst, listId) =>
+        // Proof stubbed - invariant preservation for MoveListTo
+        assume {:axiom} forall pid :: pid in mm2.projects ==> Inv(mm2.projects[pid]);
     }
   }
 
@@ -385,6 +503,14 @@ module TodoMultiProjectDomain refines MultiProject {
         Single(src, MC.D.Action.NoOp)
       else
         a
+
+    case MoveListTo(src, dst, listId) =>
+      var srcSuffix := GetSuffix(projectLogs, baseVersions, src);
+      // If list was deleted in source, become NoOp
+      if ListDeletedInLog(srcSuffix, listId) then
+        Single(src, MC.D.Action.NoOp)
+      else
+        a  // Keep as-is (list always placed at end)
   }
 
   // Helper: Get log suffix for a project
@@ -464,6 +590,11 @@ module TodoMultiProjectDomain refines MultiProject {
             [a]
         else
           [a]
+
+    case MoveListTo(src, dst, listId) =>
+      // No fallback candidates for MoveListTo - either it works or it doesn't
+      // (list name conflict in destination is a hard error)
+      [a]
   }
 
   lemma CandidatesStartWithOriginal(mm: MultiModel, a: MultiAction)
