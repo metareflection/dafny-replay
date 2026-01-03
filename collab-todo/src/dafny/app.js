@@ -711,110 +711,6 @@ const smartlisttypeToJson = (value) => {
   return 'Unknown';
 };
 
-const multimodelFromJson = (json) => {
-  let __projects = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.projects || {})) {
-    const key = _dafny.Seq.UnicodeFromString(k);
-    const val = modelFromJson(v);
-    __projects = __projects.update(key, val);
-  }
-  return TodoDomain.MultiModel.create_MultiModel(
-    __projects
-  );
-};
-
-const multimodelToJson = (value) => {
-  const __projectsJson = {};
-  if (value.dtor_projects && value.dtor_projects.Keys) {
-    for (const k of value.dtor_projects.Keys.Elements) {
-      const v = value.dtor_projects.get(k);
-      __projectsJson[dafnyStringToJs(k)] = modelToJson(v);
-    }
-  }
-  return {
-    projects: __projectsJson
-  };
-};
-
-const taggedtaskidFromJson = (json) => {
-  return TodoDomain.TaggedTaskId.create_TaggedTaskId(
-    _dafny.Seq.UnicodeFromString(json.projectId),
-    new BigNumber(json.taskId)
-  );
-};
-
-const taggedtaskidToJson = (value) => {
-  return {
-    projectId: dafnyStringToJs(value.dtor_projectId),
-    taskId: toNumber(value.dtor_taskId)
-  };
-};
-
-const sidebarselectionFromJson = (json) => {
-  switch (json.type) {
-    case 'NoSelection': {
-      return TodoDomain.SidebarSelection.create_NoSelection();
-    }
-    case 'SmartListSelected': {
-      return TodoDomain.SidebarSelection.create_SmartListSelected(
-        smartlisttypeFromJson(json.smartList)
-      );
-    }
-    case 'ProjectSelected': {
-      return TodoDomain.SidebarSelection.create_ProjectSelected(
-        _dafny.Seq.UnicodeFromString(json.projectId)
-      );
-    }
-    case 'ListSelected': {
-      return TodoDomain.SidebarSelection.create_ListSelected(
-        _dafny.Seq.UnicodeFromString(json.projectId),
-        new BigNumber(json.listId)
-      );
-    }
-    default:
-      throw new Error(`Unknown SidebarSelection type: ${json.type}`);
-  }
-};
-
-const sidebarselectionToJson = (value) => {
-  if (value.is_NoSelection) {
-    return { type: 'NoSelection' };
-  } else if (value.is_SmartListSelected) {
-    return {
-      type: 'SmartListSelected',
-      smartList: smartlisttypeToJson(value.dtor_smartList)
-    };
-  } else if (value.is_ProjectSelected) {
-    return {
-      type: 'ProjectSelected',
-      projectId: dafnyStringToJs(value.dtor_projectId)
-    };
-  } else if (value.is_ListSelected) {
-    return {
-      type: 'ListSelected',
-      projectId: dafnyStringToJs(value.dtor_projectId),
-      listId: toNumber(value.dtor_listId)
-    };
-  }
-  return { type: 'Unknown' };
-};
-
-const viewstateFromJson = (json) => {
-  return TodoDomain.ViewState.create_ViewState(
-    viewmodeFromJson(json.viewMode),
-    sidebarselectionFromJson(json.selection),
-    multimodelFromJson(json.loadedProjects)
-  );
-};
-
-const viewstateToJson = (value) => {
-  return {
-    viewMode: viewmodeToJson(value.dtor_viewMode),
-    selection: sidebarselectionToJson(value.dtor_selection),
-    loadedProjects: multimodelToJson(value.dtor_loadedProjects)
-  };
-};
-
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
   switch (json.type) {
     case 'Ok': {
@@ -903,6 +799,31 @@ const multiactionToJson = (value) => {
     };
   }
   return { type: 'Unknown' };
+};
+
+const multimodelFromJson = (json) => {
+  let __projects = _dafny.Map.Empty;
+  for (const [k, v] of Object.entries(json.projects || {})) {
+    const key = _dafny.Seq.UnicodeFromString(k);
+    const val = modelFromJson(v);
+    __projects = __projects.update(key, val);
+  }
+  return TodoMultiProjectDomain.MultiModel.create_MultiModel(
+    __projects
+  );
+};
+
+const multimodelToJson = (value) => {
+  const __projectsJson = {};
+  if (value.dtor_projects && value.dtor_projects.Keys) {
+    for (const k of value.dtor_projects.Keys.Elements) {
+      const v = value.dtor_projects.get(k);
+      __projectsJson[dafnyStringToJs(k)] = modelToJson(v);
+    }
+  }
+  return {
+    projects: __projectsJson
+  };
 };
 
 const multierrFromJson = (json) => {
@@ -1327,21 +1248,6 @@ const App = {
   Priority: () => TodoDomain.SmartListType.create_Priority(),
   Logbook: () => TodoDomain.SmartListType.create_Logbook(),
 
-  // MultiModel constructors
-  MultiModel: (projects) => TodoDomain.MultiModel.create_MultiModel(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(projects)),
-
-  // TaggedTaskId constructors
-  TaggedTaskId: (projectId, taskId) => TodoDomain.TaggedTaskId.create_TaggedTaskId(_dafny.Seq.UnicodeFromString(projectId), new BigNumber(taskId)),
-
-  // SidebarSelection constructors
-  NoSelection: () => TodoDomain.SidebarSelection.create_NoSelection(),
-  SmartListSelected: (smartList) => TodoDomain.SidebarSelection.create_SmartListSelected(smartlisttypeFromJson(smartList)),
-  ProjectSelected: (projectId) => TodoDomain.SidebarSelection.create_ProjectSelected(_dafny.Seq.UnicodeFromString(projectId)),
-  ListSelected: (projectId, listId) => TodoDomain.SidebarSelection.create_ListSelected(_dafny.Seq.UnicodeFromString(projectId), new BigNumber(listId)),
-
-  // ViewState constructors
-  ViewState: (viewMode, selection, loadedProjects) => TodoDomain.ViewState.create_ViewState(viewmodeFromJson(viewMode), sidebarselectionFromJson(selection), multimodelFromJson(loadedProjects)),
-
   // Result constructors
   Ok: (value) => TodoDomain.Result.create_Ok(value),
   Err: (error) => TodoDomain.Result.create_Err(error),
@@ -1483,18 +1389,12 @@ const App = {
   viewmodeFromJson: viewmodeFromJson,
   smartlisttypeToJson: smartlisttypeToJson,
   smartlisttypeFromJson: smartlisttypeFromJson,
-  multimodelToJson: multimodelToJson,
-  multimodelFromJson: multimodelFromJson,
-  taggedtaskidToJson: taggedtaskidToJson,
-  taggedtaskidFromJson: taggedtaskidFromJson,
-  sidebarselectionToJson: sidebarselectionToJson,
-  sidebarselectionFromJson: sidebarselectionFromJson,
-  viewstateToJson: viewstateToJson,
-  viewstateFromJson: viewstateFromJson,
   resultToJson: resultToJson,
   resultFromJson: resultFromJson,
   multiactionToJson: multiactionToJson,
   multiactionFromJson: multiactionFromJson,
+  multimodelToJson: multimodelToJson,
+  multimodelFromJson: multimodelFromJson,
   multierrToJson: multierrToJson,
   multierrFromJson: multierrFromJson,
   multiclientstateToJson: multiclientstateToJson,

@@ -42,15 +42,11 @@ The verified Dafny code is organized in layers:
 ```
 TodoDomain (in TodoMultiCollaboration.dfy)
     │
-    ├── Single-project domain model
-    │     • Task, List, Tag datatypes
-    │     • Actions (AddTask, MoveTask, etc.)
-    │     • TryStep function
-    │
-    └── View Layer (also in TodoDomain)
-          • MultiModel, TaggedTaskId, ViewState
-          • GetAllPriorityTasks, GetAllLogbookTasks
-          • Smart list queries
+    └── Single-project domain model
+          • Task, List, Tag datatypes
+          • Actions (AddTask, MoveTask, etc.)
+          • TryStep function
+          • Single-project queries (GetPriorityTaskIds, etc.)
 
 TodoMultiCollaboration (in TodoMultiCollaboration.dfy)
     │
@@ -61,14 +57,19 @@ TodoMultiCollaboration (in TodoMultiCollaboration.dfy)
 MultiProject (abstract, in MultiProject.dfy)
     │
     └── Cross-project operations interface
-          • MultiModel, MultiAction
-          • TouchedProjects, AllProjectsLoaded
+          • MultiModel (single definition, used everywhere)
+          • MultiAction, TouchedProjects, AllProjectsLoaded
 
 TodoMultiProjectDomain (in TodoMultiProjectDomain.dfy)
     │
-    └── Concrete cross-project operations
-          • MoveTaskTo, CopyTaskTo
-          • MultiStep, TryMultiStep
+    ├── Concrete cross-project operations
+    │     • MoveTaskTo, CopyTaskTo
+    │     • MultiStep, TryMultiStep
+    │
+    └── View Layer (multi-project queries)
+          • TaggedTaskId
+          • GetAllPriorityTasks, GetAllLogbookTasks
+          • Smart list aggregation across projects
 
 MultiProjectEffectStateMachine (abstract)
     │
@@ -83,32 +84,24 @@ TodoMultiProjectEffectStateMachine + AppCore
           • Event constructors
 ```
 
-## The Two MultiModel Definitions
+## Single MultiModel Definition
 
-There are two `MultiModel` datatype definitions in the Dafny source:
+There is one `MultiModel` definition in `MultiProject.dfy:26`:
 
-| Location | Module | Purpose |
-|----------|--------|---------|
-| `TodoMultiCollaboration.dfy:1163` | `TodoDomain` | View Layer queries |
-| `MultiProject.dfy:26` | `MultiProject` | Domain operations |
-
-Both are defined identically:
 ```dafny
 datatype MultiModel = MultiModel(projects: map<ProjectId, Model>)
 ```
 
-### Why This Works
+This type is:
+- Inherited by `TodoMultiProjectDomain` via refinement
+- Used by the effect state machine for state management
+- Used by View Layer functions for multi-project queries
 
-1. **Compiler optimization**: Dafny optimizes single-constructor, single-field datatypes. At runtime, `MultiModel` IS the map, not a wrapper containing a map.
+All code uses the same `MultiModel` type — no type confusion or "crossing fire" between different definitions.
 
-2. **Structural identity**: Both definitions compile to `_dafny.Map<ProjectId, Model>`. The compiled JavaScript treats them interchangeably.
+### Compiler Optimization
 
-3. **Verified separately, unified at runtime**:
-   - The effect state machine produces data using `TodoMultiProjectDomain.MultiModel`
-   - View layer functions query it using `TodoDomain.MultiModel` functions
-   - Works because both are raw maps at runtime
-
-This is intentional compiler behavior, not an accident. The wrapper types exist for Dafny's type system during verification but are erased at runtime.
+Dafny optimizes single-constructor, single-field datatypes. At runtime, `MultiModel` IS the map, not a wrapper containing a map. This makes access efficient.
 
 ## Reactive Data Flow
 
@@ -169,21 +162,17 @@ const multiModel = useSyncExternalStore(
 The UI uses verified Dafny functions for queries:
 
 ```javascript
-// Smart lists (hooks/useAllProjects.js)
+// Multi-project smart lists (from TodoMultiProjectDomain)
 App.MultiModel.getAllPriorityTasks(multiModel)  // → TaggedTaskId[]
 App.MultiModel.getAllLogbookTasks(multiModel)   // → TaggedTaskId[]
 
-// Task lookups
+// Single-project queries (from TodoDomain)
 App.GetTask(model, taskId)           // → Task or null
 App.FindListForTask(model, taskId)   // → ListId or null
 App.GetListName(model, listId)       // → string
-
-// List queries
 App.GetLists(model)                  // → ListId[]
 App.GetTasksInList(model, listId)    // → TaskId[]
 ```
-
-These functions are compiled from `TodoDomain` in `TodoMultiCollaboration.dfy`.
 
 ## Key Files
 
@@ -200,7 +189,7 @@ These functions are compiled from `TodoDomain` in `TodoMultiCollaboration.dfy`.
 | Layer | Verified? | Notes |
 |-------|-----------|-------|
 | `EffectStep`, `MultiStep` | Yes | Core state transitions |
-| View Layer queries | Yes | `GetAllPriorityTasks`, etc. |
+| View Layer queries | Yes | `GetAllPriorityTasks`, etc. (in `TodoMultiProjectDomain`) |
 | `MultiProjectEffectManager` | No | I/O glue code |
 | `useAllProjects` | No | React bindings |
 | Edge Functions | Partially | Uses verified Dafny for validation |
@@ -208,7 +197,8 @@ These functions are compiled from `TodoDomain` in `TodoMultiCollaboration.dfy`.
 ## Summary
 
 1. **All state transitions** go through verified `App.EffectStep()`
-2. **View queries** use verified functions from `TodoDomain`
-3. **Reactive updates** flow via `useSyncExternalStore`
-4. **Two MultiModel definitions** work because they compile to identical runtime representations
-5. **The architecture is sound** - verified core, unverified I/O shell
+2. **Multi-project queries** use verified functions from `TodoMultiProjectDomain`
+3. **Single-project queries** use verified functions from `TodoDomain`
+4. **Single MultiModel type** — defined once in `MultiProject.dfy`, used everywhere
+5. **Reactive updates** flow via `useSyncExternalStore`
+6. **Clean architecture** — verified core, unverified I/O shell
