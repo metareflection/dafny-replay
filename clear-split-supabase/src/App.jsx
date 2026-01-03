@@ -103,7 +103,7 @@ function Auth({ onAuth }) {
 function GroupSelector({ user, onSelectGroup }) {
   const [groups, setGroups] = useState([])
   const [invites, setInvites] = useState([])
-  const [crossGroupBalances, setCrossGroupBalances] = useState([])
+  const [crossGroupSummary, setCrossGroupSummary] = useState({ totalOwed: 0, totalOwes: 0, netBalance: 0, groups: [] })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(null)
@@ -138,20 +138,26 @@ function GroupSelector({ user, onSelectGroup }) {
       )
       setGroups(groupsWithData)
 
-      // Compute cross-project balances using verified Dafny code
-      const balances = groupsWithData.map(g => {
-        if (!g.group?.state) return { groupName: g.group?.name || 'Unknown', balance: 0 }
-        try {
-          const model = App.modelFromJson(g.group.state)
-          const allBalances = App.Balances(model)
-          const myBalance = allBalances[g.display_name] || 0
-          return { groupName: g.group.name, balance: myBalance }
-        } catch (e) {
-          console.error('Error computing balance for group:', g.group_id, e)
-          return { groupName: g.group?.name || 'Unknown', balance: 0 }
-        }
-      })
-      setCrossGroupBalances(balances)
+      // Compute cross-group balances using verified Dafny code
+      try {
+        const groupEntries = groupsWithData
+          .filter(g => g.group?.state)
+          .map(g => ({
+            groupName: g.group.name,
+            displayName: g.display_name,
+            model: g.group.state
+          }))
+        const summary = App.ComputeCrossGroupSummary(groupEntries)
+        setCrossGroupSummary({
+          totalOwed: App.GetTotalOwed(summary),
+          totalOwes: App.GetTotalOwes(summary),
+          netBalance: App.GetNetBalance(summary),
+          groups: App.GetGroupBalances(summary)
+        })
+      } catch (e) {
+        console.error('Error computing cross-group summary:', e)
+        setCrossGroupSummary({ totalOwed: 0, totalOwes: 0, netBalance: 0, groups: [] })
+      }
     }
 
     // Load pending invites for this user
@@ -333,10 +339,8 @@ function GroupSelector({ user, onSelectGroup }) {
     )
   }
 
-  // Compute totals
-  const totalOwed = crossGroupBalances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0)
-  const totalOwes = crossGroupBalances.reduce((sum, b) => sum + (b.balance < 0 ? -b.balance : 0), 0)
-  const netBalance = totalOwed - totalOwes
+  // Get totals from verified Dafny computation (already extracted as plain JS)
+  const { totalOwed, totalOwes, netBalance, groups: groupBalances } = crossGroupSummary
 
   return (
     <div className="clear-split group-select">
@@ -345,7 +349,7 @@ function GroupSelector({ user, onSelectGroup }) {
         <div className="members">{user.email}</div>
       </div>
 
-      {crossGroupBalances.length > 0 && (
+      {groupBalances.length > 0 && (
         <div className="section">
           <div className="section-title">Cross-Group Summary</div>
           <div className="cross-group-summary">
@@ -369,7 +373,7 @@ function GroupSelector({ user, onSelectGroup }) {
                 </span>
               </div>
             </div>
-            {crossGroupBalances.map((b, i) => (
+            {groupBalances.map((b, i) => (
               <div key={i} className="balance-item">
                 <span className="name">{b.groupName}</span>
                 <span className={`amount ${b.balance > 0 ? 'positive' : b.balance < 0 ? 'negative' : 'zero'}`}>
