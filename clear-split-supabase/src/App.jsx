@@ -103,6 +103,7 @@ function Auth({ onAuth }) {
 function GroupSelector({ user, onSelectGroup }) {
   const [groups, setGroups] = useState([])
   const [invites, setInvites] = useState([])
+  const [crossGroupSummary, setCrossGroupSummary] = useState({ totalOwed: 0, totalOwes: 0, netBalance: 0, groups: [] })
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(null)
@@ -115,7 +116,7 @@ function GroupSelector({ user, onSelectGroup }) {
   }, [])
 
   const loadData = async () => {
-    // Load user's groups
+    // Load user's groups with their states for cross-project balances
     const { data: groupData, error: groupError } = await supabase
       .from('group_members')
       .select('group_id, display_name')
@@ -124,14 +125,39 @@ function GroupSelector({ user, onSelectGroup }) {
     if (groupError) {
       setError(groupError.message)
     } else {
-      // Fetch group names using the secure function
-      const groupsWithNames = await Promise.all(
+      // Fetch group names and states
+      const groupsWithData = await Promise.all(
         (groupData || []).map(async (g) => {
-          const { data: name } = await supabase.rpc('get_group_name', { p_group_id: g.group_id })
-          return { ...g, group: { name } }
+          const { data: groupInfo } = await supabase
+            .from('groups')
+            .select('name, state')
+            .eq('id', g.group_id)
+            .single()
+          return { ...g, group: groupInfo }
         })
       )
-      setGroups(groupsWithNames)
+      setGroups(groupsWithData)
+
+      // Compute cross-group balances using verified Dafny code
+      try {
+        const groupEntries = groupsWithData
+          .filter(g => g.group?.state)
+          .map(g => ({
+            groupName: g.group.name,
+            displayName: g.display_name,
+            model: g.group.state
+          }))
+        const summary = App.ComputeCrossGroupSummary(groupEntries)
+        setCrossGroupSummary({
+          totalOwed: App.GetTotalOwed(summary),
+          totalOwes: App.GetTotalOwes(summary),
+          netBalance: App.GetNetBalance(summary),
+          groups: App.GetGroupBalances(summary)
+        })
+      } catch (e) {
+        console.error('Error computing cross-group summary:', e)
+        setCrossGroupSummary({ totalOwed: 0, totalOwes: 0, netBalance: 0, groups: [] })
+      }
     }
 
     // Load pending invites for this user
@@ -313,12 +339,51 @@ function GroupSelector({ user, onSelectGroup }) {
     )
   }
 
+  // Get totals from verified Dafny computation (already extracted as plain JS)
+  const { totalOwed, totalOwes, netBalance, groups: groupBalances } = crossGroupSummary
+
   return (
     <div className="clear-split group-select">
       <div className="header">
         <h1>ClearSplit</h1>
         <div className="members">{user.email}</div>
       </div>
+
+      {groupBalances.length > 0 && (
+        <div className="section">
+          <div className="section-title">Cross-Group Summary</div>
+          <div className="cross-group-summary">
+            <div className="cross-group-totals">
+              <div className="cross-group-row">
+                <span>You are owed:</span>
+                <span className={`amount ${totalOwed > 0 ? 'positive' : ''}`}>
+                  {formatMoney(totalOwed)}
+                </span>
+              </div>
+              <div className="cross-group-row">
+                <span>You owe:</span>
+                <span className={`amount ${totalOwes > 0 ? 'negative' : ''}`}>
+                  {formatMoney(totalOwes)}
+                </span>
+              </div>
+              <div className="cross-group-row net">
+                <span>Net:</span>
+                <span className={`amount ${netBalance > 0 ? 'positive' : netBalance < 0 ? 'negative' : ''}`}>
+                  {netBalance >= 0 ? '+' : ''}{formatMoney(netBalance)}
+                </span>
+              </div>
+            </div>
+            {groupBalances.map((b, i) => (
+              <div key={i} className="balance-item">
+                <span className="name">{b.groupName}</span>
+                <span className={`amount ${b.balance > 0 ? 'positive' : b.balance < 0 ? 'negative' : 'zero'}`}>
+                  {b.balance > 0 ? 'owed ' : b.balance < 0 ? 'owe ' : ''}{formatMoney(Math.abs(b.balance))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {invites.length > 0 && (
         <div className="section">
@@ -780,6 +845,7 @@ function ClearSplitApp() {
   const [user, setUser] = useState(null)
   const [groupId, setGroupId] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -832,10 +898,15 @@ function ClearSplitApp() {
   }
 
   if (!groupId) {
-    return <GroupSelector user={user} onSelectGroup={setGroupId} />
+    return <GroupSelector key={refreshKey} user={user} onSelectGroup={setGroupId} />
   }
 
-  return <ExpenseApp groupId={groupId} onBack={() => setGroupId(null)} />
+  const handleBack = () => {
+    setGroupId(null)
+    setRefreshKey(k => k + 1)
+  }
+
+  return <ExpenseApp groupId={groupId} onBack={handleBack} />
 }
 
 export default ClearSplitApp

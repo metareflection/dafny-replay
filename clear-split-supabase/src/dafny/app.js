@@ -18,10 +18,10 @@ const require = (mod) => {
 // Create a function that evaluates the code with proper scope
 const initDafny = new Function('require', `
   ${dafnyCode}
-  return { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitEffectAppCore };
+  return { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitCrossGroup, ClearSplitEffectAppCore };
 `);
 
-const { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitEffectAppCore } = initDafny(require);
+const { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitCrossGroup, ClearSplitEffectAppCore } = initDafny(require);
 
 
 // ============================================================================
@@ -553,6 +553,54 @@ const commandToJson = (value) => {
   return { type: 'Unknown' };
 };
 
+const groupentryFromJson = (json) => {
+  return ClearSplitCrossGroup.GroupEntry.create_GroupEntry(
+    _dafny.Seq.UnicodeFromString(json.groupName),
+    _dafny.Seq.UnicodeFromString(json.displayName),
+    modelFromJson(json.model)
+  );
+};
+
+const groupentryToJson = (value) => {
+  return {
+    groupName: dafnyStringToJs(value.dtor_groupName),
+    displayName: dafnyStringToJs(value.dtor_displayName),
+    model: modelToJson(value.dtor_model)
+  };
+};
+
+const groupbalanceFromJson = (json) => {
+  return ClearSplitCrossGroup.GroupBalance.create_GroupBalance(
+    _dafny.Seq.UnicodeFromString(json.groupName),
+    new BigNumber(json.balance)
+  );
+};
+
+const groupbalanceToJson = (value) => {
+  return {
+    groupName: dafnyStringToJs(value.dtor_groupName),
+    balance: toNumber(value.dtor_balance)
+  };
+};
+
+const crossgroupsummaryFromJson = (json) => {
+  return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(
+    new BigNumber(json.totalOwed),
+    new BigNumber(json.totalOwes),
+    new BigNumber(json.netBalance),
+    _dafny.Seq.of(...(json.groups || []).map(x => groupbalanceFromJson(x)))
+  );
+};
+
+const crossgroupsummaryToJson = (value) => {
+  return {
+    totalOwed: toNumber(value.dtor_totalOwed),
+    totalOwes: toNumber(value.dtor_totalOwes),
+    netBalance: toNumber(value.dtor_netBalance),
+    groups: seqToArray(value.dtor_groups).map(x => groupbalanceToJson(x))
+  };
+};
+
 // ============================================================================
 // API Wrapper
 // ============================================================================
@@ -608,6 +656,14 @@ const App = {
   EffectIsSendDispatch: (cmd) => ClearSplitEffectAppCore.__default.EffectIsSendDispatch(cmd),
   EffectGetBaseVersion: (cmd) => toNumber(ClearSplitEffectAppCore.__default.EffectGetBaseVersion(cmd)),
   EffectGetAction: (cmd) => ClearSplitEffectAppCore.__default.EffectGetAction(cmd),
+  MakeGroupEntry: (groupName, displayName, model) => ClearSplitEffectAppCore.__default.MakeGroupEntry(_dafny.Seq.UnicodeFromString(groupName), _dafny.Seq.UnicodeFromString(displayName), model),
+  ComputeCrossGroupSummary: (groups) => ClearSplitEffectAppCore.__default.ComputeCrossGroupSummary(_dafny.Seq.of(...(groups || []).map(x => groupentryFromJson(x)))),
+  GetTotalOwed: (summary) => toNumber(ClearSplitEffectAppCore.__default.GetTotalOwed(summary)),
+  GetTotalOwes: (summary) => toNumber(ClearSplitEffectAppCore.__default.GetTotalOwes(summary)),
+  GetNetBalance: (summary) => toNumber(ClearSplitEffectAppCore.__default.GetNetBalance(summary)),
+  GetGroupBalances: (summary) => seqToArray(ClearSplitEffectAppCore.__default.GetGroupBalances(summary)).map(x => groupbalanceToJson(x)),
+  GetGroupBalanceName: (gb) => dafnyStringToJs(ClearSplitEffectAppCore.__default.GetGroupBalanceName(gb)),
+  GetGroupBalanceAmount: (gb) => toNumber(ClearSplitEffectAppCore.__default.GetGroupBalanceAmount(gb)),
   InitServerWithMembers: (memberList) => ClearSplitEffectAppCore.__default.InitServerWithMembers(_dafny.Seq.of(...(memberList || []).map(x => _dafny.Seq.UnicodeFromString(x)))),
   InitClientFromServer: (server) => ClearSplitEffectAppCore.__default.InitClientFromServer(server),
   InitClient: (version, model) => ClearSplitEffectAppCore.__default.InitClient(new BigNumber(version), model),
@@ -669,9 +725,15 @@ const App = {
   eventFromJson: eventFromJson,
   commandToJson: commandToJson,
   commandFromJson: commandFromJson,
+  groupentryToJson: groupentryToJson,
+  groupentryFromJson: groupentryFromJson,
+  groupbalanceToJson: groupbalanceToJson,
+  groupbalanceFromJson: groupbalanceFromJson,
+  crossgroupsummaryToJson: crossgroupsummaryToJson,
+  crossgroupsummaryFromJson: crossgroupsummaryFromJson,
 };
 
 // Export internals for custom extensions
-App._internal = { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitEffectAppCore };
+App._internal = { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectStateMachine, ClearSplitCrossGroup, ClearSplitEffectAppCore };
 
 export default App;
