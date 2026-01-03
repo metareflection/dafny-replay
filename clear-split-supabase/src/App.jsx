@@ -103,7 +103,7 @@ function Auth({ onAuth }) {
 function GroupSelector({ user, onSelectGroup }) {
   const [groups, setGroups] = useState([])
   const [invites, setInvites] = useState([])
-  const [crossProjectBalances, setCrossProjectBalances] = useState([])
+  const [crossGroupBalances, setCrossGroupBalances] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(null)
@@ -151,7 +151,7 @@ function GroupSelector({ user, onSelectGroup }) {
           return { groupName: g.group?.name || 'Unknown', balance: 0 }
         }
       })
-      setCrossProjectBalances(balances)
+      setCrossGroupBalances(balances)
     }
 
     // Load pending invites for this user
@@ -334,8 +334,8 @@ function GroupSelector({ user, onSelectGroup }) {
   }
 
   // Compute totals
-  const totalOwed = crossProjectBalances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0)
-  const totalOwes = crossProjectBalances.reduce((sum, b) => sum + (b.balance < 0 ? -b.balance : 0), 0)
+  const totalOwed = crossGroupBalances.reduce((sum, b) => sum + (b.balance > 0 ? b.balance : 0), 0)
+  const totalOwes = crossGroupBalances.reduce((sum, b) => sum + (b.balance < 0 ? -b.balance : 0), 0)
   const netBalance = totalOwed - totalOwes
 
   return (
@@ -345,31 +345,31 @@ function GroupSelector({ user, onSelectGroup }) {
         <div className="members">{user.email}</div>
       </div>
 
-      {crossProjectBalances.length > 0 && (
+      {crossGroupBalances.length > 0 && (
         <div className="section">
-          <div className="section-title">Cross-Project Summary</div>
-          <div className="cross-project-summary">
-            <div className="cross-project-totals">
-              <div className="cross-project-row">
+          <div className="section-title">Cross-Group Summary</div>
+          <div className="cross-group-summary">
+            <div className="cross-group-totals">
+              <div className="cross-group-row">
                 <span>You are owed:</span>
                 <span className={`amount ${totalOwed > 0 ? 'positive' : ''}`}>
                   {formatMoney(totalOwed)}
                 </span>
               </div>
-              <div className="cross-project-row">
+              <div className="cross-group-row">
                 <span>You owe:</span>
                 <span className={`amount ${totalOwes > 0 ? 'negative' : ''}`}>
                   {formatMoney(totalOwes)}
                 </span>
               </div>
-              <div className="cross-project-row net">
+              <div className="cross-group-row net">
                 <span>Net:</span>
                 <span className={`amount ${netBalance > 0 ? 'positive' : netBalance < 0 ? 'negative' : ''}`}>
                   {netBalance >= 0 ? '+' : ''}{formatMoney(netBalance)}
                 </span>
               </div>
             </div>
-            {crossProjectBalances.map((b, i) => (
+            {crossGroupBalances.map((b, i) => (
               <div key={i} className="balance-item">
                 <span className="name">{b.groupName}</span>
                 <span className={`amount ${b.balance > 0 ? 'positive' : b.balance < 0 ? 'negative' : 'zero'}`}>
