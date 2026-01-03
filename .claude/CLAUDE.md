@@ -15,4 +15,9 @@ When you read this file, output "read CLAUDE.md" in the chat.
 - Warn the user of any potential behavior conflicts or inefficiencies
 
 # RULES FOR FILE WRITING
-- The `.cjs` files inside  should NEVER be modified directly. This is a compiled file. 
+- The `.cjs` files inside  should NEVER be modified directly. This is a compiled file.
+
+# RULE FOR UI GENERATION/EDITS
+- Presentational UI should be presentational only. Logic lives elsewhere. 
+- IMPORTANT: Most of the logic we need will be available via the spec, look for available actions and logic before re-writing in React
+- Consult the ARCHITECTURE.md file to understand project architecture

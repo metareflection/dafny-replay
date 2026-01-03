@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, X, Edit2, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, X, Edit2, Plus, ArrowUp, ArrowDown } from 'lucide-react'
 import { TaskItem } from './TaskItem.jsx'
 import './tasks.css'
 
@@ -14,6 +14,8 @@ export function TaskList({
   onAddTask,
   onRenameList,
   onDeleteList,
+  onMoveList,
+  allLists = [],
   onCompleteTask,
   onStarTask,
   onEditTask,
@@ -21,7 +23,11 @@ export function TaskList({
   onMoveTask,
   availableLists = [],
   showListHeader = true,
-  showAddTask = true
+  showAddTask = true,
+  allTags = {},
+  onAddTag,
+  onRemoveTag,
+  onCreateTag
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editName, setEditName] = useState(listName)
@@ -97,6 +103,27 @@ export function TaskList({
                 <Plus size={14} />
               </button>
             )}
+            {onMoveList && allLists.length > 1 && (() => {
+              const idx = allLists.findIndex(l => l.id === listId)
+              return (
+                <>
+                  <button
+                    className="task-list__action-btn"
+                    onClick={() => onMoveList(listId, allLists[idx - 1]?.id, 'before')}
+                    title="Move up"
+                  >
+                    <ArrowUp size={12} />
+                  </button>
+                  <button
+                    className="task-list__action-btn"
+                    onClick={() => onMoveList(listId, allLists[idx + 1]?.id, 'after')}
+                    title="Move down"
+                  >
+                    <ArrowDown size={12} />
+                  </button>
+                </>
+              )
+            })()}
             <button
               className="task-list__action-btn"
               onClick={() => setEditingName(true)}
@@ -154,6 +181,10 @@ export function TaskList({
                 onDelete={onDeleteTask}
                 onMove={onMoveTask}
                 availableLists={availableLists}
+                allTags={allTags}
+                onAddTag={onAddTag}
+                onRemoveTag={onRemoveTag}
+                onCreateTag={onCreateTag}
               />
             ))}
           </div>
