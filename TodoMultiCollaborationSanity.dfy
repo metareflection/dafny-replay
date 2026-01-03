@@ -92,11 +92,11 @@ NoOpImpliesUnchanged:
 */
 
 include "TodoMultiCollaboration.dfy"
-include "TodoMultiCollaborationProof.dfy"
+include "TodoMultiCollaboration.dfy"
 
 module TodoMultiCollaborationSanity {
   import opened TD = TodoDomain
-  import opened TDP = TodoMultiCollaborationProof
+  import opened TDP = TodoMultiCollaboration
 
   // ============================================================================
   // Helper Lemmas
