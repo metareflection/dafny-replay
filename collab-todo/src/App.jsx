@@ -254,6 +254,22 @@ function TodoApp({ user, onSignOut }) {
     hasPending: isFlushing
   } = useAllProjects(projectIds)
 
+  // Restore selected project from localStorage on mount
+  useEffect(() => {
+    if (projects.length === 0) return
+    const savedId = localStorage.getItem('collab-todo:selectedProjectId')
+    if (savedId && projects.find(p => p.id === savedId)) {
+      setSelectedProjectId(savedId)
+    }
+  }, [projects])
+
+  // Save selected project to localStorage
+  useEffect(() => {
+    if (selectedProjectId) {
+      localStorage.setItem('collab-todo:selectedProjectId', selectedProjectId)
+    }
+  }, [selectedProjectId])
+
   // Derive single-project model from unified state
   const singleModel = selectedProjectId ? getProjectModel(selectedProjectId) : null
   const singleDispatch = useMemo(
