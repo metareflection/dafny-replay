@@ -167,7 +167,11 @@ function ProjectView({
     return taskIds
       .map(id => ({ id, ...App.GetTask(model, id) }))
       .filter(t => !t.deleted)
-      .filter(t => filterTab === 'all' || (filterTab === 'important' && t.starred))
+      .filter(t => {
+        if (filterTab === 'logbook') return t.completed
+        if (filterTab === 'important') return t.starred && !t.completed
+        return !t.completed // 'all' tab shows incomplete tasks
+      })
   }, [model, filterTab])
 
   const toggleCollapse = (listId) => {
@@ -198,7 +202,8 @@ function ProjectView({
       <FilterTabs
         tabs={[
           { id: 'all', label: 'All' },
-          { id: 'important', label: 'Important' }
+          { id: 'important', label: 'Priority' },
+          { id: 'logbook', label: 'Logbook' }
         ]}
         activeTab={filterTab}
         onTabChange={onFilterChange}
