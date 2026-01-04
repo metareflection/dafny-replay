@@ -2,6 +2,56 @@
 
 ---
 
+# Project View Tabs Enhancement
+
+**Date:** 2026-01-04
+
+## Goal
+
+Improve project-level filtering by renaming "Important" to "Priority" and adding a project-specific "Logbook" tab.
+
+## Changes
+
+### Tab Labels
+- Renamed "Important" → "Priority" (label only)
+- Added "Logbook" tab for project-specific completed tasks
+
+### Filter Logic
+Updated `getTasksForList` to handle three mutually exclusive tabs:
+- **All**: Shows incomplete, non-deleted tasks
+- **Priority**: Shows starred, incomplete, non-deleted tasks (with count badge)
+- **Logbook**: Shows completed, non-deleted tasks
+
+### Priority Count Implementation
+
+Initially attempted to calculate the priority count directly in JSX by iterating through lists and tasks. However, the Dafny spec already had `CountPriorityTasks(m)` and `CountLogbookTasks(m)` functions verified in `TodoDomain`. Just needed thin wrappers in `app-extras.js`:
+
+```javascript
+CountPriorityTasks: (m) => toNumber(TodoDomain.__default.CountPriorityTasks(m))
+CountLogbookTasks: (m) => toNumber(TodoDomain.__default.CountLogbookTasks(m))
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/dafny/app-extras.js` | Added `CountPriorityTasks`, `CountLogbookTasks` wrappers |
+| `src/App.jsx` | Updated FilterTabs with Priority/Logbook, updated filter logic, added priority count to tab label |
+
+## UI Behavior
+
+| Tab | Shows | Count Badge |
+|-----|-------|-------------|
+| All | Incomplete tasks | No |
+| Priority | Starred + incomplete | Yes (when > 0) |
+| Logbook | Completed tasks | No |
+
+## Build Status
+
+No compilation needed - uses existing verified spec functions.
+
+---
+
 # All Tasks Smart List Implementation
 
 **Date:** 2026-01-04

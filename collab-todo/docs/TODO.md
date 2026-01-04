@@ -5,3 +5,5 @@
 
 - [ ] Workflow improvement: create a list of all actions the UI has access to via the compiled 
 -  [ ] We need better pattern guidance for Claude (it is constantly recreating logic from the spec in the UI - it needs to just hook into the available )
+
+- [ ] app.js vs wrappers in the app-extras.js -- need to ensure that all wrappers are written so that extra logic insnt added to jsx. for ex, claude wanted to add counts to jsx (but counts are already handeled, they just needed a wrapper.)
