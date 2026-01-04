@@ -202,7 +202,7 @@ function ProjectView({
       <FilterTabs
         tabs={[
           { id: 'all', label: 'All' },
-          { id: 'important', label: 'Priority' },
+          { id: 'important', label: `Priority${App.CountPriorityTasks(model) > 0 ? ` (${App.CountPriorityTasks(model)})` : ''}` },
           { id: 'logbook', label: 'Logbook' }
         ]}
         activeTab={filterTab}

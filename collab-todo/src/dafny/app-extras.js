@@ -190,6 +190,18 @@ const App = {
     return result;
   },
 
+  // VERIFIED: Count priority tasks (starred, not completed, not deleted) in single model
+  CountPriorityTasks: (m) => {
+    if (!m) return 0;
+    return toNumber(TodoDomain.__default.CountPriorityTasks(m));
+  },
+
+  // VERIFIED: Count logbook tasks (completed, not deleted) in single model
+  CountLogbookTasks: (m) => {
+    if (!m) return 0;
+    return toNumber(TodoDomain.__default.CountLogbookTasks(m));
+  },
+
   // -------------------------------------------------------------------------
   // Due date convenience methods
   // -------------------------------------------------------------------------
