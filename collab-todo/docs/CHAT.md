@@ -2,6 +2,105 @@
 
 ---
 
+# Member Management UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Implement `AddMember`, `RemoveMember`, and `MakeCollaborative` actions in the UI to enable project member management.
+
+## Spec Findings
+
+Before implementation, researched the Dafny spec to clarify behavior:
+
+1. **AddMember does NOT auto-convert Personal → Collaborative** - `MakeCollaborative` is a separate action that must be called first
+2. **Owner is singular and immutable** - Set at project creation, never changes. No `SetOwner` or `TransferOwnership` actions exist
+3. **No role differentiation in domain model** - Just `owner: UserId` (singular) and `members: set<UserId>`
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/members/MemberList.jsx` | Display project members with remove button (hidden for owner) |
+| `src/components/members/MemberInvite.jsx` | Email input form to invite new members |
+| `src/components/members/members.css` | Styles for member components |
+| `src/components/members/index.js` | Exports |
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `useProjectMembers` hook, member handlers, member panel in ProjectView |
+| `docs/ACTIONS.md` | Updated counts (20/27 used), moved MakeCollaborative/AddMember/RemoveMember to implemented |
+
+## Key Code
+
+**App.jsx** - Member handlers:
+```javascript
+const handleMakeCollaborative = () => {
+  singleDispatch(App.MakeCollaborative())
+}
+
+const handleInviteMember = async (email) => {
+  await inviteMember(email)  // Supabase layer
+  await refreshMembers()
+}
+
+const handleRemoveMember = async (userId) => {
+  singleDispatch(App.RemoveMember(userId))  // Domain model (clears task assignments)
+  await removeFromSupabase(userId)  // Supabase layer
+  await refreshMembers()
+}
+```
+
+**ProjectView** - Member panel (conditional on mode):
+```javascript
+{projectMode === 'Personal' ? (
+  <div className="member-panel">
+    <button onClick={onMakeCollaborative}>Make Collaborative</button>
+  </div>
+) : (
+  <div className="member-panel">
+    <MemberList members={members} ownerId={projectOwner} ... />
+    {project.isOwner && <MemberInvite onInvite={onInviteMember} />}
+  </div>
+)}
+```
+
+## UI Behavior
+
+| Project Mode | UI |
+|-------------|-----|
+| Personal | "Make Collaborative" button only |
+| Collaborative | Member list + invite form (owner can manage) |
+
+| Member | Remove Button |
+|--------|---------------|
+| Owner | Hidden (presentational guard only) |
+| Other | Visible |
+
+## Design Decisions
+
+1. **Presentational guard for owner** - Hide remove button for owner in UI, but no guard on the action itself (spec returns `CannotRemoveOwner` error)
+2. **Two-layer sync** - Both Supabase `project_members` table (access control) and Dafny domain model `m.members` (task assignments) need updating
+3. **Invite by email** - Uses existing `inviteMember` from `useProjectMembers` hook which looks up userId
+
+## Spec Actions Used
+
+- `App.MakeCollaborative()` - Convert Personal → Collaborative (one-way)
+- `App.AddMember(userId)` - Add member (via `inviteMember` email lookup)
+- `App.RemoveMember(userId)` - Remove member (auto-clears task assignments)
+- `App.GetMode(model)` - Check Personal vs Collaborative
+- `App.GetMembers(model)` - Get member userId array
+- `App.GetOwner(model)` - Get owner userId
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 # MoveListTo Edge Function Deployment & Debugging
 
 **Date:** 2026-01-03
