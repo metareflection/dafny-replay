@@ -3050,6 +3050,212 @@ let ClearSplitEffectStateMachine = (function() {
   }
   return $module;
 })(); // end of module ClearSplitEffectStateMachine
+let ClearSplitCrossGroup = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "ClearSplitCrossGroup._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static GetGroupBalance(entry) {
+      let _0_balance = ClearSplit.__default.GetBalance((entry).dtor_model, (entry).dtor_displayName);
+      return ClearSplitCrossGroup.GroupBalance.create_GroupBalance((entry).dtor_groupName, _0_balance);
+    };
+    static ComputeGroupBalances(groups) {
+      let _0___accumulator = _dafny.Seq.of();
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((groups).length)).isEqualTo(_dafny.ZERO)) {
+          return _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of());
+        } else {
+          _0___accumulator = _dafny.Seq.Concat(_0___accumulator, _dafny.Seq.of(ClearSplitCrossGroup.__default.GetGroupBalance((groups)[_dafny.ZERO])));
+          let _in0 = (groups).slice(_dafny.ONE);
+          groups = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static SumPositive(balances) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((balances).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          let _1_b = ((balances)[_dafny.ZERO]).dtor_balance;
+          _0___accumulator = (_0___accumulator).plus((((_dafny.ZERO).isLessThan(_1_b)) ? (_1_b) : (_dafny.ZERO)));
+          let _in0 = (balances).slice(_dafny.ONE);
+          balances = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static SumNegative(balances) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((balances).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          let _1_b = ((balances)[_dafny.ZERO]).dtor_balance;
+          _0___accumulator = (_0___accumulator).plus((((_1_b).isLessThan(_dafny.ZERO)) ? ((_dafny.ZERO).minus(_1_b)) : (_dafny.ZERO)));
+          let _in0 = (balances).slice(_dafny.ONE);
+          balances = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+    static ComputeCrossGroupSummary(groups) {
+      let _0_balances = ClearSplitCrossGroup.__default.ComputeGroupBalances(groups);
+      let _1_totalOwed = ClearSplitCrossGroup.__default.SumPositive(_0_balances);
+      let _2_totalOwes = ClearSplitCrossGroup.__default.SumNegative(_0_balances);
+      return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(_1_totalOwed, _2_totalOwes, (_1_totalOwed).minus(_2_totalOwes), _0_balances);
+    };
+    static SumAllBalances(balances) {
+      let _0___accumulator = _dafny.ZERO;
+      TAIL_CALL_START: while (true) {
+        if ((new BigNumber((balances).length)).isEqualTo(_dafny.ZERO)) {
+          return (_dafny.ZERO).plus(_0___accumulator);
+        } else {
+          _0___accumulator = (_0___accumulator).plus(((balances)[_dafny.ZERO]).dtor_balance);
+          let _in0 = (balances).slice(_dafny.ONE);
+          balances = _in0;
+          continue TAIL_CALL_START;
+        }
+      }
+    };
+  };
+
+  $module.GroupEntry = class GroupEntry {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_GroupEntry(groupName, displayName, model) {
+      let $dt = new GroupEntry(0);
+      $dt.groupName = groupName;
+      $dt.displayName = displayName;
+      $dt.model = model;
+      return $dt;
+    }
+    get is_GroupEntry() { return this.$tag === 0; }
+    get dtor_groupName() { return this.groupName; }
+    get dtor_displayName() { return this.displayName; }
+    get dtor_model() { return this.model; }
+    toString() {
+      if (this.$tag === 0) {
+        return "ClearSplitCrossGroup.GroupEntry.GroupEntry" + "(" + this.groupName.toVerbatimString(true) + ", " + this.displayName.toVerbatimString(true) + ", " + _dafny.toString(this.model) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.groupName, other.groupName) && _dafny.areEqual(this.displayName, other.displayName) && _dafny.areEqual(this.model, other.model);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return ClearSplitCrossGroup.GroupEntry.create_GroupEntry(_dafny.Seq.UnicodeFromString(""), _dafny.Seq.UnicodeFromString(""), ClearSplit.Model.Default());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return GroupEntry.Default();
+        }
+      };
+    }
+  }
+
+  $module.GroupBalance = class GroupBalance {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_GroupBalance(groupName, balance) {
+      let $dt = new GroupBalance(0);
+      $dt.groupName = groupName;
+      $dt.balance = balance;
+      return $dt;
+    }
+    get is_GroupBalance() { return this.$tag === 0; }
+    get dtor_groupName() { return this.groupName; }
+    get dtor_balance() { return this.balance; }
+    toString() {
+      if (this.$tag === 0) {
+        return "ClearSplitCrossGroup.GroupBalance.GroupBalance" + "(" + this.groupName.toVerbatimString(true) + ", " + _dafny.toString(this.balance) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.groupName, other.groupName) && _dafny.areEqual(this.balance, other.balance);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return ClearSplitCrossGroup.GroupBalance.create_GroupBalance(_dafny.Seq.UnicodeFromString(""), _dafny.ZERO);
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return GroupBalance.Default();
+        }
+      };
+    }
+  }
+
+  $module.CrossGroupSummary = class CrossGroupSummary {
+    constructor(tag) {
+      this.$tag = tag;
+    }
+    static create_CrossGroupSummary(totalOwed, totalOwes, netBalance, groups) {
+      let $dt = new CrossGroupSummary(0);
+      $dt.totalOwed = totalOwed;
+      $dt.totalOwes = totalOwes;
+      $dt.netBalance = netBalance;
+      $dt.groups = groups;
+      return $dt;
+    }
+    get is_CrossGroupSummary() { return this.$tag === 0; }
+    get dtor_totalOwed() { return this.totalOwed; }
+    get dtor_totalOwes() { return this.totalOwes; }
+    get dtor_netBalance() { return this.netBalance; }
+    get dtor_groups() { return this.groups; }
+    toString() {
+      if (this.$tag === 0) {
+        return "ClearSplitCrossGroup.CrossGroupSummary.CrossGroupSummary" + "(" + _dafny.toString(this.totalOwed) + ", " + _dafny.toString(this.totalOwes) + ", " + _dafny.toString(this.netBalance) + ", " + _dafny.toString(this.groups) + ")";
+      } else  {
+        return "<unexpected>";
+      }
+    }
+    equals(other) {
+      if (this === other) {
+        return true;
+      } else if (this.$tag === 0) {
+        return other.$tag === 0 && _dafny.areEqual(this.totalOwed, other.totalOwed) && _dafny.areEqual(this.totalOwes, other.totalOwes) && _dafny.areEqual(this.netBalance, other.netBalance) && _dafny.areEqual(this.groups, other.groups);
+      } else  {
+        return false; // unexpected
+      }
+    }
+    static Default() {
+      return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(_dafny.ZERO, _dafny.ZERO, _dafny.ZERO, _dafny.Seq.of());
+    }
+    static Rtd() {
+      return class {
+        static get Default() {
+          return CrossGroupSummary.Default();
+        }
+      };
+    }
+  }
+  return $module;
+})(); // end of module ClearSplitCrossGroup
 let ClearSplitMultiAppCore = (function() {
   let $module = {};
 
@@ -3221,6 +3427,30 @@ let ClearSplitEffectAppCore = (function() {
     };
     static EffectGetAction(cmd) {
       return (cmd).dtor_action;
+    };
+    static MakeGroupEntry(groupName, displayName, model) {
+      return ClearSplitCrossGroup.GroupEntry.create_GroupEntry(groupName, displayName, model);
+    };
+    static ComputeCrossGroupSummary(groups) {
+      return ClearSplitCrossGroup.__default.ComputeCrossGroupSummary(groups);
+    };
+    static GetTotalOwed(summary) {
+      return (summary).dtor_totalOwed;
+    };
+    static GetTotalOwes(summary) {
+      return (summary).dtor_totalOwes;
+    };
+    static GetNetBalance(summary) {
+      return (summary).dtor_netBalance;
+    };
+    static GetGroupBalances(summary) {
+      return (summary).dtor_groups;
+    };
+    static GetGroupBalanceName(gb) {
+      return (gb).dtor_groupName;
+    };
+    static GetGroupBalanceAmount(gb) {
+      return (gb).dtor_balance;
     };
     static InitServerWithMembers(memberList) {
       let _0_members = function () {
