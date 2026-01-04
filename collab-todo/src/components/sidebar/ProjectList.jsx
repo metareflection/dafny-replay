@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ChevronRight, ChevronDown, Circle, Plus } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronRight, ChevronDown, Circle, Plus, MoreHorizontal, Users, UserPlus } from 'lucide-react'
 import { SidebarItem } from './SidebarItem.jsx'
 import './sidebar.css'
 
@@ -13,7 +13,9 @@ export function ProjectList({
   onAddList,
   getProjectLists,
   getListTaskCount,
-  loading
+  loading,
+  onManageMembers,
+  getProjectMode
 }) {
   const [expandedProjects, setExpandedProjects] = useState(new Set())
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -22,6 +24,21 @@ export function ProjectList({
   const [createError, setCreateError] = useState(null)
   const [showAddListForm, setShowAddListForm] = useState(null) // projectId or null
   const [newListName, setNewListName] = useState('')
+  const [openMenuId, setOpenMenuId] = useState(null) // projectId with open dropdown
+  const menuRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null)
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenuId])
 
   const toggleExpand = (projectId) => {
     setExpandedProjects(prev => {
@@ -127,6 +144,9 @@ export function ProjectList({
           const isExpanded = expandedProjects.has(project.id)
           const isSelected = selectedProjectId === project.id && !selectedListId
           const lists = getProjectLists ? getProjectLists(project.id) : []
+          const projectMode = getProjectMode ? getProjectMode(project.id) : null
+          const isCollaborative = projectMode === 'Collaborative'
+          const isMenuOpen = openMenuId === project.id
 
           return (
             <li key={project.id} className="project-list__project">
@@ -144,6 +164,45 @@ export function ProjectList({
                   <Circle size={14} className="project-list__project-icon" />
                   <span className="project-list__project-name">{project.name}</span>
                 </button>
+                
+                {/* Project menu dropdown */}
+                <div className="project-list__menu-container" ref={isMenuOpen ? menuRef : null}>
+                  <button
+                    className={`project-list__menu-btn ${isMenuOpen ? 'project-list__menu-btn--active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenMenuId(isMenuOpen ? null : project.id)
+                    }}
+                    title="Project options"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  
+                  {isMenuOpen && (
+                    <div className="project-list__dropdown">
+                      <button
+                        className="project-list__dropdown-item"
+                        onClick={() => {
+                          onManageMembers?.(project.id)
+                          setOpenMenuId(null)
+                        }}
+                      >
+                        {isCollaborative ? (
+                          <>
+                            <Users size={14} />
+                            <span>Manage Members</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus size={14} />
+                            <span>Make Collaborative</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 {isExpanded && (
                   <button
                     className="project-list__add-list-btn"

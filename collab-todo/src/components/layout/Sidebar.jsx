@@ -26,7 +26,11 @@ export function Sidebar({
 
   // View mode toggle
   viewMode,
-  onToggleViewMode
+  onToggleViewMode,
+
+  // Member management
+  onManageMembers,
+  getProjectMode
 }) {
   return (
     <aside className="sidebar-container">
@@ -63,6 +67,8 @@ export function Sidebar({
         getProjectLists={getProjectLists}
         getListTaskCount={getListTaskCount}
         loading={projectsLoading}
+        onManageMembers={onManageMembers}
+        getProjectMode={getProjectMode}
       />
     </aside>
   )

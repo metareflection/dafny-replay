@@ -137,7 +137,7 @@
 }
 
 .member-invite__button:hover:not(:disabled) {
-  background: var(--color-accent-dark);
+  background: var(--color-accent-hover);
 }
 
 .member-invite__button:disabled {
@@ -221,5 +221,145 @@
 }
 
 .make-collaborative__button:hover {
-  background: var(--color-accent-dark);
+  background: var(--color-accent-hover);
+}
+
+/* ==========================================================================
+   MemberManagement (full view)
+   ========================================================================== */
+
+.member-management {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.member-management__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.member-management__back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.member-management__back-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.member-management__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs);
+  min-width: 0;
+}
+
+.member-management__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.member-management__project-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Personal project state */
+.member-management__personal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-xxl) var(--space-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.member-management__icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-lg);
+}
+
+.member-management__subtitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.member-management__description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  max-width: 360px;
+  margin: 0 0 var(--space-xl);
+}
+
+.member-management__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.member-management__action-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+/* Collaborative project state */
+.member-management__collaborative {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.member-management__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.member-management__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.member-management__section-header svg {
+  color: var(--color-text-tertiary);
 }

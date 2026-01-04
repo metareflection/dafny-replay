@@ -11,7 +11,7 @@ import { Toast } from './components/common'
 import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
 import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
-import { MemberList, MemberInvite } from './components/members'
+import { MemberManagement } from './components/members'
 
 // Styles
 import './styles/global.css'
@@ -107,13 +107,7 @@ function ProjectView({
   onDeleteList,
   onMoveList,
   otherProjects,
-  onMoveListToProject,
-  members,
-  projectMode,
-  projectOwner,
-  onMakeCollaborative,
-  onInviteMember,
-  onRemoveMember
+  onMoveListToProject
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
@@ -172,42 +166,6 @@ function ProjectView({
         activeTab={filterTab}
         onTabChange={onFilterChange}
       />
-
-      {/* Member management panel */}
-      {projectMode === 'Personal' ? (
-        <div className="member-panel">
-          <div className="make-collaborative">
-            <p className="make-collaborative__text">
-              This is a personal project. Make it collaborative to invite members.
-            </p>
-            <button
-              className="make-collaborative__button"
-              onClick={onMakeCollaborative}
-            >
-              Make Collaborative
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="member-panel">
-          <div className="member-panel__header">
-            <span className="member-panel__title">Members</span>
-            <span className="member-panel__count">{members?.length || 0}</span>
-          </div>
-          <MemberList
-            members={members || []}
-            ownerId={projectOwner}
-            onRemoveMember={onRemoveMember}
-            canManage={project.isOwner}
-          />
-          {project.isOwner && (
-            <>
-              <div className="member-panel__divider" />
-              <MemberInvite onInvite={onInviteMember} />
-            </>
-          )}
-        </div>
-      )}
 
       {lists.length === 0 ? (
         <EmptyState message="No lists yet. Click the + on the project in the sidebar." />
@@ -272,6 +230,7 @@ function TodoApp({ user, onSignOut }) {
   const [selectedListId, setSelectedListId] = useState(null)
   const [filterTab, setFilterTab] = useState('all')
   const [toast, setToast] = useState(null)
+  const [showMemberManagement, setShowMemberManagement] = useState(false)
 
   // Projects list
   const { projects, loading: projectsLoading, createProject, refresh: refreshProjects } = useProjects()
@@ -326,18 +285,28 @@ function TodoApp({ user, onSignOut }) {
     setSelectedProjectId(projectId)
     setSelectedListId(null)
     setSelectedView(null)
+    setShowMemberManagement(false)
   }
 
   const handleSelectList = (projectId, listId) => {
     setSelectedProjectId(projectId)
     setSelectedListId(listId)
     setSelectedView(null)
+    setShowMemberManagement(false)
   }
 
   const handleSelectView = (view) => {
     setSelectedView(view)
     // Keep selectedProjectId for filtering in single mode
     setSelectedListId(null)
+    setShowMemberManagement(false)
+  }
+
+  const handleManageMembers = (projectId) => {
+    setSelectedProjectId(projectId)
+    setSelectedView(null)
+    setSelectedListId(null)
+    setShowMemberManagement(true)
   }
 
   const handleAddList = (name) => {
@@ -467,8 +436,35 @@ function TodoApp({ user, onSignOut }) {
   const priorityCount = filteredPriorityTasks.length
   const logbookCount = filteredLogbookTasks.length
 
+  // Get project mode for sidebar
+  const getProjectMode = useCallback((projectId) => {
+    const model = getProjectModel(projectId)
+    if (!model) return null
+    return App.GetMode(model)
+  }, [getProjectModel])
+
   // Render main content
   const renderContent = () => {
+    // Member management view
+    if (showMemberManagement && selectedProjectId) {
+      const project = projects.find(p => p.id === selectedProjectId)
+      if (!project) return <EmptyState message="Project not found" />
+
+      return (
+        <MemberManagement
+          projectName={project.name}
+          projectMode={projectMode}
+          members={members}
+          ownerId={projectOwner}
+          isOwner={project.isOwner}
+          onMakeCollaborative={handleMakeCollaborative}
+          onInviteMember={handleInviteMember}
+          onRemoveMember={handleRemoveMember}
+          onBack={() => setShowMemberManagement(false)}
+        />
+      )
+    }
+
     // Smart list views
     if (selectedView === 'priority') {
       // Respects viewMode: single mode shows only selected project
@@ -519,12 +515,6 @@ function TodoApp({ user, onSignOut }) {
           onMoveList={handleMoveList}
           otherProjects={projects.filter(p => p.id !== selectedProjectId)}
           onMoveListToProject={handleMoveListToProject}
-          members={members}
-          projectMode={projectMode}
-          projectOwner={projectOwner}
-          onMakeCollaborative={handleMakeCollaborative}
-          onInviteMember={handleInviteMember}
-          onRemoveMember={handleRemoveMember}
         />
       )
     }
@@ -564,6 +554,8 @@ function TodoApp({ user, onSignOut }) {
           logbookCount={logbookCount}
           viewMode={viewMode}
           onToggleViewMode={setViewMode}
+          onManageMembers={handleManageMembers}
+          getProjectMode={getProjectMode}
         />
 
         <MainContent>
