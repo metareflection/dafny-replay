@@ -2,6 +2,69 @@
 
 ---
 
+# LocalStorage Persistence for Selected Project
+
+**Date:** 2026-01-04
+
+## Problem
+
+On page refresh, the app always shows "Select a project or smart list to get started" - no project is pre-selected.
+
+## Investigation
+
+Explored two options:
+1. **Default to "All" view** - Show all lists/tasks across projects on first load
+2. **Remember last project** - Persist selected project in localStorage
+
+### Findings
+
+- `selectedProjectId` initialized to `null` in `App.jsx:229`
+- "All" is a `viewMode` toggle ('single' vs 'all'), not a standalone view - still requires selecting a smart list (Priority/Logbook)
+- No existing localStorage usage in the codebase
+- This is a UI/navigation concern → implement in React, not Dafny spec
+
+## Implementation
+
+User chose **localStorage persistence**.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added two `useEffect` hooks for localStorage save/restore |
+
+### Key Code
+
+```javascript
+// Restore selected project from localStorage on mount
+useEffect(() => {
+  if (projects.length === 0) return
+  const savedId = localStorage.getItem('collab-todo:selectedProjectId')
+  if (savedId && projects.find(p => p.id === savedId)) {
+    setSelectedProjectId(savedId)
+  }
+}, [projects])
+
+// Save selected project to localStorage
+useEffect(() => {
+  if (selectedProjectId) {
+    localStorage.setItem('collab-todo:selectedProjectId', selectedProjectId)
+  }
+}, [selectedProjectId])
+```
+
+### Design Decisions
+
+1. **Namespaced key** - `collab-todo:selectedProjectId` to avoid conflicts
+2. **Validation on restore** - Only restores if project still exists (handles deleted projects)
+3. **Wait for projects** - Restore runs after projects array loads from Supabase
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 # Member Management UI Implementation
 
 **Date:** 2026-01-04
