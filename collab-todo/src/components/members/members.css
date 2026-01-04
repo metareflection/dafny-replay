@@ -1,0 +1,225 @@
+/* Member components styles */
+
+/* ==========================================================================
+   MemberList
+   ========================================================================== */
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.member-list--empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  padding: var(--space-sm) 0;
+}
+
+.member-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.member-list__item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.member-list__item--owner {
+  background: var(--color-bg-tertiary);
+}
+
+.member-list__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex: 1;
+}
+
+.member-list__email {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-list__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+
+.member-list__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.member-list__remove:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+/* ==========================================================================
+   MemberInvite
+   ========================================================================== */
+
+.member-invite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.member-invite__input-group {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.member-invite__input {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.member-invite__input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-focus);
+}
+
+.member-invite__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.member-invite__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.member-invite__button:hover:not(:disabled) {
+  background: var(--color-accent-dark);
+}
+
+.member-invite__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-invite__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+
+/* ==========================================================================
+   MemberPanel (container for list + invite)
+   ========================================================================== */
+
+.member-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.member-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.member-panel__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.member-panel__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.member-panel__divider {
+  height: 1px;
+  background: var(--color-border-light);
+  margin: var(--space-xs) 0;
+}
+
+/* ==========================================================================
+   MakeCollaborative button
+   ========================================================================== */
+
+.make-collaborative {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.make-collaborative__text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.make-collaborative__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.make-collaborative__button:hover {
+  background: var(--color-accent-dark);
+}

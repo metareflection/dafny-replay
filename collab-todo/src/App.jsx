@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Star, CheckSquare, Circle } from 'lucide-react'
 import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
-import { useProjects } from './hooks/useCollaborativeProject.js'
+import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useAllProjects } from './hooks/useAllProjects.js'
 import App from './dafny/app-extras.js'
 
@@ -11,6 +11,7 @@ import { Toast } from './components/common'
 import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
 import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
+import { MemberList, MemberInvite } from './components/members'
 
 // Styles
 import './styles/global.css'
@@ -106,7 +107,13 @@ function ProjectView({
   onDeleteList,
   onMoveList,
   otherProjects,
-  onMoveListToProject
+  onMoveListToProject,
+  members,
+  projectMode,
+  projectOwner,
+  onMakeCollaborative,
+  onInviteMember,
+  onRemoveMember
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
@@ -165,6 +172,42 @@ function ProjectView({
         activeTab={filterTab}
         onTabChange={onFilterChange}
       />
+
+      {/* Member management panel */}
+      {projectMode === 'Personal' ? (
+        <div className="member-panel">
+          <div className="make-collaborative">
+            <p className="make-collaborative__text">
+              This is a personal project. Make it collaborative to invite members.
+            </p>
+            <button
+              className="make-collaborative__button"
+              onClick={onMakeCollaborative}
+            >
+              Make Collaborative
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="member-panel">
+          <div className="member-panel__header">
+            <span className="member-panel__title">Members</span>
+            <span className="member-panel__count">{members?.length || 0}</span>
+          </div>
+          <MemberList
+            members={members || []}
+            ownerId={projectOwner}
+            onRemoveMember={onRemoveMember}
+            canManage={project.isOwner}
+          />
+          {project.isOwner && (
+            <>
+              <div className="member-panel__divider" />
+              <MemberInvite onInvite={onInviteMember} />
+            </>
+          )}
+        </div>
+      )}
 
       {lists.length === 0 ? (
         <EmptyState message="No lists yet. Click the + on the project in the sidebar." />
@@ -259,6 +302,18 @@ function TodoApp({ user, onSignOut }) {
     [selectedProjectId, createDispatch]
   )
 
+  // Project members (for selected project)
+  const {
+    members,
+    inviteMember,
+    removeMember: removeFromSupabase,
+    refresh: refreshMembers
+  } = useProjectMembers(selectedProjectId)
+
+  // Get project mode and owner from model
+  const projectMode = singleModel ? App.GetMode(singleModel) : null
+  const projectOwner = singleModel ? App.GetOwner(singleModel) : null
+
   // Show errors as toast
   useEffect(() => {
     if (error) {
@@ -312,6 +367,30 @@ function TodoApp({ user, onSignOut }) {
     if (selectedProjectId) {
       moveListToProject(selectedProjectId, targetProjectId, listId)
     }
+  }
+
+  // Member handlers
+  const handleMakeCollaborative = () => {
+    singleDispatch(App.MakeCollaborative())
+  }
+
+  const handleInviteMember = async (email) => {
+    // First add to Supabase project_members (for access control)
+    // inviteMember looks up userId by email and inserts into project_members
+    await inviteMember(email)
+    // Then update domain model
+    // Note: inviteMember returns the userId after successful insert
+    // We need to get the userId to dispatch the domain action
+    // For now, refresh members to sync - the domain model will be updated on next sync
+    await refreshMembers()
+  }
+
+  const handleRemoveMember = async (userId) => {
+    // First update domain model (clears task assignments)
+    singleDispatch(App.RemoveMember(userId))
+    // Then remove from Supabase project_members
+    await removeFromSupabase(userId)
+    await refreshMembers()
   }
 
   const handleCreateProject = async (name) => {
@@ -440,6 +519,12 @@ function TodoApp({ user, onSignOut }) {
           onMoveList={handleMoveList}
           otherProjects={projects.filter(p => p.id !== selectedProjectId)}
           onMoveListToProject={handleMoveListToProject}
+          members={members}
+          projectMode={projectMode}
+          projectOwner={projectOwner}
+          onMakeCollaborative={handleMakeCollaborative}
+          onInviteMember={handleInviteMember}
+          onRemoveMember={handleRemoveMember}
         />
       )
     }

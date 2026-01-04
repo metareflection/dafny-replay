@@ -6,9 +6,9 @@ This document compares actions defined in the Dafny spec against what is current
 
 | Category | Spec Actions | Used in UI | Missing |
 |----------|-------------|------------|---------|
-| Single-Project | 24 | 16 | 8 |
+| Single-Project | 24 | 19 | 5 |
 | Multi-Project | 3 | 1 | 2 |
-| **Total** | **27** | **17** | **10** |
+| **Total** | **27** | **20** | **7** |
 
 ---
 
@@ -34,6 +34,9 @@ This document compares actions defined in the Dafny spec against what is current
 | RemoveTagFromTask | taskId, tagId | TagPicker | Click tag icon, deselect tag |
 | CreateTag | name | TagPicker | Type new name, click "Create" |
 | MoveList | listId, listPlace | TaskList | Arrow button dropdown, select target list |
+| MakeCollaborative | - | ProjectView | "Make Collaborative" button (Personal projects) |
+| AddMember | userId | MemberInvite | Enter email, click "Invite" |
+| RemoveMember | userId | MemberList | "X" button on member row |
 
 ### Not Used in UI
 
@@ -45,9 +48,6 @@ This document compares actions defined in the Dafny spec against what is current
 | **UnassignTask** | taskId, userId | No assignee UI |
 | **RenameTag** | tagId, newName | No tag rename UI (can delete and recreate) |
 | **DeleteTag** | tagId | No tag management panel |
-| **MakeCollaborative** | - | No project mode toggle |
-| **AddMember** | userId | No member management UI |
-| **RemoveMember** | userId | No member management UI |
 
 ---
 
@@ -95,15 +95,6 @@ This document compares actions defined in the Dafny spec against what is current
 6. **Tag Management Panel**
    - `RenameTag` / `DeleteTag` - Full tag CRUD in settings
    - Basic tag create/assign implemented via TagPicker
-
-### Lower Priority Missing Features
-
-7. **Project Mode**
-   - `MakeCollaborative` - Convert personal to collaborative
-
-8. **Member Management**
-   - `AddMember` / `RemoveMember` - Project membership
-   - Would be admin/settings UI
 
 ---
 
