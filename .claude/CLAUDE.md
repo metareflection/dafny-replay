@@ -14,8 +14,22 @@ When you read this file, output "read CLAUDE.md" in the chat.
 - Use the Spec as a guide to find gaps in expected app behavior 
 - Warn the user of any potential behavior conflicts or inefficiencies
 
+## When Updating Specs
+**The proper workflow is:**
+- Add function to Dafny spec
+- Verify with dafny verify
+- Compile to JS with dafny translate js
+- Add thin wrapper in app-extras.js to call the compiled function (type conversion only)
+**NOTE**: You should not manually edit app-extras.js if you can compile the logic change
+
+## When compiling
+- dafny2js requires you to source the shell first
+- AppCore functions are compiled to app.js 
+- Query wrappers go in app-extras.js
+
+
 # RULES FOR FILE WRITING
-- The `.cjs` files inside  should NEVER be modified directly. This is a compiled file.
+- The `.cjs` and the `app.js` files should NEVER be modified directly. This is a compiled file.
 
 # RULE FOR UI GENERATION/EDITS
 - Presentational UI should be presentational only. Logic lives elsewhere. 

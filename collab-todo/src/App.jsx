@@ -92,6 +92,43 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
   )
 }
 
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag }) {
+  if (tasks.length === 0) {
+    return <EmptyState icon={Circle} message="No tasks yet. Create a task in a project to see it here." />
+  }
+
+  return (
+    <div className="project-view">
+      <ProjectHeader
+        title="All Tasks"
+        icon={Circle}
+        showNotes={false}
+      />
+      <div className="project-view__section">
+        {tasks.map(task => (
+          <TaskItem
+            key={`${task.projectId}-${task.id}`}
+            taskId={task.id}
+            task={task}
+            projectName={task.listName}
+            showProject={true}
+            onComplete={(id, completed) => onCompleteTask(task.projectId, id, completed)}
+            onStar={(id, starred) => onStarTask(task.projectId, id, starred)}
+            onEdit={(id, title, notes) => onEditTask(task.projectId, id, title, notes)}
+            onDelete={(id) => onDeleteTask(task.projectId, id)}
+            onMove={(id, listId) => onMoveTask(task.projectId, id, listId)}
+            availableLists={getAvailableLists(task.projectId)}
+            allTags={getProjectTags(task.projectId)}
+            onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
+            onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
+            onCreateTag={(name) => onCreateTag(task.projectId, name)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ============================================================================
 // Project View
 // ============================================================================
@@ -224,8 +261,7 @@ function ProjectView({
 
 function TodoApp({ user, onSignOut }) {
   // View state
-  const [viewMode, setViewMode] = useState('single') // 'single' | 'all'
-  const [selectedView, setSelectedView] = useState(null) // 'priority' | 'logbook' | null
+  const [selectedView, setSelectedView] = useState(null) // 'priority' | 'logbook' | 'allTasks' | null
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [selectedListId, setSelectedListId] = useState(null)
   const [filterTab, setFilterTab] = useState('all')
@@ -241,6 +277,7 @@ function TodoApp({ user, onSignOut }) {
     createDispatch,
     priorityTasks,
     logbookTasks,
+    allTasks,
     getProjectModel,
     getProjectLists,
     getListTaskCount,
@@ -432,25 +469,10 @@ function TodoApp({ user, onSignOut }) {
     return App.GetAllTags(model)
   }, [getProjectModel])
 
-  // Get priority/logbook tasks - respects viewMode
-  // In single mode, filter to selected project (still uses verified Dafny data)
-  const filteredPriorityTasks = useMemo(() => {
-    if (viewMode === 'single' && selectedProjectId) {
-      return priorityTasks.filter(t => t.projectId === selectedProjectId)
-    }
-    return priorityTasks
-  }, [viewMode, selectedProjectId, priorityTasks])
-
-  const filteredLogbookTasks = useMemo(() => {
-    if (viewMode === 'single' && selectedProjectId) {
-      return logbookTasks.filter(t => t.projectId === selectedProjectId)
-    }
-    return logbookTasks
-  }, [viewMode, selectedProjectId, logbookTasks])
-
-  // Count calculations for sidebar
-  const priorityCount = filteredPriorityTasks.length
-  const logbookCount = filteredLogbookTasks.length
+  // Count calculations for sidebar (smart lists always show all projects)
+  const priorityCount = priorityTasks.length
+  const logbookCount = logbookTasks.length
+  const allTasksCount = allTasks.length
 
   // Get project mode for sidebar
   const getProjectMode = useCallback((projectId) => {
@@ -481,12 +503,29 @@ function TodoApp({ user, onSignOut }) {
       )
     }
 
-    // Smart list views
+    // Smart list views (always show all projects)
+    if (selectedView === 'allTasks') {
+      return (
+        <AllTasksView
+          tasks={allTasks}
+          onCompleteTask={handleCompleteTaskAll}
+          onStarTask={handleStarTaskAll}
+          onEditTask={handleEditTaskAll}
+          onDeleteTask={handleDeleteTaskAll}
+          onMoveTask={handleMoveTaskAll}
+          getAvailableLists={getProjectLists}
+          getProjectTags={getProjectTags}
+          onAddTag={handleAddTagAll}
+          onRemoveTag={handleRemoveTagAll}
+          onCreateTag={handleCreateTagAll}
+        />
+      )
+    }
+
     if (selectedView === 'priority') {
-      // Respects viewMode: single mode shows only selected project
       return (
         <PriorityView
-          tasks={filteredPriorityTasks}
+          tasks={priorityTasks}
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
           onEditTask={handleEditTaskAll}
@@ -502,10 +541,9 @@ function TodoApp({ user, onSignOut }) {
     }
 
     if (selectedView === 'logbook') {
-      // Respects viewMode: single mode shows only selected project
       return (
         <LogbookView
-          tasks={filteredLogbookTasks}
+          tasks={logbookTasks}
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
           getProjectTags={getProjectTags}
@@ -568,8 +606,7 @@ function TodoApp({ user, onSignOut }) {
           getListTaskCount={getListTaskCount}
           priorityCount={priorityCount}
           logbookCount={logbookCount}
-          viewMode={viewMode}
-          onToggleViewMode={setViewMode}
+          allTasksCount={allTasksCount}
           onManageMembers={handleManageMembers}
           getProjectMode={getProjectMode}
         />

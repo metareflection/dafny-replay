@@ -389,6 +389,23 @@ const App = {
       }));
     },
 
+    // VERIFIED: Get all visible (non-deleted) tasks across all projects
+    // Returns array of { projectId, taskId }
+    getAllVisibleTasks: (mm) => {
+      if (!mm) return [];
+      const taggedSet = TodoMultiProjectDomain.__default.GetAllVisibleTasks(mm);
+      return dafnySetToArray(taggedSet, (tagged) => ({
+        projectId: dafnyStringToJs(tagged.dtor_projectId),
+        taskId: toNumber(tagged.dtor_taskId)
+      }));
+    },
+
+    // VERIFIED: Count all visible tasks
+    countVisibleTasks: (mm) => {
+      if (!mm) return 0;
+      return toNumber(TodoMultiProjectDomain.__default.CountAllVisibleTasks(mm));
+    },
+
     // VERIFIED: Count priority tasks
     countPriorityTasks: (mm) => {
       if (!mm) return 0;

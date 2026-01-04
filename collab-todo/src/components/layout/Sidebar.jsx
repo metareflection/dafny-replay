@@ -23,10 +23,7 @@ export function Sidebar({
   // Counts for smart lists
   priorityCount,
   logbookCount,
-
-  // View mode toggle
-  viewMode,
-  onToggleViewMode,
+  allTasksCount,
 
   // Member management
   onManageMembers,
@@ -34,26 +31,12 @@ export function Sidebar({
 }) {
   return (
     <aside className="sidebar-container">
-      <div className="sidebar-container__view-toggle">
-        <button
-          className={`sidebar-container__toggle-btn ${viewMode === 'single' ? 'active' : ''}`}
-          onClick={() => onToggleViewMode('single')}
-        >
-          Single
-        </button>
-        <button
-          className={`sidebar-container__toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
-          onClick={() => onToggleViewMode('all')}
-        >
-          All
-        </button>
-      </div>
-
       <SmartLists
         selectedView={selectedView}
         onSelectView={onSelectView}
         priorityCount={priorityCount}
         logbookCount={logbookCount}
+        allTasksCount={allTasksCount}
       />
 
       <ProjectList

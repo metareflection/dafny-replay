@@ -127,6 +127,13 @@ export function useAllProjects(projectIds) {
     return tagged.map(enrichTask).filter(t => t !== null)
   }, [multiModel, enrichTask])
 
+  // VERIFIED: Get all visible (non-deleted) tasks using Dafny function
+  const allTasks = useMemo(() => {
+    if (!multiModel) return []
+    const tagged = App.MultiModel.getAllVisibleTasks(multiModel)
+    return tagged.map(enrichTask).filter(t => t !== null)
+  }, [multiModel, enrichTask])
+
   // Get project model by ID
   const getProjectModel = useCallback((projectId) => {
     return projectData[projectId]?.model || null
@@ -182,6 +189,7 @@ export function useAllProjects(projectIds) {
     // Smart lists (VERIFIED via Dafny)
     priorityTasks,
     logbookTasks,
+    allTasks,
 
     // Helpers
     getProjectModel,

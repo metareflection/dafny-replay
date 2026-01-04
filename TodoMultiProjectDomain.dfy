@@ -678,6 +678,19 @@ module TodoMultiProjectDomain refines MultiProject {
       :: TaggedTaskId(pid, tid)
   }
 
+  // Get all visible (non-deleted) tasks across all projects
+  function GetAllVisibleTasks(mm: MultiModel): set<TaggedTaskId>
+  {
+    set pid, tid | pid in mm.projects && tid in MC.D.GetVisibleTaskIds(mm.projects[pid])
+      :: TaggedTaskId(pid, tid)
+  }
+
+  // Count all visible tasks across all projects
+  function CountAllVisibleTasks(mm: MultiModel): nat
+  {
+    |GetAllVisibleTasks(mm)|
+  }
+
   // Get all tasks matching a smart list across all projects
   function GetAllSmartListTasks(mm: MultiModel, smartList: SmartListType): set<TaggedTaskId>
   {

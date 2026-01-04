@@ -2,6 +2,63 @@
 
 ---
 
+# All Tasks Smart List Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Add an "All Tasks" smart list that shows all non-deleted tasks across all projects, and simplify the UI by removing the Single/All view mode toggle.
+
+## Design Decision
+
+Instead of having a "Single" vs "All" toggle in the sidebar:
+- Smart lists (Priority, Logbook, All Tasks) **always** show tasks across all projects
+- Project view has its own filtering via existing tabs (All/Important)
+
+This is cleaner because the "All Tasks" smart list naturally provides the cross-project view.
+
+## Spec Changes
+
+Added to `TodoMultiProjectDomain.dfy`:
+```dafny
+function GetAllVisibleTasks(mm: MultiModel): set<TaggedTaskId>
+{
+  set pid, tid | pid in mm.projects && tid in MC.D.GetVisibleTaskIds(mm.projects[pid])
+    :: TaggedTaskId(pid, tid)
+}
+
+function CountAllVisibleTasks(mm: MultiModel): nat
+{
+  |GetAllVisibleTasks(mm)|
+}
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `GetAllVisibleTasks`, `CountAllVisibleTasks` |
+| `src/dafny/app-extras.js` | Added `getAllVisibleTasks`, `countVisibleTasks` wrappers |
+| `src/hooks/useAllProjects.js` | Added `allTasks` aggregation, exported it |
+| `src/components/sidebar/SmartLists.jsx` | Added "All Tasks" option with List icon |
+| `src/components/layout/Sidebar.jsx` | Removed viewMode toggle, added `allTasksCount` prop |
+| `src/App.jsx` | Added `AllTasksView` component, removed `viewMode` state, simplified filtering |
+
+## Compilation Steps
+
+1. `dafny verify TodoMultiProjectDomain.dfy` - Verify spec
+2. `dafny translate js --no-verify -o generated/TodoMulti --include-runtime TodoMultiCollaboration.dfy`
+3. `dafny translate js --no-verify -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy`
+4. Copy to collab-todo: `cp generated/*.js collab-todo/src/dafny/*.cjs`
+5. Regenerate app.js: `cd dafny2js && dotnet run -- --file ../TodoMultiProjectEffectStateMachine.dfy ...`
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 # LocalStorage Persistence for Selected Project
 
 **Date:** 2026-01-04

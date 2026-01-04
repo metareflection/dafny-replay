@@ -1196,6 +1196,13 @@ let TodoDomain = (function() {
     _parentTraits() {
       return [];
     }
+    static ListContrib(l, tasks, id) {
+      if (((tasks).contains(l)) && (TodoDomain.__default.SeqContains((tasks).get(l), id))) {
+        return _dafny.ONE;
+      } else {
+        return _dafny.ZERO;
+      }
+    };
     static DaysInMonth(month, year) {
       if ((month).isEqualTo(_dafny.ONE)) {
         return new BigNumber(31);
@@ -4550,6 +4557,28 @@ let TodoMultiProjectDomain = (function() {
         }
         return _coll0;
       }();
+    };
+    static GetAllVisibleTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm).dtor_projects).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static CountAllVisibleTasks(mm) {
+      return new BigNumber((TodoMultiProjectDomain.__default.GetAllVisibleTasks(mm)).length);
     };
     static GetAllSmartListTasks(mm, smartList) {
       let _source0 = smartList;
