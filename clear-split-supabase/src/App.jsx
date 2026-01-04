@@ -373,14 +373,6 @@ function GroupSelector({ user, onSelectGroup }) {
                 </span>
               </div>
             </div>
-            {groupBalances.map((b, i) => (
-              <div key={i} className="balance-item">
-                <span className="name">{b.groupName}</span>
-                <span className={`amount ${b.balance > 0 ? 'positive' : b.balance < 0 ? 'negative' : 'zero'}`}>
-                  {b.balance > 0 ? 'owed ' : b.balance < 0 ? 'owe ' : ''}{formatMoney(Math.abs(b.balance))}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -412,18 +404,27 @@ function GroupSelector({ user, onSelectGroup }) {
         {groups.length === 0 ? (
           <p className="empty-state">No groups yet</p>
         ) : (
-          groups.map(g => (
-            <div
-              key={g.group_id}
-              className="group-item"
-              onClick={() => onSelectGroup(g.group_id)}
-            >
-              <div>
-                <div className="name">{g.group?.name || 'Expense Group'}</div>
-                <div className="meta">as {g.display_name}</div>
+          groups.map(g => {
+            const groupBalance = groupBalances.find(b => b.groupName === g.group?.name)
+            const balance = groupBalance?.balance || 0
+            return (
+              <div
+                key={g.group_id}
+                className="group-item"
+                onClick={() => onSelectGroup(g.group_id)}
+              >
+                <div>
+                  <div className="name">{g.group?.name || 'Expense Group'}</div>
+                  <div className="meta">as {g.display_name}</div>
+                </div>
+                {groupBalance && (
+                  <span className={`amount ${balance > 0 ? 'positive' : balance < 0 ? 'negative' : 'zero'}`}>
+                    {balance > 0 ? 'owed ' : balance < 0 ? 'owe ' : ''}{formatMoney(Math.abs(balance))}
+                  </span>
+                )}
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 

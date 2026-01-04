@@ -380,6 +380,24 @@
   color: #666;
 }
 
+.group-item .amount {
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.group-item .amount.positive {
+  color: #22c55e;
+}
+
+.group-item .amount.negative {
+  color: #ef4444;
+}
+
+.group-item .amount.zero {
+  color: #666;
+}
+
 /* Cross-group summary */
 .cross-group-summary {
   margin-bottom: 0.75rem;
