@@ -154,17 +154,26 @@ function ProjectView({
   onMoveList,
   otherProjects,
   onMoveListToProject,
-  members
+  members,
+  selectedListId
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
-  const lists = useMemo(() => {
+  const allLists = useMemo(() => {
     if (!model) return []
     return App.GetLists(model).map(id => ({
       id,
       name: App.GetListName(model, id)
     }))
   }, [model])
+
+  // Filter to selected list if one is chosen
+  const lists = useMemo(() => {
+    if (selectedListId !== null) {
+      return allLists.filter(l => l.id === selectedListId)
+    }
+    return allLists
+  }, [allLists, selectedListId])
 
   const allTags = useMemo(() => {
     if (!model) return {}
@@ -220,7 +229,7 @@ function ProjectView({
       />
 
       {lists.length === 0 ? (
-        <EmptyState message="No lists yet. Click the + on the project in the sidebar." />
+        <EmptyState message={selectedListId !== null ? "List not found" : "No lists yet. Click the + on the project in the sidebar."} />
       ) : (
         lists.map(list => (
           <TaskList
@@ -234,7 +243,7 @@ function ProjectView({
             onRenameList={onRenameList}
             onDeleteList={onDeleteList}
             onMoveList={onMoveList}
-            allLists={lists}
+            allLists={allLists}
             otherProjects={otherProjects}
             onMoveListToProject={onMoveListToProject}
             onCompleteTask={(taskId, completed) =>
@@ -252,7 +261,7 @@ function ProjectView({
             onMoveTask={(taskId, toListId) =>
               dispatch(App.MoveTask(taskId, toListId, App.AtEnd()))
             }
-            availableLists={lists}
+            availableLists={allLists}
             allTags={allTags}
             onAddTag={(taskId, tagId) =>
               dispatch(App.AddTagToTask(taskId, tagId))
@@ -625,6 +634,7 @@ function TodoApp({ user, onSignOut }) {
           otherProjects={projects.filter(p => p.id !== selectedProjectId)}
           onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}
           members={members}
+          selectedListId={selectedListId}
         />
       )
     }

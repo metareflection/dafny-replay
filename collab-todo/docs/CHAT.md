@@ -2,6 +2,69 @@
 
 ---
 
+# Task Item UI Refactor: Expanded Metadata View + Notes Modal
+
+**Date:** 2026-01-05
+
+## Context
+
+Reviewed commit 815f556 (UI style refinements) and found issues:
+- Dead imports: `TagList` and `AssigneeList` imported but never used
+- Loss of visual information: tags, assignees, and due dates only shown as icon indicators
+
+## Changes Requested
+
+User wanted to change task interaction model:
+1. Click on task → expand to show metadata (not inline edit form)
+2. Move notes editing to a modal
+
+## Implementation
+
+### New Component
+
+| File | Purpose |
+|------|---------|
+| `src/components/notes/NotesModal.jsx` | Modal for editing task notes |
+| `src/components/notes/notes.css` | Modal styles |
+| `src/components/notes/index.js` | Exports |
+
+### TaskItem Changes
+
+| Before | After |
+|--------|-------|
+| Click → inline edit form (title + notes) | Click → toggle expanded metadata view |
+| Notes edited inline | Notes edited via modal (FileText icon) |
+| TagList/AssigneeList imported but unused | Dead imports removed |
+
+### Expanded Metadata Format
+
+| Type | Display Format |
+|------|----------------|
+| Assignees | `@username, @username` |
+| Tags | `#tagname, #tagname` |
+| Due date | `Jan 5` (text, red if overdue) |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Replaced `editing` state with `expanded`, added metadata display, integrated NotesModal, removed dead imports |
+| `src/components/tasks/tasks.css` | Added `.task-item__main`, `.task-item__metadata`, metadata item styles |
+
+## Bug Fix: Modal Styling
+
+Initial modal had transparency and overflow issues. Fixed by:
+- Changed `--color-bg-primary` to `--color-bg` with `#fff` fallback
+- Added `overflow: hidden` to modal container
+- Wrapped textarea in `.notes-modal__content` div with explicit background
+- Added solid backgrounds to header, content, and actions sections
+
+## Note
+
+Inline title editing was removed. Title can only be changed via the task edit form or future enhancement (e.g., double-click to edit).
+
+---
+
 # Offline Mode Disabled (Pending Conflict Resolution)
 
 **Date:** 2026-01-04
