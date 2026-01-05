@@ -6,9 +6,9 @@ This document compares actions defined in the Dafny spec against what is current
 
 | Category | Spec Actions | Used in UI | Missing |
 |----------|-------------|------------|---------|
-| Single-Project | 24 | 18 | 6 |
+| Single-Project | 24 | 19 | 5 |
 | Multi-Project | 3 | 1 | 2 |
-| **Total** | **27** | **19** | **8** |
+| **Total** | **27** | **20** | **7** |
 
 ---
 
@@ -36,13 +36,13 @@ This document compares actions defined in the Dafny spec against what is current
 | MakeCollaborative | - | ProjectView | "Make Collaborative" button (Personal projects) |
 | AddMember | userId | MemberInvite | Enter email, click "Invite" |
 | RemoveMember | userId | MemberList | "X" button on member row |
+| SetDueDate | taskId, dueDate | DueDatePicker | Calendar icon button, select date or clear |
 
 ### Not Used in UI
 
 | Action | Parameters | Notes |
 |--------|-----------|-------|
 | NoOp | - | Internal use only (rebasing) |
-| **SetDueDate** | taskId, dueDate | Display only, no setter UI (helpers exist in app-extras.js) |
 | **RestoreTask** | taskId | No undo for soft-deleted tasks |
 | **AssignTask** | taskId, userId | No assignee UI |
 | **UnassignTask** | taskId, userId | No assignee UI |
@@ -82,17 +82,13 @@ This document compares actions defined in the Dafny spec against what is current
    - `AssignTask` / `UnassignTask` - Collaborative task assignment
    - Foundation for team collaboration
 
-3. **Due Date Setting**
-   - `SetDueDate` - Currently display-only
-   - Helper functions exist (`SetDueDateValue`, `ClearDueDate` in app-extras.js)
-
 ### Medium Value Missing Features
 
-4. **Task Restoration**
+3. **Task Restoration**
    - `RestoreTask` - Undo soft delete
    - Would enable "Recently Deleted" view
 
-6. **Tag Management Panel**
+4. **Tag Management Panel**
    - `RenameTag` / `DeleteTag` - Full tag CRUD in settings
    - Basic tag create/assign implemented via TagPicker
 

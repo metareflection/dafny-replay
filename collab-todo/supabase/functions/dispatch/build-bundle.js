@@ -107,6 +107,22 @@ const jsToOption = (val: any, converter: (x: any) => any = (x) => x): any => {
   return TodoDomain.Option.create_Some(converter(val));
 };
 
+// Handle tagged option format from client: { type: 'Some', value: ... } or { type: 'None' }
+// deno-lint-ignore no-explicit-any
+const taggedOptionToValue = (val: any, converter: (x: any) => any = (x) => x): any => {
+  if (val === null || val === undefined) {
+    return TodoDomain.Option.create_None();
+  }
+  if (val.type === 'None') {
+    return TodoDomain.Option.create_None();
+  }
+  if (val.type === 'Some') {
+    return TodoDomain.Option.create_Some(converter(val.value));
+  }
+  // Fallback: treat as raw value (backwards compatibility)
+  return TodoDomain.Option.create_Some(converter(val));
+};
+
 // ============================================================================
 // Date conversion
 // ============================================================================
@@ -461,7 +477,7 @@ export const actionFromJson = (json: Action): any => {
     case 'SetDueDate':
       return TodoDomain.Action.create_SetDueDate(
         new BigNumber(json.taskId),
-        jsToOption(json.dueDate, jsToDate)
+        taggedOptionToValue(json.dueDate, jsToDate)
       );
 
     // Assignment

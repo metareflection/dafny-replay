@@ -2,6 +2,90 @@
 
 ---
 
+# SetDueDate UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Build UI for setting and displaying due dates on tasks, using the existing `SetDueDate` action from the Dafny spec.
+
+## Implementation
+
+### New Component
+
+Created `DueDatePicker` - a dropdown component with:
+- Calendar icon trigger (highlights when date is set)
+- Native HTML date input for selection
+- "Clear" button to remove due date
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/duedate/DueDatePicker.jsx` | Date picker dropdown component |
+| `src/components/duedate/duedate.css` | Styles (matches TagPicker pattern) |
+| `src/components/duedate/index.js` | Exports |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added DueDatePicker next to TagPicker |
+| `src/components/tasks/TaskList.jsx` | Pass-through `onSetDueDate` prop |
+| `src/App.jsx` | Added handlers for ProjectView + smart list views |
+| `docs/ACTIONS.md` | Updated counts (20/27 used), moved SetDueDate to implemented |
+
+## Bug Fix: Action Rejected
+
+### Problem
+
+Due date appeared briefly then disappeared - action was being rejected by the server.
+
+### Root Cause
+
+Format mismatch between client and server Option serialization:
+- **Client sends**: `{ type: 'Some', value: { year, month, day } }` (tagged Option format)
+- **Server expected**: `{ year, month, day }` or `null` (raw value format)
+
+### Fix
+
+Added `taggedOptionToValue` function in `build-bundle.js` to handle the tagged format:
+
+```javascript
+const taggedOptionToValue = (val, converter) => {
+  if (val === null || val === undefined) return Option.create_None();
+  if (val.type === 'None') return Option.create_None();
+  if (val.type === 'Some') return Option.create_Some(converter(val.value));
+  return Option.create_Some(converter(val)); // fallback
+};
+```
+
+Updated SetDueDate case to use `taggedOptionToValue(json.dueDate, jsToDate)`.
+
+### Deployment Required
+
+```bash
+cd collab-todo/supabase/functions/dispatch && node build-bundle.js
+supabase functions deploy dispatch
+```
+
+## Spec Functions Used
+
+- `App.SetDueDateValue(taskId, year, month, day)` - Set date
+- `App.ClearDueDate(taskId)` - Remove date
+
+## UI Behavior
+
+| Location | DueDatePicker Available |
+|----------|------------------------|
+| ProjectView | Yes |
+| PriorityView | Yes |
+| AllTasksView | Yes |
+| LogbookView | No (display only) |
+
+---
+
 # Project View Tabs Enhancement
 
 **Date:** 2026-01-04

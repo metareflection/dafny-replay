@@ -28,6 +28,7 @@ export function TaskList({
   onAddTag,
   onRemoveTag,
   onCreateTag,
+  onSetDueDate,
   otherProjects = [],
   onMoveListToProject
 }) {
@@ -230,6 +231,7 @@ export function TaskList({
                 onAddTag={onAddTag}
                 onRemoveTag={onRemoveTag}
                 onCreateTag={onCreateTag}
+                onSetDueDate={onSetDueDate}
               />
             ))}
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Star, MoreHorizontal, ArrowRight, Trash2 } from 'lucide-react'
 import { TagList, TagPicker } from '../tags'
+import { DueDatePicker } from '../duedate'
 import './tasks.css'
 
 export function TaskItem({
@@ -17,7 +18,8 @@ export function TaskItem({
   allTags = {},
   onAddTag,
   onRemoveTag,
-  onCreateTag
+  onCreateTag,
+  onSetDueDate
 }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
@@ -139,6 +141,13 @@ export function TaskItem({
                   }
                 }}
                 onCreate={onCreateTag ? (name) => onCreateTag(name) : undefined}
+              />
+            )}
+
+            {onSetDueDate && (
+              <DueDatePicker
+                currentDate={task.dueDate}
+                onSetDate={(date) => onSetDueDate(taskId, date)}
               />
             )}
 

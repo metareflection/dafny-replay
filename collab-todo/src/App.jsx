@@ -21,7 +21,7 @@ import './components/layout/layout.css'
 // Smart List Views
 // ============================================================================
 
-function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag }) {
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Star} message="No priority tasks. Star a task to add it here." />
   }
@@ -51,6 +51,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
             onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
             onCreateTag={(name) => onCreateTag(task.projectId, name)}
+            onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
           />
         ))}
       </div>
@@ -92,7 +93,7 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
   )
 }
 
-function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag }) {
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Circle} message="No tasks yet. Create a task in a project to see it here." />
   }
@@ -122,6 +123,7 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
             onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
             onCreateTag={(name) => onCreateTag(task.projectId, name)}
+            onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
           />
         ))}
       </div>
@@ -253,6 +255,13 @@ function ProjectView({
             onCreateTag={(name) =>
               dispatch(App.CreateTag(name))
             }
+            onSetDueDate={(taskId, date) => {
+              if (date) {
+                dispatch(App.SetDueDateValue(taskId, date.year, date.month, date.day))
+              } else {
+                dispatch(App.ClearDueDate(taskId))
+              }
+            }}
           />
         ))
       )}
@@ -468,6 +477,15 @@ function TodoApp({ user, onSignOut }) {
     dispatch(App.CreateTag(name))
   }
 
+  const handleSetDueDateAll = (projectId, taskId, date) => {
+    const dispatch = createDispatch(projectId)
+    if (date) {
+      dispatch(App.SetDueDateValue(taskId, date.year, date.month, date.day))
+    } else {
+      dispatch(App.ClearDueDate(taskId))
+    }
+  }
+
   const getProjectTags = useCallback((projectId) => {
     const model = getProjectModel(projectId)
     if (!model) return {}
@@ -523,6 +541,7 @@ function TodoApp({ user, onSignOut }) {
           onAddTag={handleAddTagAll}
           onRemoveTag={handleRemoveTagAll}
           onCreateTag={handleCreateTagAll}
+          onSetDueDate={handleSetDueDateAll}
         />
       )
     }
@@ -541,6 +560,7 @@ function TodoApp({ user, onSignOut }) {
           onAddTag={handleAddTagAll}
           onRemoveTag={handleRemoveTagAll}
           onCreateTag={handleCreateTagAll}
+          onSetDueDate={handleSetDueDateAll}
         />
       )
     }
