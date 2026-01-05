@@ -24,6 +24,7 @@ export function Sidebar({
   priorityCount,
   logbookCount,
   allTasksCount,
+  trashCount,
 
   // Member management
   onManageMembers,
@@ -63,6 +64,7 @@ export function Sidebar({
         priorityCount={priorityCount}
         logbookCount={logbookCount}
         allTasksCount={allTasksCount}
+        trashCount={trashCount}
       />
 
       <ProjectList

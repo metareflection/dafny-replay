@@ -1,4 +1,4 @@
-import { Star, CheckSquare, List } from 'lucide-react'
+import { Star, CheckSquare, List, Trash2 } from 'lucide-react'
 import { SidebarItem } from './SidebarItem.jsx'
 import './sidebar.css'
 
@@ -7,7 +7,8 @@ export function SmartLists({
   onSelectView,
   priorityCount = 0,
   logbookCount = 0,
-  allTasksCount = 0
+  allTasksCount = 0,
+  trashCount = 0
 }) {
   return (
     <div className="smart-lists">
@@ -31,6 +32,13 @@ export function SmartLists({
         count={logbookCount}
         selected={selectedView === 'logbook'}
         onClick={() => onSelectView('logbook')}
+      />
+      <SidebarItem
+        icon={Trash2}
+        label="Trash"
+        count={trashCount}
+        selected={selectedView === 'trash'}
+        onClick={() => onSelectView('trash')}
       />
     </div>
   )

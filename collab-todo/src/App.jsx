@@ -7,11 +7,12 @@ import App from './dafny/app-extras.js'
 
 // Components
 import { AuthForm } from './components/auth'
-import { Toast } from './components/common'
+import { Toast, UndoToast } from './components/common'
 import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
 import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
 import { MemberManagement } from './components/members'
+import { Trash2, RotateCcw } from 'lucide-react'
 
 // Styles
 import './styles/global.css'
@@ -97,6 +98,46 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags, getPro
   )
 }
 
+function TrashView({ tasks, onRestoreTask }) {
+  if (tasks.length === 0) {
+    return <EmptyState icon={Trash2} message="Trash is empty." />
+  }
+
+  return (
+    <div className="project-view">
+      <ProjectHeader
+        title="Trash"
+        icon={Trash2}
+        showNotes={false}
+      />
+      <div className="project-view__section">
+        {tasks.map(task => (
+          <div key={`${task.projectId}-${task.id}`} className="trash-item">
+            <div className="trash-item__content">
+              <span className="trash-item__title">{task.title}</span>
+              <span className="trash-item__meta">{task.listName}</span>
+            </div>
+            {task.canRestore !== false ? (
+              <button
+                className="trash-item__restore"
+                onClick={() => onRestoreTask(task.projectId, task.id)}
+                title="Restore task"
+              >
+                <RotateCcw size={16} />
+                Restore
+              </button>
+            ) : (
+              <span className="trash-item__disabled" title="Cannot restore - list has been deleted">
+                Cannot restore
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Circle} message="No tasks yet. Create a task in a project to see it here." />
@@ -157,7 +198,8 @@ function ProjectView({
   members,
   selectedListId,
   onRenameProject,
-  onAddList
+  onAddList,
+  onDeleteTask
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
   const [showAddListForm, setShowAddListForm] = useState(false)
@@ -291,9 +333,7 @@ function ProjectView({
             onEditTask={(taskId, title, notes) =>
               dispatch(App.EditTask(taskId, title, notes))
             }
-            onDeleteTask={(taskId) =>
-              dispatch(App.DeleteTask(taskId, userId))
-            }
+            onDeleteTask={onDeleteTask}
             onMoveTask={(taskId, toListId) =>
               dispatch(App.MoveTask(taskId, toListId, App.AtEnd()))
             }
@@ -335,13 +375,14 @@ function ProjectView({
 
 function TodoApp({ user, onSignOut }) {
   // View state
-  const [selectedView, setSelectedView] = useState(null) // 'priority' | 'logbook' | 'allTasks' | null
+  const [selectedView, setSelectedView] = useState(null) // 'priority' | 'logbook' | 'allTasks' | 'trash' | null
   const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [selectedListId, setSelectedListId] = useState(null)
   const [filterTab, setFilterTab] = useState('all')
   const [toast, setToast] = useState(null)
   const [showMemberManagement, setShowMemberManagement] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [pendingUndo, setPendingUndo] = useState(null) // { projectId, taskId, taskTitle }
 
   // Close sidebar on window resize to desktop
   useEffect(() => {
@@ -375,6 +416,7 @@ function TodoApp({ user, onSignOut }) {
     priorityTasks,
     logbookTasks,
     allTasks,
+    trashTasks,
     getProjectModel,
     getProjectLists,
     getListTaskCount,
@@ -560,8 +602,22 @@ function TodoApp({ user, onSignOut }) {
   }
 
   const handleDeleteTaskAll = (projectId, taskId) => {
+    // Get task title before deleting for the undo toast
+    const model = getProjectModel(projectId)
+    const task = model ? App.GetTask(model, taskId) : null
+    const taskTitle = task?.title || 'Task'
+
     const dispatch = createDispatch(projectId)
     dispatch(App.DeleteTask(taskId, user.id))
+
+    // Show undo toast
+    setPendingUndo({ projectId, taskId, taskTitle })
+  }
+
+  const handleRestoreTask = (projectId, taskId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.RestoreTask(taskId))
+    setPendingUndo(null)
   }
 
   const handleMoveTaskAll = (projectId, taskId, listId) => {
@@ -613,6 +669,7 @@ function TodoApp({ user, onSignOut }) {
   const priorityCount = priorityTasks.length
   const logbookCount = logbookTasks.length
   const allTasksCount = allTasks.length
+  const trashCount = trashTasks.length
 
   // Get project mode for sidebar
   const getProjectMode = useCallback((projectId) => {
@@ -700,6 +757,15 @@ function TodoApp({ user, onSignOut }) {
       )
     }
 
+    if (selectedView === 'trash') {
+      return (
+        <TrashView
+          tasks={trashTasks}
+          onRestoreTask={handleRestoreTask}
+        />
+      )
+    }
+
     // Project view
     if (selectedProjectId) {
       const project = projects.find(p => p.id === selectedProjectId)
@@ -722,6 +788,7 @@ function TodoApp({ user, onSignOut }) {
           selectedListId={selectedListId}
           onRenameProject={project.isOwner ? handleRenameProject : undefined}
           onAddList={handleAddList}
+          onDeleteTask={(taskId) => handleDeleteTaskAll(selectedProjectId, taskId)}
         />
       )
     }
@@ -775,6 +842,7 @@ function TodoApp({ user, onSignOut }) {
           priorityCount={priorityCount}
           logbookCount={logbookCount}
           allTasksCount={allTasksCount}
+          trashCount={trashCount}
           onManageMembers={handleManageMembers}
           onDeleteProject={handleDeleteProject}
           getProjectMode={getProjectMode}
@@ -792,6 +860,14 @@ function TodoApp({ user, onSignOut }) {
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {pendingUndo && (
+        <UndoToast
+          message={`"${pendingUndo.taskTitle}" deleted`}
+          onUndo={() => handleRestoreTask(pendingUndo.projectId, pendingUndo.taskId)}
+          onClose={() => setPendingUndo(null)}
         />
       )}
 

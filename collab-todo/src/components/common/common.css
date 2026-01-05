@@ -178,3 +178,63 @@
     max-width: none;
   }
 }
+
+/* Undo Toast - with progress bar */
+.undo-toast {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: toast-slide-up 300ms var(--ease-spring);
+  overflow: hidden;
+}
+
+.undo-toast__message {
+  flex: 1;
+}
+
+.undo-toast__button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.undo-toast__button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.undo-toast__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  transition: width 50ms linear;
+}
+
+@media (max-width: 480px) {
+  .undo-toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    transform: none;
+    max-width: none;
+  }
+}

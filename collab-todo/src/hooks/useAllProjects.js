@@ -188,6 +188,45 @@ export function useAllProjects(projectIds) {
     return tagged.map(enrichTask).filter(t => t !== null && !t.completed)
   }, [multiModel, enrichTask])
 
+  // Get all deleted tasks across all projects (for Trash view)
+  // Note: No verified Dafny function for this, using direct model query
+  // Deleted tasks are removed from list sequences but remain in taskData
+  const trashTasks = useMemo(() => {
+    if (!multiModel) return []
+    const tasks = []
+    const projectIdsList = App.MultiModel.getProjectIds(multiModel)
+
+    for (const projectId of projectIdsList) {
+      const model = App.MultiModel.getProject(multiModel, projectId)
+      if (!model) continue
+
+      // Iterate over taskData directly (deleted tasks are removed from list sequences)
+      const taskData = model.dtor_taskData
+      if (!taskData || !taskData.Keys) continue
+
+      for (const taskIdKey of taskData.Keys.Elements) {
+        const taskId = taskIdKey.toNumber ? taskIdKey.toNumber() : taskIdKey
+        const task = App.GetTask(model, taskId)
+        if (task && task.deleted) {
+          // Get original list from deletedFromList field
+          const listId = task.deletedFromList
+          const listName = listId !== null ? App.GetListName(model, listId) : ''
+          // Check if original list still exists (needed for restore)
+          const canRestore = listId !== null && listName !== ''
+          tasks.push({
+            id: taskId,
+            projectId,
+            listId,
+            listName: canRestore ? listName : '(list deleted)',
+            canRestore,
+            ...task
+          })
+        }
+      }
+    }
+    return tasks
+  }, [multiModel])
+
   // Get project model by ID
   const getProjectModel = useCallback((projectId) => {
     return projectData[projectId]?.model || null
@@ -249,6 +288,7 @@ export function useAllProjects(projectIds) {
     priorityTasks,
     logbookTasks,
     allTasks,
+    trashTasks,
 
     // Helpers
     getProjectModel,

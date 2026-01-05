@@ -1432,11 +1432,126 @@ Build passes successfully.
 
 ---
 
+# Task Restore with Undo Toast
+
+**Date:** 2026-01-05
+
+## Goal
+
+When user deletes a task, show a timed popup with an "Undo" button. If they don't click it within 5 seconds, the task goes to a Trash smart list where it can be restored later.
+
+## Implementation
+
+### New Components
+
+| File | Purpose |
+|------|---------|
+| `src/components/common/UndoToast.jsx` | Toast with progress bar and Undo button |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/common/common.css` | Added `.undo-toast` styles with progress bar |
+| `src/components/common/index.js` | Export `UndoToast` |
+| `src/components/sidebar/SmartLists.jsx` | Added Trash smart list with Trash2 icon |
+| `src/components/layout/Sidebar.jsx` | Pass `trashCount` prop to SmartLists |
+| `src/components/project/project.css` | Added `.trash-item` styles |
+| `src/hooks/useAllProjects.js` | Added `trashTasks` memo for aggregating deleted tasks |
+| `src/App.jsx` | Added TrashView, UndoToast rendering, handleRestoreTask, pendingUndo state |
+
+## UI Behavior
+
+| Action | Result |
+|--------|--------|
+| Delete task | Task deleted, UndoToast appears at bottom |
+| Click "Undo" on toast | Task restored immediately, toast dismissed |
+| Toast times out (5s) | Toast dismissed, task remains in Trash |
+| Click Trash in sidebar | Shows all deleted tasks across projects |
+| Click "Restore" in Trash | Task restored to original list |
+
+## Spec Actions Used
+
+- `App.DeleteTask(taskId, userId)` - Soft delete (existing)
+- `App.RestoreTask(taskId)` - Restore deleted task
+
+## Design Decisions
+
+1. **Timed undo window** - 5 seconds matches standard undo patterns (Gmail, Slack)
+2. **Progress bar** - Visual countdown so user knows how much time remains
+3. **Cross-project Trash** - Shows deleted tasks from all projects in one view
+4. **Original list shown** - Trash items display which list they came from
+
+## Bug Fix: Trash Tasks Not Showing
+
+### Problem
+
+After the undo toast timed out, deleted tasks weren't appearing in the Trash view.
+
+### Root Cause
+
+The initial implementation tried to find deleted tasks by iterating through list sequences:
+```javascript
+for (const listId of App.GetLists(model)) {
+  for (const taskId of App.GetTasksInList(model, listId)) {
+    // Check if task.deleted...
+  }
+}
+```
+
+But `GetTasksInList()` only returns tasks in the list's task sequence. When a task is deleted, it's **removed from the list sequence** but remains in `taskData` with `deleted: true`.
+
+### Fix
+
+Iterate over `taskData` directly instead of list sequences:
+```javascript
+const taskData = model.dtor_taskData
+for (const taskIdKey of taskData.Keys.Elements) {
+  const taskId = taskIdKey.toNumber ? taskIdKey.toNumber() : taskIdKey
+  const task = App.GetTask(model, taskId)
+  if (task && task.deleted) {
+    // Found deleted task
+  }
+}
+```
+
+## Edge Case: Orphaned Tasks (List Deleted)
+
+### Scenario
+
+What happens to tasks in Trash whose original list has been deleted?
+
+### Spec Behavior
+
+The `RestoreTask` action in the Dafny spec **rejects** the restore if the original list no longer exists - it does not fall back to another list.
+
+### UI Solution
+
+Added `canRestore` flag based on whether the list name can be retrieved:
+```javascript
+const listName = listId !== null ? App.GetListName(model, listId) : ''
+const canRestore = listId !== null && listName !== ''
+tasks.push({
+  ...task,
+  listName: canRestore ? listName : '(list deleted)',
+  canRestore
+})
+```
+
+In the Trash view:
+- Tasks with `canRestore: true` show "Restore" button
+- Tasks with `canRestore: false` show disabled "Cannot restore" text
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 ## Next Steps (from ACTIONS.md)
 
 High value missing features:
 1. Cross-project operations (`MoveTaskTo`, `CopyTaskTo`)
 
 Medium value:
-2. Task restoration (`RestoreTask`)
-3. Tag management panel (`RenameTag`, `DeleteTag`)
+2. Tag management panel (`RenameTag`, `DeleteTag`)
