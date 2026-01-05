@@ -27,6 +27,7 @@ export function Sidebar({
 
   // Member management
   onManageMembers,
+  onDeleteProject,
   getProjectMode
 }) {
   return (
@@ -51,6 +52,7 @@ export function Sidebar({
         getListTaskCount={getListTaskCount}
         loading={projectsLoading}
         onManageMembers={onManageMembers}
+        onDeleteProject={onDeleteProject}
         getProjectMode={getProjectMode}
       />
     </aside>

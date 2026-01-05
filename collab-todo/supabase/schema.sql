@@ -227,6 +227,24 @@ BEGIN
 END;
 $$;
 
+-- Delete a project (owner only)
+CREATE OR REPLACE FUNCTION delete_project(p_project_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Check ownership
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can delete a project';
+  END IF;
+
+  -- Delete the project (CASCADE will remove project_members)
+  DELETE FROM projects WHERE id = p_project_id;
+END;
+$$;
+
 -- ============================================================================
 -- Multi-Project Functions (for cross-project operations)
 -- ============================================================================

@@ -83,11 +83,24 @@ export function useProjects() {
     await fetchProjects()
   }, [fetchProjects])
 
+  const deleteProject = useCallback(async (projectId) => {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+
+    const { error } = await supabase.rpc('delete_project', {
+      p_project_id: projectId
+    })
+
+    if (error) throw error
+
+    // Refresh project list
+    await fetchProjects()
+  }, [fetchProjects])
+
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
 
-  return { projects, loading, error, refresh: fetchProjects, createProject, renameProject }
+  return { projects, loading, error, refresh: fetchProjects, createProject, renameProject, deleteProject }
 }
 
 /**

@@ -2,6 +2,65 @@
 
 ---
 
+# Delete Project Feature
+
+**Date:** 2026-01-05
+
+## Goal
+
+Add ability to delete a project from the 3-dot dropdown menu in the sidebar.
+
+## Implementation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/schema.sql` | Added `delete_project` RPC function (owner-only, SECURITY DEFINER) |
+| `src/hooks/useCollaborativeProject.js` | Added `deleteProject` function that calls RPC |
+| `src/components/sidebar/ProjectList.jsx` | Added "Delete Project" item to dropdown with Trash2 icon, confirmation dialog |
+| `src/components/sidebar/sidebar.css` | Added `.project-list__dropdown-item--danger` styles (red color) |
+| `src/components/layout/Sidebar.jsx` | Pass-through `onDeleteProject` prop |
+| `src/App.jsx` | Added `handleDeleteProject` handler with toast feedback, clears selection if deleted |
+
+### SQL Migration Required
+
+```sql
+CREATE OR REPLACE FUNCTION delete_project(p_project_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can delete a project';
+  END IF;
+  DELETE FROM projects WHERE id = p_project_id;
+END;
+$$;
+```
+
+## UI Behavior
+
+| Condition | Behavior |
+|-----------|----------|
+| Owner | "Delete Project" option visible in dropdown |
+| Non-owner | Option hidden |
+| Click delete | Confirmation dialog: `Delete "ProjectName"? This cannot be undone.` |
+| Confirm | Project deleted, selection cleared if needed, success toast |
+| Cancel | No action |
+| Error | Error toast with message |
+
+## Design Decisions
+
+1. **Owner-only** - Delete option only shown to project owners (presentational guard + RPC check)
+2. **Confirmation required** - `window.confirm()` prevents accidental deletion
+3. **CASCADE delete** - `project_members` automatically cleaned up via foreign key constraint
+4. **Clear selection** - If deleted project was selected, clears `selectedProjectId` and localStorage
+
+---
+
 # List Filtering + Project UI Improvements
 
 **Date:** 2026-01-05

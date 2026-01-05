@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronRight, ChevronDown, Circle, Plus, MoreHorizontal, Users, UserPlus, ListPlus } from 'lucide-react'
+import { ChevronRight, ChevronDown, Circle, Plus, MoreHorizontal, Users, UserPlus, ListPlus, Trash2 } from 'lucide-react'
 import { SidebarItem } from './SidebarItem.jsx'
 import './sidebar.css'
 
@@ -15,6 +15,7 @@ export function ProjectList({
   getListTaskCount,
   loading,
   onManageMembers,
+  onDeleteProject,
   getProjectMode
 }) {
   const [expandedProjects, setExpandedProjects] = useState(new Set())
@@ -214,6 +215,20 @@ export function ProjectList({
                           </>
                         )}
                       </button>
+                      {project.isOwner && (
+                        <button
+                          className="project-list__dropdown-item project-list__dropdown-item--danger"
+                          onClick={() => {
+                            if (window.confirm(`Delete "${project.name}"? This cannot be undone.`)) {
+                              onDeleteProject?.(project.id)
+                            }
+                            setOpenMenuId(null)
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          <span>Delete Project</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -351,3 +351,15 @@
   color: var(--color-text-secondary);
   flex-shrink: 0;
 }
+
+.project-list__dropdown-item--danger {
+  color: var(--color-danger, #dc2626);
+}
+
+.project-list__dropdown-item--danger:hover {
+  background: var(--color-danger-bg, #fef2f2);
+}
+
+.project-list__dropdown-item--danger svg {
+  color: var(--color-danger, #dc2626);
+}

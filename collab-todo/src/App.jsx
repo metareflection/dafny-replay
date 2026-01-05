@@ -343,7 +343,7 @@ function TodoApp({ user, onSignOut }) {
   const [showMemberManagement, setShowMemberManagement] = useState(false)
 
   // Projects list
-  const { projects, loading: projectsLoading, createProject, renameProject, refresh: refreshProjects } = useProjects()
+  const { projects, loading: projectsLoading, createProject, renameProject, deleteProject, refresh: refreshProjects } = useProjects()
 
   // Unified multi-project state (single source of truth)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects])
@@ -502,6 +502,22 @@ function TodoApp({ user, onSignOut }) {
     setSelectedProjectId(projectId)
     setSelectedView(null)
     return projectId
+  }
+
+  const handleDeleteProject = async (projectId) => {
+    try {
+      await deleteProject(projectId)
+      // Clear selection if deleted project was selected
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null)
+        setSelectedListId(null)
+        localStorage.removeItem('collab-todo:selectedProjectId')
+      }
+      setToast({ message: 'Project deleted', type: 'success' })
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+      setToast({ message: err.message || 'Failed to delete project', type: 'error' })
+    }
   }
 
   // Task handlers for all-projects mode
@@ -720,6 +736,7 @@ function TodoApp({ user, onSignOut }) {
           logbookCount={logbookCount}
           allTasksCount={allTasksCount}
           onManageMembers={handleManageMembers}
+          onDeleteProject={handleDeleteProject}
           getProjectMode={getProjectMode}
         />
 
