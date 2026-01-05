@@ -1,0 +1,117 @@
+.notes-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.notes-modal {
+  background: var(--color-bg, #fff);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.notes-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-bg, #fff);
+}
+
+.notes-modal__title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.notes-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.notes-modal__close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.notes-modal__content {
+  padding: var(--space-md);
+  background: var(--color-bg, #fff);
+}
+
+.notes-modal__textarea {
+  width: 100%;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  resize: vertical;
+  min-height: 120px;
+  max-height: 300px;
+  box-sizing: border-box;
+}
+
+.notes-modal__textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-light);
+}
+
+.notes-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-bg, #fff);
+}
+
+.notes-modal__btn {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.notes-modal__btn--secondary {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+}
+
+.notes-modal__btn--secondary:hover {
+  background: var(--color-border);
+}
+
+.notes-modal__btn--primary {
+  color: white;
+  background: var(--color-accent);
+}
+
+.notes-modal__btn--primary:hover {
+  background: var(--color-accent-hover);
+}
