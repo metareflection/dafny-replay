@@ -1217,6 +1217,13 @@ let TodoDomain = (function() {
     _parentTraits() {
       return [];
     }
+    static ListContrib(l, tasks, id) {
+      if (((tasks).contains(l)) && (TodoDomain.__default.SeqContains((tasks).get(l), id))) {
+        return _dafny.ONE;
+      } else {
+        return _dafny.ZERO;
+      }
+    };
     static DaysInMonth(month, year) {
       if ((month).isEqualTo(_dafny.ONE)) {
         return new BigNumber(31);
@@ -4572,6 +4579,28 @@ let TodoMultiProjectDomain = (function() {
         return _coll0;
       }();
     };
+    static GetAllVisibleTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm).dtor_projects).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
+    static CountAllVisibleTasks(mm) {
+      return new BigNumber((TodoMultiProjectDomain.__default.GetAllVisibleTasks(mm)).length);
+    };
     static GetAllSmartListTasks(mm, smartList) {
       let _source0 = smartList;
       {
@@ -4604,6 +4633,56 @@ let TodoMultiProjectDomain = (function() {
     };
     static CountProjects(mm) {
       return new BigNumber(((mm).dtor_projects).length);
+    };
+    static IsAuthorized(mm, actingUser, a) {
+      let _source0 = a;
+      {
+        if (_source0.is_MoveListTo) {
+          let _0_src = (_source0).srcProject;
+          let _1_dst = (_source0).dstProject;
+          let _2_listId = (_source0).listId;
+          return (((mm).dtor_projects).contains(_0_src)) && (_dafny.areEqual(actingUser, (((mm).dtor_projects).get(_0_src)).dtor_owner));
+        }
+      }
+      {
+        if (_source0.is_Single) {
+          let _3_pid = (_source0).project;
+          let _4_action = (_source0).action;
+          return true;
+        }
+      }
+      {
+        if (_source0.is_MoveTaskTo) {
+          let _5_src = (_source0).srcProject;
+          let _6_dst = (_source0).dstProject;
+          let _7_taskId = (_source0).taskId;
+          let _8_dstList = (_source0).dstList;
+          let _9_anchor = (_source0).anchor;
+          return true;
+        }
+      }
+      {
+        let _10_src = (_source0).srcProject;
+        let _11_dst = (_source0).dstProject;
+        let _12_taskId = (_source0).taskId;
+        let _13_dstList = (_source0).dstList;
+        return true;
+      }
+    };
+    static CheckAuthorization(mm, actingUser, a) {
+      if (TodoMultiProjectDomain.__default.IsAuthorized(mm, actingUser, a)) {
+        return _dafny.Seq.UnicodeFromString("");
+      } else {
+        let _source0 = a;
+        {
+          if (_source0.is_MoveListTo) {
+            return _dafny.Seq.UnicodeFromString("Only project owner can move lists");
+          }
+        }
+        {
+          return _dafny.Seq.UnicodeFromString("Not authorized");
+        }
+      }
     };
     static AllProjectsLoaded(mm, a) {
       return _dafny.Quantifier((TodoMultiProjectDomain.__default.TouchedProjects(a)).Elements, true, function (_forall_var_0) {
@@ -6604,6 +6683,33 @@ export function tryMultiStep(
       status: 'rejected',
       error: String(e)
     };
+  }
+}
+
+// ============================================================================
+// Authorization check (VERIFIED)
+// ============================================================================
+
+/**
+ * Check if a user is authorized to perform a multi-action.
+ * Uses VERIFIED Dafny IsAuthorized predicate.
+ * Returns empty string if authorized, error message if not.
+ */
+export function checkAuthorization(
+  multiModelJson: MultiModelJson,
+  actingUser: string,
+  multiActionJson: MultiAction
+): string {
+  try {
+    const mm = multiModelFromJson(multiModelJson);
+    const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
+    const action = multiActionFromJson(multiActionJson);
+
+    // Call VERIFIED CheckAuthorization
+    const result = TodoMultiProjectDomain.__default.CheckAuthorization(mm, userSeq, action);
+    return dafnyStringToJs(result);
+  } catch (e) {
+    return `Authorization check failed: ${String(e)}`;
   }
 }
 

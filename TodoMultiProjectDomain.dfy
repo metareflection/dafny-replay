@@ -738,4 +738,38 @@ module TodoMultiProjectDomain refines MultiProject {
   {
     |mm.projects|
   }
+
+  // ===========================================================================
+  // Authorization Layer (compiled, separate from domain logic)
+  // ===========================================================================
+  //
+  // This predicate checks whether a user is authorized to perform an action.
+  // It's separate from MultiStep so domain logic stays pure.
+  // The edge function should call IsAuthorized before calling MultiStep.
+
+  predicate IsAuthorized(mm: MultiModel, actingUser: UserId, a: MultiAction)
+  {
+    match a
+    // MoveListTo: only source project owner can move lists out
+    case MoveListTo(src, dst, listId) =>
+      src in mm.projects && actingUser == mm.projects[src].owner
+
+    // Single-project actions: allowed for now (could add per-action checks later)
+    case Single(pid, action) => true
+
+    // MoveTaskTo: allowed for any member (task-level, less sensitive than list)
+    case MoveTaskTo(src, dst, taskId, dstList, anchor) => true
+
+    // CopyTaskTo: allowed for any member (non-destructive)
+    case CopyTaskTo(src, dst, taskId, dstList) => true
+  }
+
+  // Wrapper for JS: returns string reason if not authorized, empty string if OK
+  function CheckAuthorization(mm: MultiModel, actingUser: UserId, a: MultiAction): string
+  {
+    if IsAuthorized(mm, actingUser, a) then ""
+    else match a
+      case MoveListTo(_, _, _) => "Only project owner can move lists"
+      case _ => "Not authorized"
+  }
 }

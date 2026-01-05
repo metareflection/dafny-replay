@@ -430,6 +430,22 @@ const App = {
       return toNumber(TodoMultiProjectDomain.__default.CountAllLogbookTasks(mm));
     },
 
+    // VERIFIED: Check if user is authorized to perform action
+    // Returns true if authorized, false otherwise
+    isAuthorized: (mm, actingUser, multiAction) => {
+      if (!mm || !actingUser) return false;
+      const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
+      return TodoMultiProjectDomain.__default.IsAuthorized(mm, userSeq, multiAction);
+    },
+
+    // VERIFIED: Get authorization error message (empty string if authorized)
+    checkAuthorization: (mm, actingUser, multiAction) => {
+      if (!mm || !actingUser) return "Missing model or user";
+      const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
+      const result = TodoMultiProjectDomain.__default.CheckAuthorization(mm, userSeq, multiAction);
+      return dafnyStringToJs(result);
+    },
+
     // Convert to JSON
     toJson: (mm) => GeneratedApp.multimodelToJson(mm),
     fromJson: (json) => App.multimodelFromJson(json),

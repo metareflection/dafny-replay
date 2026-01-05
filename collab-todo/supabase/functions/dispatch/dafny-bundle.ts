@@ -1217,6 +1217,13 @@ let TodoDomain = (function() {
     _parentTraits() {
       return [];
     }
+    static ListContrib(l, tasks, id) {
+      if (((tasks).contains(l)) && (TodoDomain.__default.SeqContains((tasks).get(l), id))) {
+        return _dafny.ONE;
+      } else {
+        return _dafny.ZERO;
+      }
+    };
     static DaysInMonth(month, year) {
       if ((month).isEqualTo(_dafny.ONE)) {
         return new BigNumber(31);

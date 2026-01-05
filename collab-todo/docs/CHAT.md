@@ -768,6 +768,101 @@ const getProjectTags = useCallback((projectId) => {
 
 Build passes successfully with no errors.
 
+---
+
+# Authorization Layer for MoveListTo
+
+**Date:** 2026-01-04
+
+## Problem
+
+Security concern identified with MoveListTo:
+- X owns project A, invites member Z
+- Y owns project B, invites X as member
+- X can move a list from B to A, exposing B's content to Z (who has no access to B)
+
+This is a permission leak: members can "export" content from projects they don't own.
+
+## Options Considered
+
+### Option 1: Database-only authorization
+- Add permission checks in edge function TypeScript (before Dafny)
+- **Pro:** No spec changes, uses existing auth infrastructure
+- **Con:** Authorization logic unverified
+
+### Option 2: Bake authorization into MultiStep
+- Add `actingUser` parameter to `MultiStep` function
+- Check permissions inside before modifying state
+- **Pro:** Single function handles both
+- **Con:** Mixes domain logic with authorization; larger refactor affecting many actions
+
+### Option 3: Separate verified authorization layer (CHOSEN)
+- Add standalone `IsAuthorized` predicate, checked before `MultiStep`
+- **Pro:** Domain logic stays pure; authorization is verified; can add rules incrementally
+- **Con:** Two function calls instead of one
+
+## Decision
+
+Chose **Option 3**: Separate verified layer. Rationale:
+1. Keeps domain logic pure (what happens to state)
+2. Authorization is its own concern (who can do what)
+3. Can add per-action authorization rules incrementally
+4. Both layers are verified Dafny
+
+## Authorization Rules
+
+| Action | Who Can Perform |
+|--------|-----------------|
+| MoveListTo | Source project owner only |
+| Single, MoveTaskTo, CopyTaskTo | Any member (for now) |
+
+**Residual consideration:** Even owner moving lists could share with new members. Deemed acceptable as intentional owner behavior (similar to file sharing).
+
+## Implementation
+
+### Dafny Spec (`TodoMultiProjectDomain.dfy`)
+
+```dafny
+predicate IsAuthorized(mm: MultiModel, actingUser: UserId, a: MultiAction)
+{
+  match a
+  case MoveListTo(src, dst, listId) =>
+    src in mm.projects && actingUser == mm.projects[src].owner
+  case _ => true  // Other actions allowed for now
+}
+
+function CheckAuthorization(...): string  // Empty if OK, error message if not
+```
+
+### Defense in Depth
+
+1. **UI Layer** (`App.jsx`):
+   - `onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}`
+   - Move dropdown only shown to owners
+
+2. **Edge Function** (`multi-dispatch/index.ts`):
+   - Calls `checkAuthorization(mm, userId, action)` before `TryMultiStep`
+   - Returns 403 with reason if not authorized
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `IsAuthorized`, `CheckAuthorization` |
+| `src/dafny/app-extras.js` | Added JS wrappers |
+| `src/App.jsx` | Conditional `onMoveListToProject` prop |
+| `supabase/functions/multi-dispatch/build-bundle.js` | Added `checkAuthorization` export |
+| `supabase/functions/multi-dispatch/index.ts` | Authorization check before TryMultiStep |
+| `docs/LATER.md` | Updated to reflect partial implementation |
+
+## Build Status
+
+- Dafny verification: 34 verified, 0 errors
+- Compilation: Success
+- Edge function: Needs redeployment (`supabase functions deploy multi-dispatch`)
+
+---
+
 ## Next Steps (from ACTIONS.md)
 
 High value missing features:

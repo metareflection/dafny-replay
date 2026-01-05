@@ -585,6 +585,33 @@ export function tryMultiStep(
 }
 
 // ============================================================================
+// Authorization check (VERIFIED)
+// ============================================================================
+
+/**
+ * Check if a user is authorized to perform a multi-action.
+ * Uses VERIFIED Dafny IsAuthorized predicate.
+ * Returns empty string if authorized, error message if not.
+ */
+export function checkAuthorization(
+  multiModelJson: MultiModelJson,
+  actingUser: string,
+  multiActionJson: MultiAction
+): string {
+  try {
+    const mm = multiModelFromJson(multiModelJson);
+    const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
+    const action = multiActionFromJson(multiActionJson);
+
+    // Call VERIFIED CheckAuthorization
+    const result = TodoMultiProjectDomain.__default.CheckAuthorization(mm, userSeq, action);
+    return dafnyStringToJs(result);
+  } catch (e) {
+    return \`Authorization check failed: \${String(e)}\`;
+  }
+}
+
+// ============================================================================
 // Get touched projects from action
 // ============================================================================
 

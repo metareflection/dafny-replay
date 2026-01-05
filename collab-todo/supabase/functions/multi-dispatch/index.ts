@@ -7,7 +7,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { tryMultiStep, getTouchedProjects, modelToJson } from './dafny-bundle.ts'
+import { tryMultiStep, getTouchedProjects, checkAuthorization, modelToJson } from './dafny-bundle.ts'
 
 // ============================================================================
 // CORS Headers
@@ -191,6 +191,21 @@ serve(async (req) => {
       projects: Object.fromEntries(
         Object.entries(projectMap).map(([id, p]) => [id, p.state])
       )
+    }
+
+    // ========================================================================
+    // Run VERIFIED Dafny Authorization Check
+    // ========================================================================
+
+    const authorizationError = checkAuthorization(multiModelJson as any, userId, action as any)
+    if (authorizationError) {
+      return new Response(JSON.stringify({
+        error: 'Not authorized',
+        reason: authorizationError
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     // ========================================================================

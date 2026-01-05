@@ -17,8 +17,19 @@ This document tracks features and specs that are intentionally deferred for futu
   - DeleteList
   - MakeCollaborative
   - RemoveMember
+  - ~~MoveListTo (cross-project)~~ ✓ Implemented via `IsAuthorized` predicate
   - Possibly DeleteTag
-- Would require adding `actingUser` parameter to TryStep or actions
+- For remaining actions: would require adding `actingUser` parameter to TryStep
+
+### Cross-Project Move Restrictions
+- **Implemented**: `IsAuthorized(mm, actingUser, action)` predicate in `TodoMultiProjectDomain.dfy`
+  - MoveListTo: only source project owner can move lists out
+  - Other actions: currently allowed (can add checks later)
+- **Future considerations** (stricter rules beyond owner-only):
+  - Only allow moves to projects with identical member sets
+  - Require approval from destination project owner if mover is just a member
+  - Block moves entirely if destination has members not in source project
+- Tradeoff: flexibility vs. preventing unintended content sharing
 
 ---
 

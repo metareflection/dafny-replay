@@ -573,7 +573,7 @@ function TodoApp({ user, onSignOut }) {
           onDeleteList={handleDeleteList}
           onMoveList={handleMoveList}
           otherProjects={projects.filter(p => p.id !== selectedProjectId)}
-          onMoveListToProject={handleMoveListToProject}
+          onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}
         />
       )
     }
