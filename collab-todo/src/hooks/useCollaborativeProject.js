@@ -69,11 +69,25 @@ export function useProjects() {
     return data // Returns project ID
   }, [fetchProjects])
 
+  const renameProject = useCallback(async (projectId, newName) => {
+    if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ name: newName })
+      .eq('id', projectId)
+
+    if (error) throw error
+
+    // Refresh project list
+    await fetchProjects()
+  }, [fetchProjects])
+
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
 
-  return { projects, loading, error, refresh: fetchProjects, createProject }
+  return { projects, loading, error, refresh: fetchProjects, createProject, renameProject }
 }
 
 /**

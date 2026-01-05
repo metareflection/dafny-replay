@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronRight, ChevronDown, Circle, Plus, MoreHorizontal, Users, UserPlus } from 'lucide-react'
+import { ChevronRight, ChevronDown, Circle, Plus, MoreHorizontal, Users, UserPlus, ListPlus } from 'lucide-react'
 import { SidebarItem } from './SidebarItem.jsx'
 import './sidebar.css'
 
@@ -183,6 +183,21 @@ export function ProjectList({
                       <button
                         className="project-list__dropdown-item"
                         onClick={() => {
+                          onSelectProject(project.id)
+                          // Expand project if collapsed
+                          if (!isExpanded) {
+                            setExpandedProjects(prev => new Set([...prev, project.id]))
+                          }
+                          setShowAddListForm(project.id)
+                          setOpenMenuId(null)
+                        }}
+                      >
+                        <ListPlus size={14} />
+                        <span>Add List</span>
+                      </button>
+                      <button
+                        className="project-list__dropdown-item"
+                        onClick={() => {
                           onManageMembers?.(project.id)
                           setOpenMenuId(null)
                         }}
@@ -202,16 +217,6 @@ export function ProjectList({
                     </div>
                   )}
                 </div>
-
-                {isExpanded && (
-                  <button
-                    className="project-list__add-list-btn"
-                    onClick={() => setShowAddListForm(project.id)}
-                    title="Add list"
-                  >
-                    <Plus size={12} />
-                  </button>
-                )}
               </div>
 
               {isExpanded && (

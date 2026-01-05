@@ -155,9 +155,22 @@ function ProjectView({
   otherProjects,
   onMoveListToProject,
   members,
-  selectedListId
+  selectedListId,
+  onRenameProject,
+  onAddList
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
+  const [showAddListForm, setShowAddListForm] = useState(false)
+  const [newListName, setNewListName] = useState('')
+
+  const handleAddListSubmit = (e) => {
+    e.preventDefault()
+    if (newListName.trim() && onAddList) {
+      onAddList(newListName.trim())
+      setNewListName('')
+      setShowAddListForm(false)
+    }
+  }
 
   const allLists = useMemo(() => {
     if (!model) return []
@@ -216,6 +229,8 @@ function ProjectView({
         icon={Circle}
         subtitle={project.isOwner ? 'Owner' : 'Member'}
         showNotes={false}
+        canRename={project.isOwner}
+        onRename={onRenameProject}
       />
 
       <FilterTabs
@@ -226,10 +241,31 @@ function ProjectView({
         ]}
         activeTab={filterTab}
         onTabChange={onFilterChange}
+        onAddList={onAddList ? () => setShowAddListForm(true) : undefined}
       />
 
+      {showAddListForm && (
+        <form className="project-view__add-list-form" onSubmit={handleAddListSubmit}>
+          <input
+            type="text"
+            placeholder="List name..."
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setNewListName('')
+                setShowAddListForm(false)
+              }
+            }}
+          />
+          <button type="submit" disabled={!newListName.trim()}>Add</button>
+          <button type="button" onClick={() => { setNewListName(''); setShowAddListForm(false) }}>Cancel</button>
+        </form>
+      )}
+
       {lists.length === 0 ? (
-        <EmptyState message={selectedListId !== null ? "List not found" : "No lists yet. Click the + on the project in the sidebar."} />
+        <EmptyState message={selectedListId !== null ? "List not found" : "No lists yet. Click '+ Add List' above."} />
       ) : (
         lists.map(list => (
           <TaskList
@@ -307,7 +343,7 @@ function TodoApp({ user, onSignOut }) {
   const [showMemberManagement, setShowMemberManagement] = useState(false)
 
   // Projects list
-  const { projects, loading: projectsLoading, createProject, refresh: refreshProjects } = useProjects()
+  const { projects, loading: projectsLoading, createProject, renameProject, refresh: refreshProjects } = useProjects()
 
   // Unified multi-project state (single source of truth)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects])
@@ -414,6 +450,16 @@ function TodoApp({ user, onSignOut }) {
   const handleDeleteList = (listId) => {
     if (selectedProjectId && confirm('Delete this list? All tasks in it will be permanently deleted.')) {
       singleDispatch(App.DeleteList(listId))
+    }
+  }
+
+  const handleRenameProject = async (newName) => {
+    if (selectedProjectId) {
+      try {
+        await renameProject(selectedProjectId, newName)
+      } catch (err) {
+        console.error('Failed to rename project:', err)
+      }
     }
   }
 
@@ -635,6 +681,8 @@ function TodoApp({ user, onSignOut }) {
           onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}
           members={members}
           selectedListId={selectedListId}
+          onRenameProject={project.isOwner ? handleRenameProject : undefined}
+          onAddList={handleAddList}
         />
       )
     }

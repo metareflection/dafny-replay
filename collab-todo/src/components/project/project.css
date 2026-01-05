@@ -44,6 +44,38 @@
   color: var(--color-text-primary);
 }
 
+.project-header__title--editable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: var(--space-xxs) var(--space-xs);
+  margin: calc(-1 * var(--space-xxs)) calc(-1 * var(--space-xs));
+  transition: background var(--transition-fast);
+}
+
+.project-header__title--editable:hover {
+  background: var(--color-bg-hover);
+}
+
+.project-header__title-input {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xxl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xxs) var(--space-xs);
+  margin: calc(-1 * var(--space-xxs)) calc(-1 * var(--space-xs));
+  width: calc(100% + var(--space-sm));
+  outline: none;
+}
+
+.project-header__title-input:focus {
+  border-color: var(--color-accent);
+}
+
 .project-header__subtitle {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
@@ -131,22 +163,22 @@
   color: var(--color-text-primary);
 }
 
-.filter-tabs__more {
+.filter-tabs__add-list {
   margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  color: var(--color-text-tertiary);
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   border-radius: var(--radius-sm);
-  transition: 
+  transition:
     color var(--transition-fast),
     background var(--transition-fast);
 }
 
-.filter-tabs__more:hover {
-  color: var(--color-text-secondary);
+.filter-tabs__add-list:hover {
+  color: var(--color-text-primary);
   background: var(--color-bg-hover);
 }
 
@@ -155,6 +187,53 @@
   max-width: 800px;
   width: 100%;
   margin: 0 auto;
+}
+
+.project-view__add-list-form {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.project-view__add-list-form input {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  background: var(--color-bg);
+}
+
+.project-view__add-list-form input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.project-view__add-list-form button {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+
+.project-view__add-list-form button[type="submit"] {
+  background: var(--color-accent);
+  color: white;
+}
+
+.project-view__add-list-form button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.project-view__add-list-form button[type="button"] {
+  color: var(--color-text-secondary);
+}
+
+.project-view__add-list-form button[type="button"]:hover {
+  background: var(--color-bg-hover);
 }
 
 .project-view__section {

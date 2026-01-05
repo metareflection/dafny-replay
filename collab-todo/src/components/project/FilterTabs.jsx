@@ -1,4 +1,4 @@
-import { MoreHorizontal } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import './project.css'
 
 export function FilterTabs({
@@ -7,7 +7,8 @@ export function FilterTabs({
     { id: 'important', label: 'Important' }
   ],
   activeTab,
-  onTabChange
+  onTabChange,
+  onAddList
 }) {
   return (
     <div className="filter-tabs">
@@ -22,9 +23,12 @@ export function FilterTabs({
           </button>
         ))}
       </div>
-      <button className="filter-tabs__more">
-        <MoreHorizontal size={16} />
-      </button>
+      {onAddList && (
+        <button className="filter-tabs__add-list" onClick={onAddList}>
+          <Plus size={14} />
+          <span>Add List</span>
+        </button>
+      )}
     </div>
   )
 }
