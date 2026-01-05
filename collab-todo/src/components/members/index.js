@@ -1,3 +1,5 @@
 export { MemberList } from './MemberList.jsx'
 export { MemberInvite } from './MemberInvite.jsx'
 export { MemberManagement } from './MemberManagement.jsx'
+export { MemberPicker } from './MemberPicker.jsx'
+export { AssigneeList } from './AssigneeList.jsx'

@@ -21,7 +21,7 @@ import './components/layout/layout.css'
 // Smart List Views
 // ============================================================================
 
-function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate }) {
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Star} message="No priority tasks. Star a task to add it here." />
   }
@@ -52,6 +52,9 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
             onCreateTag={(name) => onCreateTag(task.projectId, name)}
             onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
+            allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
+            onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
+            onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
           />
         ))}
       </div>
@@ -59,7 +62,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
   )
 }
 
-function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
+function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags, getProjectMembers }) {
   if (tasks.length === 0) {
     return <EmptyState icon={CheckSquare} message="No completed tasks yet." />
   }
@@ -86,6 +89,7 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
             onMove={() => {}}
             availableLists={[]}
             allTags={getProjectTags(task.projectId)}
+            allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
           />
         ))}
       </div>
@@ -93,7 +97,7 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags }) {
   )
 }
 
-function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate }) {
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers }) {
   if (tasks.length === 0) {
     return <EmptyState icon={Circle} message="No tasks yet. Create a task in a project to see it here." />
   }
@@ -124,6 +128,9 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
             onCreateTag={(name) => onCreateTag(task.projectId, name)}
             onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
+            allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
+            onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
+            onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
           />
         ))}
       </div>
@@ -146,7 +153,8 @@ function ProjectView({
   onDeleteList,
   onMoveList,
   otherProjects,
-  onMoveListToProject
+  onMoveListToProject,
+  members
 }) {
   const [collapsedLists, setCollapsedLists] = useState(new Set())
 
@@ -262,6 +270,13 @@ function ProjectView({
                 dispatch(App.ClearDueDate(taskId))
               }
             }}
+            allMembers={members}
+            onAssign={(taskId, userId) =>
+              dispatch(App.AssignTask(taskId, userId))
+            }
+            onUnassign={(taskId, userId) =>
+              dispatch(App.UnassignTask(taskId, userId))
+            }
           />
         ))
       )}
@@ -410,12 +425,11 @@ function TodoApp({ user, onSignOut }) {
 
   const handleInviteMember = async (email) => {
     // First add to Supabase project_members (for access control)
-    // inviteMember looks up userId by email and inserts into project_members
-    await inviteMember(email)
-    // Then update domain model
-    // Note: inviteMember returns the userId after successful insert
-    // We need to get the userId to dispatch the domain action
-    // For now, refresh members to sync - the domain model will be updated on next sync
+    const userId = await inviteMember(email)
+    // Then update domain model (so user can be assigned to tasks)
+    if (userId) {
+      singleDispatch(App.AddMember(userId))
+    }
     await refreshMembers()
   }
 
@@ -484,6 +498,16 @@ function TodoApp({ user, onSignOut }) {
     }
   }
 
+  const handleAssignTaskAll = (projectId, taskId, userId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.AssignTask(taskId, userId))
+  }
+
+  const handleUnassignTaskAll = (projectId, taskId, userId) => {
+    const dispatch = createDispatch(projectId)
+    dispatch(App.UnassignTask(taskId, userId))
+  }
+
   const getProjectTags = useCallback((projectId) => {
     const model = getProjectModel(projectId)
     if (!model) return {}
@@ -540,6 +564,8 @@ function TodoApp({ user, onSignOut }) {
           onRemoveTag={handleRemoveTagAll}
           onCreateTag={handleCreateTagAll}
           onSetDueDate={handleSetDueDateAll}
+          onAssignTask={handleAssignTaskAll}
+          onUnassignTask={handleUnassignTaskAll}
         />
       )
     }
@@ -559,6 +585,8 @@ function TodoApp({ user, onSignOut }) {
           onRemoveTag={handleRemoveTagAll}
           onCreateTag={handleCreateTagAll}
           onSetDueDate={handleSetDueDateAll}
+          onAssignTask={handleAssignTaskAll}
+          onUnassignTask={handleUnassignTaskAll}
         />
       )
     }
@@ -592,6 +620,7 @@ function TodoApp({ user, onSignOut }) {
           onMoveList={handleMoveList}
           otherProjects={projects.filter(p => p.id !== selectedProjectId)}
           onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}
+          members={members}
         />
       )
     }

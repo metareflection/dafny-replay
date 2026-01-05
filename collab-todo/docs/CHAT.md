@@ -1058,14 +1058,166 @@ No compilation needed - React-only change.
 
 ---
 
+---
+
+# Task Assignment UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Implement `AssignTask` and `UnassignTask` actions in the UI to enable task assignment to project members.
+
+## Implementation
+
+### New Components Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/members/MemberPicker.jsx` | Dropdown for assigning/unassigning members (follows TagPicker pattern) |
+| `src/components/members/AssigneeList.jsx` | Display assignees as compact badges on tasks |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/members/members.css` | Added MemberPicker and AssigneeList styles |
+| `src/components/members/index.js` | Exported new components |
+| `src/components/tasks/TaskItem.jsx` | Added MemberPicker in actions, AssigneeList in meta section |
+| `src/components/tasks/TaskList.jsx` | Pass-through allMembers, onAssign, onUnassign props |
+| `src/App.jsx` | Added assignment handlers for ProjectView and smart list views |
+| `docs/ACTIONS.md` | Updated counts (22/27 used), moved AssignTask/UnassignTask to implemented |
+
+## UI Behavior
+
+| Location | Assignment Editable | Assignees Displayed |
+|----------|---------------------|---------------------|
+| ProjectView | Yes (MemberPicker shows) | Yes (with email names) |
+| PriorityView | No* | Yes (truncated user IDs) |
+| AllTasksView | No* | Yes (truncated user IDs) |
+| LogbookView | No | Yes (truncated user IDs) |
+
+*Smart list views have handlers wired up but no `getProjectMembers` callback yet - MemberPicker won't show because `allMembers` is empty. Assignment editing requires going to ProjectView.
+
+## Spec Actions Used
+
+- `App.AssignTask(taskId, userId)` - Add assignee to task
+- `App.UnassignTask(taskId, userId)` - Remove assignee from task
+
+## Design Decisions
+
+1. **Follows TagPicker pattern** - Consistent dropdown UX with search and checkmarks
+2. **Display in meta section** - Assignee badges shown alongside tags and due dates
+3. **Conditional MemberPicker** - Only shown when `allMembers.length > 0` and `onAssign` provided
+4. **Graceful degradation** - Smart lists show truncated user IDs when member emails unavailable
+
+## Future Enhancement
+
+To enable full assignment editing in smart list views:
+- Add `getProjectMembers(projectId)` callback similar to `getProjectTags`
+- Cache members per project (currently only selected project's members fetched)
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+---
+
+# Bug Fix: Members Cannot Be Assigned to Tasks
+
+**Date:** 2026-01-04
+
+## Problem
+
+After implementing AssignTask/UnassignTask UI, discovered that:
+- Owner can assign themselves to tasks (works)
+- Owner can assign other members (fails with `DomainInvalid`)
+- Members cannot assign anyone including themselves (fails with `DomainInvalid`)
+
+The error indicated `NotAMember` - the user wasn't in the domain model's `m.members` set.
+
+## Root Cause
+
+Two separate data stores for membership that were out of sync:
+
+| Store | Purpose | When Updated |
+|-------|---------|--------------|
+| Supabase `project_members` | Access control (who can see project) | On invite |
+| Domain model `m.members` | Task assignment eligibility | **Never** (bug!) |
+
+When `handleInviteMember` was called, it only inserted into Supabase but never dispatched `App.AddMember(userId)` to update the domain model.
+
+Compare to `handleRemoveMember` which correctly updated both:
+```javascript
+// handleRemoveMember - CORRECT
+singleDispatch(App.RemoveMember(userId))  // Domain model
+await removeFromSupabase(userId)           // Supabase
+
+// handleInviteMember - BUG (missing domain dispatch)
+await inviteMember(email)                  // Supabase only!
+```
+
+## Spec Invariant
+
+The spec at `TodoMultiCollaborationSpec.dfy:245` requires:
+```dafny
+&& m.owner in m.members
+```
+
+And the `AssignTask` action at line 718 checks:
+```dafny
+else if !(userId in m.members) then Err(NotAMember)
+```
+
+So any user not in `m.members` cannot be assigned to tasks.
+
+## Fix
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useCollaborativeProject.js:157` | `inviteMember` now returns `userData.id` |
+| `src/App.jsx:411-418` | `handleInviteMember` now dispatches `App.AddMember(userId)` |
+
+### Code Change
+
+```javascript
+// Before (bug)
+const handleInviteMember = async (email) => {
+  await inviteMember(email)
+  await refreshMembers()
+}
+
+// After (fixed)
+const handleInviteMember = async (email) => {
+  const userId = await inviteMember(email)
+  if (userId) {
+    singleDispatch(App.AddMember(userId))
+  }
+  await refreshMembers()
+}
+```
+
+## Migration Note
+
+Members invited **before this fix** exist in Supabase but not in the domain model. To fix:
+1. Remove and re-invite them, OR
+2. Manually patch the project's `state` JSON in the database to include their userId in the `members` array
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 ## Next Steps (from ACTIONS.md)
 
 High value missing features:
 1. Cross-project operations (`MoveTaskTo`, `CopyTaskTo`)
-2. Task assignment (`AssignTask`, `UnassignTask`)
-3. Due date setting UI (`SetDueDate`)
 
 Medium value:
-4. List reordering (`MoveList`)
-5. Task restoration (`RestoreTask`)
-6. Tag management panel (`RenameTag`, `DeleteTag`)
+2. Task restoration (`RestoreTask`)
+3. Tag management panel (`RenameTag`, `DeleteTag`)

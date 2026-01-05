@@ -14,9 +14,9 @@ This document compares actions defined in the Dafny spec against what is current
 
 | Category | Spec Actions | Used in UI | Missing |
 |----------|-------------|------------|---------|
-| Single-Project | 24 | 19 | 5 |
+| Single-Project | 24 | 21 | 3 |
 | Multi-Project | 3 | 1 | 2 |
-| **Total** | **27** | **20** | **7** |
+| **Total** | **27** | **22** | **5** |
 
 ---
 
@@ -45,6 +45,8 @@ This document compares actions defined in the Dafny spec against what is current
 | AddMember | userId | MemberInvite | Enter email, click "Invite" |
 | RemoveMember | userId | MemberList | "X" button on member row |
 | SetDueDate | taskId, dueDate | DueDatePicker | Calendar icon button, select date or clear |
+| AssignTask | taskId, userId | MemberPicker | User icon button, select member |
+| UnassignTask | taskId, userId | MemberPicker | User icon button, deselect member |
 
 ### Not Used in UI
 
@@ -52,8 +54,6 @@ This document compares actions defined in the Dafny spec against what is current
 |--------|-----------|-------|
 | NoOp | - | Internal use only (rebasing) |
 | **RestoreTask** | taskId | No undo for soft-deleted tasks |
-| **AssignTask** | taskId, userId | No assignee UI |
-| **UnassignTask** | taskId, userId | No assignee UI |
 | **RenameTag** | tagId, newName | No tag rename UI (can delete and recreate) |
 | **DeleteTag** | tagId | No tag management panel |
 
@@ -86,17 +86,13 @@ This document compares actions defined in the Dafny spec against what is current
    - Infrastructure ready (effect manager has `moveTaskToProject` and `copyTaskToProject` methods)
    - Note: `MoveListTo` (move entire list with tasks) is now implemented
 
-2. **Task Assignment**
-   - `AssignTask` / `UnassignTask` - Collaborative task assignment
-   - Foundation for team collaboration
-
 ### Medium Value Missing Features
 
-3. **Task Restoration**
+2. **Task Restoration**
    - `RestoreTask` - Undo soft delete
    - Would enable "Recently Deleted" view
 
-4. **Tag Management Panel**
+3. **Tag Management Panel**
    - `RenameTag` / `DeleteTag` - Full tag CRUD in settings
    - Basic tag create/assign implemented via TagPicker
 

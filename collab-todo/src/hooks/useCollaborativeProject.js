@@ -154,6 +154,7 @@ export function useProjectMembers(projectId) {
     if (insertError) throw insertError
 
     await fetchMembers()
+    return userData.id  // Return userId so caller can dispatch AddMember
   }, [projectId, fetchMembers])
 
   const removeMember = useCallback(async (userId) => {

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, Star, MoreHorizontal, ArrowRight, Trash2 } from 'lucide-react'
 import { TagList, TagPicker } from '../tags'
 import { DueDatePicker } from '../duedate'
+import { MemberPicker, AssigneeList } from '../members'
 import './tasks.css'
 
 export function TaskItem({
@@ -19,7 +20,10 @@ export function TaskItem({
   onAddTag,
   onRemoveTag,
   onCreateTag,
-  onSetDueDate
+  onSetDueDate,
+  allMembers = [],
+  onAssign,
+  onUnassign
 }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
@@ -106,7 +110,7 @@ export function TaskItem({
             {task.notes && (
               <div className="task-item__notes">{task.notes}</div>
             )}
-            {((showProject && projectName) || task.dueDate || (task.tags && task.tags.length > 0)) && (
+            {((showProject && projectName) || task.dueDate || (task.tags && task.tags.length > 0) || (task.assignees && task.assignees.length > 0)) && (
               <div className="task-item__meta">
                 {showProject && projectName && (
                   <span className="task-item__project">{projectName}</span>
@@ -120,6 +124,14 @@ export function TaskItem({
                   <TagList
                     tagIds={task.tags}
                     allTags={allTags}
+                    compact={true}
+                    maxVisible={2}
+                  />
+                )}
+                {task.assignees && task.assignees.length > 0 && (
+                  <AssigneeList
+                    assigneeIds={task.assignees}
+                    allMembers={allMembers}
                     compact={true}
                     maxVisible={2}
                   />
@@ -148,6 +160,20 @@ export function TaskItem({
               <DueDatePicker
                 currentDate={task.dueDate}
                 onSetDate={(date) => onSetDueDate(taskId, date)}
+              />
+            )}
+
+            {onAssign && allMembers.length > 0 && (
+              <MemberPicker
+                allMembers={allMembers}
+                selectedIds={task.assignees || []}
+                onToggle={(userId, selected) => {
+                  if (selected) {
+                    onAssign(taskId, userId)
+                  } else {
+                    onUnassign(taskId, userId)
+                  }
+                }}
               />
             )}
 

@@ -30,7 +30,10 @@ export function TaskList({
   onCreateTag,
   onSetDueDate,
   otherProjects = [],
-  onMoveListToProject
+  onMoveListToProject,
+  allMembers = [],
+  onAssign,
+  onUnassign
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editName, setEditName] = useState(listName)
@@ -232,6 +235,9 @@ export function TaskList({
                 onRemoveTag={onRemoveTag}
                 onCreateTag={onCreateTag}
                 onSetDueDate={onSetDueDate}
+                allMembers={allMembers}
+                onAssign={onAssign}
+                onUnassign={onUnassign}
               />
             ))}
           </div>
