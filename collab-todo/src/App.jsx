@@ -300,8 +300,6 @@ function TodoApp({ user, onSignOut }) {
     error,
     status,
     isOffline,
-    toggleOffline,
-    pendingCount,
     hasPending: isFlushing
   } = useAllProjects(projectIds)
 
@@ -608,14 +606,12 @@ function TodoApp({ user, onSignOut }) {
         user={user}
         onSignOut={onSignOut}
         onSync={sync}
-        onToggleOffline={toggleOffline}
         isOffline={isOffline}
         isFlushing={isFlushing}
         status={status}
-        pendingCount={pendingCount}
       />
 
-      <div className="content-wrapper">
+      <div className="content-wrapper" style={isOffline ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
         <Sidebar
           selectedView={selectedView}
           onSelectView={handleSelectView}
@@ -647,6 +643,15 @@ function TodoApp({ user, onSignOut }) {
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {isOffline && (
+        <div className="offline-overlay">
+          <div className="offline-overlay__content">
+            <h2>You are offline</h2>
+            <p>Please reconnect to the internet to continue using the app.</p>
+          </div>
+        </div>
       )}
     </div>
   )

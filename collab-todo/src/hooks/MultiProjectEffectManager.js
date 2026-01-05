@@ -241,6 +241,11 @@ export class MultiProjectEffectManager {
 
   // Public: dispatch user action (single-project)
   dispatchSingle(projectId, action) {
+    // DISABLED: Block all actions when offline (no queuing until conflict resolution is implemented)
+    if (!this.isOnline) {
+      console.warn('Cannot dispatch while offline')
+      return
+    }
     const multiAction = App.MultiAction.Single(projectId, action)
     const cmd = this.#transition(App.EffectEvent.UserAction(multiAction))
     if (cmd) this.#executeCommand(cmd)
@@ -248,6 +253,11 @@ export class MultiProjectEffectManager {
 
   // Public: dispatch user action (any MultiAction)
   dispatch(multiAction) {
+    // DISABLED: Block all actions when offline (no queuing until conflict resolution is implemented)
+    if (!this.isOnline) {
+      console.warn('Cannot dispatch while offline')
+      return
+    }
     const cmd = this.#transition(App.EffectEvent.UserAction(multiAction))
     if (cmd) this.#executeCommand(cmd)
   }
