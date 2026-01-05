@@ -106,6 +106,14 @@
   border-color: var(--color-success);
 }
 
+.task-item__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
 .task-item__content {
   flex: 1;
   min-width: 0;
@@ -215,6 +223,50 @@
   background: var(--color-accent-light);
   padding: 2px 6px;
   border-radius: var(--radius-xs);
+}
+
+/* Expanded metadata section */
+.task-item__metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  padding-left: var(--space-xs);
+  animation: metadata-appear 150ms var(--ease-out);
+}
+
+@keyframes metadata-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-item__metadata-item {
+  color: var(--color-text-secondary);
+}
+
+.task-item__metadata-item--assignees {
+  color: var(--color-accent);
+}
+
+.task-item__metadata-item--tags {
+  color: var(--color-text-tertiary);
+}
+
+.task-item__metadata-item--date {
+  color: var(--color-text-secondary);
+}
+
+.task-item__metadata-item--overdue {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-medium);
 }
 
 .task-item__due {
