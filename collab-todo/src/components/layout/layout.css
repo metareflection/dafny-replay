@@ -211,7 +211,7 @@
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-xl) var(--space-xxl);
+  padding: var(--space-xl) var(--space-3xl);
   background: var(--color-bg);
 }
 

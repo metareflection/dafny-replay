@@ -152,7 +152,9 @@
 
 /* Project View - Smart list views */
 .project-view {
-  max-width: 640px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .project-view__section {
