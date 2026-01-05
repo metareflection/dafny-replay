@@ -2,6 +2,77 @@
 
 ---
 
+# Offline Mode Disabled (Pending Conflict Resolution)
+
+**Date:** 2026-01-04
+
+## Problem
+
+The current offline reconciliation policy has a critical flaw: if a user goes offline for an extended period (e.g., 24 hours), makes many changes, then comes online, their stale changes overwrite more recent work from other users.
+
+**Example scenario:**
+1. User A goes offline, makes 100 changes
+2. 12 hours later, User B makes 100 changes (more current)
+3. User A comes online → User B's changes get overwritten
+
+## Discussion: Potential Solutions
+
+| Approach | Description | Trade-offs |
+|----------|-------------|------------|
+| **LWW with client timestamps** | Each action gets timestamp; latest wins | Clock skew issues; can't trust client time |
+| **Server timestamps on arrival** | Actions timestamped when server receives | Makes offline changes MORE dominant |
+| **Conflict detection + manual resolution** | Detect conflicts; user chooses which to keep | Complex UX; many edge cases |
+| **Per-field CRDTs** | Auto-merge at field level | Major architectural change |
+
+## Decision
+
+For now: **Disable offline mode entirely** until proper conflict resolution is implemented.
+
+Future plan:
+- No reliance on client timestamps
+- Auto-apply non-conflicting changes
+- User resolves actual conflicts (like git merge)
+
+## Implementation
+
+### UI Changes
+
+| File | Changes |
+|------|---------|
+| `src/components/layout/TopBar.jsx` | Removed network toggle button (WiFi/WifiOff), removed pending count indicator |
+| `src/App.jsx` | Added offline blocking overlay, disabled content interaction when offline |
+| `src/components/layout/layout.css` | Added `.offline-overlay` styles |
+
+### Logic Changes
+
+| File | Changes |
+|------|---------|
+| `src/hooks/MultiProjectEffectManager.js` | `dispatchSingle()` and `dispatch()` return early when offline (no queuing) |
+
+### Behavior Now
+
+| State | Behavior |
+|-------|----------|
+| **Online** | App works normally |
+| **Offline** | Full-screen overlay blocks UI; `pointer-events: none` on content; dispatches silently blocked |
+
+### Defense in Depth
+
+1. **Visual**: Overlay with "You are offline" message
+2. **Interaction**: `pointer-events: none` + `opacity: 0.5` on content
+3. **Logic**: Manager rejects all dispatches when offline
+
+## Preserved for Later
+
+All offline infrastructure remains intact:
+- Network detection in `MultiProjectEffectManager.js`
+- Dafny state machine for offline handling
+- `toggleOffline`, `pendingCount`, `hasPending` still exposed (unused in UI)
+
+When conflict resolution is implemented, this can be re-enabled.
+
+---
+
 # SetDueDate UI Implementation
 
 **Date:** 2026-01-04
