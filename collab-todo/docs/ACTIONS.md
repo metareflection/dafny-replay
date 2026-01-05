@@ -6,9 +6,9 @@ This document compares actions defined in the Dafny spec against what is current
 
 | Category | Spec Actions | Used in UI | Missing |
 |----------|-------------|------------|---------|
-| Single-Project | 24 | 19 | 5 |
+| Single-Project | 24 | 18 | 6 |
 | Multi-Project | 3 | 1 | 2 |
-| **Total** | **27** | **20** | **7** |
+| **Total** | **27** | **19** | **8** |
 
 ---
 
@@ -29,7 +29,6 @@ This document compares actions defined in the Dafny spec against what is current
 | AddList | name | ProjectList | "+" button next to project |
 | RenameList | listId, newName | TaskList | Click list name to edit |
 | DeleteList | listId | TaskList | "X" button in list header |
-| SetDueDate | taskId, dueDate | - | Display only, no setter UI |
 | AddTagToTask | taskId, tagId | TagPicker | Click tag icon, select tag |
 | RemoveTagFromTask | taskId, tagId | TagPicker | Click tag icon, deselect tag |
 | CreateTag | name | TagPicker | Type new name, click "Create" |
@@ -43,6 +42,7 @@ This document compares actions defined in the Dafny spec against what is current
 | Action | Parameters | Notes |
 |--------|-----------|-------|
 | NoOp | - | Internal use only (rebasing) |
+| **SetDueDate** | taskId, dueDate | Display only, no setter UI (helpers exist in app-extras.js) |
 | **RestoreTask** | taskId | No undo for soft-deleted tasks |
 | **AssignTask** | taskId, userId | No assignee UI |
 | **UnassignTask** | taskId, userId | No assignee UI |
