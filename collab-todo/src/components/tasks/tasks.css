@@ -48,8 +48,11 @@
   align-items: flex-start;
   gap: var(--space-sm);
   padding: var(--space-sm);
+  padding-right: 0;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: 
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .task-item:hover {
@@ -58,6 +61,15 @@
 
 .task-item--completed {
   opacity: 0.55;
+}
+
+/* Starred task - gold checkbox border */
+.task-item--starred .task-item__checkbox {
+  border-color: var(--color-star);
+}
+
+.task-item--starred .task-item__checkbox:hover {
+  border-color: var(--color-star);
 }
 
 .task-item__checkbox {
@@ -100,6 +112,13 @@
   cursor: pointer;
 }
 
+.task-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
 .task-item__title {
   font-size: var(--font-size-md);
   line-height: 22px;
@@ -112,6 +131,75 @@
   color: var(--color-text-tertiary);
 }
 
+/* Meta indicators - collapsed shows only set ones, hover expands all */
+.task-item__indicators {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  height: 22px;
+}
+
+.task-item__indicator-wrapper {
+  position: relative;
+}
+
+/* Unset wrappers are hidden by default */
+.task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) {
+  display: none;
+}
+
+/* On hover, show all wrappers */
+.task-item:hover .task-item__indicator-wrapper {
+  display: block;
+}
+
+.task-item__indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+/* Unset state */
+.task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator {
+  color: var(--color-text-tertiary);
+  background: transparent;
+  opacity: 0.5;
+}
+
+.task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator:hover {
+  opacity: 1;
+  background: var(--color-bg-tertiary);
+}
+
+/* Set state */
+.task-item__indicator--set {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+}
+
+.task-item__indicator--set:hover {
+  color: var(--color-text-primary);
+  background: var(--color-border);
+}
+
+/* Overdue special state */
+.task-item__indicator--overdue {
+  color: var(--color-danger) !important;
+  background: var(--color-danger-light) !important;
+}
+
+.task-item__indicator--overdue:hover {
+  background: rgba(255, 59, 48, 0.15) !important;
+}
+
 .task-item__notes {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
@@ -120,26 +208,19 @@
   word-break: break-word;
 }
 
-.task-item__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin-top: var(--space-sm);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
-}
-
-.task-item__meta:empty {
-  display: none;
-}
-
 .task-item__project {
+  font-size: var(--font-size-xs);
   color: var(--color-accent);
   font-weight: var(--font-weight-medium);
+  background: var(--color-accent-light);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
 }
 
 .task-item__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   color: var(--color-text-secondary);
 }
 
@@ -155,17 +236,15 @@
 }
 
 .task-item__actions {
-  display: flex;
+  display: none;
   align-items: center;
   gap: var(--space-xxs);
-  opacity: 0;
   flex-shrink: 0;
   height: 22px;
-  transition: opacity var(--transition-normal);
 }
 
 .task-item:hover .task-item__actions {
-  opacity: 1;
+  display: flex;
 }
 
 .task-item__star {
@@ -393,7 +472,8 @@
   font-weight: var(--font-weight-medium);
   background: var(--color-bg-tertiary);
   padding: 2px 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-light);
 }
 
 .task-list__action-btn {
@@ -559,10 +639,19 @@
   }
   
   .task-item__actions {
-    opacity: 1;
+    display: flex;
   }
   
   .task-list__actions {
     opacity: 1;
+  }
+  
+  /* Show all indicator wrappers on mobile (no hover) */
+  .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) {
+    display: block;
+  }
+  
+  .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator {
+    opacity: 0.4;
   }
 }

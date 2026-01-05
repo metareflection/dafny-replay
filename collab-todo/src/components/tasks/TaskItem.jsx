@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Star, MoreHorizontal, ArrowRight, Trash2 } from 'lucide-react'
+import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User } from 'lucide-react'
 import { TagList, TagPicker } from '../tags'
 import { DueDatePicker } from '../duedate'
 import { MemberPicker, AssigneeList } from '../members'
@@ -61,8 +61,12 @@ export function TaskItem({
     return due < today && !task.completed
   }
 
+  const hasDueDate = !!task.dueDate
+  const hasTags = task.tags && task.tags.length > 0
+  const hasAssignees = task.assignees && task.assignees.length > 0
+
   return (
-    <div className={`task-item ${task.completed ? 'task-item--completed' : ''}`}>
+    <div className={`task-item ${task.completed ? 'task-item--completed' : ''} ${task.starred ? 'task-item--starred' : ''}`}>
       <button
         className={`task-item__checkbox ${task.completed ? 'task-item__checkbox--checked' : ''}`}
         onClick={() => onComplete(taskId, !task.completed)}
@@ -106,77 +110,85 @@ export function TaskItem({
       ) : (
         <>
           <div className="task-item__content" onClick={() => setEditing(true)}>
-            <div className="task-item__title">{task.title}</div>
+            <div className="task-item__title-row">
+              <span className="task-item__title">{task.title}</span>
+              {showProject && projectName && (
+                <span className="task-item__project">{projectName}</span>
+              )}
+            </div>
             {task.notes && (
               <div className="task-item__notes">{task.notes}</div>
             )}
-            {((showProject && projectName) || task.dueDate || (task.tags && task.tags.length > 0) || (task.assignees && task.assignees.length > 0)) && (
-              <div className="task-item__meta">
-                {showProject && projectName && (
-                  <span className="task-item__project">{projectName}</span>
-                )}
-                {task.dueDate && (
-                  <span className={`task-item__due ${isOverdue(task.dueDate) ? 'task-item__due--overdue' : ''}`}>
-                    {formatDueDate(task.dueDate)}
-                  </span>
-                )}
-                {task.tags && task.tags.length > 0 && (
-                  <TagList
-                    tagIds={task.tags}
-                    allTags={allTags}
-                    compact={true}
-                    maxVisible={2}
-                  />
-                )}
-                {task.assignees && task.assignees.length > 0 && (
-                  <AssigneeList
-                    assigneeIds={task.assignees}
-                    allMembers={allMembers}
-                    compact={true}
-                    maxVisible={2}
-                  />
-                )}
+          </div>
+
+          {/* Meta indicators - collapsed shows only set, hover expands all */}
+          <div className="task-item__indicators">
+            {onSetDueDate && (
+              <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--date ${hasDueDate ? 'task-item__indicator-wrapper--set' : ''}`}>
+                <DueDatePicker
+                  currentDate={task.dueDate}
+                  onSetDate={(date) => onSetDueDate(taskId, date)}
+                  customTrigger={
+                    <button
+                      className={`task-item__indicator ${hasDueDate ? 'task-item__indicator--set' : ''} ${hasDueDate && isOverdue(task.dueDate) ? 'task-item__indicator--overdue' : ''}`}
+                      title={hasDueDate ? formatDueDate(task.dueDate) : 'Set due date'}
+                    >
+                      <Calendar size={12} />
+                    </button>
+                  }
+                />
+              </div>
+            )}
+            {onAddTag && (
+              <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--tags ${hasTags ? 'task-item__indicator-wrapper--set' : ''}`}>
+                <TagPicker
+                  allTags={allTags}
+                  selectedIds={task.tags || []}
+                  onToggle={(tagId, selected) => {
+                    if (selected) {
+                      onAddTag(taskId, tagId)
+                    } else {
+                      onRemoveTag(taskId, tagId)
+                    }
+                  }}
+                  onCreate={onCreateTag ? (name) => onCreateTag(name) : undefined}
+                  customTrigger={
+                    <button
+                      className={`task-item__indicator ${hasTags ? 'task-item__indicator--set' : ''}`}
+                      title={hasTags ? `${task.tags.length} tag${task.tags.length > 1 ? 's' : ''}` : 'Add tags'}
+                    >
+                      <Tag size={12} />
+                    </button>
+                  }
+                />
+              </div>
+            )}
+            {onAssign && allMembers.length > 0 && (
+              <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--assignees ${hasAssignees ? 'task-item__indicator-wrapper--set' : ''}`}>
+                <MemberPicker
+                  allMembers={allMembers}
+                  selectedIds={task.assignees || []}
+                  onToggle={(userId, selected) => {
+                    if (selected) {
+                      onAssign(taskId, userId)
+                    } else {
+                      onUnassign(taskId, userId)
+                    }
+                  }}
+                  customTrigger={
+                    <button
+                      className={`task-item__indicator ${hasAssignees ? 'task-item__indicator--set' : ''}`}
+                      title={hasAssignees ? `${task.assignees.length} assignee${task.assignees.length > 1 ? 's' : ''}` : 'Assign'}
+                    >
+                      <User size={12} />
+                    </button>
+                  }
+                />
               </div>
             )}
           </div>
 
           <div className="task-item__actions">
-            {onAddTag && (
-              <TagPicker
-                allTags={allTags}
-                selectedIds={task.tags || []}
-                onToggle={(tagId, selected) => {
-                  if (selected) {
-                    onAddTag(taskId, tagId)
-                  } else {
-                    onRemoveTag(taskId, tagId)
-                  }
-                }}
-                onCreate={onCreateTag ? (name) => onCreateTag(name) : undefined}
-              />
-            )}
-
-            {onSetDueDate && (
-              <DueDatePicker
-                currentDate={task.dueDate}
-                onSetDate={(date) => onSetDueDate(taskId, date)}
-              />
-            )}
-
-            {onAssign && allMembers.length > 0 && (
-              <MemberPicker
-                allMembers={allMembers}
-                selectedIds={task.assignees || []}
-                onToggle={(userId, selected) => {
-                  if (selected) {
-                    onAssign(taskId, userId)
-                  } else {
-                    onUnassign(taskId, userId)
-                  }
-                }}
-              />
-            )}
-
             <button
               className={`task-item__star ${task.starred ? 'task-item__star--active' : ''}`}
               onClick={() => onStar(taskId, !task.starred)}

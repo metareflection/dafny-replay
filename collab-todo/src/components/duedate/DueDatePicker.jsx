@@ -8,10 +8,12 @@ import './duedate.css'
  * Props:
  *   currentDate: { year, month, day } | null - Current due date (if any)
  *   onSetDate: (date: { year, month, day } | null) => void - Set or clear date
+ *   customTrigger?: ReactNode - Custom trigger element (default: calendar icon button)
  */
 export function DueDatePicker({
   currentDate = null,
-  onSetDate
+  onSetDate,
+  customTrigger
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef(null)
@@ -63,13 +65,17 @@ export function DueDatePicker({
 
   return (
     <div className="duedate-picker" ref={containerRef}>
-      <button
-        className={`duedate-picker__trigger ${hasDate ? 'duedate-picker__trigger--active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        title={hasDate ? 'Change due date' : 'Set due date'}
-      >
-        <Calendar size={14} />
-      </button>
+      {customTrigger ? (
+        <div onClick={() => setIsOpen(!isOpen)}>{customTrigger}</div>
+      ) : (
+        <button
+          className={`duedate-picker__trigger ${hasDate ? 'duedate-picker__trigger--active' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+          title={hasDate ? 'Change due date' : 'Set due date'}
+        >
+          <Calendar size={14} />
+        </button>
+      )}
 
       {isOpen && (
         <div className="duedate-picker__dropdown">

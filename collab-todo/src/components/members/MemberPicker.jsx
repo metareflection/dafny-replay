@@ -9,13 +9,13 @@ import './members.css'
  *   allMembers: [{ user_id, email, role }] - All members in the project
  *   selectedIds: string[] - User IDs currently assigned to the task
  *   onToggle: (userId: string, selected: boolean) => void - Toggle assignment
- *   trigger?: ReactNode - Custom trigger element (default: user icon button)
+ *   customTrigger?: ReactNode - Custom trigger element (default: user icon button)
  */
 export function MemberPicker({
   allMembers = [],
   selectedIds = [],
   onToggle,
-  trigger
+  customTrigger
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -70,8 +70,8 @@ export function MemberPicker({
 
   return (
     <div className="member-picker" ref={containerRef}>
-      {trigger ? (
-        <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
+      {customTrigger ? (
+        <div onClick={() => setIsOpen(!isOpen)}>{customTrigger}</div>
       ) : (
         <button
           className="member-picker__trigger"

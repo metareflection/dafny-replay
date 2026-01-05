@@ -10,14 +10,14 @@ import './tags.css'
  *   selectedIds: number[] - Tag IDs currently on the task
  *   onToggle: (tagId: number, selected: boolean) => void - Toggle a tag
  *   onCreate?: (name: string) => void - Create a new tag (optional)
- *   trigger?: ReactNode - Custom trigger element (default: tag icon button)
+ *   customTrigger?: ReactNode - Custom trigger element (default: tag icon button)
  */
 export function TagPicker({
   allTags = {},
   selectedIds = [],
   onToggle,
   onCreate,
-  trigger
+  customTrigger
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -82,8 +82,8 @@ export function TagPicker({
 
   return (
     <div className="tag-picker" ref={containerRef}>
-      {trigger ? (
-        <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
+      {customTrigger ? (
+        <div onClick={() => setIsOpen(!isOpen)}>{customTrigger}</div>
       ) : (
         <button
           className="tag-picker__trigger"
