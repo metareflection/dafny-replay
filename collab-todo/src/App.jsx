@@ -310,6 +310,7 @@ function TodoApp({ user, onSignOut }) {
     getProjectModel,
     getProjectLists,
     getListTaskCount,
+    getProjectMembers,
     moveListToProject,
     refresh: sync,
     error,
@@ -566,6 +567,7 @@ function TodoApp({ user, onSignOut }) {
           onSetDueDate={handleSetDueDateAll}
           onAssignTask={handleAssignTaskAll}
           onUnassignTask={handleUnassignTaskAll}
+          getProjectMembers={getProjectMembers}
         />
       )
     }
@@ -587,6 +589,7 @@ function TodoApp({ user, onSignOut }) {
           onSetDueDate={handleSetDueDateAll}
           onAssignTask={handleAssignTaskAll}
           onUnassignTask={handleUnassignTaskAll}
+          getProjectMembers={getProjectMembers}
         />
       )
     }
@@ -598,6 +601,7 @@ function TodoApp({ user, onSignOut }) {
           onCompleteTask={handleCompleteTaskAll}
           onStarTask={handleStarTaskAll}
           getProjectTags={getProjectTags}
+          getProjectMembers={getProjectMembers}
         />
       )
     }

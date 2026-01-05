@@ -5,7 +5,7 @@
 // offline support, and cross-project operations.
 
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
-import { isSupabaseConfigured } from '../supabase.js'
+import { isSupabaseConfigured, supabase } from '../supabase.js'
 import App from '../dafny/app-extras.js'
 import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 
@@ -21,6 +21,7 @@ export function useAllProjects(projectIds) {
   const [error, setError] = useState(null)
   const managerRef = useRef(null)
   const currentProjectIdsRef = useRef(null)
+  const [projectMembers, setProjectMembers] = useState({}) // projectId -> member[]
 
   // Create or recreate manager when projectIds change
   const projectIdsKey = projectIds?.sort().join(',') || ''
@@ -49,6 +50,59 @@ export function useAllProjects(projectIds) {
     manager.start()
     return () => manager.stop()
   }, [manager])
+
+  // Fetch members for all projects
+  useEffect(() => {
+    if (!projectIds?.length || !isSupabaseConfigured()) return
+
+    const fetchAllMembers = async () => {
+      try {
+        // Batch fetch all members for all projects
+        const { data: membersData, error: membersError } = await supabase
+          .from('project_members')
+          .select('project_id, user_id, role')
+          .in('project_id', projectIds)
+
+        if (membersError) throw membersError
+
+        // Get unique user IDs
+        const userIds = [...new Set((membersData || []).map(m => m.user_id))]
+
+        // Fetch profiles for these users
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', userIds)
+
+        if (profilesError) throw profilesError
+
+        // Create user_id -> email map
+        const emailMap = {}
+        for (const p of (profilesData || [])) {
+          emailMap[p.id] = p.email
+        }
+
+        // Group members by project
+        const membersByProject = {}
+        for (const m of (membersData || [])) {
+          if (!membersByProject[m.project_id]) {
+            membersByProject[m.project_id] = []
+          }
+          membersByProject[m.project_id].push({
+            user_id: m.user_id,
+            role: m.role,
+            email: emailMap[m.user_id] || m.user_id.slice(0, 8) + '...'
+          })
+        }
+
+        setProjectMembers(membersByProject)
+      } catch (e) {
+        console.error('Error fetching project members:', e)
+      }
+    }
+
+    fetchAllMembers()
+  }, [projectIds])
 
   // Derive loading state from status
   const loading = status === 'syncing'
@@ -163,6 +217,11 @@ export function useAllProjects(projectIds) {
     }).length
   }, [projectData])
 
+  // Get members for a project (for assignee display)
+  const getProjectMembers = useCallback((projectId) => {
+    return projectMembers[projectId] || []
+  }, [projectMembers])
+
   // Sync / refresh
   const refresh = useCallback(() => manager?.sync(), [manager])
 
@@ -195,6 +254,7 @@ export function useAllProjects(projectIds) {
     getProjectModel,
     getProjectLists,
     getListTaskCount,
+    getProjectMembers,
 
     // Actions
     refresh,
