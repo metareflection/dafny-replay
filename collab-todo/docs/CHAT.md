@@ -947,6 +947,46 @@ function CheckAuthorization(...): string  // Empty if OK, error message if not
 
 ---
 
+# All Tasks View: Hide Completed Tasks
+
+**Date:** 2026-01-04
+
+## Problem
+
+The "All Tasks" smart list was showing completed tasks, which doesn't make sense since completed tasks belong in the Logbook.
+
+## Fix
+
+Added `!t.completed` filter to the `allTasks` memo in `useAllProjects.js`:
+
+```javascript
+const allTasks = useMemo(() => {
+  if (!multiModel) return []
+  const tagged = App.MultiModel.getAllVisibleTasks(multiModel)
+  return tagged.map(enrichTask).filter(t => t !== null && !t.completed)
+}, [multiModel, enrichTask])
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useAllProjects.js` | Added `!t.completed` filter to `allTasks` memo |
+
+## Smart Lists Summary
+
+| Smart List | Shows |
+|------------|-------|
+| Priority | Starred + incomplete tasks |
+| All Tasks | All incomplete tasks (completed filtered out) |
+| Logbook | Completed tasks |
+
+## Build Status
+
+No compilation needed - React-only change.
+
+---
+
 ## Next Steps (from ACTIONS.md)
 
 High value missing features:

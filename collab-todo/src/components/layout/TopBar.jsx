@@ -32,12 +32,9 @@ export function TopBar({
         <button
           className={`topbar__network-btn ${isOffline ? 'topbar__network-btn--offline' : ''}`}
           onClick={onToggleOffline}
-          disabled={isFlushing}
           title={isOffline ? 'Go Online' : 'Go Offline'}
         >
-          {isFlushing ? (
-            <RefreshCw size={16} className="topbar__spinner" />
-          ) : isOffline ? (
+          {isOffline ? (
             <WifiOff size={16} />
           ) : (
             <Wifi size={16} />
