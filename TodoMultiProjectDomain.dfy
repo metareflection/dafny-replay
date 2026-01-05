@@ -785,4 +785,62 @@ module TodoMultiProjectDomain refines MultiProject {
     case SingleProjectError(pid, e) => "Error in project " + pid + ": " + MC.D.ErrToString(e)
     case CrossProjectError(msg) => msg
   }
+
+  // ===========================================================================
+  // Effective Actions (compiled, for applied_log storage)
+  // ===========================================================================
+  //
+  // Returns the single-project action to store in each project's applied_log.
+  // This is needed because:
+  // 1. Single-project dispatch parses applied_log using single-project Action type
+  // 2. Rebasing needs to detect deleted tasks/lists via the log
+  //
+  // For cross-project actions, we return the actual action applied to each project:
+  // - Source project gets the "destructive" action (DeleteTask, DeleteList)
+  // - Destination project gets the "constructive" action (AddTask, AddList)
+
+  function GetEffectiveAction(mm: MultiModel, a: MultiAction, projectId: ProjectId): Action
+  {
+    match a
+    case Single(pid, action) =>
+      if pid == projectId then action else MC.D.Action.NoOp
+
+    case MoveTaskTo(src, dst, taskId, dstList, anchor) =>
+      if projectId == src then
+        MC.D.Action.DeleteTask(taskId, "")
+      else if projectId == dst then
+        // Get task title from source model
+        if src in mm.projects && taskId in mm.projects[src].taskData then
+          var task := mm.projects[src].taskData[taskId];
+          MC.D.Action.AddTask(dstList, task.title)
+        else
+          MC.D.Action.NoOp
+      else
+        MC.D.Action.NoOp
+
+    case CopyTaskTo(src, dst, taskId, dstList) =>
+      if projectId == dst then
+        // Get task title from source model
+        if src in mm.projects && taskId in mm.projects[src].taskData then
+          var task := mm.projects[src].taskData[taskId];
+          MC.D.Action.AddTask(dstList, task.title)
+        else
+          MC.D.Action.NoOp
+      else
+        // Source unchanged
+        MC.D.Action.NoOp
+
+    case MoveListTo(src, dst, listId) =>
+      if projectId == src then
+        MC.D.Action.DeleteList(listId)
+      else if projectId == dst then
+        // Get list name from source model
+        if src in mm.projects && listId in mm.projects[src].listNames then
+          var listName := mm.projects[src].listNames[listId];
+          MC.D.Action.AddList(listName)
+        else
+          MC.D.Action.NoOp
+      else
+        MC.D.Action.NoOp
+  }
 }

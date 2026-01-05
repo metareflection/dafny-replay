@@ -4780,6 +4780,76 @@ let TodoMultiProjectDomain = (function() {
         return _3_msg;
       }
     };
+    static GetEffectiveAction(mm, a, projectId) {
+      let _source0 = a;
+      {
+        if (_source0.is_Single) {
+          let _0_pid = (_source0).project;
+          let _1_action = (_source0).action;
+          if (_dafny.areEqual(_0_pid, projectId)) {
+            return _1_action;
+          } else {
+            return TodoDomain.Action.create_NoOp();
+          }
+        }
+      }
+      {
+        if (_source0.is_MoveTaskTo) {
+          let _2_src = (_source0).srcProject;
+          let _3_dst = (_source0).dstProject;
+          let _4_taskId = (_source0).taskId;
+          let _5_dstList = (_source0).dstList;
+          let _6_anchor = (_source0).anchor;
+          if (_dafny.areEqual(projectId, _2_src)) {
+            return TodoDomain.Action.create_DeleteTask(_4_taskId, _dafny.Seq.UnicodeFromString(""));
+          } else if (_dafny.areEqual(projectId, _3_dst)) {
+            if ((((mm).dtor_projects).contains(_2_src)) && (((((mm).dtor_projects).get(_2_src)).dtor_taskData).contains(_4_taskId))) {
+              let _7_task = ((((mm).dtor_projects).get(_2_src)).dtor_taskData).get(_4_taskId);
+              return TodoDomain.Action.create_AddTask(_5_dstList, (_7_task).dtor_title);
+            } else {
+              return TodoDomain.Action.create_NoOp();
+            }
+          } else {
+            return TodoDomain.Action.create_NoOp();
+          }
+        }
+      }
+      {
+        if (_source0.is_CopyTaskTo) {
+          let _8_src = (_source0).srcProject;
+          let _9_dst = (_source0).dstProject;
+          let _10_taskId = (_source0).taskId;
+          let _11_dstList = (_source0).dstList;
+          if (_dafny.areEqual(projectId, _9_dst)) {
+            if ((((mm).dtor_projects).contains(_8_src)) && (((((mm).dtor_projects).get(_8_src)).dtor_taskData).contains(_10_taskId))) {
+              let _12_task = ((((mm).dtor_projects).get(_8_src)).dtor_taskData).get(_10_taskId);
+              return TodoDomain.Action.create_AddTask(_11_dstList, (_12_task).dtor_title);
+            } else {
+              return TodoDomain.Action.create_NoOp();
+            }
+          } else {
+            return TodoDomain.Action.create_NoOp();
+          }
+        }
+      }
+      {
+        let _13_src = (_source0).srcProject;
+        let _14_dst = (_source0).dstProject;
+        let _15_listId = (_source0).listId;
+        if (_dafny.areEqual(projectId, _13_src)) {
+          return TodoDomain.Action.create_DeleteList(_15_listId);
+        } else if (_dafny.areEqual(projectId, _14_dst)) {
+          if ((((mm).dtor_projects).contains(_13_src)) && (((((mm).dtor_projects).get(_13_src)).dtor_listNames).contains(_15_listId))) {
+            let _16_listName = ((((mm).dtor_projects).get(_13_src)).dtor_listNames).get(_15_listId);
+            return TodoDomain.Action.create_AddList(_16_listName);
+          } else {
+            return TodoDomain.Action.create_NoOp();
+          }
+        } else {
+          return TodoDomain.Action.create_NoOp();
+        }
+      }
+    };
     static AllProjectsLoaded(mm, a) {
       return _dafny.Quantifier((TodoMultiProjectDomain.__default.TouchedProjects(a)).Elements, true, function (_forall_var_0) {
         let _0_pid = _forall_var_0;

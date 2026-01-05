@@ -7,6 +7,7 @@ import {
   multimodelFromJson,
   multimodelToJson,
   multiactionFromJson,
+  actionToJson,
   dafnyStringToJs,
 } from './dafny-bundle.ts'
 
@@ -93,4 +94,26 @@ export function getTouchedProjects(multiActionJson: unknown): string[] {
   const action = multiactionFromJson(multiActionJson);
   const touchedSet = TodoMultiProjectDomain.__default.TouchedProjects(action);
   return Array.from(touchedSet.Elements || []).map(dafnyStringToJs);
+}
+
+/**
+ * Get the effective single-project action to store in a project's applied_log.
+ * Uses VERIFIED Dafny GetEffectiveAction.
+ *
+ * For cross-project actions:
+ * - Source project gets the destructive action (DeleteTask, DeleteList)
+ * - Destination project gets the constructive action (AddTask, AddList)
+ */
+export function getEffectiveAction(
+  multiModelJson: { projects: Record<string, unknown> },
+  multiActionJson: unknown,
+  projectId: string
+): unknown {
+  const mm = multimodelFromJson(multiModelJson);
+  const action = multiactionFromJson(multiActionJson);
+  const projectIdSeq = _dafny.Seq.UnicodeFromString(projectId);
+
+  // Call VERIFIED GetEffectiveAction
+  const effectiveAction = TodoMultiProjectDomain.__default.GetEffectiveAction(mm, action, projectIdSeq);
+  return actionToJson(effectiveAction);
 }

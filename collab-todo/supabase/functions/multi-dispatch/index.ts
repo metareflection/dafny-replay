@@ -7,7 +7,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { tryMultiStep, getTouchedProjects, checkAuthorization } from './bundle-extras.ts'
+import { tryMultiStep, getTouchedProjects, checkAuthorization, getEffectiveAction } from './bundle-extras.ts'
 import { modelToJson } from './dafny-bundle.ts'
 
 // ============================================================================
@@ -254,12 +254,13 @@ serve(async (req) => {
     }
 
     // Build updates for changed projects
+    // Use getEffectiveAction to store the decomposed single-project action in each project's log
     const updates = changedProjects.map(projectId => ({
       id: projectId,
       state: result.multiModel!.projects[projectId],
       expectedVersion: projectMap[projectId].version,
       newVersion: projectMap[projectId].version + 1,
-      newLogEntry: action // Store the multi-action in applied_log
+      newLogEntry: getEffectiveAction(multiModelJson as any, action, projectId)
     }))
 
     // Persist atomically using save_multi_update
