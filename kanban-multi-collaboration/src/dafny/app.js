@@ -23,12 +23,10 @@ const initDafny = new Function('require', `
 
 const { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanAppCore } = initDafny(require);
 
-
 // ============================================================================
 // Helpers
 // ============================================================================
 
-// Convert Dafny seq to JS array
 const seqToArray = (seq) => {
   const arr = [];
   for (let i = 0; i < seq.length; i++) {
@@ -37,7 +35,6 @@ const seqToArray = (seq) => {
   return arr;
 };
 
-// Convert BigNumber to JS number
 const toNumber = (bn) => {
   if (bn && typeof bn.toNumber === 'function') {
     return bn.toNumber();
@@ -45,12 +42,12 @@ const toNumber = (bn) => {
   return bn;
 };
 
-// Convert Dafny string to JS string
 const dafnyStringToJs = (seq) => {
   if (typeof seq === 'string') return seq;
   if (seq.toVerbatimString) return seq.toVerbatimString(false);
   return Array.from(seq).join('');
 };
+
 
 // ============================================================================
 // Datatype Conversions
