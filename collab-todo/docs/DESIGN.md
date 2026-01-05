@@ -188,6 +188,7 @@ The view layer is fully specced in Dafny and compiled to JavaScript. The UI shou
 ### Smart Lists
 Smart lists filter tasks across all loaded projects (in AllProjects mode) or the current project (in SingleProject mode).
 
+- **All Tasks** - Tasks that are not completed AND not deleted (all visible incomplete tasks)
 - **Priority** - Tasks that are starred AND not completed AND not deleted
 - **Logbook** - Tasks that are completed AND not deleted
 
@@ -236,8 +237,10 @@ Initial state: `ViewState(AllProjects, NoSelection, EmptyMultiModel())`
 
 **Multi-Project Aggregation:**
 - `TaggedTaskId(projectId, taskId)` - Task ID with project context
+- `GetAllVisibleTasks(mm)` - All visible (non-deleted, incomplete) tasks across projects
 - `GetAllPriorityTasks(mm)` - All priority tasks across projects
 - `GetAllLogbookTasks(mm)` - All logbook tasks across projects
+- `CountAllVisibleTasks(mm)` - Total visible task count
 - `CountAllPriorityTasks(mm)` - Total priority count
 - `CountAllLogbookTasks(mm)` - Total logbook count
 
@@ -266,6 +269,36 @@ Initial state: `ViewState(AllProjects, NoSelection, EmptyMultiModel())`
 **CountMatchesTasks(vs, smartList):**
 - The count displayed equals the actual number of tasks
 - Prevents "count shows N but no tasks displayed" bugs
+
+---
+
+## Offline Mode (WIP)
+
+**Status:** Disabled pending conflict resolution implementation
+
+### Current State
+- Offline detection infrastructure exists in `MultiProjectEffectManager.js`
+- Dafny state machine supports offline state and action queuing
+- **UI blocks all actions when offline** (overlay + dispatch rejection)
+
+### Problem
+The current rebasing approach doesn't handle temporal ordering:
+- User A goes offline, makes changes over 24 hours
+- User B makes changes online (more recent)
+- User A comes online → B's changes get overwritten by A's stale changes
+
+### Planned Solution
+1. No reliance on client timestamps (can't trust client clocks)
+2. Auto-apply non-conflicting changes
+3. User resolves actual conflicts (like git merge)
+
+### Infrastructure Preserved
+- `EffectState` datatype with online/offline status
+- `EffectEvent.NetworkError()` / `NetworkRestored()` events
+- Action queuing in pending state
+- Manual `toggleOffline()` method (unused in UI)
+
+See [CHAT.md](CHAT.md) for full discussion.
 
 ---
 

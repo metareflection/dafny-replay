@@ -54,6 +54,33 @@ This document tracks features and specs that are intentionally deferred for futu
 
 ---
 
+## Offline Conflict Resolution
+
+### Problem
+Current rebasing doesn't handle temporal ordering - stale offline changes can overwrite recent online changes.
+
+### Planned Approach
+1. **No client timestamps** - Can't trust client clocks
+2. **Define conflicts** - `ConflictsWith(a1, a2)` predicate in Dafny spec
+3. **Auto-merge non-conflicts** - Apply both if they don't conflict
+4. **User resolves conflicts** - Like git merge, show conflicts for user to choose
+
+### Required Components
+- `ConflictsWith(a1: Action, a2: Action): bool` - Define what constitutes a conflict
+- Conflict detection during rebase (instead of auto-resolving)
+- Conflict resolution UI (show "your change vs their change", let user pick)
+- State management for pending conflicts
+
+### Complexity Estimate
+- Define conflict predicate: 50+ cases depending on granularity
+- Interactive rebase: Architectural change (currently sync, would need async)
+- Conflict UI: Modal with side-by-side comparison
+- Edge cases: Chain conflicts, deleted entities, offline-again during resolution
+
+See [CHAT.md](../docs/CHAT.md) for full discussion.
+
+---
+
 ## Activity & History
 
 ### Activity Log

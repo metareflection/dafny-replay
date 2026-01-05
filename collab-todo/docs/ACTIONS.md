@@ -2,6 +2,14 @@
 
 This document compares actions defined in the Dafny spec against what is currently exposed in the collab-todo UI.
 
+## Status
+
+| Feature | Status |
+|---------|--------|
+| Single-Project Actions | Active |
+| Multi-Project Actions | Active |
+| Offline Mode | **WIP** - Disabled pending conflict resolution implementation |
+
 ## Summary
 
 | Category | Spec Actions | Used in UI | Missing |
