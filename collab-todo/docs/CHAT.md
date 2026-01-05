@@ -2,6 +2,103 @@
 
 ---
 
+# List Filtering + Project UI Improvements
+
+**Date:** 2026-01-05
+
+## Features Implemented
+
+### 1. Filter View by Selected List
+
+When clicking a list in the sidebar, the main view now filters to show only that list (instead of all lists in the project).
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `selectedListId` prop to ProjectView, split `lists` into `allLists` (unfiltered) and `lists` (filtered) |
+
+### 2. Rename Project by Clicking Title
+
+Owners can now click the project title to rename it inline.
+
+| File | Changes |
+|------|---------|
+| `src/components/project/ProjectHeader.jsx` | Added inline editing with `canRename` and `onRename` props |
+| `src/components/project/project.css` | Added `.project-header__title--editable` and `.project-header__title-input` styles |
+| `src/hooks/useCollaborativeProject.js` | Added `renameProject` function using RPC |
+| `supabase/schema.sql` | Added `rename_project` RPC function (owner-only, SECURITY DEFINER) |
+
+**Note:** Direct UPDATE on `projects` table is blocked by RLS - required creating an RPC function.
+
+### 3. Replace 3-dot Dropdown with "+ Add List" Button
+
+The useless 3-dot dropdown next to filter tabs was replaced with a functional "+ Add List" button.
+
+| File | Changes |
+|------|---------|
+| `src/components/project/FilterTabs.jsx` | Replaced `MoreHorizontal` with `Plus` + "Add List", added `onAddList` prop |
+| `src/components/project/project.css` | Added `.filter-tabs__add-list` styles, `.project-view__add-list-form` for inline form |
+| `src/App.jsx` | Added inline add list form state/handler in ProjectView |
+
+### 4. Move Sidebar Add List to Dropdown
+
+Removed the `+` button next to project names, added "Add List" to the project dropdown menu instead.
+
+| File | Changes |
+|------|---------|
+| `src/components/sidebar/ProjectList.jsx` | Removed inline `+` button, added "Add List" with `ListPlus` icon to dropdown menu |
+
+## Bug Fixes
+
+### Inline Editing Race Condition
+
+Initial implementation had Enter key calling `handleSubmit` directly, which raced with `onBlur` also calling it.
+
+**Fix:** On Enter, blur the input and let `onBlur` handle the submit (single call path).
+
+```javascript
+if (e.key === 'Enter') {
+  e.preventDefault()
+  inputRef.current?.blur() // Let onBlur handle the submit
+}
+```
+
+### Project Rename RLS Blocked
+
+Direct table update returned `data: Array(0)` because no UPDATE RLS policy existed.
+
+**Fix:** Created `rename_project` RPC function with `SECURITY DEFINER` that:
+- Checks ownership via `is_project_owner()`
+- Checks for duplicate names (case-insensitive)
+- Updates the project name
+
+## SQL Migration Required
+
+```sql
+CREATE OR REPLACE FUNCTION rename_project(p_project_id UUID, p_new_name TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can rename a project';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(p_new_name)
+    AND id != p_project_id
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+  UPDATE projects SET name = p_new_name, updated_at = now() WHERE id = p_project_id;
+END;
+$$;
+```
+
+---
+
 # Task Item UI Refactor: Expanded Metadata View + Notes Modal
 
 **Date:** 2026-01-05

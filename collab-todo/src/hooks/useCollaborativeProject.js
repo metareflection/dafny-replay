@@ -72,10 +72,10 @@ export function useProjects() {
   const renameProject = useCallback(async (projectId, newName) => {
     if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
 
-    const { error } = await supabase
-      .from('projects')
-      .update({ name: newName })
-      .eq('id', projectId)
+    const { error } = await supabase.rpc('rename_project', {
+      p_project_id: projectId,
+      p_new_name: newName
+    })
 
     if (error) throw error
 

@@ -197,6 +197,36 @@ BEGIN
 END;
 $$;
 
+-- Rename a project (owner only)
+CREATE OR REPLACE FUNCTION rename_project(p_project_id UUID, p_new_name TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Check ownership
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can rename a project';
+  END IF;
+
+  -- Check for duplicate name (case-insensitive) for this user
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(p_new_name)
+    AND id != p_project_id
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+
+  -- Update the name
+  UPDATE projects
+  SET name = p_new_name, updated_at = now()
+  WHERE id = p_project_id;
+END;
+$$;
+
 -- ============================================================================
 -- Multi-Project Functions (for cross-project operations)
 -- ============================================================================

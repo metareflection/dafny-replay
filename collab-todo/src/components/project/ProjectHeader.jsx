@@ -40,8 +40,10 @@ export function ProjectHeader({
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
-      handleSubmit()
+      e.preventDefault()
+      inputRef.current?.blur() // Let onBlur handle the submit
     } else if (e.key === 'Escape') {
+      setEditValue(title) // Reset value before blur
       setEditing(false)
     }
   }
