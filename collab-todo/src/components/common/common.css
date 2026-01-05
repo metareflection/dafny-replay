@@ -166,3 +166,15 @@
     transform: rotate(360deg);
   }
 }
+
+/* ============================================================================
+   RESPONSIVE - Common Components Mobile
+   ============================================================================ */
+@media (max-width: 480px) {
+  .toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    transform: none;
+    max-width: none;
+  }
+}

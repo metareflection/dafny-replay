@@ -363,3 +363,26 @@
 .project-list__dropdown-item--danger svg {
   color: var(--color-danger, #dc2626);
 }
+
+/* ============================================================================
+   RESPONSIVE - Sidebar Mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .sidebar-item {
+    padding: var(--space-sm) var(--space-md);
+    min-height: 40px;
+  }
+
+  .project-list__menu-btn {
+    opacity: 1;
+  }
+
+  .project-list__dropdown {
+    min-width: 180px;
+  }
+
+  .project-list__dropdown-item {
+    padding: var(--space-sm) var(--space-md);
+    min-height: 40px;
+  }
+}

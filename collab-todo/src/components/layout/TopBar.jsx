@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Menu } from 'lucide-react'
 import './layout.css'
 
 export function TopBar({
@@ -7,11 +7,21 @@ export function TopBar({
   onSync,
   isOffline,
   isFlushing,
-  status
+  status,
+  onToggleSidebar,
+  isSidebarOpen
 }) {
   return (
     <div className="topbar">
       <div className="topbar__left">
+        <button
+          className="topbar__menu-btn"
+          onClick={onToggleSidebar}
+          aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isSidebarOpen}
+        >
+          <Menu size={22} />
+        </button>
       </div>
 
       <div className="topbar__center">

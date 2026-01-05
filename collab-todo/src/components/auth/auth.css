@@ -159,3 +159,17 @@
 .auth-form__toggle-btn:hover {
   color: var(--color-accent-hover);
 }
+
+/* ============================================================================
+   RESPONSIVE - Auth Mobile
+   ============================================================================ */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: var(--space-md);
+  }
+
+  .auth-form {
+    padding: var(--space-lg);
+    max-width: 100%;
+  }
+}

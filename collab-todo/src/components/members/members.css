@@ -526,3 +526,29 @@
   color: var(--color-text-tertiary);
   font-weight: var(--font-weight-medium);
 }
+
+/* ============================================================================
+   RESPONSIVE - Members Mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .member-management {
+    max-width: 100%;
+  }
+
+  .member-management__personal {
+    padding: var(--space-xl) var(--space-md);
+  }
+
+  .member-management__description {
+    max-width: 100%;
+  }
+
+  .member-invite__input-group {
+    flex-direction: column;
+  }
+
+  .member-invite__button {
+    width: 100%;
+    justify-content: center;
+  }
+}

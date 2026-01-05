@@ -684,26 +684,40 @@
   color: var(--color-text-tertiary);
 }
 
-/* Mobile adjustments */
+/* ============================================================================
+   RESPONSIVE - Tasks Mobile
+   ============================================================================ */
 @media (max-width: 768px) {
-  .task-item {
-    padding: var(--space-sm);
-  }
-  
-  .task-item__actions {
-    display: flex;
-  }
-  
   .task-list__actions {
     opacity: 1;
   }
-  
-  /* Show all indicator wrappers on mobile (no hover) */
-  .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) {
-    display: block;
+
+  .task-list__content {
+    padding-left: var(--space-md);
   }
-  
-  .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator {
-    opacity: 0.4;
+
+  .task-item__edit-form {
+    gap: var(--space-md);
+  }
+
+  .task-item__edit-actions {
+    flex-direction: column;
+  }
+
+  .task-item__edit-save,
+  .task-item__edit-cancel {
+    width: 100%;
+    padding: var(--space-md);
+  }
+
+  .task-list__move-menu {
+    right: auto;
+    left: 0;
+    min-width: 160px;
+  }
+
+  .task-item__menu {
+    right: auto;
+    left: 0;
   }
 }

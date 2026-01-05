@@ -28,13 +28,38 @@ export function Sidebar({
   // Member management
   onManageMembers,
   onDeleteProject,
-  getProjectMode
+  getProjectMode,
+
+  // Mobile state
+  isOpen,
+  onClose
 }) {
+  // Wrap handlers to close sidebar on mobile after selection
+  const handleSelectView = (view) => {
+    onSelectView(view)
+    onClose?.()
+  }
+
+  const handleSelectProject = (projectId) => {
+    onSelectProject(projectId)
+    onClose?.()
+  }
+
+  const handleSelectList = (projectId, listId) => {
+    onSelectList(projectId, listId)
+    onClose?.()
+  }
+
+  const handleManageMembers = (projectId) => {
+    onManageMembers(projectId)
+    onClose?.()
+  }
+
   return (
-    <aside className="sidebar-container">
+    <aside className={`sidebar-container ${isOpen ? 'sidebar-container--open' : ''}`}>
       <SmartLists
         selectedView={selectedView}
-        onSelectView={onSelectView}
+        onSelectView={handleSelectView}
         priorityCount={priorityCount}
         logbookCount={logbookCount}
         allTasksCount={allTasksCount}
@@ -44,14 +69,14 @@ export function Sidebar({
         projects={projects}
         selectedProjectId={selectedProjectId}
         selectedListId={selectedListId}
-        onSelectProject={onSelectProject}
-        onSelectList={onSelectList}
+        onSelectProject={handleSelectProject}
+        onSelectList={handleSelectList}
         onCreateProject={onCreateProject}
         onAddList={onAddList}
         getProjectLists={getProjectLists}
         getListTaskCount={getListTaskCount}
         loading={projectsLoading}
-        onManageMembers={onManageMembers}
+        onManageMembers={handleManageMembers}
         onDeleteProject={onDeleteProject}
         getProjectMode={getProjectMode}
       />

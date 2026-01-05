@@ -341,6 +341,29 @@ function TodoApp({ user, onSignOut }) {
   const [filterTab, setFilterTab] = useState('all')
   const [toast, setToast] = useState(null)
   const [showMemberManagement, setShowMemberManagement] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  // Close sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 768) {
+        setIsSidebarOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Close sidebar when pressing Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isSidebarOpen) {
+        setIsSidebarOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isSidebarOpen])
 
   // Projects list
   const { projects, loading: projectsLoading, createProject, renameProject, deleteProject, refresh: refreshProjects } = useProjects()
@@ -707,6 +730,14 @@ function TodoApp({ user, onSignOut }) {
     return <EmptyState message="Select a project or smart list to get started" />
   }
 
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(prev => !prev)
+  }, [])
+
+  const closeSidebar = useCallback(() => {
+    setIsSidebarOpen(false)
+  }, [])
+
   return (
     <div className="app-layout">
       <TopBar
@@ -716,9 +747,18 @@ function TodoApp({ user, onSignOut }) {
         isOffline={isOffline}
         isFlushing={isFlushing}
         status={status}
+        onToggleSidebar={toggleSidebar}
+        isSidebarOpen={isSidebarOpen}
       />
 
       <div className="content-wrapper" style={isOffline ? { pointerEvents: 'none', opacity: 0.5 } : undefined}>
+        {/* Mobile sidebar overlay */}
+        <div
+          className={`sidebar-overlay ${isSidebarOpen ? 'sidebar-overlay--visible' : ''}`}
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+
         <Sidebar
           selectedView={selectedView}
           onSelectView={handleSelectView}
@@ -738,6 +778,8 @@ function TodoApp({ user, onSignOut }) {
           onManageMembers={handleManageMembers}
           onDeleteProject={handleDeleteProject}
           getProjectMode={getProjectMode}
+          isOpen={isSidebarOpen}
+          onClose={closeSidebar}
         />
 
         <MainContent>

@@ -8,6 +8,7 @@
   --color-bg-tertiary: #f0f1f3;
   --color-bg-hover: rgba(0, 0, 0, 0.04);
   --color-bg-selected: rgba(0, 122, 255, 0.08);
+  --color-overlay: rgba(0, 0, 0, 0.4);
 
   --color-text-primary: #1a1d21;
   --color-text-secondary: #5f6368;
@@ -65,6 +66,11 @@
   --sidebar-width: 240px;
   --topbar-height: 52px;
 
+  /* Breakpoints (for reference in JS - CSS uses media queries) */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+
   /* Rounded corners - softer feel */
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -89,4 +95,7 @@
   --transition-normal: 200ms var(--ease-out);
   --transition-slow: 300ms var(--ease-in-out);
   --transition-spring: 350ms var(--ease-spring);
+
+  /* Touch targets for mobile */
+  --touch-target-min: 44px;
 }

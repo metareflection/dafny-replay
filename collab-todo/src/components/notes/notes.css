@@ -115,3 +115,13 @@
 .notes-modal__btn--primary:hover {
   background: var(--color-accent-hover);
 }
+
+/* ============================================================================
+   RESPONSIVE - Notes Modal Mobile
+   ============================================================================ */
+@media (max-width: 480px) {
+  .notes-modal {
+    width: 95%;
+    max-width: none;
+  }
+}

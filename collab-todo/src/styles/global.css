@@ -176,3 +176,26 @@ a:hover {
   outline: none;
   box-shadow: var(--shadow-focus);
 }
+
+/* ============================================================================
+   RESPONSIVE - Global Mobile Styles
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Better spacing for inputs - prevents iOS zoom */
+  input,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Prevent overscroll/bounce on iOS */
+@supports (-webkit-touch-callout: none) {
+  .app-layout {
+    overscroll-behavior: none;
+  }
+  
+  .main-content,
+  .sidebar-container {
+    -webkit-overflow-scrolling: touch;
+  }
+}
