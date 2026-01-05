@@ -54,6 +54,14 @@ const dafnyStringToJs = (seq) => {
 // ============================================================================
 
 const optionFromJson = (json, T_fromJson) => {
+  // Handle null/undefined (DB compatibility with --null-options)
+  if (json === null || json === undefined) {
+    return TodoDomain.Option.create_None();
+  }
+  // Handle raw values without type tag (DB stores unwrapped Some values)
+  if (!json.type) {
+    return TodoDomain.Option.create_Some(T_fromJson(json));
+  }
   switch (json.type) {
     case 'None': {
       return TodoDomain.Option.create_None();

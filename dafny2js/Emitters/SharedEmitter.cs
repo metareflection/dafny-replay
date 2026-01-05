@@ -296,6 +296,20 @@ public abstract class SharedEmitter
       Sb.AppendLine($"const {funcName} = ({paramList}) => {{");
     }
 
+    // Special handling for Option type when null-options is enabled
+    // Handles: null -> None, raw value -> Some(value), tagged format -> as-is
+    if (NullOptions && dt.Name == "Option" && dt.Constructors.Count == 2)
+    {
+      Sb.AppendLine("  // Handle null/undefined (DB compatibility with --null-options)");
+      Sb.AppendLine("  if (json === null || json === undefined) {");
+      Sb.AppendLine($"    return {dt.ModuleName}.Option.create_None();");
+      Sb.AppendLine("  }");
+      Sb.AppendLine("  // Handle raw values without type tag (DB stores unwrapped Some values)");
+      Sb.AppendLine("  if (!json.type) {");
+      Sb.AppendLine($"    return {dt.ModuleName}.Option.create_Some(T_fromJson(json));");
+      Sb.AppendLine("  }");
+    }
+
     var typeParamConverters = typeParams.ToDictionary(
       p => p,
       p => $"{p}_fromJson"
