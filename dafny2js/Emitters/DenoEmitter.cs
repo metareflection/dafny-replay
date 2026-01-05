@@ -209,6 +209,9 @@ public class DenoEmitter : SharedEmitter
         .SelectMany(n => new[] { $"{n}FromJson", $"{n}ToJson" });
       Sb.AppendLine($"export {{ {string.Join(", ", converterExports)} }};");
     }
+
+    Sb.AppendLine();
+    Sb.AppendLine("export { dafnyStringToJs, seqToArray, toNumber };");
   }
 
   void EmitDispatchFunction(DispatchConfig config)

@@ -101,7 +101,12 @@ dotnet run -- --file ../CounterDomain.dfy --list
 Everything from client, plus:
 - **esm.sh imports** for Deno compatibility
 - **Embedded `.cjs`** code (escaped for template literal)
-- **`dispatch()` function** that calls verified Dafny Dispatch
+- **`dispatch()` function** (when `--dispatch` specified) that calls verified Dafny Dispatch
+- **Helper exports** (`dafnyStringToJs`, `seqToArray`, `toNumber`) for use by `bundle-extras.ts`
+
+### bundle-extras.ts (hand-maintained)
+
+For edge functions that need custom wrappers (e.g., multi-project operations), create a `bundle-extras.ts` that imports from the generated bundle and exports app-specific wrappers. See `collab-todo/supabase/functions/multi-dispatch/bundle-extras.ts` for an example.
 
 ## Type Mapping
 

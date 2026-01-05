@@ -1266,6 +1266,82 @@ let TodoDomain = (function() {
     static RejectErr() {
       return TodoDomain.Err.create_Rejected();
     };
+    static ErrToString(err) {
+      let _source0 = err;
+      {
+        if (_source0.is_MissingList) {
+          return _dafny.Seq.UnicodeFromString("List not found");
+        }
+      }
+      {
+        if (_source0.is_MissingTask) {
+          return _dafny.Seq.UnicodeFromString("Task not found");
+        }
+      }
+      {
+        if (_source0.is_MissingTag) {
+          return _dafny.Seq.UnicodeFromString("Tag not found");
+        }
+      }
+      {
+        if (_source0.is_MissingUser) {
+          return _dafny.Seq.UnicodeFromString("User not found");
+        }
+      }
+      {
+        if (_source0.is_DuplicateList) {
+          return _dafny.Seq.UnicodeFromString("List with this name already exists");
+        }
+      }
+      {
+        if (_source0.is_DuplicateTask) {
+          return _dafny.Seq.UnicodeFromString("Task with this title already exists in list");
+        }
+      }
+      {
+        if (_source0.is_DuplicateTag) {
+          return _dafny.Seq.UnicodeFromString("Tag with this name already exists");
+        }
+      }
+      {
+        if (_source0.is_BadAnchor) {
+          return _dafny.Seq.UnicodeFromString("Invalid anchor position");
+        }
+      }
+      {
+        if (_source0.is_NotAMember) {
+          return _dafny.Seq.UnicodeFromString("User is not a project member");
+        }
+      }
+      {
+        if (_source0.is_PersonalProject) {
+          return _dafny.Seq.UnicodeFromString("Cannot add members to personal project");
+        }
+      }
+      {
+        if (_source0.is_AlreadyCollaborative) {
+          return _dafny.Seq.UnicodeFromString("Project is already collaborative");
+        }
+      }
+      {
+        if (_source0.is_CannotRemoveOwner) {
+          return _dafny.Seq.UnicodeFromString("Cannot remove the project owner");
+        }
+      }
+      {
+        if (_source0.is_TaskDeleted) {
+          return _dafny.Seq.UnicodeFromString("Task has been deleted");
+        }
+      }
+      {
+        if (_source0.is_InvalidDate) {
+          return _dafny.Seq.UnicodeFromString("Invalid date");
+        }
+      }
+      {
+        return _dafny.Seq.UnicodeFromString("Action rejected");
+      }
+    };
     static Init() {
       return TodoDomain.Model.create_Model(TodoDomain.ProjectMode.create_Personal(), TodoDomain.__default.InitialOwner, _dafny.Set.fromElements(TodoDomain.__default.InitialOwner), _dafny.Seq.of(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.Map.Empty.slice(), _dafny.ZERO, _dafny.ZERO, _dafny.ZERO);
     };
@@ -4957,6 +5033,8 @@ const clientstateToJson = (value): any => {
 export { _dafny, TodoDomain, TodoMultiCollaboration, TodoAppCore, BigNumber };
 
 export { optionFromJson, optionToJson, dateFromJson, dateToJson, taskFromJson, taskToJson, tagFromJson, tagToJson, projectmodeFromJson, projectmodeToJson, modelFromJson, modelToJson, errFromJson, errToJson, placeFromJson, placeToJson, listplaceFromJson, listplaceToJson, actionFromJson, actionToJson, viewmodeFromJson, viewmodeToJson, smartlisttypeFromJson, smartlisttypeToJson, resultFromJson, resultToJson, rejectreasonFromJson, rejectreasonToJson, requestoutcomeFromJson, requestoutcomeToJson, requestrecordFromJson, requestrecordToJson, serverstateFromJson, serverstateToJson, clientstateFromJson, clientstateToJson };
+
+export { dafnyStringToJs, seqToArray, toNumber };
 
 // ============================================================================
 // ServerState Conversions (for verified Dispatch)

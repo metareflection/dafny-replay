@@ -3942,6 +3942,8 @@ export { _dafny, KanbanDomain, KanbanMultiCollaboration, KanbanEffectStateMachin
 
 export { cardFromJson, cardToJson, modelFromJson, modelToJson, errFromJson, errToJson, optionFromJson, optionToJson, placeFromJson, placeToJson, actionFromJson, actionToJson, resultFromJson, resultToJson, rejectreasonFromJson, rejectreasonToJson, replyFromJson, replyToJson, requestoutcomeFromJson, requestoutcomeToJson, requestrecordFromJson, requestrecordToJson, serverstateFromJson, serverstateToJson, clientstateFromJson, clientstateToJson, networkstatusFromJson, networkstatusToJson, effectmodeFromJson, effectmodeToJson, effectstateFromJson, effectstateToJson, eventFromJson, eventToJson, commandFromJson, commandToJson };
 
+export { dafnyStringToJs, seqToArray, toNumber };
+
 // ============================================================================
 // ServerState Conversions (for verified Dispatch)
 // ============================================================================

@@ -4262,6 +4262,8 @@ export { _dafny, ClearSplit, ClearSplitMultiCollaboration, ClearSplitEffectState
 
 export { expenseFromJson, expenseToJson, settlementFromJson, settlementToJson, modelFromJson, modelToJson, resultFromJson, resultToJson, errFromJson, errToJson, actionFromJson, actionToJson, certificateFromJson, certificateToJson, rejectreasonFromJson, rejectreasonToJson, replyFromJson, replyToJson, requestoutcomeFromJson, requestoutcomeToJson, requestrecordFromJson, requestrecordToJson, serverstateFromJson, serverstateToJson, clientstateFromJson, clientstateToJson, networkstatusFromJson, networkstatusToJson, effectmodeFromJson, effectmodeToJson, effectstateFromJson, effectstateToJson, eventFromJson, eventToJson, commandFromJson, commandToJson, groupentryFromJson, groupentryToJson, groupbalanceFromJson, groupbalanceToJson, crossgroupsummaryFromJson, crossgroupsummaryToJson };
 
+export { dafnyStringToJs, seqToArray, toNumber };
+
 // ============================================================================
 // ServerState Conversions (for verified Dispatch)
 // ============================================================================

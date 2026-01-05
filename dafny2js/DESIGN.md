@@ -59,21 +59,23 @@ dafny2js \
 | `--dispatch` | Dispatch function to generate (format: `name:Module.Dispatch` or `Module.Dispatch`) |
 | `--list`, `-l` | Debug: list extracted datatypes and functions |
 
-### Multiple Dispatch Functions
+### Multiple Edge Functions
 
-For projects with multiple Edge Functions (e.g., `collab-todo` has `/dispatch` and `/multi-dispatch`), run `dafny2js` multiple times with different `--deno` and `--dispatch` flags:
+For projects with multiple Edge Functions, run `dafny2js` multiple times:
 
 ```bash
-# Single-project dispatch
+# Single-project dispatch (uses --dispatch for collaboration protocol)
 dafny2js --file TodoMultiCollaboration.dfy \
   --deno functions/dispatch/dafny-bundle.ts \
   --dispatch TodoMultiCollaboration.Dispatch
 
-# Multi-project dispatch
+# Multi-project dispatch (uses bundle-extras.ts pattern)
 dafny2js --file TodoMultiProjectEffectStateMachine.dfy \
   --deno functions/multi-dispatch/dafny-bundle.ts \
-  --dispatch multiDispatch:TodoMultiProjectCollaboration.Dispatch
+  --null-options
 ```
+
+The multi-dispatch function uses a hand-maintained `bundle-extras.ts` that imports from the generated bundle and calls Dafny functions directly.
 
 ## Source Architecture
 
@@ -276,15 +278,21 @@ export function dispatch(
 }
 ```
 
-## app-extras.js
+## app-extras.js / bundle-extras.ts
 
-The generated `app.js` provides complete type conversion and convenience wrappers. The `app-extras.js` file is for truly app-specific additions:
+The generated files provide type conversion and convenience wrappers. For app-specific additions:
 
-- **Domain function wrappers** not in `AppCore` (e.g., `TryStep`, `CountPriorityTasks`)
-- **UI conveniences** (e.g., `taggedOptionToNull` for display)
-- **Grouped accessors** (e.g., `App.EffectEvent.*`, `App.MultiModel.*`)
+**Client (`app-extras.js`):**
+- Domain function wrappers not in `AppCore`
+- UI conveniences
+- Grouped accessors
 
-With `--null-options`, preprocessing is generated, so `app-extras.js` no longer needs manual null handling.
+**Deno (`bundle-extras.ts`):**
+- Custom wrappers that call Dafny functions directly
+- Used when the standard `--dispatch` pattern doesn't fit (e.g., multi-project operations)
+- Imports converters and helpers from generated `dafny-bundle.ts`
+
+The bundle exports `dafnyStringToJs`, `seqToArray`, `toNumber` for use by `bundle-extras.ts`.
 
 ## Testing
 
@@ -300,11 +308,11 @@ With `--null-options`, preprocessing is generated, so `app-extras.js` no longer 
 | `counter` | `AppCore` | No | N/A |
 | `kanban` | `KanbanAppCore` | No | N/A |
 | `kanban-supabase` | `KanbanEffectAppCore` | No | `KanbanMultiCollaboration.Dispatch` |
-| `collab-todo` | `TodoMultiProjectEffectAppCore` | Yes | `TodoMultiCollaboration.Dispatch`, `TodoMultiProjectCollaboration.Dispatch` |
+| `collab-todo` | `TodoMultiProjectEffectAppCore` | Yes | `TodoMultiCollaboration.Dispatch` (single), `bundle-extras.ts` (multi) |
 | `clear-split-supabase` | `ClearSplitEffectAppCore` | No | `ClearSplitMultiCollaboration.Dispatch` |
 
 ## Future Work
 
-1. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
-2. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining
-3. **Extended null-options**: Support custom `Option` type names (`--null-options=Maybe:Nothing`)
+1. **Fix TypeScript strict mode errors**: The generated `dafny-bundle.ts` has implicit `any` types. Check with `deno check bundle-extras.ts` (which imports the bundle). Add explicit type annotations to generated code.
+2. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
+3. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining

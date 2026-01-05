@@ -772,4 +772,17 @@ module TodoMultiProjectDomain refines MultiProject {
       case MoveListTo(_, _, _) => "Only project owner can move lists"
       case _ => "Not authorized"
   }
+
+  // ===========================================================================
+  // Error Conversion (compiled, for JS interop)
+  // ===========================================================================
+
+  // Convert MultiErr to human-readable string
+  function MultiErrToString(err: MultiErr): string
+  {
+    match err
+    case MissingProject(pid) => "Project not found: " + pid
+    case SingleProjectError(pid, e) => "Error in project " + pid + ": " + MC.D.ErrToString(e)
+    case CrossProjectError(msg) => msg
+  }
 }

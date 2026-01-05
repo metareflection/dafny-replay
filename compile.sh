@@ -219,8 +219,7 @@ if should_build collab-todo; then
         --cjs-name TodoMultiProjectEffect.cjs \
         --deno ../collab-todo/supabase/functions/multi-dispatch/dafny-bundle.ts \
         --cjs-path ../collab-todo/src/dafny/TodoMultiProjectEffect.cjs \
-        --null-options \
-        --dispatch multiDispatch:TodoMultiProjectCollaboration.Dispatch)
+        --null-options)
 fi
 
 echo "Done."
