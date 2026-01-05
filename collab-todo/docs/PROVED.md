@@ -1,6 +1,10 @@
 # TodoMultiCollaboration Verification Status
 
-**Final Result: 89 verified, 0 errors**
+**Final Result: 120 verified, 0 errors** (TodoMultiCollaboration.dfy)
+
+Additional verifications:
+- TodoMultiProjectDomain.dfy: 34 verified, 0 errors
+- TodoMultiCollaborationSanity.dfy: 29 verified, 0 errors
 
 ## Proven (Dafny-verified)
 
@@ -31,17 +35,17 @@
 
 ### Preservation Lemmas (all verified)
 
-| Lemma | Axiom Helpers Used |
+| Lemma | Helper Lemmas Used |
 |-------|-------------------|
-| `AddListPreservesInv` | None |
+| `AddListPreservesInv` | Sequence helpers |
 | `RenameListPreservesInv` | None |
 | `DeleteListPreservesInv` | `DeleteListPreservesInvF` |
 | `MoveListPreservesInv` | `MoveListPreservesInvCount`, `MoveListPreservesInvF` |
-| `AddTaskPreservesInv` | None |
+| `AddTaskPreservesInv` | Counting helpers |
 | `EditTaskPreservesInv` | None |
-| `DeleteTaskPreservesInv` | `CountUnchangedAfterRemove_Wrapper`, `CountAfterRemoveAll_Wrapper` |
-| `RestoreTaskPreservesInv` | None |
-| `MoveTaskPreservesInv` | `CountAfterMoveTask_Wrapper`, `CountUnchangedAfterMoveTask_Wrapper` |
+| `DeleteTaskPreservesInv` | Counting helpers |
+| `RestoreTaskPreservesInv` | Counting helpers |
+| `MoveTaskPreservesInv` | Counting helpers |
 | `CompleteTaskPreservesInv` | None |
 | `UncompleteTaskPreservesInv` | None |
 | `StarTaskPreservesInv` | None |
@@ -58,30 +62,19 @@
 | `AddMemberPreservesInv` | None |
 | `RemoveMemberPreservesInv` | None |
 
-## Axiom Helpers (trusted)
+## Helper Lemmas (fully verified)
 
-These 9 lemmas are marked `{:axiom}` due to Dafny SMT limitations with map comprehensions and counting:
+These lemmas handle complex map comprehension and counting reasoning:
 
-| Axiom | Purpose |
+| Lemma | Purpose |
 |-------|---------|
-| `CountAfterRemoveAll` | After removing all occurrences of a task, count becomes 0 |
-| `CountUnchangedAfterRemove` | Removing task from one list doesn't affect other task counts |
-| `CountUnchangedAfterRemove_Wrapper` | Wrapper for map comprehension unification |
-| `CountAfterRemoveAll_Wrapper` | Wrapper for map comprehension unification |
-| `CountAfterMoveTask_Wrapper` | Task count unchanged after move (remove+insert) |
-| `CountUnchangedAfterMoveTask_Wrapper` | Other task counts unchanged after move |
+| `CountInListsHelper_RemoveFirst` | Removing list from sequence reduces count by its contribution |
+| `CountInListsHelper_InsertAt` | Inserting list into sequence adds its contribution |
+| `CountInListsHelper_MovePreserves` | Moving a list (remove+insert) preserves counts |
 | `DeleteListPreservesInvF` | List IDs < nextListId after delete |
 | `MoveListPreservesInvCount` | Task counts preserved after MoveList |
 | `MoveListPreservesInvF` | List IDs < nextListId after move |
-
-## Main Spec Axioms
-
-These remain in `TodoMultiCollaboration.dfy`:
-
-| Axiom | Location | Purpose |
-|-------|----------|---------|
-| `assume {:axiom} Inv(m2)` | Line 902 | Step function preserves invariant (proven in Proof.dfy) |
-| `assume {:axiom} aGood in Candidates` | Line 907 | Candidates completeness for conflict resolution |
+| `MoveListPreservesInvF_Helper` | Helper for list ID bounds after move |
 
 ## NoOp Enumeration (Fully Verified)
 
@@ -107,9 +100,10 @@ The sanity file proves completeness of NoOp detection:
 
 | Property | Reason |
 |----------|--------|
-| `CandidatesComplete` | Meaning-preservation for conflict resolution |
-| Generated JS matches Dafny semantics | Translation trusted, not verified |
+| `CandidatesComplete` | Meaning-preservation for conflict resolution (candidates sequence contains valid fallback) |
+| Generated JS matches Dafny semantics | Dafny-to-JS translation trusted, not formally verified |
 | UI correctly calls spec functions | Runtime integration not verified |
+| Edge function authorization | `CheckAuthorization` logic verified, but network layer trusted |
 
 ## Proof Strategy
 
@@ -118,7 +112,7 @@ Unlike ColorWheel which uses a `Normalize` repair function, TodoDomain's `TrySte
 - Directly produces valid output (no post-normalization)
 - Idempotent operations return `Ok(m)` unchanged
 
-The invariant is preserved by construction in each action case. Complex proofs for `CountInLists` reasoning use axiom helpers where Dafny's SMT solver cannot automatically unify map comprehensions.
+The invariant is preserved by construction in each action case. Complex proofs for `CountInLists` reasoning use helper lemmas to guide Dafny's SMT solver through map comprehension and sequence reasoning.
 
 ### Invariant D Proof Approach
 
@@ -126,3 +120,15 @@ The counting invariant (each task appears in exactly one list) is proven via:
 1. **Addition**: Fresh IDs ensure new tasks start with count=1
 2. **Deletion**: `CountInListsHelper_HasTwo` proves contradiction if task were in two lists
 3. **Movement**: Remove from source + insert at destination preserves count=1
+
+### Multi-Project Domain (34 verified, 0 errors)
+
+TodoMultiProjectDomain.dfy verifies cross-project operations with no axioms:
+
+| Lemma | Description |
+|-------|-------------|
+| `MultiStepPreservesInv` | MoveTaskTo, CopyTaskTo, MoveListTo preserve invariant |
+| `RemoveTaskFromProjectPreservesInv` | Delegates to single-project DeleteTask proof |
+| `AddTaskToProjectPreservesInv` | Chain of AddTask, EditTask, Star, Complete, SetDueDate |
+| `AddTasksToListPreservesInv` | Recursive proof for adding multiple tasks |
+| `AddListWithTasksPreservesInv` | AddList + AddTasksToList combined |
