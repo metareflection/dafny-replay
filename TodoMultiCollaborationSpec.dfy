@@ -141,6 +141,27 @@ abstract module {:compile false} TodoDomainSpec refines Domain {
 
   function RejectErr(): Err { Rejected }
 
+  // Convert error to human-readable string (compiled, for JS interop)
+  function ErrToString(err: Err): string
+  {
+    match err
+    case MissingList => "List not found"
+    case MissingTask => "Task not found"
+    case MissingTag => "Tag not found"
+    case MissingUser => "User not found"
+    case DuplicateList => "List with this name already exists"
+    case DuplicateTask => "Task with this title already exists in list"
+    case DuplicateTag => "Tag with this name already exists"
+    case BadAnchor => "Invalid anchor position"
+    case NotAMember => "User is not a project member"
+    case PersonalProject => "Cannot add members to personal project"
+    case AlreadyCollaborative => "Project is already collaborative"
+    case CannotRemoveOwner => "Cannot remove the project owner"
+    case TaskDeleted => "Task has been deleted"
+    case InvalidDate => "Invalid date"
+    case Rejected => "Action rejected"
+  }
+
   // ===========================================================================
   // Anchor-based placement
   // ===========================================================================

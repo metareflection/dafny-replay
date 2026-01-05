@@ -23,12 +23,10 @@ const initDafny = new Function('require', `
 
 const { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore } = initDafny(require);
 
-
 // ============================================================================
 // Helpers
 // ============================================================================
 
-// Convert Dafny seq to JS array
 const seqToArray = (seq) => {
   const arr = [];
   for (let i = 0; i < seq.length; i++) {
@@ -37,7 +35,6 @@ const seqToArray = (seq) => {
   return arr;
 };
 
-// Convert BigNumber to JS number
 const toNumber = (bn) => {
   if (bn && typeof bn.toNumber === 'function') {
     return bn.toNumber();
@@ -45,18 +42,26 @@ const toNumber = (bn) => {
   return bn;
 };
 
-// Convert Dafny string to JS string
 const dafnyStringToJs = (seq) => {
   if (typeof seq === 'string') return seq;
   if (seq.toVerbatimString) return seq.toVerbatimString(false);
   return Array.from(seq).join('');
 };
 
+
 // ============================================================================
 // Datatype Conversions
 // ============================================================================
 
 const optionFromJson = (json, T_fromJson) => {
+  // Handle null/undefined (DB compatibility with --null-options)
+  if (json === null || json === undefined) {
+    return TodoDomain.Option.create_None();
+  }
+  // Handle raw values without type tag (DB stores unwrapped Some values)
+  if (!json.type) {
+    return TodoDomain.Option.create_Some(T_fromJson(json));
+  }
   switch (json.type) {
     case 'None': {
       return TodoDomain.Option.create_None();
@@ -1206,6 +1211,49 @@ const commandToJson = (value) => {
 };
 
 // ============================================================================
+// Null-Option Preprocessing (for DB compatibility)
+// ============================================================================
+
+// Convert null to { type: 'None' } for Option fields
+const fixOption = (val) => {
+  if (val === null || val === undefined) return { type: 'None' };
+  if (val && val.type) return val; // Already in correct format
+  return { type: 'Some', value: val };
+};
+
+const preprocessTaskJson = (json) => {
+  if (!json) return json;
+  return {
+    ...json,
+    dueDate: fixOption(json.dueDate),
+    deletedBy: fixOption(json.deletedBy),
+    deletedFromList: fixOption(json.deletedFromList),
+  };
+};
+
+// Wrapped taskFromJson with preprocessing
+const _taskFromJsonOriginal = taskFromJson;
+const taskFromJsonPreprocessed = (json) => _taskFromJsonOriginal(preprocessTaskJson(json));
+
+const preprocessActionJson = (json) => {
+  if (!json) return json;
+  switch (json.type) {
+    case 'SetDueDate':
+      return {
+        ...json,
+        dueDate: fixOption(json.dueDate),
+      };
+    default:
+      return json;
+  }
+};
+
+// Wrapped actionFromJson with preprocessing
+const _actionFromJsonOriginal = actionFromJson;
+const actionFromJsonPreprocessed = (json) => _actionFromJsonOriginal(preprocessActionJson(json));
+
+
+// ============================================================================
 // API Wrapper
 // ============================================================================
 
@@ -1386,7 +1434,7 @@ const App = {
   dateToJson: dateToJson,
   dateFromJson: dateFromJson,
   taskToJson: taskToJson,
-  taskFromJson: taskFromJson,
+  taskFromJson: taskFromJsonPreprocessed,
   tagToJson: tagToJson,
   tagFromJson: tagFromJson,
   projectmodeToJson: projectmodeToJson,
@@ -1400,7 +1448,7 @@ const App = {
   listplaceToJson: listplaceToJson,
   listplaceFromJson: listplaceFromJson,
   actionToJson: actionToJson,
-  actionFromJson: actionFromJson,
+  actionFromJson: actionFromJsonPreprocessed,
   viewmodeToJson: viewmodeToJson,
   viewmodeFromJson: viewmodeFromJson,
   smartlisttypeToJson: smartlisttypeToJson,

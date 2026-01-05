@@ -1,6 +1,9 @@
 // App-specific convenience wrappers for collab-todo
 // This file adds aliases and helpers on top of the generated app.js
 // It supports BOTH single-project and multi-project operations.
+//
+// NOTE: Null-option preprocessing is now handled by generated app.js
+// when compiled with --null-options flag.
 
 import GeneratedApp from './app.js';
 import BigNumber from 'bignumber.js';
@@ -8,7 +11,7 @@ import BigNumber from 'bignumber.js';
 const { _dafny, TodoDomain, TodoMultiProjectDomain, TodoMultiProjectEffectStateMachine, TodoMultiProjectEffectAppCore } = GeneratedApp._internal;
 
 // -------------------------------------------------------------------------
-// Basic Helpers
+// Helpers (re-export from generated for convenience)
 // -------------------------------------------------------------------------
 
 const toNumber = (bn) => {
@@ -48,7 +51,7 @@ const dafnySetToArray = (dafnySet, elemFn) => {
 };
 
 // -------------------------------------------------------------------------
-// Option handling (null-based, matching existing DB data)
+// Option handling (for UI display - convert tagged to null-based)
 // -------------------------------------------------------------------------
 
 // Convert tagged Option JSON to null-based (for UI display)
@@ -58,49 +61,7 @@ const taggedOptionToNull = (opt) => {
   return opt;
 };
 
-// Helper to convert null to { type: 'None' }
-const fixOption = (val) => {
-  if (val === null || val === undefined) return { type: 'None' };
-  if (val && val.type) return val; // Already in correct format
-  return { type: 'Some', value: val };
-};
-
-// Preprocess model JSON: convert null Option fields to { type: 'None' } format
-// and provide default values for missing fields
-const preprocessModelJson = (json) => {
-  if (!json) return json;
-
-  const taskData = {};
-  if (json.taskData) {
-    for (const [id, task] of Object.entries(json.taskData)) {
-      taskData[id] = {
-        ...task,
-        dueDate: fixOption(task.dueDate),
-        deletedBy: fixOption(task.deletedBy),
-        deletedFromList: fixOption(task.deletedFromList)
-      };
-    }
-  }
-
-  return {
-    ...json,
-    taskData,
-    // Default mode to 'Collaborative' for existing data without mode field
-    mode: json.mode ?? 'Collaborative'
-  };
-};
-
-// Preprocess models map (for multi-project)
-const preprocessModelsJson = (modelsJson) => {
-  if (!modelsJson) return modelsJson;
-  const result = {};
-  for (const [projectId, model] of Object.entries(modelsJson)) {
-    result[projectId] = preprocessModelJson(model);
-  }
-  return result;
-};
-
-// Convert task JSON to null-based Options (for UI)
+// Convert task to plain JS with null-based Options (for UI)
 const taskToPlainJs = (dafnyTask) => {
   const json = GeneratedApp.taskToJson(dafnyTask);
   return {
@@ -117,20 +78,6 @@ const taskToPlainJs = (dafnyTask) => {
 
 const App = {
   ...GeneratedApp,
-
-  // -------------------------------------------------------------------------
-  // Model preprocessing (for DB data with null Options)
-  // -------------------------------------------------------------------------
-
-  modelFromJson: (json) => GeneratedApp.modelFromJson(preprocessModelJson(json)),
-
-  multimodelFromJson: (json) => {
-    if (!json || !json.projects) return GeneratedApp.multimodelFromJson(json);
-    return GeneratedApp.multimodelFromJson({
-      ...json,
-      projects: preprocessModelsJson(json.projects)
-    });
-  },
 
   // -------------------------------------------------------------------------
   // Domain TryStep (for single-project optimistic updates)
@@ -223,12 +170,8 @@ const App = {
   ),
 
   // -------------------------------------------------------------------------
-  // Effect State Machine - JSON-accepting wrappers
+  // Effect State Machine wrappers
   // -------------------------------------------------------------------------
-
-  // Initialize with JSON versions and models
-  EffectInit: (versionsJson, modelsJson) =>
-    GeneratedApp.EffectInit(versionsJson, preprocessModelsJson(modelsJson)),
 
   // Step returns tuple, convert to array for JS
   EffectStep: (effectState, event) => {
@@ -237,28 +180,17 @@ const App = {
   },
 
   // -------------------------------------------------------------------------
-  // Event constructors - JSON-accepting variants
+  // Event constructors - aliases for generated
   // -------------------------------------------------------------------------
 
   EffectEvent: {
     UserAction: (action) => GeneratedApp.EffectUserAction(action),
-
-    // Single-project action convenience (wraps in MultiAction.Single)
     SingleUserAction: (projectId, action) => GeneratedApp.EffectSingleUserAction(projectId, action),
-
-    DispatchAccepted: (versionsJson, modelsJson) =>
-      GeneratedApp.EffectDispatchAccepted(versionsJson, preprocessModelsJson(modelsJson)),
-
-    DispatchConflict: (versionsJson, modelsJson) =>
-      GeneratedApp.EffectDispatchConflict(versionsJson, preprocessModelsJson(modelsJson)),
-
-    DispatchRejected: (versionsJson, modelsJson) =>
-      GeneratedApp.EffectDispatchRejected(versionsJson, preprocessModelsJson(modelsJson)),
-
-    // Realtime update from another client (single project)
+    DispatchAccepted: (versionsJson, modelsJson) => GeneratedApp.EffectDispatchAccepted(versionsJson, modelsJson),
+    DispatchConflict: (versionsJson, modelsJson) => GeneratedApp.EffectDispatchConflict(versionsJson, modelsJson),
+    DispatchRejected: (versionsJson, modelsJson) => GeneratedApp.EffectDispatchRejected(versionsJson, modelsJson),
     RealtimeUpdate: (projectId, version, modelJson) =>
-      GeneratedApp.EffectRealtimeUpdate(projectId, version, GeneratedApp.modelFromJson(preprocessModelJson(modelJson))),
-
+      GeneratedApp.EffectRealtimeUpdate(projectId, version, GeneratedApp.modelFromJson(modelJson)),
     NetworkError: () => GeneratedApp.EffectNetworkError(),
     NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
     ManualGoOffline: () => GeneratedApp.EffectManualGoOffline(),
@@ -274,20 +206,15 @@ const App = {
     isNoOp: (cmd) => GeneratedApp.EffectIsNoOp(cmd),
     isSendDispatch: (cmd) => GeneratedApp.EffectIsSendDispatch(cmd),
     isFetchFreshState: (cmd) => GeneratedApp.EffectIsFetchFreshState(cmd),
-
-    // Get command details (for SendDispatch)
     getTouchedProjects: (cmd) => {
       const set = GeneratedApp.EffectGetTouchedProjects(cmd);
       return dafnySetToArray(set, dafnyStringToJs);
     },
-
     getBaseVersions: (cmd) => {
       const map = GeneratedApp.EffectGetBaseVersionsFromCmd(cmd);
       return dafnyMapToObject(map, dafnyStringToJs, toNumber);
     },
-
     getAction: (cmd) => GeneratedApp.EffectGetMultiAction(cmd),
-
     getActionJson: (cmd) => GeneratedApp.multiactionToJson(GeneratedApp.EffectGetMultiAction(cmd)),
   },
 
@@ -297,18 +224,13 @@ const App = {
 
   EffectState: {
     getClient: (es) => GeneratedApp.EffectGetClient(es),
-
     getMultiModel: (es) => GeneratedApp.EffectGetMultiModel(es),
-
     getMultiModelJson: (es) => GeneratedApp.multimodelToJson(GeneratedApp.EffectGetMultiModel(es)),
-
     getBaseVersions: (es) => {
       const map = GeneratedApp.EffectGetBaseVersions(es);
       return dafnyMapToObject(map, dafnyStringToJs, toNumber);
     },
-
     getPending: (es) => GeneratedApp.EffectGetPending(es),
-
     isOnline: (es) => GeneratedApp.EffectIsOnline(es),
     isIdle: (es) => GeneratedApp.EffectIsIdle(es),
     isDispatching: (es) => GeneratedApp.EffectIsDispatching(es),
@@ -321,34 +243,21 @@ const App = {
   // -------------------------------------------------------------------------
 
   MultiAction: {
-    // Wrap a single-project action
     Single: (projectId, action) => GeneratedApp.MakeSingleAction(projectId, action),
-
-    // Cross-project: move task
     MoveTaskTo: (srcProject, dstProject, taskId, dstList, anchor = GeneratedApp.AtEnd()) =>
       GeneratedApp.MakeMoveTaskTo(srcProject, dstProject, taskId, dstList, anchor),
-
-    // Cross-project: copy task
     CopyTaskTo: (srcProject, dstProject, taskId, dstList) =>
       GeneratedApp.MakeCopyTaskTo(srcProject, dstProject, taskId, dstList),
-
-    // Cross-project: move list (with all tasks)
     MoveListTo: (srcProject, dstProject, listId) =>
       GeneratedApp.MakeMoveListTo(srcProject, dstProject, listId),
-
-    // Check type
     isSingle: (ma) => GeneratedApp.IsSingleAction(ma),
     isMoveTaskTo: (ma) => GeneratedApp.IsMoveTaskTo(ma),
     isCopyTaskTo: (ma) => GeneratedApp.IsCopyTaskTo(ma),
     isMoveListTo: (ma) => GeneratedApp.IsMoveListTo(ma),
-
-    // Get touched projects as array
     getTouchedProjects: (ma) => {
       const set = GeneratedApp.GetTouchedProjects(ma);
       return dafnySetToArray(set, dafnyStringToJs);
     },
-
-    // Convert to JSON
     toJson: (ma) => GeneratedApp.multiactionToJson(ma),
     fromJson: (json) => GeneratedApp.multiactionFromJson(json),
   },
@@ -358,7 +267,6 @@ const App = {
   // -------------------------------------------------------------------------
 
   MultiModel: {
-    // Get a project's model
     getProject: (mm, projectId) => {
       if (!projectId || !mm) return null;
       if (GeneratedApp.HasProject(mm, projectId)) {
@@ -366,21 +274,15 @@ const App = {
       }
       return null;
     },
-
-    // Check if project exists
     hasProject: (mm, projectId) => {
       if (!projectId || !mm) return false;
       return GeneratedApp.HasProject(mm, projectId);
     },
-
-    // Get all project IDs
     getProjectIds: (mm) => {
       const set = GeneratedApp.GetProjectIds(mm);
       return dafnySetToArray(set, dafnyStringToJs);
     },
-
     // VERIFIED: Get all priority tasks across all projects
-    // Returns array of { projectId, taskId }
     getAllPriorityTasks: (mm) => {
       if (!mm) return [];
       const taggedSet = TodoMultiProjectDomain.__default.GetAllPriorityTasks(mm);
@@ -389,9 +291,7 @@ const App = {
         taskId: toNumber(tagged.dtor_taskId)
       }));
     },
-
     // VERIFIED: Get all logbook tasks across all projects
-    // Returns array of { projectId, taskId }
     getAllLogbookTasks: (mm) => {
       if (!mm) return [];
       const taggedSet = TodoMultiProjectDomain.__default.GetAllLogbookTasks(mm);
@@ -400,9 +300,7 @@ const App = {
         taskId: toNumber(tagged.dtor_taskId)
       }));
     },
-
     // VERIFIED: Get all visible (non-deleted) tasks across all projects
-    // Returns array of { projectId, taskId }
     getAllVisibleTasks: (mm) => {
       if (!mm) return [];
       const taggedSet = TodoMultiProjectDomain.__default.GetAllVisibleTasks(mm);
@@ -411,51 +309,38 @@ const App = {
         taskId: toNumber(tagged.dtor_taskId)
       }));
     },
-
-    // VERIFIED: Count all visible tasks
     countVisibleTasks: (mm) => {
       if (!mm) return 0;
       return toNumber(TodoMultiProjectDomain.__default.CountAllVisibleTasks(mm));
     },
-
-    // VERIFIED: Count priority tasks
     countPriorityTasks: (mm) => {
       if (!mm) return 0;
       return toNumber(TodoMultiProjectDomain.__default.CountAllPriorityTasks(mm));
     },
-
-    // VERIFIED: Count logbook tasks
     countLogbookTasks: (mm) => {
       if (!mm) return 0;
       return toNumber(TodoMultiProjectDomain.__default.CountAllLogbookTasks(mm));
     },
-
-    // VERIFIED: Check if user is authorized to perform action
-    // Returns true if authorized, false otherwise
+    // VERIFIED: Check if user is authorized
     isAuthorized: (mm, actingUser, multiAction) => {
       if (!mm || !actingUser) return false;
       const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
       return TodoMultiProjectDomain.__default.IsAuthorized(mm, userSeq, multiAction);
     },
-
-    // VERIFIED: Get authorization error message (empty string if authorized)
     checkAuthorization: (mm, actingUser, multiAction) => {
       if (!mm || !actingUser) return "Missing model or user";
       const userSeq = _dafny.Seq.UnicodeFromString(actingUser);
       const result = TodoMultiProjectDomain.__default.CheckAuthorization(mm, userSeq, multiAction);
       return dafnyStringToJs(result);
     },
-
-    // Convert to JSON
     toJson: (mm) => GeneratedApp.multimodelToJson(mm),
-    fromJson: (json) => App.multimodelFromJson(json),
+    fromJson: (json) => GeneratedApp.multimodelFromJson(json),
   },
 
   // -------------------------------------------------------------------------
   // Domain operations (multi-project)
   // -------------------------------------------------------------------------
 
-  // Try a multi-step (returns result with is_Ok)
   TryMultiStep: (mm, action) => {
     const result = GeneratedApp.TryMultiStep(mm, action);
     return {
@@ -465,11 +350,9 @@ const App = {
     };
   },
 
-  // Rebase action through project logs
   MultiRebase: (projectLogs, baseVersions, action) =>
     GeneratedApp.MultiRebase(projectLogs, baseVersions, action),
 
-  // Get candidates for action
   MultiCandidates: (mm, action) => GeneratedApp.MultiCandidates(mm, action),
 };
 
@@ -478,7 +361,6 @@ const App = {
 // ============================================================================
 
 export const todoDomain = {
-  // Try applying an action to a model (single-project)
   TryStep: (model, action) => {
     const result = TodoDomain.__default.TryStep(model, action);
     return {
@@ -486,18 +368,16 @@ export const todoDomain = {
       dtor_value: result.is_Ok ? result.dtor_value : null
     };
   },
-
-  // JSON conversion (with null Option handling)
-  modelFromJson: (json) => GeneratedApp.modelFromJson(preprocessModelJson(json)),
+  modelFromJson: GeneratedApp.modelFromJson,
   modelToJson: GeneratedApp.modelToJson,
   actionToJson: GeneratedApp.actionToJson,
   actionFromJson: GeneratedApp.actionFromJson,
 };
 
 // ============================================================================
-// Export helpers
+// Export helpers for consumers that need them
 // ============================================================================
 
-export { taggedOptionToNull, preprocessModelJson, preprocessModelsJson, taskToPlainJs };
+export { taggedOptionToNull, taskToPlainJs };
 
 export default App;
