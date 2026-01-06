@@ -492,3 +492,48 @@
     font-size: var(--font-size-sm);
   }
 }
+
+/* ============================================================================
+   Footer
+   ============================================================================ */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.app-footer a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.app-footer a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.app-footer__separator {
+  color: var(--color-border);
+}
+
+@media (max-width: 480px) {
+  .app-footer {
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .app-footer__separator {
+    display: none;
+  }
+}

@@ -8,7 +8,7 @@ import App from './dafny/app-extras.ts'
 // Components
 import { AuthForm } from './components/auth'
 import { Toast, UndoToast } from './components/common'
-import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
+import { TopBar, Sidebar, MainContent, EmptyState, LoadingState, Footer } from './components/layout'
 import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
 import { FilterBar } from './components/filters'
@@ -1123,6 +1123,8 @@ function TodoApp({ user, onSignOut }) {
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   )
 }
@@ -1162,6 +1164,7 @@ function AppContainer() {
       <div className="auth-container">
         <h1 className="auth-container__title">Todo</h1>
         <p className="auth-container__subtitle">Loading...</p>
+        <Footer />
       </div>
     )
   }
@@ -1172,6 +1175,7 @@ function AppContainer() {
         <h1 className="auth-container__title">Todo</h1>
         <p className="auth-container__subtitle">Collaborative task management</p>
         <AuthForm />
+        <Footer />
       </div>
     )
   }
