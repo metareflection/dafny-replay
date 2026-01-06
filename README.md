@@ -529,6 +529,8 @@ See [HOWTO.md](HOWTO.md) for a walkthrough of how to build a Dafny-verified Reac
 
 See [INTEGRATION.md](INTEGRATION.md) for notes on integrating Dafny-compiled JavaScript into a JavaScript codebase.
 
+See [GUARANTEES.md](GUARANTEES.md) for a precise statement of what is proved, what is assumed, and what is trusted.
+
 ---
 
 ## What this is not
