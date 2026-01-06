@@ -1,52 +1,14 @@
 # Dafny-JavaScript Integration Patterns
 
-This document describes patterns for integrating Dafny-generated JavaScript with client (React/Vite) and server (Node.js/Express) code.
+This document describes patterns for integrating Dafny-generated JavaScript with client (React/Vite) and server (Deno/Supabase Edge Functions) code.
 
 ## The dafny2js Tool
 
-The `dafny2js` tool automatically generates an `app.js` integration layer from your Dafny sources:
-
-```bash
-dotnet run --project dafny2js -- \
-  --file MyAppDomain.dfy \
-  --app-core AppCore \
-  --cjs-name MyApp.cjs \
-  --output my-app/src/dafny/app.js
-```
-
-**What it generates:**
-- ESM boilerplate for loading the Dafny runtime
-- `toJson`/`fromJson` converters for all datatypes
-- Action constructors that accept JS values
-- Model accessors that return JS-friendly values
-- Wrapped `AppCore` functions
-
-**What it exports:**
-```js
-const App = {
-  // Datatype constructors
-  Inc: () => ...,
-  Add: (n) => ...,
-
-  // Action constructors (from Action datatype)
-  AddExpense: (expense) => ...,
-
-  // Model accessors (from Model datatype fields)
-  GetMembers: (m) => [...],
-  GetExpenses: (m) => [...],
-
-  // AppCore functions
-  Init: () => ...,
-  Dispatch: (h, a) => ...,
-
-  // Conversion functions
-  actionToJson, actionFromJson,
-  modelToJson, modelFromJson,
-
-  // Internals for app-extras.js
-  _internal: { _dafny, DomainModule, AppCore }
-};
-```
+See [dafny2js/README.md](dafny2js/README.md) for full documentation on the code generation tool, including:
+- CLI options (`--client`, `--deno`, `--null-options`, etc.)
+- TypeScript support
+- Type mapping between Dafny and JavaScript
+- Generated bundle structure
 
 ---
 
