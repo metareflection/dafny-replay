@@ -1,4 +1,4 @@
-import { RefreshCw, Menu } from 'lucide-react'
+import { RefreshCw, Menu, CircleCheck } from 'lucide-react'
 import './layout.css'
 
 export function TopBar({
@@ -22,6 +22,10 @@ export function TopBar({
         >
           <Menu size={22} />
         </button>
+        <span className="topbar__brand">
+          <CircleCheck size={18} />
+          stuff
+        </span>
       </div>
 
       <div className="topbar__center">

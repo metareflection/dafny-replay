@@ -30,6 +30,17 @@
   gap: var(--space-md);
 }
 
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+}
+
 /* Mobile menu toggle button */
 .topbar__menu-btn {
   display: none;
