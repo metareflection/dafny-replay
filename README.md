@@ -249,15 +249,17 @@ The Multi-Project kernel (`MultiProject.dfy`) is an abstract module that extends
 * `MultiStep(mm, action)` — applies action; returns `Ok(newModel)` or `Err`
 * `MultiRebase` — rebases action through concurrent changes per project
 
-**Dafny-verified guarantees:**
+**Domain obligation (must be proved by each concrete multi-project domain):**
 
-*MultiProject.dfy* — domain logic:
 ```text
 MultiInv(mm) ∧ MultiStep(mm, a) = Ok(mm′) ⇒ MultiInv(mm′)
 ```
+
 Where `MultiInv(mm)` means every project in `mm` satisfies its individual invariant.
 
-*MultiProjectEffectStateMachine.dfy* — client-side orchestration:
+**Kernel-proved properties (assuming the domain discharges its obligation):**
+
+*MultiProjectEffectStateMachine.dfy* proves:
 * `StepPreservesInv` — all state transitions preserve the effect state invariant
 * `PendingNeverLost` — pending actions are never arbitrarily lost
 * `RealtimeUpdatePreservesPendingExactly` — realtime updates preserve pending exactly
@@ -268,15 +270,13 @@ Where `MultiInv(mm)` means every project in `mm` satisfies its individual invari
 
 **Architectural properties (unverified, trusted):**
 
-The architecture uses the verified `MultiStep` function but adds unverified components:
+The architecture uses the verified functions but adds unverified components:
 
 * **Server atomicity**: The database layer (`save_multi_update`) wraps updates in a single PostgreSQL transaction with optimistic locking. If any version check fails, the entire transaction rolls back.
 
 * **Realtime propagation**: Supabase Realtime sends per-row notifications separately. A cross-project operation updating two projects produces two events that arrive independently—clients may briefly see inconsistent state until both arrive.
 
 * **Edge function glue**: The edge function calls `MultiStep` and writes results to the database. This orchestration code is unverified.
-
-**Verification:** 43 proofs across MultiProject.dfy, TodoMultiProjectDomain.dfy, MultiProjectEffectStateMachine.dfy, and TodoMultiProjectEffectStateMachine.dfy.
 
 See collab-todo/ for a complete example using the Multi-Project kernel with Supabase.
 </details>
