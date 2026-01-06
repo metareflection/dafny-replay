@@ -85,7 +85,7 @@ const optionToJson = (value, T_toJson) => {
       value: T_toJson(value.dtor_value)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Option variant');
 };
 
 const dateFromJson = (json) => {
@@ -163,7 +163,7 @@ const projectmodeToJson = (value) => {
   } else if (value.is_Collaborative) {
     return 'Collaborative';
   }
-  return 'Unknown';
+  throw new Error('Unknown ProjectMode variant');
 };
 
 const modelFromJson = (json) => {
@@ -319,7 +319,7 @@ const errToJson = (value) => {
   } else if (value.is_Rejected) {
     return 'Rejected';
   }
-  return 'Unknown';
+  throw new Error('Unknown Err variant');
 };
 
 const placeFromJson = (json) => {
@@ -356,7 +356,7 @@ const placeToJson = (value) => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Place variant');
 };
 
 const listplaceFromJson = (json) => {
@@ -393,7 +393,7 @@ const listplaceToJson = (value) => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown ListPlace variant');
 };
 
 const actionFromJson = (json) => {
@@ -673,7 +673,7 @@ const actionToJson = (value) => {
       userId: dafnyStringToJs(value.dtor_userId)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Action variant');
 };
 
 const viewmodeFromJson = (json) => {
@@ -693,7 +693,7 @@ const viewmodeToJson = (value) => {
   } else if (value.is_AllProjects) {
     return 'AllProjects';
   }
-  return 'Unknown';
+  throw new Error('Unknown ViewMode variant');
 };
 
 const smartlisttypeFromJson = (json) => {
@@ -713,7 +713,7 @@ const smartlisttypeToJson = (value) => {
   } else if (value.is_Logbook) {
     return 'Logbook';
   }
-  return 'Unknown';
+  throw new Error('Unknown SmartListType variant');
 };
 
 const resultFromJson = (json, T_fromJson, E_fromJson) => {
@@ -745,7 +745,7 @@ const resultToJson = (value, T_toJson, E_toJson) => {
       error: E_toJson(value.dtor_error)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Result variant');
 };
 
 const multiactionFromJson = (json) => {
@@ -817,7 +817,7 @@ const multiactionToJson = (value) => {
       listId: toNumber(value.dtor_listId)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown MultiAction variant');
 };
 
 const multimodelFromJson = (json) => {
@@ -886,7 +886,7 @@ const multierrToJson = (value) => {
       message: dafnyStringToJs(value.dtor_message)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown MultiErr variant');
 };
 
 const multiclientstateFromJson = (json) => {
@@ -935,7 +935,7 @@ const networkstatusToJson = (value) => {
   } else if (value.is_Offline) {
     return 'Offline';
   }
-  return 'Unknown';
+  throw new Error('Unknown NetworkStatus variant');
 };
 
 const effectmodeFromJson = (json) => {
@@ -962,7 +962,7 @@ const effectmodeToJson = (value) => {
       retries: toNumber(value.dtor_retries)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown EffectMode variant');
 };
 
 const effectstateFromJson = (json) => {
@@ -1153,7 +1153,7 @@ const eventToJson = (value) => {
   } else if (value.is_Tick) {
     return { type: 'Tick' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Event variant');
 };
 
 const commandFromJson = (json) => {
@@ -1207,7 +1207,7 @@ const commandToJson = (value) => {
       projects: Array.from(value.dtor_projects.Elements).map(x => dafnyStringToJs(x))
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Command variant');
 };
 
 // ============================================================================

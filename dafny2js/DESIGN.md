@@ -121,6 +121,7 @@ Extends `SharedEmitter` for React/Vite clients:
 - Exports `App` object with all wrappers
 - Exports `App._internal` for advanced access to Dafny modules
 - When `--null-options` enabled, generates preprocessing for types with `Option` fields
+- When output is `.ts`, generates TypeScript interfaces and typed functions
 
 ### `DenoEmitter`
 
@@ -132,7 +133,8 @@ Extends `SharedEmitter` for Supabase Edge Functions:
   - Converts JSON inputs to Dafny types
   - Calls verified `Dispatch` function
   - Converts results back to JSON
-- All generated Deno bundles pass `deno check` with strict mode (explicit type annotations on all parameters and lambdas)
+- Generates TypeScript interfaces for all datatypes
+- All generated Deno bundles pass `deno check` with strict mode
 
 ## Null-Option Handling
 
@@ -312,7 +314,16 @@ The bundle exports `dafnyStringToJs`, `seqToArray`, `toNumber` for use by `bundl
 | `collab-todo` | `TodoMultiProjectEffectAppCore` | Yes | `TodoMultiCollaboration.Dispatch` (single), `bundle-extras.ts` (multi) |
 | `clear-split-supabase` | `ClearSplitEffectAppCore` | No | `ClearSplitMultiCollaboration.Dispatch` |
 
-## Future Work
+## TypeScript Support
 
-1. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
-2. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining
+Both Deno bundles and client adapters support full TypeScript with generated interfaces:
+
+- **Deno bundles**: Always TypeScript with interfaces (`.ts`)
+- **Client adapters**: Use `.ts` extension with `--client app.ts` to enable TypeScript
+
+Generated TypeScript includes:
+- **Interfaces** for single-constructor datatypes: `interface Task { id: number; ... }`
+- **Discriminated unions** for multi-constructor datatypes: `type Action = { type: 'AddTask'; ... } | ...`
+- **Type aliases** for enum-like datatypes: `type ProjectMode = 'Single' | 'Multi'`
+- **Generic types**: `type Option<T> = { type: 'None' } | { type: 'Some'; value: T }`
+- **Typed converter functions**: `taskFromJson(json: any): Task`

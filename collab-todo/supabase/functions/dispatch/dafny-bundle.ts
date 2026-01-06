@@ -4160,6 +4160,127 @@ const dafnyStringToJs = (seq: any): string => {
 
 
 // ============================================================================
+// TypeScript Type Definitions
+// ============================================================================
+
+export type Option<T> =
+  | { type: 'None' }
+  | { type: 'Some'; value: T };
+
+export interface Date {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export interface Task {
+  title: string;
+  notes: string;
+  completed: boolean;
+  starred: boolean;
+  dueDate: Option<Date>;
+  assignees: string[];
+  tags: number[];
+  deleted: boolean;
+  deletedBy: Option<string>;
+  deletedFromList: Option<number>;
+}
+
+export interface Tag {
+  name: string;
+}
+
+export type ProjectMode = 'Personal' | 'Collaborative';
+
+export interface Model {
+  mode: ProjectMode;
+  owner: string;
+  members: string[];
+  lists: number[];
+  listNames: Record<string, string>;
+  tasks: Record<string, number[]>;
+  taskData: Record<string, Task>;
+  tags: Record<string, Tag>;
+  nextListId: number;
+  nextTaskId: number;
+  nextTagId: number;
+}
+
+export type Err = 'MissingList' | 'MissingTask' | 'MissingTag' | 'MissingUser' | 'DuplicateList' | 'DuplicateTask' | 'DuplicateTag' | 'BadAnchor' | 'NotAMember' | 'PersonalProject' | 'AlreadyCollaborative' | 'CannotRemoveOwner' | 'TaskDeleted' | 'InvalidDate' | 'Rejected';
+
+export type Place =
+  | { type: 'AtEnd' }
+  | { type: 'Before'; anchor: number }
+  | { type: 'After'; anchor: number };
+
+export type ListPlace =
+  | { type: 'ListAtEnd' }
+  | { type: 'ListBefore'; anchor: number }
+  | { type: 'ListAfter'; anchor: number };
+
+export type Action =
+  | { type: 'NoOp' }
+  | { type: 'AddList'; name: string }
+  | { type: 'RenameList'; listId: number; newName: string }
+  | { type: 'DeleteList'; listId: number }
+  | { type: 'MoveList'; listId: number; listPlace: ListPlace }
+  | { type: 'AddTask'; listId: number; title: string }
+  | { type: 'EditTask'; taskId: number; title: string; notes: string }
+  | { type: 'DeleteTask'; taskId: number; userId: string }
+  | { type: 'RestoreTask'; taskId: number }
+  | { type: 'MoveTask'; taskId: number; toList: number; taskPlace: Place }
+  | { type: 'CompleteTask'; taskId: number }
+  | { type: 'UncompleteTask'; taskId: number }
+  | { type: 'StarTask'; taskId: number }
+  | { type: 'UnstarTask'; taskId: number }
+  | { type: 'SetDueDate'; taskId: number; dueDate: Option<Date> }
+  | { type: 'AssignTask'; taskId: number; userId: string }
+  | { type: 'UnassignTask'; taskId: number; userId: string }
+  | { type: 'AddTagToTask'; taskId: number; tagId: number }
+  | { type: 'RemoveTagFromTask'; taskId: number; tagId: number }
+  | { type: 'CreateTag'; name: string }
+  | { type: 'RenameTag'; tagId: number; newName: string }
+  | { type: 'DeleteTag'; tagId: number }
+  | { type: 'MakeCollaborative' }
+  | { type: 'AddMember'; userId: string }
+  | { type: 'RemoveMember'; userId: string };
+
+export type ViewMode = 'SingleProject' | 'AllProjects';
+
+export type SmartListType = 'Priority' | 'Logbook';
+
+export type Result<T, E> =
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
+
+export interface RejectReason {
+}
+
+export type RequestOutcome =
+  | { type: 'AuditAccepted'; applied: Action; noChange: boolean }
+  | { type: 'AuditRejected'; reason: RejectReason; rebased: Action };
+
+export interface RequestRecord {
+  baseVersion: number;
+  orig: Action;
+  rebased: Action;
+  chosen: Action;
+  outcome: RequestOutcome;
+}
+
+export interface ServerState {
+  present: Model;
+  appliedLog: Action[];
+  auditLog: RequestRecord[];
+}
+
+export interface ClientState {
+  baseVersion: number;
+  present: Model;
+  pending: Action[];
+}
+
+// ============================================================================
 // Null-Option Preprocessing (for DB compatibility)
 // ============================================================================
 
@@ -4200,7 +4321,7 @@ const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
+const optionFromJson = <T>(json: any, T_fromJson: (x: any) => T): Option<T> => {
   // Handle null/undefined (DB compatibility with --null-options)
   if (json === null || json === undefined) {
     return TodoDomain.Option.create_None();
@@ -4224,7 +4345,7 @@ const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
+const optionToJson = <T>(value: any, T_toJson: (x: any) => any): Option<T> => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
@@ -4233,11 +4354,11 @@ const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
       value: T_toJson(value.dtor_value)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Option variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const dateFromJson = (json: any): any => {
+const dateFromJson = (json: any): Date => {
   return TodoDomain.Date.create_Date(
     new BigNumber(json.year),
     new BigNumber(json.month),
@@ -4246,7 +4367,7 @@ const dateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const dateToJson = (value: any): any => {
+const dateToJson = (value: any): Date => {
   return {
     year: toNumber(value.dtor_year),
     month: toNumber(value.dtor_month),
@@ -4255,7 +4376,7 @@ const dateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const taskFromJson = (json: any): any => {
+const taskFromJson = (json: any): Task => {
   return TodoDomain.Task.create_Task(
     _dafny.Seq.UnicodeFromString(json.title),
     _dafny.Seq.UnicodeFromString(json.notes),
@@ -4271,7 +4392,7 @@ const taskFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const taskToJson = (value: any): any => {
+const taskToJson = (value: any): Task => {
   return {
     title: dafnyStringToJs(value.dtor_title),
     notes: dafnyStringToJs(value.dtor_notes),
@@ -4287,21 +4408,21 @@ const taskToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const tagFromJson = (json: any): any => {
+const tagFromJson = (json: any): Tag => {
   return TodoDomain.Tag.create_Tag(
     _dafny.Seq.UnicodeFromString(json.name)
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const tagToJson = (value: any): any => {
+const tagToJson = (value: any): Tag => {
   return {
     name: dafnyStringToJs(value.dtor_name)
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeFromJson = (json: any): any => {
+const projectmodeFromJson = (json: any): ProjectMode => {
   switch (json) {
     case 'Personal':
       return TodoDomain.ProjectMode.create_Personal();
@@ -4313,17 +4434,17 @@ const projectmodeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeToJson = (value: any): any => {
+const projectmodeToJson = (value: any): ProjectMode => {
   if (value.is_Personal) {
     return 'Personal';
   } else if (value.is_Collaborative) {
     return 'Collaborative';
   }
-  return 'Unknown';
+  throw new Error('Unknown ProjectMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json: any): any => {
+const modelFromJson = (json: any): Model => {
   let __listNames = _dafny.Map.Empty;
   for (const [k, v] of (Object.entries(json.listNames || {}) as [string, any][])) {
     const key = new BigNumber(k);
@@ -4364,7 +4485,7 @@ const modelFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value: any): any => {
+const modelToJson = (value: any): Model => {
   const __listNamesJson: Record<string, any> = {};
   if (value.dtor_listNames && value.dtor_listNames.Keys) {
     for (const k of value.dtor_listNames.Keys.Elements) {
@@ -4409,7 +4530,7 @@ const modelToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json: any): any => {
+const errFromJson = (json: any): Err => {
   switch (json) {
     case 'MissingList':
       return TodoDomain.Err.create_MissingList();
@@ -4447,7 +4568,7 @@ const errFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value: any): any => {
+const errToJson = (value: any): Err => {
   if (value.is_MissingList) {
     return 'MissingList';
   } else if (value.is_MissingTask) {
@@ -4479,11 +4600,11 @@ const errToJson = (value: any): any => {
   } else if (value.is_Rejected) {
     return 'Rejected';
   }
-  return 'Unknown';
+  throw new Error('Unknown Err variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json: any): any => {
+const placeFromJson = (json: any): Place => {
   switch (json.type) {
     case 'AtEnd': {
       return TodoDomain.Place.create_AtEnd();
@@ -4504,7 +4625,7 @@ const placeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeToJson = (value: any): any => {
+const placeToJson = (value: any): Place => {
   if (value.is_AtEnd) {
     return { type: 'AtEnd' };
   } else if (value.is_Before) {
@@ -4518,11 +4639,11 @@ const placeToJson = (value: any): any => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Place variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceFromJson = (json: any): any => {
+const listplaceFromJson = (json: any): ListPlace => {
   switch (json.type) {
     case 'ListAtEnd': {
       return TodoDomain.ListPlace.create_ListAtEnd();
@@ -4543,7 +4664,7 @@ const listplaceFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceToJson = (value: any): any => {
+const listplaceToJson = (value: any): ListPlace => {
   if (value.is_ListAtEnd) {
     return { type: 'ListAtEnd' };
   } else if (value.is_ListBefore) {
@@ -4557,11 +4678,11 @@ const listplaceToJson = (value: any): any => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown ListPlace variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json: any): any => {
+const actionFromJson = (json: any): Action => {
   switch (json.type) {
     case 'NoOp': {
       return TodoDomain.Action.create_NoOp();
@@ -4704,7 +4825,7 @@ const actionFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value: any): any => {
+const actionToJson = (value: any): Action => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_AddList) {
@@ -4839,11 +4960,11 @@ const actionToJson = (value: any): any => {
       userId: dafnyStringToJs(value.dtor_userId)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Action variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeFromJson = (json: any): any => {
+const viewmodeFromJson = (json: any): ViewMode => {
   switch (json) {
     case 'SingleProject':
       return TodoDomain.ViewMode.create_SingleProject();
@@ -4855,17 +4976,17 @@ const viewmodeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeToJson = (value: any): any => {
+const viewmodeToJson = (value: any): ViewMode => {
   if (value.is_SingleProject) {
     return 'SingleProject';
   } else if (value.is_AllProjects) {
     return 'AllProjects';
   }
-  return 'Unknown';
+  throw new Error('Unknown ViewMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeFromJson = (json: any): any => {
+const smartlisttypeFromJson = (json: any): SmartListType => {
   switch (json) {
     case 'Priority':
       return TodoDomain.SmartListType.create_Priority();
@@ -4877,17 +4998,17 @@ const smartlisttypeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeToJson = (value: any): any => {
+const smartlisttypeToJson = (value: any): SmartListType => {
   if (value.is_Priority) {
     return 'Priority';
   } else if (value.is_Logbook) {
     return 'Logbook';
   }
-  return 'Unknown';
+  throw new Error('Unknown SmartListType variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
+const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): Result<T, E> => {
   switch (json.type) {
     case 'Ok': {
       return TodoDomain.Result.create_Ok(
@@ -4905,7 +5026,7 @@ const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: 
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
+const resultToJson = <T, E>(value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): Result<T, E> => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -4917,21 +5038,21 @@ const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) 
       error: E_toJson(value.dtor_error)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Result variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json: any): any => {
+const rejectreasonFromJson = (json: any): RejectReason => {
   return TodoMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value: any): any => {
+const rejectreasonToJson = (value: any): RejectReason => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json: any): any => {
+const requestoutcomeFromJson = (json: any): RequestOutcome => {
   switch (json.type) {
     case 'AuditAccepted': {
       return TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -4951,7 +5072,7 @@ const requestoutcomeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value: any): any => {
+const requestoutcomeToJson = (value: any): RequestOutcome => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -4965,11 +5086,11 @@ const requestoutcomeToJson = (value: any): any => {
       rebased: actionToJson(value.dtor_rebased)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown RequestOutcome variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json: any): any => {
+const requestrecordFromJson = (json: any): RequestRecord => {
   return TodoMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -4980,7 +5101,7 @@ const requestrecordFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value: any): any => {
+const requestrecordToJson = (value: any): RequestRecord => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -4991,7 +5112,7 @@ const requestrecordToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json: any): any => {
+const serverstateFromJson = (json: any): ServerState => {
   return TodoMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
     _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
@@ -5000,7 +5121,7 @@ const serverstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value: any): any => {
+const serverstateToJson = (value: any): ServerState => {
   return {
     present: modelToJson(value.dtor_present),
     appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
@@ -5009,7 +5130,7 @@ const serverstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json: any): any => {
+const clientstateFromJson = (json: any): ClientState => {
   return TodoMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
@@ -5018,7 +5139,7 @@ const clientstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value: any): any => {
+const clientstateToJson = (value: any): ClientState => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),

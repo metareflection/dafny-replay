@@ -258,6 +258,83 @@ public abstract class SharedEmitter
   }
 
   // =========================================================================
+  // TypeScript Interface Generation
+  // =========================================================================
+
+  /// <summary>
+  /// Emit TypeScript interface/type declarations for all datatypes.
+  /// </summary>
+  protected void EmitTypeScriptInterfaces(List<DatatypeInfo> allTypesToGenerate)
+  {
+    if (!EmitTypeScript) return;
+
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// TypeScript Type Definitions");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      EmitTypeScriptType(dt);
+      Sb.AppendLine();
+    }
+  }
+
+  /// <summary>
+  /// Emit a single TypeScript interface or type for a datatype.
+  /// </summary>
+  void EmitTypeScriptType(DatatypeInfo dt)
+  {
+    var name = TypeMapper.SanitizeForJs(dt.Name);
+    var typeParams = dt.GetTypeParams();
+    var typeParamStr = typeParams.Count > 0
+      ? $"<{string.Join(", ", typeParams)}>"
+      : "";
+
+    if (IsEnumLike(dt))
+    {
+      // Enum-like: all constructors have no fields
+      // export type ProjectMode = 'Single' | 'Multi';
+      var variants = string.Join(" | ", dt.Constructors.Select(c => $"'{c.Name}'"));
+      Sb.AppendLine($"export type {name}{typeParamStr} = {variants};");
+    }
+    else if (dt.Constructors.Count == 1)
+    {
+      // Single constructor: use interface
+      var ctor = dt.Constructors[0];
+      Sb.AppendLine($"export interface {name}{typeParamStr} {{");
+      foreach (var field in ctor.Fields)
+      {
+        var tsType = TypeMapper.TypeRefToTypeScript(field.Type);
+        Sb.AppendLine($"  {field.Name}: {tsType};");
+      }
+      Sb.AppendLine("}");
+    }
+    else
+    {
+      // Multi-constructor: discriminated union
+      Sb.AppendLine($"export type {name}{typeParamStr} =");
+      for (int i = 0; i < dt.Constructors.Count; i++)
+      {
+        var ctor = dt.Constructors[i];
+        var prefix = i == 0 ? "  | " : "  | ";
+        var suffix = i == dt.Constructors.Count - 1 ? ";" : "";
+
+        if (ctor.Fields.Count == 0)
+        {
+          Sb.AppendLine($"{prefix}{{ type: '{ctor.Name}' }}{suffix}");
+        }
+        else
+        {
+          var fields = string.Join("; ", ctor.Fields.Select(f =>
+            $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}"));
+          Sb.AppendLine($"{prefix}{{ type: '{ctor.Name}'; {fields} }}{suffix}");
+        }
+      }
+    }
+  }
+
+  // =========================================================================
   // Datatype Conversions
   // =========================================================================
 
@@ -280,31 +357,34 @@ public abstract class SharedEmitter
   protected void EmitFromJson(DatatypeInfo dt)
   {
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}FromJson";
+    var typeName = TypeMapper.SanitizeForJs(dt.Name);
     var typeParams = dt.GetTypeParams();
 
     string paramList;
+    string returnType;
+
     if (EmitTypeScript)
     {
-      // TypeScript: add explicit type annotations
-      var typeParamParams = typeParams.Select(p => $"{p}_fromJson: (x: any) => any");
+      // TypeScript: typed return, any input (it's untyped JSON)
+      var typeParamStr = typeParams.Count > 0
+        ? $"<{string.Join(", ", typeParams)}>"
+        : "";
+      // deno-lint-ignore needed for 'any' input parameter
+      var typeParamParams = typeParams.Select(p => $"{p}_fromJson: (x: any) => {p}");
       paramList = typeParams.Count > 0
         ? $"json: any, {string.Join(", ", typeParamParams)}"
         : "json: any";
+      returnType = $"{typeName}{typeParamStr}";
+
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine($"const {funcName} = {typeParamStr}({paramList}): {returnType} => {{");
     }
     else
     {
       paramList = typeParams.Count > 0
         ? $"json, {string.Join(", ", typeParams.Select(p => $"{p}_fromJson"))}"
         : "json";
-    }
 
-    if (EmitTypeScript)
-    {
-      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
-      Sb.AppendLine($"const {funcName} = ({paramList}): any => {{");
-    }
-    else
-    {
       Sb.AppendLine($"const {funcName} = ({paramList}) => {{");
     }
 
@@ -398,31 +478,35 @@ public abstract class SharedEmitter
   protected void EmitToJson(DatatypeInfo dt)
   {
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}ToJson";
+    var typeName = TypeMapper.SanitizeForJs(dt.Name);
     var typeParams = dt.GetTypeParams();
 
     string paramList;
+    string returnType;
+
     if (EmitTypeScript)
     {
-      // TypeScript: add explicit type annotations
+      // TypeScript: typed input (Dafny runtime type), any output (JSON)
+      var typeParamStr = typeParams.Count > 0
+        ? $"<{string.Join(", ", typeParams)}>"
+        : "";
+      // Value is a Dafny runtime object, use any
       var typeParamParams = typeParams.Select(p => $"{p}_toJson: (x: any) => any");
       paramList = typeParams.Count > 0
         ? $"value: any, {string.Join(", ", typeParamParams)}"
         : "value: any";
+      // Return the JSON type matching the interface
+      returnType = IsEnumLike(dt) ? typeName : $"{typeName}{typeParamStr}";
+
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine($"const {funcName} = {typeParamStr}({paramList}): {returnType} => {{");
     }
     else
     {
       paramList = typeParams.Count > 0
         ? $"value, {string.Join(", ", typeParams.Select(p => $"{p}_toJson"))}"
         : "value";
-    }
 
-    if (EmitTypeScript)
-    {
-      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
-      Sb.AppendLine($"const {funcName} = ({paramList}): any => {{");
-    }
-    else
-    {
       Sb.AppendLine($"const {funcName} = ({paramList}) => {{");
     }
 
@@ -446,7 +530,7 @@ public abstract class SharedEmitter
         Sb.AppendLine($"    return '{ctor.Name}';");
       }
       Sb.AppendLine("  }");
-      Sb.AppendLine("  return 'Unknown';");
+      Sb.AppendLine($"  throw new Error('Unknown {dt.Name} variant');");
     }
     else
     {
@@ -458,7 +542,7 @@ public abstract class SharedEmitter
         EmitConstructorToJson(dt, ctor, "    ", true, typeParamConverters);
       }
       Sb.AppendLine("  }");
-      Sb.AppendLine("  return { type: 'Unknown' };");
+      Sb.AppendLine($"  throw new Error('Unknown {dt.Name} variant');");
     }
 
     Sb.AppendLine("};");

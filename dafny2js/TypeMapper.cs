@@ -20,6 +20,37 @@ public static class TypeMapper
     // Replace # with _ (for tuple types like _tuple#2)
     return name.Replace("#", "_");
   }
+
+  /// <summary>
+  /// Convert a Dafny TypeRef to a TypeScript type string.
+  /// </summary>
+  public static string TypeRefToTypeScript(TypeRef type)
+  {
+    return type.Kind switch
+    {
+      TypeKind.Int => "number",
+      TypeKind.Bool => "boolean",
+      TypeKind.String => "string",
+      TypeKind.Seq => type.TypeArgs.Count > 0
+        ? $"{TypeRefToTypeScript(type.TypeArgs[0])}[]"
+        : "unknown[]",
+      TypeKind.Set => type.TypeArgs.Count > 0
+        ? $"{TypeRefToTypeScript(type.TypeArgs[0])}[]"
+        : "unknown[]",
+      TypeKind.Map => type.TypeArgs.Count >= 2
+        ? $"Record<string, {TypeRefToTypeScript(type.TypeArgs[1])}>"
+        : "Record<string, unknown>",
+      TypeKind.Tuple => type.TypeArgs.Count > 0
+        ? $"[{string.Join(", ", type.TypeArgs.Select(TypeRefToTypeScript))}]"
+        : "unknown[]",
+      TypeKind.Datatype => type.TypeArgs.Count > 0
+        ? $"{SanitizeForJs(type.Name)}<{string.Join(", ", type.TypeArgs.Select(TypeRefToTypeScript))}>"
+        : SanitizeForJs(type.Name),
+      TypeKind.TypeParam => type.Name,
+      _ => "unknown"
+    };
+  }
+
   /// <summary>
   /// Generate JS code to convert a JSON value to a Dafny value.
   /// </summary>

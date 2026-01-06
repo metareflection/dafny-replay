@@ -63,27 +63,30 @@ public class DenoEmitter : SharedEmitter
     EmitHelpers();
     Sb.AppendLine();
 
-    // 4. Null-option preprocessing (if enabled)
+    // 4. TypeScript interfaces
+    EmitTypeScriptInterfaces(allTypesToGenerate);
+
+    // 5. Null-option preprocessing (if enabled)
     if (NullOptions)
     {
       EmitNullOptionPreprocessing();
       Sb.AppendLine();
     }
 
-    // 5. Datatype conversions
+    // 6. Datatype conversions
     EmitDatatypeConversions(allTypesToGenerate);
 
-    // 6. Export converters and modules
+    // 7. Export converters and modules
     EmitExports(allModules, allTypesToGenerate);
     Sb.AppendLine();
 
-    // 7. ServerState conversions (if we have dispatches)
+    // 8. ServerState conversions (if we have dispatches)
     if (_dispatches.Count > 0)
     {
       EmitServerStateConversions(_dispatches[0].CollaborationModule);
     }
 
-    // 8. Dispatch functions
+    // 9. Dispatch functions
     foreach (var dispatch in _dispatches)
     {
       EmitDispatchFunction(dispatch);

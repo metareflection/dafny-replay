@@ -43,26 +43,29 @@ public class ClientEmitter : SharedEmitter
     EmitHelpers();
     Sb.AppendLine();
 
-    // 3. Datatype conversions (must come before null-option preprocessing)
+    // 3. TypeScript interfaces (if enabled)
+    EmitTypeScriptInterfaces(allTypesToGenerate);
+
+    // 4. Datatype conversions (must come before null-option preprocessing)
     EmitDatatypeConversions(allTypesToGenerate);
 
-    // 4. Null-option preprocessing (wraps the converters, so must come after)
+    // 5. Null-option preprocessing (wraps the converters, so must come after)
     if (NullOptions)
     {
       EmitNullOptionPreprocessing();
       Sb.AppendLine();
     }
 
-    // 5. API wrapper
+    // 6. API wrapper
     EmitApiWrapper();
 
-    // 6. Export internals
+    // 7. Export internals
     Sb.AppendLine("// Export internals for custom extensions");
     var internalModules = string.Join(", ", allModules);
     Sb.AppendLine($"App._internal = {{ _dafny, {internalModules} }};");
     Sb.AppendLine();
 
-    // 7. Export
+    // 8. Export
     Sb.AppendLine("export default App;");
 
     return Sb.ToString();
