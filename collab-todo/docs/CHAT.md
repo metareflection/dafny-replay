@@ -1555,3 +1555,90 @@ High value missing features:
 
 Medium value:
 2. Tag management panel (`RenameTag`, `DeleteTag`)
+
+---
+
+# Task Item UI + Condensed Filter Implementation
+
+**Date:** 2026-01-05
+
+## Features Implemented
+
+### 1. Task Item Icons Always Visible
+
+Changed task metadata icons (date, tags, assignees, notes) from hover-only to always visible with muted opacity. Set indicators highlighted in sage color.
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/tasks.css` | Removed conditional display, added muted opacity states, sage color for set indicators |
+| `src/components/tasks/TaskItem.jsx` | Always render icon wrappers, added `task-item__indicator-wrapper--set` class |
+| `src/styles/variables.css` | Added `--color-sage: #7C9E73` and `--color-sage-light` |
+
+### 2. 3-Dot Menu Click-Outside Fix
+
+Menu was disappearing on mouse-away. Fixed to stay open until user clicks outside or clicks the button again.
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added `menuRef`, `useEffect` click-outside handler, `task-item--menu-open` class |
+| `src/components/tasks/tasks.css` | Added `.task-item--menu-open .task-item__menu-btn` selector |
+
+### 3. Star and 3-Dot Always Visible
+
+Extended always-visible treatment to star and menu buttons with muted opacity states.
+
+### 4. Empty Lists Collapsed by Default
+
+Changed from `collapsedLists` (Set) to `listCollapseState` (Map) to track explicit user preference.
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `isListCollapsed(listId, taskCount)` function that defaults empty lists to collapsed |
+
+### 5. FilterBar with Sort, User, and Tag Filters
+
+Added filtering capabilities to all views.
+
+| File | Purpose |
+|------|---------|
+| `src/components/filters/FilterBar.jsx` | Filter dropdowns for sort, user, tags |
+| `src/components/filters/filters.css` | Filter component styles |
+| `src/components/filters/index.js` | Exports |
+
+Filter state added to `PriorityView`, `AllTasksView`, and `ProjectView` in `App.jsx`.
+
+### 6. Cross-Project Tag Filter Fix
+
+**Problem:** In All Tasks view, clicking one tag selected all tags.
+
+**Root cause:** Aggregated tags used composite keys like `"projectId_123"`, and `Number("projectId_123")` returns `NaN`. All `NaN` values compared as equal in `includes()` check.
+
+**Fix:** Changed aggregation to deduplicate by tag name instead of composite keys. Updated filter logic to match by tag name using `getProjectTags` lookup.
+
+### 7. Condensed Filter Icon
+
+Replaced horizontal filter bar with a single icon button that opens a dropdown panel.
+
+| File | Changes |
+|------|---------|
+| `src/components/filters/FilterBar.jsx` | Replaced with single `SlidersHorizontal` icon, badge for active count, dropdown panel with sections |
+| `src/components/filters/filters.css` | New styles for `.filter-icon`, `.filter-panel` |
+| `src/components/project/ProjectHeader.jsx` | Added `rightAction` prop |
+| `src/components/project/project.css` | Added `.project-header__actions` class |
+| `src/App.jsx` | Moved `FilterBar` into `rightAction` prop of `ProjectHeader` in all views |
+
+## UI Summary
+
+| Feature | Behavior |
+|---------|----------|
+| Task icons | Always visible, muted; sage when set |
+| 3-dot menu | Stays open until click outside |
+| Star button | Always visible, muted; gold when starred |
+| Empty lists | Collapsed by default |
+| Filter icon | Single icon in header right corner |
+| Filter panel | Sort, assignee, and tag sections |
+| Active filters | Badge count on icon, sage highlight |
+
+## Build Status
+
+Build passes successfully.
