@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app.ts'
 import './App.css'
 
 function Card({ id, title, onDragStart, onDragEnd, onDragOver, onDragLeave, dropPosition }) {

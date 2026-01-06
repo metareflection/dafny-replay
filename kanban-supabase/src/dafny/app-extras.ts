@@ -1,14 +1,15 @@
 // App-specific convenience wrappers for kanban-supabase
-// This file adds aliases and helpers on top of the generated app.js
+// This file adds aliases and helpers on top of the generated app.ts
 
-import GeneratedApp from './app.js';
+import GeneratedApp from './app.ts';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, KanbanDomain, KanbanEffectStateMachine } = GeneratedApp._internal;
+// Cast _internal for access to Dafny runtime modules
+const { _dafny, KanbanDomain, KanbanEffectStateMachine } = GeneratedApp._internal as any;
 
 // Helper to convert seq to array
-const seqToArray = (seq) => {
-  const arr = [];
+const seqToArray = <T>(seq: any): T[] => {
+  const arr: T[] = [];
   for (let i = 0; i < seq.length; i++) {
     arr.push(seq[i]);
   }
@@ -16,7 +17,7 @@ const seqToArray = (seq) => {
 };
 
 // Helper to convert Dafny string to JS string
-const dafnyStringToJs = (seq) => {
+const dafnyStringToJs = (seq: any): string => {
   if (typeof seq === 'string') return seq;
   if (seq.toVerbatimString) return seq.toVerbatimString(false);
   return Array.from(seq).join('');
@@ -30,11 +31,11 @@ const App = {
   // ClientState aliases
   // -------------------------------------------------------------------------
 
-  GetPresent: (client) => GeneratedApp.ClientModel(client),
-  GetBaseVersion: (client) => GeneratedApp.ClientVersion(client),
-  GetPendingCount: (client) => GeneratedApp.PendingCount(client),
+  GetPresent: (client: any) => GeneratedApp.ClientModel(client),
+  GetBaseVersion: (client: any) => GeneratedApp.ClientVersion(client),
+  GetPendingCount: (client: any) => GeneratedApp.PendingCount(client),
 
-  GetPendingActions: (client) => {
+  GetPendingActions: (client: any) => {
     return seqToArray(client.dtor_pending);
   },
 
@@ -42,17 +43,17 @@ const App = {
   // Model accessors
   // -------------------------------------------------------------------------
 
-  GetLane: (m, col) => {
+  GetLane: (m: any, col: string) => {
     const lane = KanbanDomain.__default.Lane(m, _dafny.Seq.UnicodeFromString(col));
-    return seqToArray(lane).map(id => id.toNumber());
+    return seqToArray<any>(lane).map((id: any) => id.toNumber());
   },
 
-  GetWip: (m, col) => {
+  GetWip: (m: any, col: string) => {
     const wip = KanbanDomain.__default.Wip(m, _dafny.Seq.UnicodeFromString(col));
     return wip.toNumber();
   },
 
-  GetCardTitle: (m, id) => {
+  GetCardTitle: (m: any, id: number) => {
     const cardsMap = m.dtor_cards;
     const key = new BigNumber(id);
     if (cardsMap.contains(key)) {
@@ -67,42 +68,42 @@ const App = {
   },
 
     // -------------------------------------------------------------------------
-    // JSON-accepting wrappers (only addition over generated app.js)
+    // JSON-accepting wrappers (only addition over generated app.ts)
     // -------------------------------------------------------------------------
-  
-    InitClient: (version, modelJson) =>
+
+    InitClient: (version: number, modelJson: any) =>
       GeneratedApp.MakeClientState(version, GeneratedApp.modelFromJson(modelJson), _dafny.Seq.of()),
-  
-    LocalDispatch: (client, action) =>
+
+    LocalDispatch: (client: any, action: any) =>
       GeneratedApp.ClientLocalDispatch(client, action),
-  
-    HandleRealtimeUpdate: (client, serverVersion, serverModelJson) =>
+
+    HandleRealtimeUpdate: (client: any, serverVersion: number, serverModelJson: any) =>
       GeneratedApp.HandleRealtimeUpdate(client, serverVersion, GeneratedApp.modelFromJson(serverModelJson)),
-  
-    ClientAcceptReply: (client, newVersion, newPresentJson) =>
+
+    ClientAcceptReply: (client: any, newVersion: number, newPresentJson: any) =>
       GeneratedApp.ClientAcceptReply(client, newVersion, GeneratedApp.modelFromJson(newPresentJson)),
-  
+
     // -------------------------------------------------------------------------
     // Effect State Machine - JSON-accepting wrappers
     // -------------------------------------------------------------------------
-  
-    EffectInit: (version, modelJson) =>
+
+    EffectInit: (version: number, modelJson: any) =>
       GeneratedApp.EffectInit(version, GeneratedApp.modelFromJson(modelJson)),
-  
+
     // Step returns tuple, convert to array for JS
-    EffectStep: (effectState, event) => {
+    EffectStep: (effectState: any, event: any) => {
       const result = GeneratedApp.EffectStep(effectState, event);
       return [result[0], result[1]];
     },
-  
+
     // Event constructors - JSON-accepting variants
     EffectEvent: {
-      UserAction: (action) => GeneratedApp.EffectUserAction(action),
-      DispatchAccepted: (version, modelJson) =>
+      UserAction: (action: any) => GeneratedApp.EffectUserAction(action),
+      DispatchAccepted: (version: number, modelJson: any) =>
         GeneratedApp.EffectDispatchAccepted(version, GeneratedApp.modelFromJson(modelJson)),
-      DispatchConflict: (version, modelJson) =>
+      DispatchConflict: (version: number, modelJson: any) =>
         GeneratedApp.EffectDispatchConflict(version, GeneratedApp.modelFromJson(modelJson)),
-      DispatchRejected: (version, modelJson) =>
+      DispatchRejected: (version: number, modelJson: any) =>
         GeneratedApp.EffectDispatchRejected(version, GeneratedApp.modelFromJson(modelJson)),
       NetworkError: () => GeneratedApp.EffectNetworkError(),
       NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
@@ -110,24 +111,24 @@ const App = {
       ManualGoOnline: () => GeneratedApp.EffectManualGoOnline(),
       Tick: () => GeneratedApp.EffectTick(),
     },
-  
+
     // Command inspection - just aliases
     EffectCommand: {
-      isNoOp: (cmd) => GeneratedApp.EffectIsNoOp(cmd),
-      isSendDispatch: (cmd) => GeneratedApp.EffectIsSendDispatch(cmd),
-      getBaseVersion: (cmd) => GeneratedApp.EffectGetBaseVersion(cmd),
-      getAction: (cmd) => GeneratedApp.EffectGetAction(cmd),
+      isNoOp: (cmd: any) => GeneratedApp.EffectIsNoOp(cmd),
+      isSendDispatch: (cmd: any) => GeneratedApp.EffectIsSendDispatch(cmd),
+      getBaseVersion: (cmd: any) => GeneratedApp.EffectGetBaseVersion(cmd),
+      getAction: (cmd: any) => GeneratedApp.EffectGetAction(cmd),
     },
-  
+
     // EffectState accessors - just aliases
     EffectState: {
-      getClient: (es) => GeneratedApp.EffectGetClient(es),
-      getServerVersion: (es) => GeneratedApp.EffectGetServerVersion(es),
-      isOnline: (es) => GeneratedApp.EffectIsOnline(es),
-      isIdle: (es) => GeneratedApp.EffectIsIdle(es),
-      isDispatching: (es) => es.dtor_mode.is_Dispatching,
-      hasPending: (es) => GeneratedApp.EffectHasPending(es),
-      getPendingCount: (es) => GeneratedApp.EffectPendingCount(es),
+      getClient: (es: any) => GeneratedApp.EffectGetClient(es),
+      getServerVersion: (es: any) => GeneratedApp.EffectGetServerVersion(es),
+      isOnline: (es: any) => GeneratedApp.EffectIsOnline(es),
+      isIdle: (es: any) => GeneratedApp.EffectIsIdle(es),
+      isDispatching: (es: any) => es.dtor_mode.is_Dispatching,
+      hasPending: (es: any) => GeneratedApp.EffectHasPending(es),
+      getPendingCount: (es: any) => GeneratedApp.EffectPendingCount(es),
     },
 };
 

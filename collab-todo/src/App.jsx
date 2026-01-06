@@ -3,7 +3,7 @@ import { Star, CheckSquare, Circle } from 'lucide-react'
 import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
 import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useAllProjects } from './hooks/useAllProjects.js'
-import App from './dafny/app-extras.js'
+import App from './dafny/app-extras.ts'
 
 // Components
 import { AuthForm } from './components/auth'

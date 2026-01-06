@@ -31,12 +31,12 @@ if should_build counter; then
     echo "Copying to counter project..."
     cp generated/Counter.js counter/src/dafny/Counter.cjs
 
-    echo "Generating counter app.js..."
+    echo "Generating counter app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../CounterDomain.dfy \
         --app-core AppCore \
         --cjs-name Counter.cjs \
-        --client ../counter/src/dafny/app.js)
+        --client ../counter/src/dafny/app.ts)
 fi
 
 if should_build kanban; then
@@ -46,12 +46,12 @@ if should_build kanban; then
     echo "Copying to kanban project..."
     cp generated/Kanban.js kanban/src/dafny/Kanban.cjs
 
-    echo "Generating kanban app.js..."
+    echo "Generating kanban app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../KanbanDomain.dfy \
         --app-core KanbanAppCore \
         --cjs-name Kanban.cjs \
-        --client ../kanban/src/dafny/app.js)
+        --client ../kanban/src/dafny/app.ts)
 fi
 
 if should_build delegation-auth; then
@@ -61,12 +61,12 @@ if should_build delegation-auth; then
     echo "Copying to delegation-auth project..."
     cp generated/DelegationAuth.js delegation-auth/src/dafny/DelegationAuth.cjs
 
-    echo "Generating delegation-auth app.js..."
+    echo "Generating delegation-auth app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../DelegationAuthDomain.dfy \
         --app-core DelegationAuthAppCore \
         --cjs-name DelegationAuth.cjs \
-        --client ../delegation-auth/src/dafny/app.js)
+        --client ../delegation-auth/src/dafny/app.ts)
 fi
 
 if should_build counter-authority; then
@@ -86,12 +86,12 @@ if should_build kanban-multi-collaboration; then
     cp generated/KanbanMulti.js kanban-multi-collaboration/server/KanbanMulti.cjs
     cp generated/KanbanMulti.js kanban-multi-collaboration/src/dafny/KanbanMulti.cjs
 
-    echo "Generating kanban-multi-collaboration app.js..."
+    echo "Generating kanban-multi-collaboration app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../KanbanMultiCollaboration.dfy \
         --app-core KanbanAppCore \
         --cjs-name KanbanMulti.cjs \
-        --client ../kanban-multi-collaboration/src/dafny/app.js)
+        --client ../kanban-multi-collaboration/src/dafny/app.ts)
 fi
 
 if should_build kanban-supabase; then
@@ -104,12 +104,12 @@ if should_build kanban-supabase; then
     echo "Copying KanbanEffectStateMachine to kanban-supabase project..."
     cp generated/KanbanEffect.js kanban-supabase/src/dafny/KanbanEffect.cjs
 
-    echo "Generating kanban-supabase app.js and dafny-bundle.ts..."
+    echo "Generating kanban-supabase app.ts and dafny-bundle.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../KanbanEffectStateMachine.dfy \
         --app-core KanbanEffectAppCore \
         --cjs-name KanbanEffect.cjs \
-        --client ../kanban-supabase/src/dafny/app.js \
+        --client ../kanban-supabase/src/dafny/app.ts \
         --deno ../kanban-supabase/supabase/functions/dispatch/dafny-bundle.ts \
         --cjs-path ../kanban-supabase/src/dafny/KanbanEffect.cjs \
         --dispatch KanbanMultiCollaboration.Dispatch)
@@ -122,12 +122,12 @@ if should_build clear-split; then
     echo "Copying to clear-split project..."
     cp generated/ClearSplit.js clear-split/src/dafny/ClearSplit.cjs
 
-    echo "Generating clear-split app.js..."
+    echo "Generating clear-split app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../ClearSplit.dfy \
         --app-core ClearSplitAppCore \
         --cjs-name ClearSplit.cjs \
-        --client ../clear-split/src/dafny/app.js)
+        --client ../clear-split/src/dafny/app.ts)
 fi
 
 if should_build clear-split-supabase; then
@@ -140,12 +140,12 @@ if should_build clear-split-supabase; then
     echo "Copying to clear-split-supabase project..."
     cp generated/ClearSplitEffect.js clear-split-supabase/src/dafny/ClearSplitEffect.cjs
 
-    echo "Generating clear-split-supabase app.js and dafny-bundle.ts..."
+    echo "Generating clear-split-supabase app.ts and dafny-bundle.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../ClearSplitEffectStateMachine.dfy \
         --app-core ClearSplitEffectAppCore \
         --cjs-name ClearSplitEffect.cjs \
-        --client ../clear-split-supabase/src/dafny/app.js \
+        --client ../clear-split-supabase/src/dafny/app.ts \
         --deno ../clear-split-supabase/supabase/functions/dispatch/dafny-bundle.ts \
         --cjs-path ../clear-split-supabase/src/dafny/ClearSplitEffect.cjs \
         --dispatch ClearSplitMultiCollaboration.Dispatch)
@@ -158,12 +158,12 @@ if should_build canon; then
     echo "Copying to canon project..."
     cp generated/CanonReplay.js canon/src/dafny/CanonReplay.cjs
 
-    echo "Generating canon app.js..."
+    echo "Generating canon app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../CanonDomain.dfy \
         --app-core AppCore \
         --cjs-name CanonReplay.cjs \
-        --client ../canon/src/dafny/app.js)
+        --client ../canon/src/dafny/app.ts)
 fi
 
 if should_build colorwheel; then
@@ -173,12 +173,12 @@ if should_build colorwheel; then
     echo "Copying to colorwheel project..."
     cp generated/ColorWheel.js colorwheel/src/dafny/ColorWheel.cjs
 
-    echo "Generating colorwheel app.js..."
+    echo "Generating colorwheel app.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../ColorWheelDomain.dfy \
         --app-core AppCore \
         --cjs-name ColorWheel.cjs \
-        --client ../colorwheel/src/dafny/app.js)
+        --client ../colorwheel/src/dafny/app.ts)
 fi
 
 if should_build collab-todo; then
@@ -194,12 +194,12 @@ if should_build collab-todo; then
     echo "Copying TodoMultiProjectEffectStateMachine to collab-todo project..."
     cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEffect.cjs
 
-    echo "Generating collab-todo app.js (multi-project)..."
+    echo "Generating collab-todo app.ts (multi-project)..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../TodoMultiProjectEffectStateMachine.dfy \
         --app-core TodoMultiProjectEffectAppCore \
         --cjs-name TodoMultiProjectEffect.cjs \
-        --client ../collab-todo/src/dafny/app.js \
+        --client ../collab-todo/src/dafny/app.ts \
         --null-options)
 
     echo "Generating collab-todo dispatch dafny-bundle.ts..."

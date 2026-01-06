@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "bignumber.js": "npm:bignumber.js"
+  }
+}

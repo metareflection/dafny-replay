@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import App from './dafny/app.js'
+import App from './dafny/app.ts'
 import './App.css'
 
 function Counter() {

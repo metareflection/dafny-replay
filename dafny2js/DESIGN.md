@@ -121,6 +121,7 @@ Extends `SharedEmitter` for React/Vite clients:
 - Exports `App` object with all wrappers
 - Exports `App._internal` for advanced access to Dafny modules
 - When `--null-options` enabled, generates preprocessing for types with `Option` fields
+- When output is `.ts`, generates TypeScript interfaces and typed functions
 
 ### `DenoEmitter`
 
@@ -132,6 +133,8 @@ Extends `SharedEmitter` for Supabase Edge Functions:
   - Converts JSON inputs to Dafny types
   - Calls verified `Dispatch` function
   - Converts results back to JSON
+- Generates TypeScript interfaces for all datatypes
+- All generated Deno bundles pass `deno check` with strict mode
 
 ## Null-Option Handling
 
@@ -311,8 +314,51 @@ The bundle exports `dafnyStringToJs`, `seqToArray`, `toNumber` for use by `bundl
 | `collab-todo` | `TodoMultiProjectEffectAppCore` | Yes | `TodoMultiCollaboration.Dispatch` (single), `bundle-extras.ts` (multi) |
 | `clear-split-supabase` | `ClearSplitEffectAppCore` | No | `ClearSplitMultiCollaboration.Dispatch` |
 
-## Future Work
+## TypeScript Support
 
-1. **Fix TypeScript strict mode errors**: The generated `dafny-bundle.ts` has implicit `any` types. Check with `deno check bundle-extras.ts` (which imports the bundle). Add explicit type annotations to generated code.
-2. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
-3. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining
+Both Deno bundles and client adapters support full TypeScript with generated interfaces:
+
+- **Deno bundles**: Always TypeScript with interfaces (`.ts`)
+- **Client adapters**: Use `.ts` extension with `--client app.ts` to enable TypeScript
+
+### Generated TypeScript Types
+
+**JSON representation types** (for serialization):
+- **Interfaces** for single-constructor datatypes: `interface Task { id: number; ... }`
+- **Discriminated unions** for multi-constructor datatypes: `type Action = { type: 'AddTask'; ... } | ...`
+- **Type aliases** for enum-like datatypes: `type ProjectMode = 'Single' | 'Multi'`
+- **Generic types**: `type Option<T> = { type: 'None' } | { type: 'Some'; value: T }`
+
+**Dafny runtime types** (for actual Dafny objects):
+- **Base types**: `DafnyInt`, `DafnySeq<T>`, `DafnySet<T>`, `DafnyMap<K,V>`
+- **Datatype interfaces**: `DafnyModel`, `DafnyAction`, `DafnyHistory`, etc.
+- These describe the actual shape of Dafny runtime objects (with `dtor_*`, `is_*` properties)
+
+**Typed functions**:
+- Converter functions: `modelFromJson(json: any): DafnyModel`
+- Wrapper functions: `Dispatch(h: DafnyHistory, a: DafnyAction): DafnyHistory`
+- Constructors: `AddTask(listId: number, title: string): DafnyAction`
+
+### Type Checking
+
+Run `./typecheck.sh` from the repo root to verify all generated TypeScript:
+
+```bash
+./typecheck.sh           # Check all projects
+./typecheck.sh counter   # Check specific project
+```
+
+This uses `deno check` with the root `deno.json` import map that resolves `bignumber.js` for Deno.
+
+### Duplicate Constructor Handling
+
+When multiple helper datatypes have constructors with the same name (e.g., `Mood.Custom` and `Harmony.Custom`), only the first is emitted to avoid duplicate property errors. Access duplicates via `App._internal`:
+
+```typescript
+// First Custom wins in flat namespace
+App.Custom  // → Mood.Custom
+
+// Access second via _internal
+const { ColorWheelSpec } = App._internal as any;
+ColorWheelSpec.Harmony.create_Custom()
+```

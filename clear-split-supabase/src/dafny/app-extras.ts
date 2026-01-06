@@ -1,11 +1,11 @@
 // App-specific convenience wrappers for clear-split-supabase
-// This file adds aliases and helpers on top of the generated app.js
+// This file adds aliases and helpers on top of the generated app.ts
 
-import GeneratedApp from './app.js';
+import GeneratedApp from './app.ts';
 
 // Helper to convert seq to array
-const seqToArray = (seq) => {
-  const arr = [];
+const seqToArray = <T>(seq: any): T[] => {
+  const arr: T[] = [];
   for (let i = 0; i < seq.length; i++) {
     arr.push(seq[i]);
   }
@@ -13,14 +13,14 @@ const seqToArray = (seq) => {
 };
 
 // Helper to convert Dafny string to JS string
-const dafnyStringToJs = (seq) => {
+const dafnyStringToJs = (seq: any): string => {
   if (typeof seq === 'string') return seq;
   if (seq.toVerbatimString) return seq.toVerbatimString(false);
   return Array.from(seq).join('');
 };
 
 // Helper to convert BigNumber to JS number
-const toNumber = (bn) => {
+const toNumber = (bn: any): number => {
   if (bn && typeof bn.toNumber === 'function') {
     return bn.toNumber();
   }
@@ -35,7 +35,7 @@ const App = {
   // ClientState extras (ClientModel, ClientVersion, PendingCount inherited)
   // -------------------------------------------------------------------------
 
-  GetPendingActions: (client) => {
+  GetPendingActions: (client: any) => {
     return seqToArray(client.dtor_pending);
   },
 
@@ -46,9 +46,9 @@ const App = {
   // -------------------------------------------------------------------------
 
   // Convert verified Dafny Balances map to plain JS object
-  Balances: (m) => {
+  Balances: (m: any) => {
     const dafnyBalances = GeneratedApp.Balances(m);
-    const result = {};
+    const result: Record<string, number> = {};
     if (dafnyBalances && dafnyBalances.Keys) {
       for (const k of dafnyBalances.Keys.Elements) {
         result[dafnyStringToJs(k)] = toNumber(dafnyBalances.get(k));
@@ -64,38 +64,38 @@ const App = {
   // JSON-accepting wrappers
   // -------------------------------------------------------------------------
 
-  InitClient: (version, modelJson) =>
+  InitClient: (version: number, modelJson: any) =>
     GeneratedApp.InitClient(version, GeneratedApp.modelFromJson(modelJson)),
 
-  LocalDispatch: (client, action) =>
+  LocalDispatch: (client: any, action: any) =>
     GeneratedApp.ClientLocalDispatch(client, action),
 
-  HandleRealtimeUpdate: (client, serverVersion, serverModelJson) =>
+  HandleRealtimeUpdate: (client: any, serverVersion: number, serverModelJson: any) =>
     GeneratedApp.HandleRealtimeUpdate(client, serverVersion, GeneratedApp.modelFromJson(serverModelJson)),
 
-  ClientAcceptReply: (client, newVersion, newPresentJson) =>
+  ClientAcceptReply: (client: any, newVersion: number, newPresentJson: any) =>
     GeneratedApp.ClientAcceptReply(client, newVersion, GeneratedApp.modelFromJson(newPresentJson)),
 
   // -------------------------------------------------------------------------
   // Effect State Machine - JSON-accepting wrappers
   // -------------------------------------------------------------------------
 
-  EffectInit: (version, modelJson) =>
+  EffectInit: (version: number, modelJson: any) =>
     GeneratedApp.EffectInit(version, GeneratedApp.modelFromJson(modelJson)),
 
-  EffectStep: (effectState, event) => {
+  EffectStep: (effectState: any, event: any) => {
     const result = GeneratedApp.EffectStep(effectState, event);
     return [result[0], result[1]];
   },
 
   // Event constructors - JSON-accepting variants
   EffectEvent: {
-    UserAction: (action) => GeneratedApp.EffectUserAction(action),
-    DispatchAccepted: (version, modelJson) =>
+    UserAction: (action: any) => GeneratedApp.EffectUserAction(action),
+    DispatchAccepted: (version: number, modelJson: any) =>
       GeneratedApp.EffectDispatchAccepted(version, GeneratedApp.modelFromJson(modelJson)),
-    DispatchConflict: (version, modelJson) =>
+    DispatchConflict: (version: number, modelJson: any) =>
       GeneratedApp.EffectDispatchConflict(version, GeneratedApp.modelFromJson(modelJson)),
-    DispatchRejected: (version, modelJson) =>
+    DispatchRejected: (version: number, modelJson: any) =>
       GeneratedApp.EffectDispatchRejected(version, GeneratedApp.modelFromJson(modelJson)),
     NetworkError: () => GeneratedApp.EffectNetworkError(),
     NetworkRestored: () => GeneratedApp.EffectNetworkRestored(),
@@ -106,21 +106,21 @@ const App = {
 
   // Command inspection
   EffectCommand: {
-    isNoOp: (cmd) => GeneratedApp.EffectIsNoOp(cmd),
-    isSendDispatch: (cmd) => GeneratedApp.EffectIsSendDispatch(cmd),
-    getBaseVersion: (cmd) => GeneratedApp.EffectGetBaseVersion(cmd),
-    getAction: (cmd) => GeneratedApp.EffectGetAction(cmd),
+    isNoOp: (cmd: any) => GeneratedApp.EffectIsNoOp(cmd),
+    isSendDispatch: (cmd: any) => GeneratedApp.EffectIsSendDispatch(cmd),
+    getBaseVersion: (cmd: any) => GeneratedApp.EffectGetBaseVersion(cmd),
+    getAction: (cmd: any) => GeneratedApp.EffectGetAction(cmd),
   },
 
   // EffectState accessors
   EffectState: {
-    getClient: (es) => GeneratedApp.EffectGetClient(es),
-    getServerVersion: (es) => GeneratedApp.EffectGetServerVersion(es),
-    isOnline: (es) => GeneratedApp.EffectIsOnline(es),
-    isIdle: (es) => GeneratedApp.EffectIsIdle(es),
-    isDispatching: (es) => es.dtor_mode.is_Dispatching,
-    hasPending: (es) => GeneratedApp.EffectHasPending(es),
-    getPendingCount: (es) => GeneratedApp.EffectPendingCount(es),
+    getClient: (es: any) => GeneratedApp.EffectGetClient(es),
+    getServerVersion: (es: any) => GeneratedApp.EffectGetServerVersion(es),
+    isOnline: (es: any) => GeneratedApp.EffectIsOnline(es),
+    isIdle: (es: any) => GeneratedApp.EffectIsIdle(es),
+    isDispatching: (es: any) => es.dtor_mode.is_Dispatching,
+    hasPending: (es: any) => GeneratedApp.EffectHasPending(es),
+    getPendingCount: (es: any) => GeneratedApp.EffectPendingCount(es),
   },
 };
 

@@ -6351,6 +6351,261 @@ const dafnyStringToJs = (seq: any): string => {
 
 
 // ============================================================================
+// TypeScript Type Definitions (JSON representation)
+// ============================================================================
+
+export type Option<T> =
+  | { type: 'None' }
+  | { type: 'Some'; value: unknown };
+
+export interface Date {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export interface Task {
+  title: string;
+  notes: string;
+  completed: boolean;
+  starred: boolean;
+  dueDate: Option<Date>;
+  assignees: string[];
+  tags: number[];
+  deleted: boolean;
+  deletedBy: Option<string>;
+  deletedFromList: Option<number>;
+}
+
+export interface Tag {
+  name: string;
+}
+
+export type ProjectMode = 'Personal' | 'Collaborative';
+
+export interface Model {
+  mode: ProjectMode;
+  owner: string;
+  members: string[];
+  lists: number[];
+  listNames: Record<string, string>;
+  tasks: Record<string, number[]>;
+  taskData: Record<string, Task>;
+  tags: Record<string, Tag>;
+  nextListId: number;
+  nextTaskId: number;
+  nextTagId: number;
+}
+
+export type Err = 'MissingList' | 'MissingTask' | 'MissingTag' | 'MissingUser' | 'DuplicateList' | 'DuplicateTask' | 'DuplicateTag' | 'BadAnchor' | 'NotAMember' | 'PersonalProject' | 'AlreadyCollaborative' | 'CannotRemoveOwner' | 'TaskDeleted' | 'InvalidDate' | 'Rejected';
+
+export type Place =
+  | { type: 'AtEnd' }
+  | { type: 'Before'; anchor: number }
+  | { type: 'After'; anchor: number };
+
+export type ListPlace =
+  | { type: 'ListAtEnd' }
+  | { type: 'ListBefore'; anchor: number }
+  | { type: 'ListAfter'; anchor: number };
+
+export type Action =
+  | { type: 'NoOp' }
+  | { type: 'AddList'; name: string }
+  | { type: 'RenameList'; listId: number; newName: string }
+  | { type: 'DeleteList'; listId: number }
+  | { type: 'MoveList'; listId: number; listPlace: ListPlace }
+  | { type: 'AddTask'; listId: number; title: string }
+  | { type: 'EditTask'; taskId: number; title: string; notes: string }
+  | { type: 'DeleteTask'; taskId: number; userId: string }
+  | { type: 'RestoreTask'; taskId: number }
+  | { type: 'MoveTask'; taskId: number; toList: number; taskPlace: Place }
+  | { type: 'CompleteTask'; taskId: number }
+  | { type: 'UncompleteTask'; taskId: number }
+  | { type: 'StarTask'; taskId: number }
+  | { type: 'UnstarTask'; taskId: number }
+  | { type: 'SetDueDate'; taskId: number; dueDate: Option<Date> }
+  | { type: 'AssignTask'; taskId: number; userId: string }
+  | { type: 'UnassignTask'; taskId: number; userId: string }
+  | { type: 'AddTagToTask'; taskId: number; tagId: number }
+  | { type: 'RemoveTagFromTask'; taskId: number; tagId: number }
+  | { type: 'CreateTag'; name: string }
+  | { type: 'RenameTag'; tagId: number; newName: string }
+  | { type: 'DeleteTag'; tagId: number }
+  | { type: 'MakeCollaborative' }
+  | { type: 'AddMember'; userId: string }
+  | { type: 'RemoveMember'; userId: string };
+
+export type ViewMode = 'SingleProject' | 'AllProjects';
+
+export type SmartListType = 'Priority' | 'Logbook';
+
+export type Result<T, E> =
+  | { type: 'Ok'; value: unknown }
+  | { type: 'Err'; error: unknown };
+
+export type MultiAction =
+  | { type: 'Single'; project: string; action: Action }
+  | { type: 'MoveTaskTo'; srcProject: string; dstProject: string; taskId: number; dstList: number; anchor: Place }
+  | { type: 'CopyTaskTo'; srcProject: string; dstProject: string; taskId: number; dstList: number }
+  | { type: 'MoveListTo'; srcProject: string; dstProject: string; listId: number };
+
+export interface MultiModel {
+  projects: Record<string, Model>;
+}
+
+export type MultiErr =
+  | { type: 'MissingProject'; projectId: string }
+  | { type: 'SingleProjectError'; projectId: string; err: Err }
+  | { type: 'CrossProjectError'; message: string };
+
+export interface MultiClientState {
+  baseVersions: Record<string, number>;
+  present: MultiModel;
+  pending: MultiAction[];
+}
+
+export type NetworkStatus = 'Online' | 'Offline';
+
+export type EffectMode =
+  | { type: 'Idle' }
+  | { type: 'Dispatching'; retries: number };
+
+export interface EffectState {
+  network: NetworkStatus;
+  mode: EffectMode;
+  client: MultiClientState;
+}
+
+export type Event =
+  | { type: 'UserAction'; action: MultiAction }
+  | { type: 'DispatchAccepted'; newVersions: Record<string, number>; newModels: Record<string, Model> }
+  | { type: 'DispatchConflict'; freshVersions: Record<string, number>; freshModels: Record<string, Model> }
+  | { type: 'DispatchRejected'; freshVersions: Record<string, number>; freshModels: Record<string, Model> }
+  | { type: 'RealtimeUpdate'; projectId: string; version: number; model: Model }
+  | { type: 'NetworkError' }
+  | { type: 'NetworkRestored' }
+  | { type: 'ManualGoOffline' }
+  | { type: 'ManualGoOnline' }
+  | { type: 'Tick' };
+
+export type Command =
+  | { type: 'NoOp' }
+  | { type: 'SendDispatch'; touchedProjects: string[]; baseVersions: Record<string, number>; action: MultiAction }
+  | { type: 'FetchFreshState'; projects: string[] };
+
+// ============================================================================
+// Dafny Runtime Types (actual Dafny runtime object shapes)
+// ============================================================================
+
+// Base Dafny runtime types
+type DafnyInt = InstanceType<typeof BigNumber>;
+interface DafnySeq<T = unknown> {
+  readonly length: number;
+  readonly [index: number]: T;
+  toVerbatimString?(asLiteral: boolean): string;
+  map<U>(fn: (x: T) => U): U[];
+}
+interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }
+interface DafnyMap<K = unknown, V = unknown> {
+  readonly Keys: DafnySet<K>;
+  get(key: K): V;
+  contains(key: K): boolean;
+}
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
+type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
+
+type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
+
+interface DafnyDate {
+  readonly is_Date: true;
+  readonly dtor_year: DafnyInt;
+  readonly dtor_month: DafnyInt;
+  readonly dtor_day: DafnyInt;
+}
+
+interface DafnyTask {
+  readonly is_Task: true;
+  readonly dtor_title: DafnySeq;
+  readonly dtor_notes: DafnySeq;
+  readonly dtor_completed: boolean;
+  readonly dtor_starred: boolean;
+  readonly dtor_dueDate: DafnyOption<DafnyDate>;
+  readonly dtor_assignees: DafnySet<DafnySeq>;
+  readonly dtor_tags: DafnySet<DafnyInt>;
+  readonly dtor_deleted: boolean;
+  readonly dtor_deletedBy: DafnyOption<DafnySeq>;
+  readonly dtor_deletedFromList: DafnyOption<DafnyInt>;
+}
+
+interface DafnyTag {
+  readonly is_Tag: true;
+  readonly dtor_name: DafnySeq;
+}
+
+type DafnyProjectMode = { readonly is_Personal: true; readonly is_Collaborative: false } | { readonly is_Personal: false; readonly is_Collaborative: true };
+
+interface DafnyModel {
+  readonly is_Model: true;
+  readonly dtor_mode: DafnyProjectMode;
+  readonly dtor_owner: DafnySeq;
+  readonly dtor_members: DafnySet<DafnySeq>;
+  readonly dtor_lists: DafnySeq<DafnyInt>;
+  readonly dtor_listNames: DafnyMap<DafnyInt, DafnySeq>;
+  readonly dtor_tasks: DafnyMap<DafnyInt, DafnySeq<DafnyInt>>;
+  readonly dtor_taskData: DafnyMap<DafnyInt, DafnyTask>;
+  readonly dtor_tags: DafnyMap<DafnyInt, DafnyTag>;
+  readonly dtor_nextListId: DafnyInt;
+  readonly dtor_nextTaskId: DafnyInt;
+  readonly dtor_nextTagId: DafnyInt;
+}
+
+type DafnyErr = { readonly is_MissingList: true; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: true; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: true; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: true; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: true; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: true; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: true; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: true; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: true; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: true; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: true; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: true; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: true; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: true; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: true };
+
+type DafnyPlace = { readonly is_AtEnd: true; readonly is_Before: false; readonly is_After: false } | { readonly is_AtEnd: false; readonly is_Before: true; readonly is_After: false; readonly dtor_anchor: DafnyInt } | { readonly is_AtEnd: false; readonly is_Before: false; readonly is_After: true; readonly dtor_anchor: DafnyInt };
+
+type DafnyListPlace = { readonly is_ListAtEnd: true; readonly is_ListBefore: false; readonly is_ListAfter: false } | { readonly is_ListAtEnd: false; readonly is_ListBefore: true; readonly is_ListAfter: false; readonly dtor_anchor: DafnyInt } | { readonly is_ListAtEnd: false; readonly is_ListBefore: false; readonly is_ListAfter: true; readonly dtor_anchor: DafnyInt };
+
+type DafnyAction = { readonly is_NoOp: true; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false } | { readonly is_NoOp: false; readonly is_AddList: true; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_name: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: true; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_newName: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: true; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: true; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_listPlace: DafnyListPlace } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: true; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_title: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: true; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_title: DafnySeq; readonly dtor_notes: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: true; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: true; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: true; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_toList: DafnyInt; readonly dtor_taskPlace: DafnyPlace } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: true; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: true; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: true; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: true; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: true; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_dueDate: DafnyOption<DafnyDate> } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: true; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: true; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: true; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: true; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: true; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_name: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: true; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_tagId: DafnyInt; readonly dtor_newName: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: true; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: true; readonly is_AddMember: false; readonly is_RemoveMember: false } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: true; readonly is_RemoveMember: false; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: true; readonly dtor_userId: DafnySeq };
+
+type DafnyViewMode = { readonly is_SingleProject: true; readonly is_AllProjects: false } | { readonly is_SingleProject: false; readonly is_AllProjects: true };
+
+type DafnySmartListType = { readonly is_Priority: true; readonly is_Logbook: false } | { readonly is_Priority: false; readonly is_Logbook: true };
+
+type DafnyResult<T, E> = { readonly is_Ok: true; readonly is_Err: false; readonly dtor_value: T } | { readonly is_Ok: false; readonly is_Err: true; readonly dtor_error: E };
+
+type DafnyMultiAction = { readonly is_Single: true; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: false; readonly is_MoveListTo: false; readonly dtor_project: DafnySeq; readonly dtor_action: DafnyAction } | { readonly is_Single: false; readonly is_MoveTaskTo: true; readonly is_CopyTaskTo: false; readonly is_MoveListTo: false; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_taskId: DafnyInt; readonly dtor_dstList: DafnyInt; readonly dtor_anchor: DafnyPlace } | { readonly is_Single: false; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: true; readonly is_MoveListTo: false; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_taskId: DafnyInt; readonly dtor_dstList: DafnyInt } | { readonly is_Single: false; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: false; readonly is_MoveListTo: true; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_listId: DafnyInt };
+
+interface DafnyMultiModel {
+  readonly is_MultiModel: true;
+  readonly dtor_projects: DafnyMap<DafnySeq, DafnyModel>;
+}
+
+type DafnyMultiErr = { readonly is_MissingProject: true; readonly is_SingleProjectError: false; readonly is_CrossProjectError: false; readonly dtor_projectId: DafnySeq } | { readonly is_MissingProject: false; readonly is_SingleProjectError: true; readonly is_CrossProjectError: false; readonly dtor_projectId: DafnySeq; readonly dtor_err: DafnyErr } | { readonly is_MissingProject: false; readonly is_SingleProjectError: false; readonly is_CrossProjectError: true; readonly dtor_message: DafnySeq };
+
+interface DafnyMultiClientState {
+  readonly is_MultiClientState: true;
+  readonly dtor_baseVersions: DafnyMap<DafnySeq, DafnyInt>;
+  readonly dtor_present: DafnyMultiModel;
+  readonly dtor_pending: DafnySeq<DafnyMultiAction>;
+}
+
+type DafnyNetworkStatus = { readonly is_Online: true; readonly is_Offline: false } | { readonly is_Online: false; readonly is_Offline: true };
+
+type DafnyEffectMode = { readonly is_Idle: true; readonly is_Dispatching: false } | { readonly is_Idle: false; readonly is_Dispatching: true; readonly dtor_retries: DafnyInt };
+
+interface DafnyEffectState {
+  readonly is_EffectState: true;
+  readonly dtor_network: DafnyNetworkStatus;
+  readonly dtor_mode: DafnyEffectMode;
+  readonly dtor_client: DafnyMultiClientState;
+}
+
+type DafnyEvent = { readonly is_UserAction: true; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_action: DafnyMultiAction } | { readonly is_UserAction: false; readonly is_DispatchAccepted: true; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_newVersions: DafnyMap<DafnySeq, DafnyInt>; readonly dtor_newModels: DafnyMap<DafnySeq, DafnyModel> } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: true; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersions: DafnyMap<DafnySeq, DafnyInt>; readonly dtor_freshModels: DafnyMap<DafnySeq, DafnyModel> } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: true; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersions: DafnyMap<DafnySeq, DafnyInt>; readonly dtor_freshModels: DafnyMap<DafnySeq, DafnyModel> } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: true; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_projectId: DafnySeq; readonly dtor_version: DafnyInt; readonly dtor_model: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: true; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: true; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: true; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: true; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_RealtimeUpdate: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: true };
+
+type DafnyCommand = { readonly is_NoOp: true; readonly is_SendDispatch: false; readonly is_FetchFreshState: false } | { readonly is_NoOp: false; readonly is_SendDispatch: true; readonly is_FetchFreshState: false; readonly dtor_touchedProjects: DafnySet<DafnySeq>; readonly dtor_baseVersions: DafnyMap<DafnySeq, DafnyInt>; readonly dtor_action: DafnyMultiAction } | { readonly is_NoOp: false; readonly is_SendDispatch: false; readonly is_FetchFreshState: true; readonly dtor_projects: DafnySet<DafnySeq> };
+
+// ============================================================================
 // Null-Option Preprocessing (for DB compatibility)
 // ============================================================================
 
@@ -6391,7 +6646,7 @@ const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = (json, T_fromJson): any => {
+const optionFromJson = <T>(json: any, T_fromJson: (x: any) => T): DafnyOption<T> => {
   // Handle null/undefined (DB compatibility with --null-options)
   if (json === null || json === undefined) {
     return TodoDomain.Option.create_None();
@@ -6415,7 +6670,7 @@ const optionFromJson = (json, T_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionToJson = (value, T_toJson): any => {
+const optionToJson = <T>(value: any, T_toJson: (x: any) => any): Option<T> => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
@@ -6424,11 +6679,11 @@ const optionToJson = (value, T_toJson): any => {
       value: T_toJson(value.dtor_value)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Option variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const dateFromJson = (json): any => {
+const dateFromJson = (json: any): DafnyDate => {
   return TodoDomain.Date.create_Date(
     new BigNumber(json.year),
     new BigNumber(json.month),
@@ -6437,7 +6692,7 @@ const dateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const dateToJson = (value): any => {
+const dateToJson = (value: any): Date => {
   return {
     year: toNumber(value.dtor_year),
     month: toNumber(value.dtor_month),
@@ -6446,31 +6701,31 @@ const dateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const taskFromJson = (json): any => {
+const taskFromJson = (json: any): DafnyTask => {
   return TodoDomain.Task.create_Task(
     _dafny.Seq.UnicodeFromString(json.title),
     _dafny.Seq.UnicodeFromString(json.notes),
     json.completed,
     json.starred,
     optionFromJson(json.dueDate, dateFromJson),
-    _dafny.Set.fromElements(...(json.assignees || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Set.fromElements(...(json.tags || []).map(x => new BigNumber(x))),
+    _dafny.Set.fromElements(...(json.assignees || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Set.fromElements(...(json.tags || []).map((x: any) => new BigNumber(x))),
     json.deleted,
-    optionFromJson(json.deletedBy, (x) => _dafny.Seq.UnicodeFromString(x)),
-    optionFromJson(json.deletedFromList, (x) => new BigNumber(x))
+    optionFromJson(json.deletedBy, (x: any) => _dafny.Seq.UnicodeFromString(x)),
+    optionFromJson(json.deletedFromList, (x: any) => new BigNumber(x))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const taskToJson = (value): any => {
+const taskToJson = (value: any): Task => {
   return {
     title: dafnyStringToJs(value.dtor_title),
     notes: dafnyStringToJs(value.dtor_notes),
     completed: value.dtor_completed,
     starred: value.dtor_starred,
     dueDate: optionToJson(value.dtor_dueDate, dateToJson),
-    assignees: Array.from(value.dtor_assignees.Elements).map(x => dafnyStringToJs(x)),
-    tags: Array.from(value.dtor_tags.Elements).map(x => toNumber(x)),
+    assignees: Array.from(value.dtor_assignees.Elements).map((x: any) => dafnyStringToJs(x)),
+    tags: Array.from(value.dtor_tags.Elements).map((x: any) => toNumber(x)),
     deleted: value.dtor_deleted,
     deletedBy: optionToJson(value.dtor_deletedBy, dafnyStringToJs),
     deletedFromList: optionToJson(value.dtor_deletedFromList, toNumber)
@@ -6478,21 +6733,21 @@ const taskToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const tagFromJson = (json): any => {
+const tagFromJson = (json: any): DafnyTag => {
   return TodoDomain.Tag.create_Tag(
     _dafny.Seq.UnicodeFromString(json.name)
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const tagToJson = (value): any => {
+const tagToJson = (value: any): Tag => {
   return {
     name: dafnyStringToJs(value.dtor_name)
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeFromJson = (json): any => {
+const projectmodeFromJson = (json: any): DafnyProjectMode => {
   switch (json) {
     case 'Personal':
       return TodoDomain.ProjectMode.create_Personal();
@@ -6504,37 +6759,37 @@ const projectmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeToJson = (value): any => {
+const projectmodeToJson = (value: any): ProjectMode => {
   if (value.is_Personal) {
     return 'Personal';
   } else if (value.is_Collaborative) {
     return 'Collaborative';
   }
-  return 'Unknown';
+  throw new Error('Unknown ProjectMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json): any => {
+const modelFromJson = (json: any): DafnyModel => {
   let __listNames = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.listNames || {})) {
+  for (const [k, v] of (Object.entries(json.listNames || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = _dafny.Seq.UnicodeFromString(v);
     __listNames = __listNames.update(key, val);
   }
   let __tasks = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.tasks || {})) {
+  for (const [k, v] of (Object.entries(json.tasks || {}) as [string, any][])) {
     const key = new BigNumber(k);
-    const val = _dafny.Seq.of(...(v || []).map(x => new BigNumber(x)));
+    const val = _dafny.Seq.of(...(v || []).map((x: any) => new BigNumber(x)));
     __tasks = __tasks.update(key, val);
   }
   let __taskData = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.taskData || {})) {
+  for (const [k, v] of (Object.entries(json.taskData || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = taskFromJson(v);
     __taskData = __taskData.update(key, val);
   }
   let __tags = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.tags || {})) {
+  for (const [k, v] of (Object.entries(json.tags || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = tagFromJson(v);
     __tags = __tags.update(key, val);
@@ -6542,8 +6797,8 @@ const modelFromJson = (json): any => {
   return TodoDomain.Model.create_Model(
     projectmodeFromJson(json.mode),
     _dafny.Seq.UnicodeFromString(json.owner),
-    _dafny.Set.fromElements(...(json.members || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Seq.of(...(json.lists || []).map(x => new BigNumber(x))),
+    _dafny.Set.fromElements(...(json.members || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Seq.of(...(json.lists || []).map((x: any) => new BigNumber(x))),
     __listNames,
     __tasks,
     __taskData,
@@ -6555,29 +6810,29 @@ const modelFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value): any => {
-  const __listNamesJson = {};
+const modelToJson = (value: any): Model => {
+  const __listNamesJson: Record<string, any> = {};
   if (value.dtor_listNames && value.dtor_listNames.Keys) {
     for (const k of value.dtor_listNames.Keys.Elements) {
       const v = value.dtor_listNames.get(k);
       __listNamesJson[toNumber(k)] = dafnyStringToJs(v);
     }
   }
-  const __tasksJson = {};
+  const __tasksJson: Record<string, any> = {};
   if (value.dtor_tasks && value.dtor_tasks.Keys) {
     for (const k of value.dtor_tasks.Keys.Elements) {
       const v = value.dtor_tasks.get(k);
-      __tasksJson[toNumber(k)] = seqToArray(v).map(x => toNumber(x));
+      __tasksJson[toNumber(k)] = seqToArray(v).map((x: any) => toNumber(x));
     }
   }
-  const __taskDataJson = {};
+  const __taskDataJson: Record<string, any> = {};
   if (value.dtor_taskData && value.dtor_taskData.Keys) {
     for (const k of value.dtor_taskData.Keys.Elements) {
       const v = value.dtor_taskData.get(k);
       __taskDataJson[toNumber(k)] = taskToJson(v);
     }
   }
-  const __tagsJson = {};
+  const __tagsJson: Record<string, any> = {};
   if (value.dtor_tags && value.dtor_tags.Keys) {
     for (const k of value.dtor_tags.Keys.Elements) {
       const v = value.dtor_tags.get(k);
@@ -6587,8 +6842,8 @@ const modelToJson = (value): any => {
   return {
     mode: projectmodeToJson(value.dtor_mode),
     owner: dafnyStringToJs(value.dtor_owner),
-    members: Array.from(value.dtor_members.Elements).map(x => dafnyStringToJs(x)),
-    lists: seqToArray(value.dtor_lists).map(x => toNumber(x)),
+    members: Array.from(value.dtor_members.Elements).map((x: any) => dafnyStringToJs(x)),
+    lists: seqToArray(value.dtor_lists).map((x: any) => toNumber(x)),
     listNames: __listNamesJson,
     tasks: __tasksJson,
     taskData: __taskDataJson,
@@ -6600,7 +6855,7 @@ const modelToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json): any => {
+const errFromJson = (json: any): DafnyErr => {
   switch (json) {
     case 'MissingList':
       return TodoDomain.Err.create_MissingList();
@@ -6638,7 +6893,7 @@ const errFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value): any => {
+const errToJson = (value: any): Err => {
   if (value.is_MissingList) {
     return 'MissingList';
   } else if (value.is_MissingTask) {
@@ -6670,11 +6925,11 @@ const errToJson = (value): any => {
   } else if (value.is_Rejected) {
     return 'Rejected';
   }
-  return 'Unknown';
+  throw new Error('Unknown Err variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json): any => {
+const placeFromJson = (json: any): DafnyPlace => {
   switch (json.type) {
     case 'AtEnd': {
       return TodoDomain.Place.create_AtEnd();
@@ -6695,7 +6950,7 @@ const placeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeToJson = (value): any => {
+const placeToJson = (value: any): Place => {
   if (value.is_AtEnd) {
     return { type: 'AtEnd' };
   } else if (value.is_Before) {
@@ -6709,11 +6964,11 @@ const placeToJson = (value): any => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Place variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceFromJson = (json): any => {
+const listplaceFromJson = (json: any): DafnyListPlace => {
   switch (json.type) {
     case 'ListAtEnd': {
       return TodoDomain.ListPlace.create_ListAtEnd();
@@ -6734,7 +6989,7 @@ const listplaceFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceToJson = (value): any => {
+const listplaceToJson = (value: any): ListPlace => {
   if (value.is_ListAtEnd) {
     return { type: 'ListAtEnd' };
   } else if (value.is_ListBefore) {
@@ -6748,11 +7003,11 @@ const listplaceToJson = (value): any => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown ListPlace variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json): any => {
+const actionFromJson = (json: any): DafnyAction => {
   switch (json.type) {
     case 'NoOp': {
       return TodoDomain.Action.create_NoOp();
@@ -6895,7 +7150,7 @@ const actionFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value): any => {
+const actionToJson = (value: any): Action => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_AddList) {
@@ -7030,11 +7285,11 @@ const actionToJson = (value): any => {
       userId: dafnyStringToJs(value.dtor_userId)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Action variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeFromJson = (json): any => {
+const viewmodeFromJson = (json: any): DafnyViewMode => {
   switch (json) {
     case 'SingleProject':
       return TodoDomain.ViewMode.create_SingleProject();
@@ -7046,17 +7301,17 @@ const viewmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeToJson = (value): any => {
+const viewmodeToJson = (value: any): ViewMode => {
   if (value.is_SingleProject) {
     return 'SingleProject';
   } else if (value.is_AllProjects) {
     return 'AllProjects';
   }
-  return 'Unknown';
+  throw new Error('Unknown ViewMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeFromJson = (json): any => {
+const smartlisttypeFromJson = (json: any): DafnySmartListType => {
   switch (json) {
     case 'Priority':
       return TodoDomain.SmartListType.create_Priority();
@@ -7068,17 +7323,17 @@ const smartlisttypeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeToJson = (value): any => {
+const smartlisttypeToJson = (value: any): SmartListType => {
   if (value.is_Priority) {
     return 'Priority';
   } else if (value.is_Logbook) {
     return 'Logbook';
   }
-  return 'Unknown';
+  throw new Error('Unknown SmartListType variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json, T_fromJson, E_fromJson): any => {
+const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): DafnyResult<T, E> => {
   switch (json.type) {
     case 'Ok': {
       return TodoDomain.Result.create_Ok(
@@ -7096,7 +7351,7 @@ const resultFromJson = (json, T_fromJson, E_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value, T_toJson, E_toJson): any => {
+const resultToJson = <T, E>(value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): Result<T, E> => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -7108,11 +7363,11 @@ const resultToJson = (value, T_toJson, E_toJson): any => {
       error: E_toJson(value.dtor_error)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Result variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const multiactionFromJson = (json): any => {
+const multiactionFromJson = (json: any): DafnyMultiAction => {
   switch (json.type) {
     case 'Single': {
       return TodoMultiProjectDomain.MultiAction.create_Single(
@@ -7150,7 +7405,7 @@ const multiactionFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const multiactionToJson = (value): any => {
+const multiactionToJson = (value: any): MultiAction => {
   if (value.is_Single) {
     return {
       type: 'Single',
@@ -7182,13 +7437,13 @@ const multiactionToJson = (value): any => {
       listId: toNumber(value.dtor_listId)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown MultiAction variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const multimodelFromJson = (json): any => {
+const multimodelFromJson = (json: any): DafnyMultiModel => {
   let __projects = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.projects || {})) {
+  for (const [k, v] of (Object.entries(json.projects || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
     const val = modelFromJson(v);
     __projects = __projects.update(key, val);
@@ -7199,8 +7454,8 @@ const multimodelFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const multimodelToJson = (value): any => {
-  const __projectsJson = {};
+const multimodelToJson = (value: any): MultiModel => {
+  const __projectsJson: Record<string, any> = {};
   if (value.dtor_projects && value.dtor_projects.Keys) {
     for (const k of value.dtor_projects.Keys.Elements) {
       const v = value.dtor_projects.get(k);
@@ -7213,7 +7468,7 @@ const multimodelToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const multierrFromJson = (json): any => {
+const multierrFromJson = (json: any): DafnyMultiErr => {
   switch (json.type) {
     case 'MissingProject': {
       return TodoMultiProjectDomain.MultiErr.create_MissingProject(
@@ -7237,7 +7492,7 @@ const multierrFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const multierrToJson = (value): any => {
+const multierrToJson = (value: any): MultiErr => {
   if (value.is_MissingProject) {
     return {
       type: 'MissingProject',
@@ -7255,13 +7510,13 @@ const multierrToJson = (value): any => {
       message: dafnyStringToJs(value.dtor_message)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown MultiErr variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const multiclientstateFromJson = (json): any => {
+const multiclientstateFromJson = (json: any): DafnyMultiClientState => {
   let __baseVersions = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.baseVersions || {})) {
+  for (const [k, v] of (Object.entries(json.baseVersions || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
     const val = new BigNumber(v);
     __baseVersions = __baseVersions.update(key, val);
@@ -7269,13 +7524,13 @@ const multiclientstateFromJson = (json): any => {
   return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(
     __baseVersions,
     multimodelFromJson(json.present),
-    _dafny.Seq.of(...(json.pending || []).map(x => multiactionFromJson(x)))
+    _dafny.Seq.of(...(json.pending || []).map((x: any) => multiactionFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const multiclientstateToJson = (value): any => {
-  const __baseVersionsJson = {};
+const multiclientstateToJson = (value: any): MultiClientState => {
+  const __baseVersionsJson: Record<string, any> = {};
   if (value.dtor_baseVersions && value.dtor_baseVersions.Keys) {
     for (const k of value.dtor_baseVersions.Keys.Elements) {
       const v = value.dtor_baseVersions.get(k);
@@ -7285,12 +7540,12 @@ const multiclientstateToJson = (value): any => {
   return {
     baseVersions: __baseVersionsJson,
     present: multimodelToJson(value.dtor_present),
-    pending: seqToArray(value.dtor_pending).map(x => multiactionToJson(x))
+    pending: seqToArray(value.dtor_pending).map((x: any) => multiactionToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusFromJson = (json): any => {
+const networkstatusFromJson = (json: any): DafnyNetworkStatus => {
   switch (json) {
     case 'Online':
       return TodoMultiProjectEffectStateMachine.NetworkStatus.create_Online();
@@ -7302,17 +7557,17 @@ const networkstatusFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusToJson = (value): any => {
+const networkstatusToJson = (value: any): NetworkStatus => {
   if (value.is_Online) {
     return 'Online';
   } else if (value.is_Offline) {
     return 'Offline';
   }
-  return 'Unknown';
+  throw new Error('Unknown NetworkStatus variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeFromJson = (json): any => {
+const effectmodeFromJson = (json: any): DafnyEffectMode => {
   switch (json.type) {
     case 'Idle': {
       return TodoMultiProjectEffectStateMachine.EffectMode.create_Idle();
@@ -7328,7 +7583,7 @@ const effectmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeToJson = (value): any => {
+const effectmodeToJson = (value: any): EffectMode => {
   if (value.is_Idle) {
     return { type: 'Idle' };
   } else if (value.is_Dispatching) {
@@ -7337,11 +7592,11 @@ const effectmodeToJson = (value): any => {
       retries: toNumber(value.dtor_retries)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown EffectMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateFromJson = (json): any => {
+const effectstateFromJson = (json: any): DafnyEffectState => {
   return TodoMultiProjectEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
@@ -7350,7 +7605,7 @@ const effectstateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateToJson = (value): any => {
+const effectstateToJson = (value: any): EffectState => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
@@ -7359,7 +7614,7 @@ const effectstateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventFromJson = (json): any => {
+const eventFromJson = (json: any): DafnyEvent => {
   switch (json.type) {
     case 'UserAction': {
       return TodoMultiProjectEffectStateMachine.Event.create_UserAction(
@@ -7368,13 +7623,13 @@ const eventFromJson = (json): any => {
     }
     case 'DispatchAccepted': {
       let __newVersions = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.newVersions || {})) {
+      for (const [k, v] of (Object.entries(json.newVersions || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = new BigNumber(v);
         __newVersions = __newVersions.update(key, val);
       }
       let __newModels = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.newModels || {})) {
+      for (const [k, v] of (Object.entries(json.newModels || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = modelFromJson(v);
         __newModels = __newModels.update(key, val);
@@ -7386,13 +7641,13 @@ const eventFromJson = (json): any => {
     }
     case 'DispatchConflict': {
       let __freshVersions = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.freshVersions || {})) {
+      for (const [k, v] of (Object.entries(json.freshVersions || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = new BigNumber(v);
         __freshVersions = __freshVersions.update(key, val);
       }
       let __freshModels = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.freshModels || {})) {
+      for (const [k, v] of (Object.entries(json.freshModels || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = modelFromJson(v);
         __freshModels = __freshModels.update(key, val);
@@ -7404,13 +7659,13 @@ const eventFromJson = (json): any => {
     }
     case 'DispatchRejected': {
       let __freshVersions = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.freshVersions || {})) {
+      for (const [k, v] of (Object.entries(json.freshVersions || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = new BigNumber(v);
         __freshVersions = __freshVersions.update(key, val);
       }
       let __freshModels = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.freshModels || {})) {
+      for (const [k, v] of (Object.entries(json.freshModels || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = modelFromJson(v);
         __freshModels = __freshModels.update(key, val);
@@ -7448,21 +7703,21 @@ const eventFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventToJson = (value): any => {
+const eventToJson = (value: any): Event => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
       action: multiactionToJson(value.dtor_action)
     };
   } else if (value.is_DispatchAccepted) {
-    const __newVersionsJson = {};
+    const __newVersionsJson: Record<string, any> = {};
     if (value.dtor_newVersions && value.dtor_newVersions.Keys) {
       for (const k of value.dtor_newVersions.Keys.Elements) {
         const v = value.dtor_newVersions.get(k);
         __newVersionsJson[dafnyStringToJs(k)] = toNumber(v);
       }
     }
-    const __newModelsJson = {};
+    const __newModelsJson: Record<string, any> = {};
     if (value.dtor_newModels && value.dtor_newModels.Keys) {
       for (const k of value.dtor_newModels.Keys.Elements) {
         const v = value.dtor_newModels.get(k);
@@ -7475,14 +7730,14 @@ const eventToJson = (value): any => {
       newModels: __newModelsJson
     };
   } else if (value.is_DispatchConflict) {
-    const __freshVersionsJson = {};
+    const __freshVersionsJson: Record<string, any> = {};
     if (value.dtor_freshVersions && value.dtor_freshVersions.Keys) {
       for (const k of value.dtor_freshVersions.Keys.Elements) {
         const v = value.dtor_freshVersions.get(k);
         __freshVersionsJson[dafnyStringToJs(k)] = toNumber(v);
       }
     }
-    const __freshModelsJson = {};
+    const __freshModelsJson: Record<string, any> = {};
     if (value.dtor_freshModels && value.dtor_freshModels.Keys) {
       for (const k of value.dtor_freshModels.Keys.Elements) {
         const v = value.dtor_freshModels.get(k);
@@ -7495,14 +7750,14 @@ const eventToJson = (value): any => {
       freshModels: __freshModelsJson
     };
   } else if (value.is_DispatchRejected) {
-    const __freshVersionsJson = {};
+    const __freshVersionsJson: Record<string, any> = {};
     if (value.dtor_freshVersions && value.dtor_freshVersions.Keys) {
       for (const k of value.dtor_freshVersions.Keys.Elements) {
         const v = value.dtor_freshVersions.get(k);
         __freshVersionsJson[dafnyStringToJs(k)] = toNumber(v);
       }
     }
-    const __freshModelsJson = {};
+    const __freshModelsJson: Record<string, any> = {};
     if (value.dtor_freshModels && value.dtor_freshModels.Keys) {
       for (const k of value.dtor_freshModels.Keys.Elements) {
         const v = value.dtor_freshModels.get(k);
@@ -7532,31 +7787,31 @@ const eventToJson = (value): any => {
   } else if (value.is_Tick) {
     return { type: 'Tick' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Event variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const commandFromJson = (json): any => {
+const commandFromJson = (json: any): DafnyCommand => {
   switch (json.type) {
     case 'NoOp': {
       return TodoMultiProjectEffectStateMachine.Command.create_NoOp();
     }
     case 'SendDispatch': {
       let __baseVersions = _dafny.Map.Empty;
-      for (const [k, v] of Object.entries(json.baseVersions || {})) {
+      for (const [k, v] of (Object.entries(json.baseVersions || {}) as [string, any][])) {
         const key = _dafny.Seq.UnicodeFromString(k);
         const val = new BigNumber(v);
         __baseVersions = __baseVersions.update(key, val);
       }
       return TodoMultiProjectEffectStateMachine.Command.create_SendDispatch(
-        _dafny.Set.fromElements(...(json.touchedProjects || []).map(x => _dafny.Seq.UnicodeFromString(x))),
+        _dafny.Set.fromElements(...(json.touchedProjects || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
         __baseVersions,
         multiactionFromJson(json.action)
       );
     }
     case 'FetchFreshState': {
       return TodoMultiProjectEffectStateMachine.Command.create_FetchFreshState(
-        _dafny.Set.fromElements(...(json.projects || []).map(x => _dafny.Seq.UnicodeFromString(x)))
+        _dafny.Set.fromElements(...(json.projects || []).map((x: any) => _dafny.Seq.UnicodeFromString(x)))
       );
     }
     default:
@@ -7565,11 +7820,11 @@ const commandFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandToJson = (value): any => {
+const commandToJson = (value: any): Command => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {
-    const __baseVersionsJson = {};
+    const __baseVersionsJson: Record<string, any> = {};
     if (value.dtor_baseVersions && value.dtor_baseVersions.Keys) {
       for (const k of value.dtor_baseVersions.Keys.Elements) {
         const v = value.dtor_baseVersions.get(k);
@@ -7578,17 +7833,17 @@ const commandToJson = (value): any => {
     }
     return {
       type: 'SendDispatch',
-      touchedProjects: Array.from(value.dtor_touchedProjects.Elements).map(x => dafnyStringToJs(x)),
+      touchedProjects: Array.from(value.dtor_touchedProjects.Elements).map((x: any) => dafnyStringToJs(x)),
       baseVersions: __baseVersionsJson,
       action: multiactionToJson(value.dtor_action)
     };
   } else if (value.is_FetchFreshState) {
     return {
       type: 'FetchFreshState',
-      projects: Array.from(value.dtor_projects.Elements).map(x => dafnyStringToJs(x))
+      projects: Array.from(value.dtor_projects.Elements).map((x: any) => dafnyStringToJs(x))
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Command variant');
 };
 
 // ============================================================================
