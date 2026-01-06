@@ -206,14 +206,25 @@ Assuming the obligation above:
 
 ---
 
-## What this document does *not* claim
+## How to interpret these guarantees
 
-- That the entire application or deployment is verified
-- That networking, databases, or realtime systems are correct
-- That specifications are themselves correct or complete
+This document draws a **precise boundary** around what is proved and what is not.
 
-What *is* claimed is narrower and stronger:
+**What *is* claimed:**
 
-> **If a domain discharges its obligations, then all kernel theorems apply to the Dafny-generated transition logic, regardless of where that logic executes.**
+> If a concrete domain discharges the stated obligations, then **all kernel theorems apply to the Dafny-generated transition logic**, independent of where that logic executes (CLI, browser, server, or edge function).
 
-This is the core methodological guarantee of `dafny-replay`.
+In particular:
+- invariants proved at the domain level are preserved by kernel transitions,
+- protocol and effect-machine properties hold for the verified state machines,
+- rejection and retry guarantees are exactly those stated by the kernels.
+
+**What is *not* claimed:**
+
+- that the entire application or deployment is verified end-to-end,
+- that networking, databases, realtime delivery, or authentication are correct,
+- that the specifications themselves are complete or free of modeling error.
+
+Verified transition logic may run inside larger unverified systems; the guarantees apply **to the logic itself**, not to the surrounding infrastructure.
+
+This separation is intentional: it keeps the verified core small, reusable, and auditable, while making the trust boundary explicit.
