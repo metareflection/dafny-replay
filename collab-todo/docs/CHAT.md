@@ -2,6 +2,85 @@
 
 ---
 
+# Task Location Navigation in All Tasks View
+
+**Date:** 2026-01-05
+
+## Goal
+
+Add a clickable location indicator to tasks in the "All Tasks" view that shows `[project]/[list]` and navigates to the task's list when clicked.
+
+## Implementation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added `locationPath` and `onNavigateToLocation` props, imported `FolderOpen` icon, render location button |
+| `src/components/tasks/tasks.css` | Added `.task-item__location` styles (22x22px icon button with hover state) |
+| `src/App.jsx` | Updated `AllTasksView` to accept `projects` and `onNavigateToList` props, compute location path, pass navigation callback |
+
+### Design Iterations
+
+| Iteration | Design | Issue |
+|-----------|--------|-------|
+| 1 | Full path text (`Project/List`) in title row | Took too much space |
+| 2 | Full path text right-aligned before controls | Still too much space |
+| 3 | Just "/" character | Too thin/small compared to other icons |
+| 4 | `FolderOpen` icon (12px) | Final - matches other indicator icons |
+
+### Final UI Behavior
+
+| Element | Behavior |
+|---------|----------|
+| Icon | `FolderOpen` at 12px, muted (opacity 0.4) |
+| Hover | Accent color, light background, full opacity |
+| Tooltip | Shows full path: `ProjectName/ListName` |
+| Click | Navigates to the list within the project |
+| Position | Between main content and indicator icons |
+
+### Key Code
+
+**TaskItem.jsx** - Location button:
+```jsx
+{locationPath && (
+  <button
+    className="task-item__location"
+    onClick={(e) => {
+      e.stopPropagation()
+      onNavigateToLocation?.()
+    }}
+    title={locationPath}
+  >
+    <FolderOpen size={12} />
+  </button>
+)}
+```
+
+**App.jsx** - AllTasksView location computation:
+```jsx
+{filteredTasks.map(task => {
+  const project = projects.find(p => p.id === task.projectId)
+  const projectName = project?.name || ''
+  const locationPath = projectName && task.listName
+    ? `${projectName}/${task.listName}`
+    : task.listName
+  return (
+    <TaskItem
+      locationPath={locationPath}
+      onNavigateToLocation={() => onNavigateToList?.(task.projectId, task.listId)}
+      ...
+    />
+  )
+})}
+```
+
+## Build Status
+
+Build passes successfully.
+
+---
+
 # Delete Project Feature
 
 **Date:** 2026-01-05
