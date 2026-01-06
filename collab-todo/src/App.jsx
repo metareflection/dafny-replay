@@ -204,7 +204,7 @@ function TrashView({ tasks, onRestoreTask }) {
   )
 }
 
-function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [] }) {
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [], projects = [], onNavigateToList }) {
   const [sortBy, setSortBy] = useState('created-desc')
   const [selectedUserIds, setSelectedUserIds] = useState([])
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -281,29 +281,34 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
         <EmptyState icon={Circle} message="No tasks match the current filters." />
       ) : (
       <div className="project-view__section">
-        {filteredTasks.map(task => (
-          <TaskItem
-            key={`${task.projectId}-${task.id}`}
-            taskId={task.id}
-            task={task}
-            projectName={task.listName}
-            showProject={true}
-            onComplete={(id, completed) => onCompleteTask(task.projectId, id, completed)}
-            onStar={(id, starred) => onStarTask(task.projectId, id, starred)}
-            onEdit={(id, title, notes) => onEditTask(task.projectId, id, title, notes)}
-            onDelete={(id) => onDeleteTask(task.projectId, id)}
-            onMove={(id, listId) => onMoveTask(task.projectId, id, listId)}
-            availableLists={getAvailableLists(task.projectId)}
-            allTags={getProjectTags(task.projectId)}
-            onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
-            onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
-            onCreateTag={(name) => onCreateTag(task.projectId, name)}
-            onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
-            allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
-            onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
-            onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
-          />
-        ))}
+        {filteredTasks.map(task => {
+          const project = projects.find(p => p.id === task.projectId)
+          const projectName = project?.name || ''
+          const locationPath = projectName && task.listName ? `${projectName}/${task.listName}` : task.listName
+          return (
+            <TaskItem
+              key={`${task.projectId}-${task.id}`}
+              taskId={task.id}
+              task={task}
+              locationPath={locationPath}
+              onNavigateToLocation={() => onNavigateToList?.(task.projectId, task.listId)}
+              onComplete={(id, completed) => onCompleteTask(task.projectId, id, completed)}
+              onStar={(id, starred) => onStarTask(task.projectId, id, starred)}
+              onEdit={(id, title, notes) => onEditTask(task.projectId, id, title, notes)}
+              onDelete={(id) => onDeleteTask(task.projectId, id)}
+              onMove={(id, listId) => onMoveTask(task.projectId, id, listId)}
+              availableLists={getAvailableLists(task.projectId)}
+              allTags={getProjectTags(task.projectId)}
+              onAddTag={(id, tagId) => onAddTag(task.projectId, id, tagId)}
+              onRemoveTag={(id, tagId) => onRemoveTag(task.projectId, id, tagId)}
+              onCreateTag={(name) => onCreateTag(task.projectId, name)}
+              onSetDueDate={(id, date) => onSetDueDate(task.projectId, id, date)}
+              allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
+              onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
+              onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
+            />
+          )
+        })}
       </div>
       )}
     </div>
@@ -953,6 +958,8 @@ function TodoApp({ user, onSignOut }) {
           getProjectMembers={getProjectMembers}
           allProjectTags={allProjectTags}
           allProjectMembers={allProjectMembers}
+          projects={projects}
+          onNavigateToList={handleSelectList}
         />
       )
     }

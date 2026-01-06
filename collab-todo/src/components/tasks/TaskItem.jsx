@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User, FileText } from 'lucide-react'
+import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User, FileText, FolderOpen } from 'lucide-react'
 import { TagPicker } from '../tags'
 import { DueDatePicker } from '../duedate'
 import { MemberPicker } from '../members'
@@ -11,6 +11,8 @@ export function TaskItem({
   taskId,
   projectName,
   showProject = false,
+  locationPath,
+  onNavigateToLocation,
   onComplete,
   onStar,
   onEdit,
@@ -103,9 +105,6 @@ export function TaskItem({
         <div className="task-item__content" onClick={() => setExpanded(!expanded)}>
           <div className="task-item__title-row">
             <span className="task-item__title">{task.title}</span>
-            {showProject && projectName && (
-              <span className="task-item__project">{projectName}</span>
-            )}
           </div>
         </div>
 
@@ -130,6 +129,20 @@ export function TaskItem({
           </div>
         )}
       </div>
+
+      {/* Location path - clickable to navigate */}
+      {locationPath && (
+        <button
+          className="task-item__location"
+          onClick={(e) => {
+            e.stopPropagation()
+            onNavigateToLocation?.()
+          }}
+          title={locationPath}
+        >
+          <FolderOpen size={12} />
+        </button>
+      )}
 
       {/* Meta indicators - always show all icons, highlight set ones in sage */}
       <div className="task-item__indicators">
