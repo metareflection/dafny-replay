@@ -80,6 +80,16 @@ module TodoMultiProjectEffectAppCore {
     E.Event.UserAction(MP.MultiAction.Single(projectId, action))
   }
 
+  // ===========================================================================
+  // Single-Project Query Accessors (for JS interop)
+  // ===========================================================================
+
+  // Get deleted task IDs (for trash view)
+  function GetDeletedTaskIds(m: Model): set<TD.TaskId>
+  {
+    MP.MC.D.GetDeletedTaskIds(m)
+  }
+
   function EffectDispatchAccepted(newVersions: map<ProjectId, nat>, newModels: map<ProjectId, Model>): EffectEvent
   {
     E.Event.DispatchAccepted(newVersions, newModels)

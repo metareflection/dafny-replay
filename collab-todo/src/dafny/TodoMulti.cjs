@@ -2457,6 +2457,20 @@ let TodoDomain = (function() {
         return _coll0;
       }();
     };
+    static GetDeletedTaskIds(m) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && ((((m).dtor_taskData).get(_0_id)).dtor_deleted)) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
     static CountSmartListTasks(m, smartList) {
       return new BigNumber((TodoDomain.__default.GetSmartListTaskIds(m, smartList)).length);
     };

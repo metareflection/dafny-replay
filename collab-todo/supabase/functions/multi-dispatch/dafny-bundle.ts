@@ -2478,6 +2478,20 @@ let TodoDomain = (function() {
         return _coll0;
       }();
     };
+    static GetDeletedTaskIds(m) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((m).dtor_taskData).Keys.Elements) {
+          let _0_id = _compr_0;
+          if (_System.nat._Is(_0_id)) {
+            if ((((m).dtor_taskData).contains(_0_id)) && ((((m).dtor_taskData).get(_0_id)).dtor_deleted)) {
+              _coll0.add(_0_id);
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
     static CountSmartListTasks(m, smartList) {
       return new BigNumber((TodoDomain.__default.GetSmartListTaskIds(m, smartList)).length);
     };
@@ -4674,6 +4688,25 @@ let TodoMultiProjectDomain = (function() {
         return _coll0;
       }();
     };
+    static GetAllDeletedTasks(mm) {
+      return function () {
+        let _coll0 = new _dafny.Set();
+        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+          let _0_pid = _compr_0;
+          if (((mm).dtor_projects).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetDeletedTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+              let _1_tid = _compr_1;
+              if (_System.nat._Is(_1_tid)) {
+                if ((TodoDomain.__default.GetDeletedTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                  _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
+                }
+              }
+            }
+          }
+        }
+        return _coll0;
+      }();
+    };
     static CountAllVisibleTasks(mm) {
       return new BigNumber((TodoMultiProjectDomain.__default.GetAllVisibleTasks(mm)).length);
     };
@@ -6169,6 +6202,9 @@ let TodoMultiProjectEffectAppCore = (function() {
     };
     static EffectSingleUserAction(projectId, action) {
       return TodoMultiProjectEffectStateMachine.Event.create_UserAction(TodoMultiProjectDomain.MultiAction.create_Single(projectId, action));
+    };
+    static GetDeletedTaskIds(m) {
+      return TodoDomain.__default.GetDeletedTaskIds(m);
     };
     static EffectDispatchAccepted(newVersions, newModels) {
       return TodoMultiProjectEffectStateMachine.Event.create_DispatchAccepted(newVersions, newModels);
