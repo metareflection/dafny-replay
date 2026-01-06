@@ -113,7 +113,7 @@ function GroupSelector({ user, onSelectGroup }) {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [user?.id])
 
   const loadData = async () => {
     // Load user's groups with their states for cross-project balances

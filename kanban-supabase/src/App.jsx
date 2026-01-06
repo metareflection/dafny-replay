@@ -278,8 +278,8 @@ function Toast({ message, onClose }) {
 // Project Selector
 // ============================================================================
 
-function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange }) {
-  const { projects, loading, refresh, createProject } = useProjects()
+function ProjectSelector({ currentProjectId, onSelect, onIsOwnerChange, userId }) {
+  const { projects, loading, refresh, createProject } = useProjects(userId)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -536,6 +536,7 @@ function KanbanBoard({ user, onSignOut }) {
             currentProjectId={currentProjectId}
             onSelect={setCurrentProjectId}
             onIsOwnerChange={setIsOwner}
+            userId={user?.id}
           />
           <MembersPanel
             projectId={currentProjectId}
