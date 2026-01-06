@@ -3299,25 +3299,216 @@ const dafnyStringToJs = (seq: any): string => {
 
 
 // ============================================================================
+// TypeScript Type Definitions (JSON representation)
+// ============================================================================
+
+export interface Card {
+  title: string;
+}
+
+export interface Model {
+  cols: string[];
+  lanes: Record<string, number[]>;
+  wip: Record<string, number>;
+  cards: Record<string, Card>;
+  nextId: number;
+}
+
+export type Err = 'MissingColumn' | 'MissingCard' | 'WipExceeded' | 'BadAnchor' | 'Rejected';
+
+export type Option<T> =
+  | { type: 'None' }
+  | { type: 'Some'; value: unknown };
+
+export type Place =
+  | { type: 'AtEnd' }
+  | { type: 'Before'; anchor: number }
+  | { type: 'After'; anchor: number };
+
+export type Action =
+  | { type: 'NoOp' }
+  | { type: 'AddColumn'; col: string; limit: number }
+  | { type: 'SetWip'; col: string; limit: number }
+  | { type: 'AddCard'; col: string; title: string }
+  | { type: 'MoveCard'; id: number; toCol: string; place: Place }
+  | { type: 'EditTitle'; id: number; title: string };
+
+export type Result<T, E> =
+  | { type: 'Ok'; value: unknown }
+  | { type: 'Err'; error: unknown };
+
+export interface RejectReason {
+}
+
+export type Reply =
+  | { type: 'Accepted'; newVersion: number; newPresent: Model; applied: Action; noChange: boolean }
+  | { type: 'Rejected'; reason: RejectReason; rebased: Action };
+
+export type RequestOutcome =
+  | { type: 'AuditAccepted'; applied: Action; noChange: boolean }
+  | { type: 'AuditRejected'; reason: RejectReason; rebased: Action };
+
+export interface RequestRecord {
+  baseVersion: number;
+  orig: Action;
+  rebased: Action;
+  chosen: Action;
+  outcome: RequestOutcome;
+}
+
+export interface ServerState {
+  present: Model;
+  appliedLog: Action[];
+  auditLog: RequestRecord[];
+}
+
+export interface ClientState {
+  baseVersion: number;
+  present: Model;
+  pending: Action[];
+}
+
+export type NetworkStatus = 'Online' | 'Offline';
+
+export type EffectMode =
+  | { type: 'Idle' }
+  | { type: 'Dispatching'; retries: number };
+
+export interface EffectState {
+  network: NetworkStatus;
+  mode: EffectMode;
+  client: ClientState;
+  serverVersion: number;
+}
+
+export type Event =
+  | { type: 'UserAction'; action: Action }
+  | { type: 'DispatchAccepted'; newVersion: number; newModel: Model }
+  | { type: 'DispatchConflict'; freshVersion: number; freshModel: Model }
+  | { type: 'DispatchRejected'; freshVersion: number; freshModel: Model }
+  | { type: 'NetworkError' }
+  | { type: 'NetworkRestored' }
+  | { type: 'ManualGoOffline' }
+  | { type: 'ManualGoOnline' }
+  | { type: 'Tick' };
+
+export type Command =
+  | { type: 'NoOp' }
+  | { type: 'SendDispatch'; baseVersion: number; action: Action }
+  | { type: 'FetchFreshState' };
+
+// ============================================================================
+// Dafny Runtime Types (actual Dafny runtime object shapes)
+// ============================================================================
+
+// Base Dafny runtime types
+type DafnyInt = InstanceType<typeof BigNumber>;
+interface DafnySeq<T = unknown> {
+  readonly length: number;
+  readonly [index: number]: T;
+  toVerbatimString?(asLiteral: boolean): string;
+  map<U>(fn: (x: T) => U): U[];
+}
+interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }
+interface DafnyMap<K = unknown, V = unknown> {
+  readonly Keys: DafnySet<K>;
+  get(key: K): V;
+  contains(key: K): boolean;
+}
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
+type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
+
+interface DafnyCard {
+  readonly is_Card: true;
+  readonly dtor_title: DafnySeq;
+}
+
+interface DafnyModel {
+  readonly is_Model: true;
+  readonly dtor_cols: DafnySeq<DafnySeq>;
+  readonly dtor_lanes: DafnyMap<DafnySeq, DafnySeq<DafnyInt>>;
+  readonly dtor_wip: DafnyMap<DafnySeq, DafnyInt>;
+  readonly dtor_cards: DafnyMap<DafnyInt, DafnyCard>;
+  readonly dtor_nextId: DafnyInt;
+}
+
+type DafnyErr = { readonly is_MissingColumn: true; readonly is_MissingCard: false; readonly is_WipExceeded: false; readonly is_BadAnchor: false; readonly is_Rejected: false } | { readonly is_MissingColumn: false; readonly is_MissingCard: true; readonly is_WipExceeded: false; readonly is_BadAnchor: false; readonly is_Rejected: false } | { readonly is_MissingColumn: false; readonly is_MissingCard: false; readonly is_WipExceeded: true; readonly is_BadAnchor: false; readonly is_Rejected: false } | { readonly is_MissingColumn: false; readonly is_MissingCard: false; readonly is_WipExceeded: false; readonly is_BadAnchor: true; readonly is_Rejected: false } | { readonly is_MissingColumn: false; readonly is_MissingCard: false; readonly is_WipExceeded: false; readonly is_BadAnchor: false; readonly is_Rejected: true };
+
+type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
+
+type DafnyPlace = { readonly is_AtEnd: true; readonly is_Before: false; readonly is_After: false } | { readonly is_AtEnd: false; readonly is_Before: true; readonly is_After: false; readonly dtor_anchor: DafnyInt } | { readonly is_AtEnd: false; readonly is_Before: false; readonly is_After: true; readonly dtor_anchor: DafnyInt };
+
+type DafnyAction = { readonly is_NoOp: true; readonly is_AddColumn: false; readonly is_SetWip: false; readonly is_AddCard: false; readonly is_MoveCard: false; readonly is_EditTitle: false } | { readonly is_NoOp: false; readonly is_AddColumn: true; readonly is_SetWip: false; readonly is_AddCard: false; readonly is_MoveCard: false; readonly is_EditTitle: false; readonly dtor_col: DafnySeq; readonly dtor_limit: DafnyInt } | { readonly is_NoOp: false; readonly is_AddColumn: false; readonly is_SetWip: true; readonly is_AddCard: false; readonly is_MoveCard: false; readonly is_EditTitle: false; readonly dtor_col: DafnySeq; readonly dtor_limit: DafnyInt } | { readonly is_NoOp: false; readonly is_AddColumn: false; readonly is_SetWip: false; readonly is_AddCard: true; readonly is_MoveCard: false; readonly is_EditTitle: false; readonly dtor_col: DafnySeq; readonly dtor_title: DafnySeq } | { readonly is_NoOp: false; readonly is_AddColumn: false; readonly is_SetWip: false; readonly is_AddCard: false; readonly is_MoveCard: true; readonly is_EditTitle: false; readonly dtor_id: DafnyInt; readonly dtor_toCol: DafnySeq; readonly dtor_place: DafnyPlace } | { readonly is_NoOp: false; readonly is_AddColumn: false; readonly is_SetWip: false; readonly is_AddCard: false; readonly is_MoveCard: false; readonly is_EditTitle: true; readonly dtor_id: DafnyInt; readonly dtor_title: DafnySeq };
+
+type DafnyResult<T, E> = { readonly is_Ok: true; readonly is_Err: false; readonly dtor_value: T } | { readonly is_Ok: false; readonly is_Err: true; readonly dtor_error: E };
+
+interface DafnyRejectReason {
+  readonly is_DomainInvalid: true;
+}
+
+type DafnyReply = { readonly is_Accepted: true; readonly is_Rejected: false; readonly dtor_newVersion: DafnyInt; readonly dtor_newPresent: DafnyModel; readonly dtor_applied: DafnyAction; readonly dtor_noChange: boolean } | { readonly is_Accepted: false; readonly is_Rejected: true; readonly dtor_reason: DafnyRejectReason; readonly dtor_rebased: DafnyAction };
+
+type DafnyRequestOutcome = { readonly is_AuditAccepted: true; readonly is_AuditRejected: false; readonly dtor_applied: DafnyAction; readonly dtor_noChange: boolean } | { readonly is_AuditAccepted: false; readonly is_AuditRejected: true; readonly dtor_reason: DafnyRejectReason; readonly dtor_rebased: DafnyAction };
+
+interface DafnyRequestRecord {
+  readonly is_Req: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_orig: DafnyAction;
+  readonly dtor_rebased: DafnyAction;
+  readonly dtor_chosen: DafnyAction;
+  readonly dtor_outcome: DafnyRequestOutcome;
+}
+
+interface DafnyServerState {
+  readonly is_ServerState: true;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_appliedLog: DafnySeq<DafnyAction>;
+  readonly dtor_auditLog: DafnySeq<DafnyRequestRecord>;
+}
+
+interface DafnyClientState {
+  readonly is_ClientState: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_pending: DafnySeq<DafnyAction>;
+}
+
+type DafnyNetworkStatus = { readonly is_Online: true; readonly is_Offline: false } | { readonly is_Online: false; readonly is_Offline: true };
+
+type DafnyEffectMode = { readonly is_Idle: true; readonly is_Dispatching: false } | { readonly is_Idle: false; readonly is_Dispatching: true; readonly dtor_retries: DafnyInt };
+
+interface DafnyEffectState {
+  readonly is_EffectState: true;
+  readonly dtor_network: DafnyNetworkStatus;
+  readonly dtor_mode: DafnyEffectMode;
+  readonly dtor_client: DafnyClientState;
+  readonly dtor_serverVersion: DafnyInt;
+}
+
+type DafnyEvent = { readonly is_UserAction: true; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_action: DafnyAction } | { readonly is_UserAction: false; readonly is_DispatchAccepted: true; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_newVersion: DafnyInt; readonly dtor_newModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: true; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersion: DafnyInt; readonly dtor_freshModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: true; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersion: DafnyInt; readonly dtor_freshModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: true; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: true; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: true; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: true; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: true };
+
+type DafnyCommand = { readonly is_NoOp: true; readonly is_SendDispatch: false; readonly is_FetchFreshState: false } | { readonly is_NoOp: false; readonly is_SendDispatch: true; readonly is_FetchFreshState: false; readonly dtor_baseVersion: DafnyInt; readonly dtor_action: DafnyAction } | { readonly is_NoOp: false; readonly is_SendDispatch: false; readonly is_FetchFreshState: true };
+
+// ============================================================================
 // Datatype Conversions
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const cardFromJson = (json: any): any => {
+const cardFromJson = (json: any): DafnyCard => {
   return KanbanDomain.Card.create_Card(
     _dafny.Seq.UnicodeFromString(json.title)
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const cardToJson = (value: any): any => {
+const cardToJson = (value: any): Card => {
   return {
     title: dafnyStringToJs(value.dtor_title)
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json: any): any => {
+const modelFromJson = (json: any): DafnyModel => {
   let __lanes = _dafny.Map.Empty;
   for (const [k, v] of (Object.entries(json.lanes || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
@@ -3346,7 +3537,7 @@ const modelFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value: any): any => {
+const modelToJson = (value: any): Model => {
   const __lanesJson: Record<string, any> = {};
   if (value.dtor_lanes && value.dtor_lanes.Keys) {
     for (const k of value.dtor_lanes.Keys.Elements) {
@@ -3378,7 +3569,7 @@ const modelToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json: any): any => {
+const errFromJson = (json: any): DafnyErr => {
   switch (json) {
     case 'MissingColumn':
       return KanbanDomain.Err.create_MissingColumn();
@@ -3396,7 +3587,7 @@ const errFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value: any): any => {
+const errToJson = (value: any): Err => {
   if (value.is_MissingColumn) {
     return 'MissingColumn';
   } else if (value.is_MissingCard) {
@@ -3408,11 +3599,11 @@ const errToJson = (value: any): any => {
   } else if (value.is_Rejected) {
     return 'Rejected';
   }
-  return 'Unknown';
+  throw new Error('Unknown Err variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
+const optionFromJson = <T>(json: any, T_fromJson: (x: any) => T): DafnyOption<T> => {
   switch (json.type) {
     case 'None': {
       return KanbanDomain.Option.create_None();
@@ -3428,7 +3619,7 @@ const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
+const optionToJson = <T>(value: any, T_toJson: (x: any) => any): Option<T> => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
@@ -3437,11 +3628,11 @@ const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
       value: T_toJson(value.dtor_value)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Option variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json: any): any => {
+const placeFromJson = (json: any): DafnyPlace => {
   switch (json.type) {
     case 'AtEnd': {
       return KanbanDomain.Place.create_AtEnd();
@@ -3462,7 +3653,7 @@ const placeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeToJson = (value: any): any => {
+const placeToJson = (value: any): Place => {
   if (value.is_AtEnd) {
     return { type: 'AtEnd' };
   } else if (value.is_Before) {
@@ -3476,11 +3667,11 @@ const placeToJson = (value: any): any => {
       anchor: toNumber(value.dtor_anchor)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Place variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json: any): any => {
+const actionFromJson = (json: any): DafnyAction => {
   switch (json.type) {
     case 'NoOp': {
       return KanbanDomain.Action.create_NoOp();
@@ -3522,7 +3713,7 @@ const actionFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value: any): any => {
+const actionToJson = (value: any): Action => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_AddColumn) {
@@ -3557,11 +3748,11 @@ const actionToJson = (value: any): any => {
       title: dafnyStringToJs(value.dtor_title)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Action variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
+const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): DafnyResult<T, E> => {
   switch (json.type) {
     case 'Ok': {
       return KanbanDomain.Result.create_Ok(
@@ -3579,7 +3770,7 @@ const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: 
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
+const resultToJson = <T, E>(value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): Result<T, E> => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -3591,21 +3782,21 @@ const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) 
       error: E_toJson(value.dtor_error)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Result variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json: any): any => {
+const rejectreasonFromJson = (json: any): DafnyRejectReason => {
   return KanbanMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value: any): any => {
+const rejectreasonToJson = (value: any): RejectReason => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const replyFromJson = (json: any): any => {
+const replyFromJson = (json: any): DafnyReply => {
   switch (json.type) {
     case 'Accepted': {
       return KanbanMultiCollaboration.Reply.create_Accepted(
@@ -3627,7 +3818,7 @@ const replyFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const replyToJson = (value: any): any => {
+const replyToJson = (value: any): Reply => {
   if (value.is_Accepted) {
     return {
       type: 'Accepted',
@@ -3643,11 +3834,11 @@ const replyToJson = (value: any): any => {
       rebased: actionToJson(value.dtor_rebased)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Reply variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json: any): any => {
+const requestoutcomeFromJson = (json: any): DafnyRequestOutcome => {
   switch (json.type) {
     case 'AuditAccepted': {
       return KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -3667,7 +3858,7 @@ const requestoutcomeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value: any): any => {
+const requestoutcomeToJson = (value: any): RequestOutcome => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -3681,11 +3872,11 @@ const requestoutcomeToJson = (value: any): any => {
       rebased: actionToJson(value.dtor_rebased)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown RequestOutcome variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json: any): any => {
+const requestrecordFromJson = (json: any): DafnyRequestRecord => {
   return KanbanMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -3696,7 +3887,7 @@ const requestrecordFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value: any): any => {
+const requestrecordToJson = (value: any): RequestRecord => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -3707,7 +3898,7 @@ const requestrecordToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json: any): any => {
+const serverstateFromJson = (json: any): DafnyServerState => {
   return KanbanMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
     _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
@@ -3716,7 +3907,7 @@ const serverstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value: any): any => {
+const serverstateToJson = (value: any): ServerState => {
   return {
     present: modelToJson(value.dtor_present),
     appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
@@ -3725,7 +3916,7 @@ const serverstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json: any): any => {
+const clientstateFromJson = (json: any): DafnyClientState => {
   return KanbanMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
@@ -3734,7 +3925,7 @@ const clientstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value: any): any => {
+const clientstateToJson = (value: any): ClientState => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),
@@ -3743,7 +3934,7 @@ const clientstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusFromJson = (json: any): any => {
+const networkstatusFromJson = (json: any): DafnyNetworkStatus => {
   switch (json) {
     case 'Online':
       return KanbanEffectStateMachine.NetworkStatus.create_Online();
@@ -3755,17 +3946,17 @@ const networkstatusFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusToJson = (value: any): any => {
+const networkstatusToJson = (value: any): NetworkStatus => {
   if (value.is_Online) {
     return 'Online';
   } else if (value.is_Offline) {
     return 'Offline';
   }
-  return 'Unknown';
+  throw new Error('Unknown NetworkStatus variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeFromJson = (json: any): any => {
+const effectmodeFromJson = (json: any): DafnyEffectMode => {
   switch (json.type) {
     case 'Idle': {
       return KanbanEffectStateMachine.EffectMode.create_Idle();
@@ -3781,7 +3972,7 @@ const effectmodeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeToJson = (value: any): any => {
+const effectmodeToJson = (value: any): EffectMode => {
   if (value.is_Idle) {
     return { type: 'Idle' };
   } else if (value.is_Dispatching) {
@@ -3790,11 +3981,11 @@ const effectmodeToJson = (value: any): any => {
       retries: toNumber(value.dtor_retries)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown EffectMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateFromJson = (json: any): any => {
+const effectstateFromJson = (json: any): DafnyEffectState => {
   return KanbanEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
@@ -3804,7 +3995,7 @@ const effectstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateToJson = (value: any): any => {
+const effectstateToJson = (value: any): EffectState => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
@@ -3814,7 +4005,7 @@ const effectstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventFromJson = (json: any): any => {
+const eventFromJson = (json: any): DafnyEvent => {
   switch (json.type) {
     case 'UserAction': {
       return KanbanEffectStateMachine.Event.create_UserAction(
@@ -3860,7 +4051,7 @@ const eventFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventToJson = (value: any): any => {
+const eventToJson = (value: any): Event => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
@@ -3895,11 +4086,11 @@ const eventToJson = (value: any): any => {
   } else if (value.is_Tick) {
     return { type: 'Tick' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Event variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const commandFromJson = (json: any): any => {
+const commandFromJson = (json: any): DafnyCommand => {
   switch (json.type) {
     case 'NoOp': {
       return KanbanEffectStateMachine.Command.create_NoOp();
@@ -3919,7 +4110,7 @@ const commandFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandToJson = (value: any): any => {
+const commandToJson = (value: any): Command => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {
@@ -3931,7 +4122,7 @@ const commandToJson = (value: any): any => {
   } else if (value.is_FetchFreshState) {
     return { type: 'FetchFreshState' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Command variant');
 };
 
 // ============================================================================

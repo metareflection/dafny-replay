@@ -29,14 +29,14 @@ The first build will take a while as it compiles the Dafny dependencies.
 
 ## Usage
 
-### Generate client adapter (app.js)
+### Generate client adapter (app.ts)
 
 ```bash
 dotnet run -- \
     --file ../CounterDomain.dfy \
     --app-core AppCore \
     --cjs-name Counter.cjs \
-    --client ../counter/src/dafny/app.js
+    --client ../counter/src/dafny/app.ts
 ```
 
 ### Generate client + Deno bundle
@@ -46,7 +46,7 @@ dotnet run -- \
     --file ../KanbanEffectStateMachine.dfy \
     --app-core KanbanEffectAppCore \
     --cjs-name KanbanEffect.cjs \
-    --client ../kanban-supabase/src/dafny/app.js \
+    --client ../kanban-supabase/src/dafny/app.ts \
     --deno ../kanban-supabase/supabase/functions/dispatch/dafny-bundle.ts \
     --cjs-path ../kanban-supabase/src/dafny/KanbanEffect.cjs \
     --dispatch KanbanMultiCollaboration.Dispatch
@@ -61,7 +61,7 @@ dotnet run -- \
     --file ../TodoMultiProjectEffectStateMachine.dfy \
     --app-core TodoMultiProjectEffectAppCore \
     --cjs-name TodoMultiProjectEffect.cjs \
-    --client ../collab-todo/src/dafny/app.js \
+    --client ../collab-todo/src/dafny/app.ts \
     --null-options
 ```
 
@@ -78,16 +78,40 @@ dotnet run -- --file ../CounterDomain.dfy --list
 | `--file`, `-f` | Path to the `.dfy` file (required) |
 | `--app-core`, `-a` | Name of the AppCore module (auto-detected if omitted) |
 | `--cjs-name`, `-c` | Name of the `.cjs` file to import |
-| `--client` | Output path for client adapter (`app.js` or `app.ts`) |
+| `--client` | Output path for client adapter (`.js` or `.ts` based on extension) |
 | `--deno` | Output path for Deno adapter (`dafny-bundle.ts`) |
 | `--cjs-path` | Path to the `.cjs` file (required for `--deno`) |
 | `--null-options` | Enable null-based `Option` handling for DB compatibility |
 | `--dispatch` | Dispatch function for Deno (format: `name:Module.Dispatch` or `Module.Dispatch`) |
 | `--list`, `-l` | List datatypes and functions (for debugging) |
 
+## TypeScript Support
+
+Use `.ts` extension for `--client` to generate TypeScript with full type annotations:
+
+```bash
+--client ../counter/src/dafny/app.ts
+```
+
+Generated TypeScript includes:
+- **JSON types**: `interface Model { ... }`, `type Action = ...`
+- **Dafny runtime types**: `DafnyModel`, `DafnyAction`, `DafnySeq<T>`, etc.
+- **Typed functions**: All wrappers have proper parameter and return types
+
+### Type Checking
+
+Run from repo root:
+
+```bash
+./typecheck.sh           # Check all projects
+./typecheck.sh counter   # Check specific project
+```
+
+Requires `deno.json` at repo root (provides import map for `bignumber.js`).
+
 ## What It Generates
 
-### Client (`app.js`)
+### Client (`app.ts`)
 
 - **Helpers**: `seqToArray()`, `toNumber()`, `dafnyStringToJs()`
 - **Type converters**: `modelFromJson()`, `actionToJson()`, etc.

@@ -56,16 +56,10 @@ public class ClientEmitter : SharedEmitter
       Sb.AppendLine();
     }
 
-    // 6. API wrapper
-    EmitApiWrapper();
+    // 6. API wrapper (includes _internal)
+    EmitApiWrapperWithInternal(allModules);
 
-    // 7. Export internals
-    Sb.AppendLine("// Export internals for custom extensions");
-    var internalModules = string.Join(", ", allModules);
-    Sb.AppendLine($"App._internal = {{ _dafny, {internalModules} }};");
-    Sb.AppendLine();
-
-    // 8. Export
+    // 7. Export
     Sb.AppendLine("export default App;");
 
     return Sb.ToString();
@@ -247,7 +241,142 @@ public class ClientEmitter : SharedEmitter
   readonly HashSet<string> _typesWithPreprocessing = new();
 
   /// <summary>
+  /// Emit API wrapper including the _internal property.
+  /// </summary>
+  void EmitApiWrapperWithInternal(List<string> allModules)
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// API Wrapper");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    // Declare internal modules type for TypeScript
+    if (EmitTypeScript)
+    {
+      var internalModules = string.Join(", ", allModules);
+      Sb.AppendLine($"interface AppInternal {{ _dafny: unknown; {string.Join("; ", allModules.Select(m => $"{m}: unknown"))}; }}");
+      Sb.AppendLine();
+    }
+
+    Sb.AppendLine("const App = {");
+
+    // Track emitted names to skip duplicates (access via _internal if needed)
+    var emittedNames = new HashSet<string>();
+
+    // Generate constructors for helper datatypes
+    var helperTypes = Datatypes
+      .Where(dt => dt.ModuleName == DomainModule &&
+                   dt.Name != "Model" &&
+                   dt.Name != "Action")
+      .ToList();
+
+    foreach (var helperType in helperTypes)
+    {
+      Sb.AppendLine($"  // {helperType.Name} constructors");
+      foreach (var ctor in helperType.Constructors)
+      {
+        if (emittedNames.Add(ctor.Name))
+        {
+          EmitDatatypeConstructor(helperType.Name, ctor);
+        }
+      }
+      Sb.AppendLine();
+    }
+
+    // Action constructors
+    var actionType = Datatypes.FirstOrDefault(dt =>
+      dt.ModuleName == DomainModule && dt.Name == "Action");
+
+    if (actionType != null)
+    {
+      Sb.AppendLine("  // Action constructors");
+      foreach (var ctor in actionType.Constructors)
+      {
+        if (emittedNames.Add(ctor.Name))
+        {
+          EmitActionConstructor(ctor);
+        }
+      }
+      Sb.AppendLine();
+    }
+
+    // Model accessors
+    var modelType = Datatypes.FirstOrDefault(dt =>
+      dt.ModuleName == DomainModule && dt.Name == "Model");
+
+    if (modelType != null && modelType.Constructors.Count > 0)
+    {
+      Sb.AppendLine("  // Model accessors");
+      EmitModelAccessors(modelType);
+      Sb.AppendLine();
+    }
+
+    // AppCore functions
+    if (Functions.Count > 0)
+    {
+      var actionCtorNames = actionType?.Constructors.Select(c => c.Name).ToHashSet() ?? new HashSet<string>();
+      var modelAccessorNames = modelType?.Constructors.FirstOrDefault()?.Fields
+        .Select(f => "Get" + char.ToUpper(f.Name[0]) + f.Name.Substring(1))
+        .ToHashSet() ?? new HashSet<string>();
+
+      var filteredFuncs = Functions
+        .Where(f => !actionCtorNames.Contains(f.Name))
+        .Where(f => !modelAccessorNames.Contains(f.Name))
+        .ToList();
+
+      if (filteredFuncs.Count > 0)
+      {
+        Sb.AppendLine("  // AppCore functions");
+        foreach (var func in filteredFuncs)
+        {
+          EmitFunctionWrapper(func);
+        }
+        Sb.AppendLine();
+      }
+    }
+
+    // Conversion functions - export preprocessed versions when available
+    Sb.AppendLine("  // Conversion functions");
+    var allTypesToGenerate = GetAllTypesToGenerate();
+    var exportedNames = new HashSet<string>();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      var lower = TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant();
+      if (!exportedNames.Add(lower)) continue;
+      Sb.AppendLine($"  {lower}ToJson,");
+      // Export preprocessed version if available, otherwise original
+      if (_typesWithPreprocessing.Contains(lower))
+      {
+        Sb.AppendLine($"  {lower}FromJson: {lower}FromJsonPreprocessed,");
+      }
+      else
+      {
+        Sb.AppendLine($"  {lower}FromJson,");
+      }
+    }
+
+    Sb.AppendLine();
+
+    // Add _internal property inside the App object
+    Sb.AppendLine("  // Internal modules for custom extensions");
+    var moduleList = string.Join(", ", allModules);
+    if (EmitTypeScript)
+    {
+      Sb.AppendLine($"  _internal: {{ _dafny, {moduleList} }} as AppInternal,");
+    }
+    else
+    {
+      Sb.AppendLine($"  _internal: {{ _dafny, {moduleList} }},");
+    }
+
+    Sb.AppendLine("};");
+    Sb.AppendLine();
+  }
+
+  /// <summary>
   /// Override to export preprocessed versions when null-options is enabled.
+  /// Note: This is no longer used directly - see EmitApiWrapperWithInternal.
   /// </summary>
   protected new void EmitApiWrapper()
   {

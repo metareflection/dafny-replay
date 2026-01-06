@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import { isSupabaseConfigured, supabase } from '../supabase.js'
-import App from '../dafny/app-extras.js'
+import App from '../dafny/app-extras.ts'
 import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 
 /**

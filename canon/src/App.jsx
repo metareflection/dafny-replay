@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import App from './dafny/app-extras.js'
+import App from './dafny/app-extras.ts'
 import './App.css'
 
 // TikZ export helper functions

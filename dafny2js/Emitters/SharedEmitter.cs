@@ -269,7 +269,7 @@ public abstract class SharedEmitter
     if (!EmitTypeScript) return;
 
     Sb.AppendLine("// ============================================================================");
-    Sb.AppendLine("// TypeScript Type Definitions");
+    Sb.AppendLine("// TypeScript Type Definitions (JSON representation)");
     Sb.AppendLine("// ============================================================================");
     Sb.AppendLine();
 
@@ -277,6 +277,106 @@ public abstract class SharedEmitter
     {
       EmitTypeScriptType(dt);
       Sb.AppendLine();
+    }
+
+    // Now emit Dafny runtime types
+    EmitDafnyRuntimeTypes(allTypesToGenerate);
+  }
+
+  /// <summary>
+  /// Emit Dafny runtime type declarations (types representing actual Dafny runtime objects).
+  /// </summary>
+  protected void EmitDafnyRuntimeTypes(List<DatatypeInfo> allTypesToGenerate)
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// Dafny Runtime Types (actual Dafny runtime object shapes)");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    // Base types for Dafny runtime
+    Sb.AppendLine("// Base Dafny runtime types");
+    Sb.AppendLine("type DafnyInt = InstanceType<typeof BigNumber>;");
+    Sb.AppendLine("interface DafnySeq<T = unknown> {");
+    Sb.AppendLine("  readonly length: number;");
+    Sb.AppendLine("  readonly [index: number]: T;");
+    Sb.AppendLine("  toVerbatimString?(asLiteral: boolean): string;");
+    Sb.AppendLine("  map<U>(fn: (x: T) => U): U[];");
+    Sb.AppendLine("}");
+    Sb.AppendLine("interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }");
+    Sb.AppendLine("interface DafnyMap<K = unknown, V = unknown> {");
+    Sb.AppendLine("  readonly Keys: DafnySet<K>;");
+    Sb.AppendLine("  get(key: K): V;");
+    Sb.AppendLine("  contains(key: K): boolean;");
+    Sb.AppendLine("}");
+    Sb.AppendLine("type DafnyTuple2<T0, T1> = readonly [T0, T1];");
+    Sb.AppendLine("type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];");
+    Sb.AppendLine();
+
+    // Generate Dafny runtime types for each datatype
+    foreach (var dt in allTypesToGenerate)
+    {
+      EmitDafnyRuntimeType(dt);
+      Sb.AppendLine();
+    }
+  }
+
+  /// <summary>
+  /// Emit a Dafny runtime type for a single datatype.
+  /// </summary>
+  void EmitDafnyRuntimeType(DatatypeInfo dt)
+  {
+    var name = $"Dafny{TypeMapper.SanitizeForJs(dt.Name)}";
+    var typeParams = dt.GetTypeParams();
+    var typeParamStr = typeParams.Count > 0
+      ? $"<{string.Join(", ", typeParams)}>"
+      : "";
+
+    if (IsEnumLike(dt))
+    {
+      // Enum-like: discriminated union with is_* flags
+      var variants = new List<string>();
+      foreach (var ctor in dt.Constructors)
+      {
+        var flags = dt.Constructors.Select(c =>
+          $"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+        variants.Add($"{{ {string.Join("; ", flags)} }}");
+      }
+      Sb.AppendLine($"type {name}{typeParamStr} = {string.Join(" | ", variants)};");
+    }
+    else if (dt.Constructors.Count == 1)
+    {
+      // Single constructor: interface with dtor_* fields
+      var ctor = dt.Constructors[0];
+      Sb.AppendLine($"interface {name}{typeParamStr} {{");
+      Sb.AppendLine($"  readonly is_{ctor.Name}: true;");
+      foreach (var field in ctor.Fields)
+      {
+        var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
+        Sb.AppendLine($"  readonly dtor_{field.Name}: {dafnyType};");
+      }
+      Sb.AppendLine("}");
+    }
+    else
+    {
+      // Multi-constructor: discriminated union
+      var variants = new List<string>();
+      foreach (var ctor in dt.Constructors)
+      {
+        var parts = new List<string>();
+        // Add is_* flags for all constructors
+        foreach (var c in dt.Constructors)
+        {
+          parts.Add($"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+        }
+        // Add dtor_* fields for this constructor's fields
+        foreach (var field in ctor.Fields)
+        {
+          var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
+          parts.Add($"readonly dtor_{field.Name}: {dafnyType}");
+        }
+        variants.Add($"{{ {string.Join("; ", parts)} }}");
+      }
+      Sb.AppendLine($"type {name}{typeParamStr} = {string.Join(" | ", variants)};");
     }
   }
 
@@ -365,7 +465,7 @@ public abstract class SharedEmitter
 
     if (EmitTypeScript)
     {
-      // TypeScript: typed return, any input (it's untyped JSON)
+      // TypeScript: returns Dafny runtime type (not JSON interface), input is any
       var typeParamStr = typeParams.Count > 0
         ? $"<{string.Join(", ", typeParams)}>"
         : "";
@@ -374,7 +474,8 @@ public abstract class SharedEmitter
       paramList = typeParams.Count > 0
         ? $"json: any, {string.Join(", ", typeParamParams)}"
         : "json: any";
-      returnType = $"{typeName}{typeParamStr}";
+      // fromJson returns Dafny runtime type (DafnyX), not JSON type (X)
+      returnType = $"Dafny{typeName}{typeParamStr}";
 
       Sb.AppendLine("// deno-lint-ignore no-explicit-any");
       Sb.AppendLine($"const {funcName} = {typeParamStr}({paramList}): {returnType} => {{");
@@ -720,9 +821,20 @@ public abstract class SharedEmitter
       return;
     }
 
-    var parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
-    var args = new List<string>();
+    string parms;
+    if (EmitTypeScript)
+    {
+      // Datatype constructors take JSON input types
+      var typedParams = ctor.Fields.Select(f =>
+        $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}");
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
+    }
 
+    var args = new List<string>();
     foreach (var field in ctor.Fields)
     {
       args.Add(TypeMapper.JsonToDafny(field.Type, field.Name, DomainModule + "."));
@@ -735,6 +847,7 @@ public abstract class SharedEmitter
   protected void EmitModelAccessors(DatatypeInfo modelType)
   {
     var ctor = modelType.Constructors[0];
+    var modelTypeName = EmitTypeScript ? $"Dafny{TypeMapper.SanitizeForJs(modelType.Name)}" : "";
 
     foreach (var field in ctor.Fields)
     {
@@ -749,7 +862,11 @@ public abstract class SharedEmitter
         var keyConvert = TypeMapper.JsonToDafny(keyType, "key", DomainModule + ".");
         var valConvert = TypeMapper.DafnyToJson(valType, "val", DomainModule + ".");
 
-        Sb.AppendLine($"  {accessorName}: (m, key) => {{");
+        var keyTsType = EmitTypeScript ? TypeMapper.TypeRefToTypeScript(keyType) : "";
+        var mParam = EmitTypeScript ? $"m: {modelTypeName}" : "m";
+        var keyParam = EmitTypeScript ? $"key: {keyTsType}" : "key";
+
+        Sb.AppendLine($"  {accessorName}: ({mParam}, {keyParam}) => {{");
         Sb.AppendLine($"    const dafnyKey = {keyConvert};");
         Sb.AppendLine($"    if ({dafnyAccess}.contains(dafnyKey)) {{");
         Sb.AppendLine($"      const val = {dafnyAccess}.get(dafnyKey);");
@@ -761,7 +878,8 @@ public abstract class SharedEmitter
       else
       {
         var converted = TypeMapper.DafnyToJson(field.Type, dafnyAccess, DomainModule + ".");
-        Sb.AppendLine($"  {accessorName}: (m) => {converted},");
+        var mParam = EmitTypeScript ? $"m: {modelTypeName}" : "m";
+        Sb.AppendLine($"  {accessorName}: ({mParam}) => {converted},");
       }
     }
   }
@@ -774,9 +892,25 @@ public abstract class SharedEmitter
       return;
     }
 
-    var parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
-    var args = new List<string>();
+    string parms;
+    if (EmitTypeScript)
+    {
+      // Action constructors take JSON input types (or Dafny runtime types for datatype fields)
+      var typedParams = ctor.Fields.Select(f =>
+      {
+        if (f.Type.Kind == TypeKind.Datatype)
+          return $"{f.Name}: {TypeMapper.TypeRefToDafnyRuntime(f.Type)}";
+        else
+          return $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}";
+      });
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
+    }
 
+    var args = new List<string>();
     foreach (var field in ctor.Fields)
     {
       if (field.Type.Kind == TypeKind.Datatype)
@@ -795,7 +929,24 @@ public abstract class SharedEmitter
 
   protected void EmitFunctionWrapper(FunctionInfo func)
   {
-    var parms = string.Join(", ", func.Parameters.Select(p => p.Name));
+    string parms;
+    if (EmitTypeScript)
+    {
+      // For params that get converted inside (primitives), use JSON types (number, string, etc.)
+      // For datatypes that are passed through, use Dafny runtime types
+      var typedParams = func.Parameters.Select(p =>
+      {
+        if (p.Type.Kind == TypeKind.Datatype || p.Type.Kind == TypeKind.Other)
+          return $"{p.Name}: {TypeMapper.TypeRefToDafnyRuntime(p.Type)}";
+        else
+          return $"{p.Name}: {TypeMapper.TypeRefToTypeScript(p.Type)}";
+      });
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", func.Parameters.Select(p => p.Name));
+    }
 
     var convertedArgs = new List<string>();
     foreach (var p in func.Parameters)

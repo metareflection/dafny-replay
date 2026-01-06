@@ -4160,12 +4160,12 @@ const dafnyStringToJs = (seq: any): string => {
 
 
 // ============================================================================
-// TypeScript Type Definitions
+// TypeScript Type Definitions (JSON representation)
 // ============================================================================
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: T };
+  | { type: 'Some'; value: unknown };
 
 export interface Date {
   year: number;
@@ -4250,8 +4250,8 @@ export type ViewMode = 'SingleProject' | 'AllProjects';
 export type SmartListType = 'Priority' | 'Logbook';
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: T }
-  | { type: 'Err'; error: E };
+  | { type: 'Ok'; value: unknown }
+  | { type: 'Err'; error: unknown };
 
 export interface RejectReason {
 }
@@ -4278,6 +4278,115 @@ export interface ClientState {
   baseVersion: number;
   present: Model;
   pending: Action[];
+}
+
+// ============================================================================
+// Dafny Runtime Types (actual Dafny runtime object shapes)
+// ============================================================================
+
+// Base Dafny runtime types
+type DafnyInt = InstanceType<typeof BigNumber>;
+interface DafnySeq<T = unknown> {
+  readonly length: number;
+  readonly [index: number]: T;
+  toVerbatimString?(asLiteral: boolean): string;
+  map<U>(fn: (x: T) => U): U[];
+}
+interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }
+interface DafnyMap<K = unknown, V = unknown> {
+  readonly Keys: DafnySet<K>;
+  get(key: K): V;
+  contains(key: K): boolean;
+}
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
+type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
+
+type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
+
+interface DafnyDate {
+  readonly is_Date: true;
+  readonly dtor_year: DafnyInt;
+  readonly dtor_month: DafnyInt;
+  readonly dtor_day: DafnyInt;
+}
+
+interface DafnyTask {
+  readonly is_Task: true;
+  readonly dtor_title: DafnySeq;
+  readonly dtor_notes: DafnySeq;
+  readonly dtor_completed: boolean;
+  readonly dtor_starred: boolean;
+  readonly dtor_dueDate: DafnyOption<DafnyDate>;
+  readonly dtor_assignees: DafnySet<DafnySeq>;
+  readonly dtor_tags: DafnySet<DafnyInt>;
+  readonly dtor_deleted: boolean;
+  readonly dtor_deletedBy: DafnyOption<DafnySeq>;
+  readonly dtor_deletedFromList: DafnyOption<DafnyInt>;
+}
+
+interface DafnyTag {
+  readonly is_Tag: true;
+  readonly dtor_name: DafnySeq;
+}
+
+type DafnyProjectMode = { readonly is_Personal: true; readonly is_Collaborative: false } | { readonly is_Personal: false; readonly is_Collaborative: true };
+
+interface DafnyModel {
+  readonly is_Model: true;
+  readonly dtor_mode: DafnyProjectMode;
+  readonly dtor_owner: DafnySeq;
+  readonly dtor_members: DafnySet<DafnySeq>;
+  readonly dtor_lists: DafnySeq<DafnyInt>;
+  readonly dtor_listNames: DafnyMap<DafnyInt, DafnySeq>;
+  readonly dtor_tasks: DafnyMap<DafnyInt, DafnySeq<DafnyInt>>;
+  readonly dtor_taskData: DafnyMap<DafnyInt, DafnyTask>;
+  readonly dtor_tags: DafnyMap<DafnyInt, DafnyTag>;
+  readonly dtor_nextListId: DafnyInt;
+  readonly dtor_nextTaskId: DafnyInt;
+  readonly dtor_nextTagId: DafnyInt;
+}
+
+type DafnyErr = { readonly is_MissingList: true; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: true; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: true; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: true; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: true; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: true; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: true; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: true; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: true; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: true; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: true; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: true; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: true; readonly is_InvalidDate: false; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: true; readonly is_Rejected: false } | { readonly is_MissingList: false; readonly is_MissingTask: false; readonly is_MissingTag: false; readonly is_MissingUser: false; readonly is_DuplicateList: false; readonly is_DuplicateTask: false; readonly is_DuplicateTag: false; readonly is_BadAnchor: false; readonly is_NotAMember: false; readonly is_PersonalProject: false; readonly is_AlreadyCollaborative: false; readonly is_CannotRemoveOwner: false; readonly is_TaskDeleted: false; readonly is_InvalidDate: false; readonly is_Rejected: true };
+
+type DafnyPlace = { readonly is_AtEnd: true; readonly is_Before: false; readonly is_After: false } | { readonly is_AtEnd: false; readonly is_Before: true; readonly is_After: false; readonly dtor_anchor: DafnyInt } | { readonly is_AtEnd: false; readonly is_Before: false; readonly is_After: true; readonly dtor_anchor: DafnyInt };
+
+type DafnyListPlace = { readonly is_ListAtEnd: true; readonly is_ListBefore: false; readonly is_ListAfter: false } | { readonly is_ListAtEnd: false; readonly is_ListBefore: true; readonly is_ListAfter: false; readonly dtor_anchor: DafnyInt } | { readonly is_ListAtEnd: false; readonly is_ListBefore: false; readonly is_ListAfter: true; readonly dtor_anchor: DafnyInt };
+
+type DafnyAction = { readonly is_NoOp: true; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false } | { readonly is_NoOp: false; readonly is_AddList: true; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_name: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: true; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_newName: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: true; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: true; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_listPlace: DafnyListPlace } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: true; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_listId: DafnyInt; readonly dtor_title: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: true; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_title: DafnySeq; readonly dtor_notes: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: true; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: true; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: true; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_toList: DafnyInt; readonly dtor_taskPlace: DafnyPlace } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: true; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: true; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: true; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: true; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: true; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_dueDate: DafnyOption<DafnyDate> } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: true; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: true; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: true; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: true; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_taskId: DafnyInt; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: true; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_name: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: true; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_tagId: DafnyInt; readonly dtor_newName: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: true; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: false; readonly dtor_tagId: DafnyInt } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: true; readonly is_AddMember: false; readonly is_RemoveMember: false } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: true; readonly is_RemoveMember: false; readonly dtor_userId: DafnySeq } | { readonly is_NoOp: false; readonly is_AddList: false; readonly is_RenameList: false; readonly is_DeleteList: false; readonly is_MoveList: false; readonly is_AddTask: false; readonly is_EditTask: false; readonly is_DeleteTask: false; readonly is_RestoreTask: false; readonly is_MoveTask: false; readonly is_CompleteTask: false; readonly is_UncompleteTask: false; readonly is_StarTask: false; readonly is_UnstarTask: false; readonly is_SetDueDate: false; readonly is_AssignTask: false; readonly is_UnassignTask: false; readonly is_AddTagToTask: false; readonly is_RemoveTagFromTask: false; readonly is_CreateTag: false; readonly is_RenameTag: false; readonly is_DeleteTag: false; readonly is_MakeCollaborative: false; readonly is_AddMember: false; readonly is_RemoveMember: true; readonly dtor_userId: DafnySeq };
+
+type DafnyViewMode = { readonly is_SingleProject: true; readonly is_AllProjects: false } | { readonly is_SingleProject: false; readonly is_AllProjects: true };
+
+type DafnySmartListType = { readonly is_Priority: true; readonly is_Logbook: false } | { readonly is_Priority: false; readonly is_Logbook: true };
+
+type DafnyResult<T, E> = { readonly is_Ok: true; readonly is_Err: false; readonly dtor_value: T } | { readonly is_Ok: false; readonly is_Err: true; readonly dtor_error: E };
+
+interface DafnyRejectReason {
+  readonly is_DomainInvalid: true;
+}
+
+type DafnyRequestOutcome = { readonly is_AuditAccepted: true; readonly is_AuditRejected: false; readonly dtor_applied: DafnyAction; readonly dtor_noChange: boolean } | { readonly is_AuditAccepted: false; readonly is_AuditRejected: true; readonly dtor_reason: DafnyRejectReason; readonly dtor_rebased: DafnyAction };
+
+interface DafnyRequestRecord {
+  readonly is_Req: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_orig: DafnyAction;
+  readonly dtor_rebased: DafnyAction;
+  readonly dtor_chosen: DafnyAction;
+  readonly dtor_outcome: DafnyRequestOutcome;
+}
+
+interface DafnyServerState {
+  readonly is_ServerState: true;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_appliedLog: DafnySeq<DafnyAction>;
+  readonly dtor_auditLog: DafnySeq<DafnyRequestRecord>;
+}
+
+interface DafnyClientState {
+  readonly is_ClientState: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_pending: DafnySeq<DafnyAction>;
 }
 
 // ============================================================================
@@ -4321,7 +4430,7 @@ const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = <T>(json: any, T_fromJson: (x: any) => T): Option<T> => {
+const optionFromJson = <T>(json: any, T_fromJson: (x: any) => T): DafnyOption<T> => {
   // Handle null/undefined (DB compatibility with --null-options)
   if (json === null || json === undefined) {
     return TodoDomain.Option.create_None();
@@ -4358,7 +4467,7 @@ const optionToJson = <T>(value: any, T_toJson: (x: any) => any): Option<T> => {
 };
 
 // deno-lint-ignore no-explicit-any
-const dateFromJson = (json: any): Date => {
+const dateFromJson = (json: any): DafnyDate => {
   return TodoDomain.Date.create_Date(
     new BigNumber(json.year),
     new BigNumber(json.month),
@@ -4376,7 +4485,7 @@ const dateToJson = (value: any): Date => {
 };
 
 // deno-lint-ignore no-explicit-any
-const taskFromJson = (json: any): Task => {
+const taskFromJson = (json: any): DafnyTask => {
   return TodoDomain.Task.create_Task(
     _dafny.Seq.UnicodeFromString(json.title),
     _dafny.Seq.UnicodeFromString(json.notes),
@@ -4408,7 +4517,7 @@ const taskToJson = (value: any): Task => {
 };
 
 // deno-lint-ignore no-explicit-any
-const tagFromJson = (json: any): Tag => {
+const tagFromJson = (json: any): DafnyTag => {
   return TodoDomain.Tag.create_Tag(
     _dafny.Seq.UnicodeFromString(json.name)
   );
@@ -4422,7 +4531,7 @@ const tagToJson = (value: any): Tag => {
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeFromJson = (json: any): ProjectMode => {
+const projectmodeFromJson = (json: any): DafnyProjectMode => {
   switch (json) {
     case 'Personal':
       return TodoDomain.ProjectMode.create_Personal();
@@ -4444,7 +4553,7 @@ const projectmodeToJson = (value: any): ProjectMode => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json: any): Model => {
+const modelFromJson = (json: any): DafnyModel => {
   let __listNames = _dafny.Map.Empty;
   for (const [k, v] of (Object.entries(json.listNames || {}) as [string, any][])) {
     const key = new BigNumber(k);
@@ -4530,7 +4639,7 @@ const modelToJson = (value: any): Model => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json: any): Err => {
+const errFromJson = (json: any): DafnyErr => {
   switch (json) {
     case 'MissingList':
       return TodoDomain.Err.create_MissingList();
@@ -4604,7 +4713,7 @@ const errToJson = (value: any): Err => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json: any): Place => {
+const placeFromJson = (json: any): DafnyPlace => {
   switch (json.type) {
     case 'AtEnd': {
       return TodoDomain.Place.create_AtEnd();
@@ -4643,7 +4752,7 @@ const placeToJson = (value: any): Place => {
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceFromJson = (json: any): ListPlace => {
+const listplaceFromJson = (json: any): DafnyListPlace => {
   switch (json.type) {
     case 'ListAtEnd': {
       return TodoDomain.ListPlace.create_ListAtEnd();
@@ -4682,7 +4791,7 @@ const listplaceToJson = (value: any): ListPlace => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json: any): Action => {
+const actionFromJson = (json: any): DafnyAction => {
   switch (json.type) {
     case 'NoOp': {
       return TodoDomain.Action.create_NoOp();
@@ -4964,7 +5073,7 @@ const actionToJson = (value: any): Action => {
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeFromJson = (json: any): ViewMode => {
+const viewmodeFromJson = (json: any): DafnyViewMode => {
   switch (json) {
     case 'SingleProject':
       return TodoDomain.ViewMode.create_SingleProject();
@@ -4986,7 +5095,7 @@ const viewmodeToJson = (value: any): ViewMode => {
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeFromJson = (json: any): SmartListType => {
+const smartlisttypeFromJson = (json: any): DafnySmartListType => {
   switch (json) {
     case 'Priority':
       return TodoDomain.SmartListType.create_Priority();
@@ -5008,7 +5117,7 @@ const smartlisttypeToJson = (value: any): SmartListType => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): Result<T, E> => {
+const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): DafnyResult<T, E> => {
   switch (json.type) {
     case 'Ok': {
       return TodoDomain.Result.create_Ok(
@@ -5042,7 +5151,7 @@ const resultToJson = <T, E>(value: any, T_toJson: (x: any) => any, E_toJson: (x:
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json: any): RejectReason => {
+const rejectreasonFromJson = (json: any): DafnyRejectReason => {
   return TodoMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
@@ -5052,7 +5161,7 @@ const rejectreasonToJson = (value: any): RejectReason => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json: any): RequestOutcome => {
+const requestoutcomeFromJson = (json: any): DafnyRequestOutcome => {
   switch (json.type) {
     case 'AuditAccepted': {
       return TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -5090,7 +5199,7 @@ const requestoutcomeToJson = (value: any): RequestOutcome => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json: any): RequestRecord => {
+const requestrecordFromJson = (json: any): DafnyRequestRecord => {
   return TodoMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -5112,7 +5221,7 @@ const requestrecordToJson = (value: any): RequestRecord => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json: any): ServerState => {
+const serverstateFromJson = (json: any): DafnyServerState => {
   return TodoMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
     _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
@@ -5130,7 +5239,7 @@ const serverstateToJson = (value: any): ServerState => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json: any): ClientState => {
+const clientstateFromJson = (json: any): DafnyClientState => {
   return TodoMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),

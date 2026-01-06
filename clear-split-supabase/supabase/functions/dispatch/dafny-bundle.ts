@@ -3664,11 +3664,259 @@ const dafnyStringToJs = (seq: any): string => {
 
 
 // ============================================================================
+// TypeScript Type Definitions (JSON representation)
+// ============================================================================
+
+export interface Expense {
+  paidBy: string;
+  amount: number;
+  shares: Record<string, number>;
+  shareKeys: string[];
+}
+
+export interface Settlement {
+  from: string;
+  to: string;
+  amount: number;
+}
+
+export interface Model {
+  members: string[];
+  memberList: string[];
+  expenses: Expense[];
+  settlements: Settlement[];
+}
+
+export type Result<T, E> =
+  | { type: 'Ok'; value: unknown }
+  | { type: 'Error'; error: unknown };
+
+export type Err =
+  | { type: 'NotMember'; p: string }
+  | { type: 'BadExpense' }
+  | { type: 'BadSettlement' };
+
+export type Action =
+  | { type: 'AddExpense'; e: Expense }
+  | { type: 'AddSettlement'; s: Settlement };
+
+export interface Certificate {
+  memberCount: number;
+  expenseCount: number;
+  settlementCount: number;
+  conservationHolds: boolean;
+}
+
+export interface RejectReason {
+}
+
+export type Reply =
+  | { type: 'Accepted'; newVersion: number; newPresent: Model; applied: Action; noChange: boolean }
+  | { type: 'Rejected'; reason: RejectReason; rebased: Action };
+
+export type RequestOutcome =
+  | { type: 'AuditAccepted'; applied: Action; noChange: boolean }
+  | { type: 'AuditRejected'; reason: RejectReason; rebased: Action };
+
+export interface RequestRecord {
+  baseVersion: number;
+  orig: Action;
+  rebased: Action;
+  chosen: Action;
+  outcome: RequestOutcome;
+}
+
+export interface ServerState {
+  present: Model;
+  appliedLog: Action[];
+  auditLog: RequestRecord[];
+}
+
+export interface ClientState {
+  baseVersion: number;
+  present: Model;
+  pending: Action[];
+}
+
+export type NetworkStatus = 'Online' | 'Offline';
+
+export type EffectMode =
+  | { type: 'Idle' }
+  | { type: 'Dispatching'; retries: number };
+
+export interface EffectState {
+  network: NetworkStatus;
+  mode: EffectMode;
+  client: ClientState;
+  serverVersion: number;
+}
+
+export type Event =
+  | { type: 'UserAction'; action: Action }
+  | { type: 'DispatchAccepted'; newVersion: number; newModel: Model }
+  | { type: 'DispatchConflict'; freshVersion: number; freshModel: Model }
+  | { type: 'DispatchRejected'; freshVersion: number; freshModel: Model }
+  | { type: 'NetworkError' }
+  | { type: 'NetworkRestored' }
+  | { type: 'ManualGoOffline' }
+  | { type: 'ManualGoOnline' }
+  | { type: 'Tick' };
+
+export type Command =
+  | { type: 'NoOp' }
+  | { type: 'SendDispatch'; baseVersion: number; action: Action }
+  | { type: 'FetchFreshState' };
+
+export interface GroupEntry {
+  groupName: string;
+  displayName: string;
+  model: Model;
+}
+
+export interface GroupBalance {
+  groupName: string;
+  balance: number;
+}
+
+export interface CrossGroupSummary {
+  totalOwed: number;
+  totalOwes: number;
+  netBalance: number;
+  groups: GroupBalance[];
+}
+
+// ============================================================================
+// Dafny Runtime Types (actual Dafny runtime object shapes)
+// ============================================================================
+
+// Base Dafny runtime types
+type DafnyInt = InstanceType<typeof BigNumber>;
+interface DafnySeq<T = unknown> {
+  readonly length: number;
+  readonly [index: number]: T;
+  toVerbatimString?(asLiteral: boolean): string;
+  map<U>(fn: (x: T) => U): U[];
+}
+interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }
+interface DafnyMap<K = unknown, V = unknown> {
+  readonly Keys: DafnySet<K>;
+  get(key: K): V;
+  contains(key: K): boolean;
+}
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
+type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
+
+interface DafnyExpense {
+  readonly is_Expense: true;
+  readonly dtor_paidBy: DafnySeq;
+  readonly dtor_amount: DafnyInt;
+  readonly dtor_shares: DafnyMap<DafnySeq, DafnyInt>;
+  readonly dtor_shareKeys: DafnySeq<DafnySeq>;
+}
+
+interface DafnySettlement {
+  readonly is_Settlement: true;
+  readonly dtor_from: DafnySeq;
+  readonly dtor_to: DafnySeq;
+  readonly dtor_amount: DafnyInt;
+}
+
+interface DafnyModel {
+  readonly is_Model: true;
+  readonly dtor_members: DafnySet<DafnySeq>;
+  readonly dtor_memberList: DafnySeq<DafnySeq>;
+  readonly dtor_expenses: DafnySeq<DafnyExpense>;
+  readonly dtor_settlements: DafnySeq<DafnySettlement>;
+}
+
+type DafnyResult<T, E> = { readonly is_Ok: true; readonly is_Error: false; readonly dtor_value: T } | { readonly is_Ok: false; readonly is_Error: true; readonly dtor_error: E };
+
+type DafnyErr = { readonly is_NotMember: true; readonly is_BadExpense: false; readonly is_BadSettlement: false; readonly dtor_p: DafnySeq } | { readonly is_NotMember: false; readonly is_BadExpense: true; readonly is_BadSettlement: false } | { readonly is_NotMember: false; readonly is_BadExpense: false; readonly is_BadSettlement: true };
+
+type DafnyAction = { readonly is_AddExpense: true; readonly is_AddSettlement: false; readonly dtor_e: DafnyExpense } | { readonly is_AddExpense: false; readonly is_AddSettlement: true; readonly dtor_s: DafnySettlement };
+
+interface DafnyCertificate {
+  readonly is_Certificate: true;
+  readonly dtor_memberCount: DafnyInt;
+  readonly dtor_expenseCount: DafnyInt;
+  readonly dtor_settlementCount: DafnyInt;
+  readonly dtor_conservationHolds: boolean;
+}
+
+interface DafnyRejectReason {
+  readonly is_DomainInvalid: true;
+}
+
+type DafnyReply = { readonly is_Accepted: true; readonly is_Rejected: false; readonly dtor_newVersion: DafnyInt; readonly dtor_newPresent: DafnyModel; readonly dtor_applied: DafnyAction; readonly dtor_noChange: boolean } | { readonly is_Accepted: false; readonly is_Rejected: true; readonly dtor_reason: DafnyRejectReason; readonly dtor_rebased: DafnyAction };
+
+type DafnyRequestOutcome = { readonly is_AuditAccepted: true; readonly is_AuditRejected: false; readonly dtor_applied: DafnyAction; readonly dtor_noChange: boolean } | { readonly is_AuditAccepted: false; readonly is_AuditRejected: true; readonly dtor_reason: DafnyRejectReason; readonly dtor_rebased: DafnyAction };
+
+interface DafnyRequestRecord {
+  readonly is_Req: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_orig: DafnyAction;
+  readonly dtor_rebased: DafnyAction;
+  readonly dtor_chosen: DafnyAction;
+  readonly dtor_outcome: DafnyRequestOutcome;
+}
+
+interface DafnyServerState {
+  readonly is_ServerState: true;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_appliedLog: DafnySeq<DafnyAction>;
+  readonly dtor_auditLog: DafnySeq<DafnyRequestRecord>;
+}
+
+interface DafnyClientState {
+  readonly is_ClientState: true;
+  readonly dtor_baseVersion: DafnyInt;
+  readonly dtor_present: DafnyModel;
+  readonly dtor_pending: DafnySeq<DafnyAction>;
+}
+
+type DafnyNetworkStatus = { readonly is_Online: true; readonly is_Offline: false } | { readonly is_Online: false; readonly is_Offline: true };
+
+type DafnyEffectMode = { readonly is_Idle: true; readonly is_Dispatching: false } | { readonly is_Idle: false; readonly is_Dispatching: true; readonly dtor_retries: DafnyInt };
+
+interface DafnyEffectState {
+  readonly is_EffectState: true;
+  readonly dtor_network: DafnyNetworkStatus;
+  readonly dtor_mode: DafnyEffectMode;
+  readonly dtor_client: DafnyClientState;
+  readonly dtor_serverVersion: DafnyInt;
+}
+
+type DafnyEvent = { readonly is_UserAction: true; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_action: DafnyAction } | { readonly is_UserAction: false; readonly is_DispatchAccepted: true; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_newVersion: DafnyInt; readonly dtor_newModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: true; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersion: DafnyInt; readonly dtor_freshModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: true; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false; readonly dtor_freshVersion: DafnyInt; readonly dtor_freshModel: DafnyModel } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: true; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: true; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: true; readonly is_ManualGoOnline: false; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: true; readonly is_Tick: false } | { readonly is_UserAction: false; readonly is_DispatchAccepted: false; readonly is_DispatchConflict: false; readonly is_DispatchRejected: false; readonly is_NetworkError: false; readonly is_NetworkRestored: false; readonly is_ManualGoOffline: false; readonly is_ManualGoOnline: false; readonly is_Tick: true };
+
+type DafnyCommand = { readonly is_NoOp: true; readonly is_SendDispatch: false; readonly is_FetchFreshState: false } | { readonly is_NoOp: false; readonly is_SendDispatch: true; readonly is_FetchFreshState: false; readonly dtor_baseVersion: DafnyInt; readonly dtor_action: DafnyAction } | { readonly is_NoOp: false; readonly is_SendDispatch: false; readonly is_FetchFreshState: true };
+
+interface DafnyGroupEntry {
+  readonly is_GroupEntry: true;
+  readonly dtor_groupName: DafnySeq;
+  readonly dtor_displayName: DafnySeq;
+  readonly dtor_model: DafnyModel;
+}
+
+interface DafnyGroupBalance {
+  readonly is_GroupBalance: true;
+  readonly dtor_groupName: DafnySeq;
+  readonly dtor_balance: DafnyInt;
+}
+
+interface DafnyCrossGroupSummary {
+  readonly is_CrossGroupSummary: true;
+  readonly dtor_totalOwed: DafnyInt;
+  readonly dtor_totalOwes: DafnyInt;
+  readonly dtor_netBalance: DafnyInt;
+  readonly dtor_groups: DafnySeq<DafnyGroupBalance>;
+}
+
+// ============================================================================
 // Datatype Conversions
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const expenseFromJson = (json: any): any => {
+const expenseFromJson = (json: any): DafnyExpense => {
   let __shares = _dafny.Map.Empty;
   for (const [k, v] of (Object.entries(json.shares || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
@@ -3684,7 +3932,7 @@ const expenseFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const expenseToJson = (value: any): any => {
+const expenseToJson = (value: any): Expense => {
   const __sharesJson: Record<string, any> = {};
   if (value.dtor_shares && value.dtor_shares.Keys) {
     for (const k of value.dtor_shares.Keys.Elements) {
@@ -3701,7 +3949,7 @@ const expenseToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const settlementFromJson = (json: any): any => {
+const settlementFromJson = (json: any): DafnySettlement => {
   return ClearSplit.Settlement.create_Settlement(
     _dafny.Seq.UnicodeFromString(json.from),
     _dafny.Seq.UnicodeFromString(json.to),
@@ -3710,7 +3958,7 @@ const settlementFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const settlementToJson = (value: any): any => {
+const settlementToJson = (value: any): Settlement => {
   return {
     from: dafnyStringToJs(value.dtor_from),
     to: dafnyStringToJs(value.dtor_to),
@@ -3719,7 +3967,7 @@ const settlementToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json: any): any => {
+const modelFromJson = (json: any): DafnyModel => {
   return ClearSplit.Model.create_Model(
     _dafny.Set.fromElements(...(json.members || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
     _dafny.Seq.of(...(json.memberList || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
@@ -3729,7 +3977,7 @@ const modelFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value: any): any => {
+const modelToJson = (value: any): Model => {
   return {
     members: Array.from(value.dtor_members.Elements).map((x: any) => dafnyStringToJs(x)),
     memberList: seqToArray(value.dtor_memberList).map((x: any) => dafnyStringToJs(x)),
@@ -3739,7 +3987,7 @@ const modelToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
+const resultFromJson = <T, E>(json: any, T_fromJson: (x: any) => T, E_fromJson: (x: any) => E): DafnyResult<T, E> => {
   switch (json.type) {
     case 'Ok': {
       return ClearSplit.Result.create_Ok(
@@ -3757,7 +4005,7 @@ const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: 
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
+const resultToJson = <T, E>(value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): Result<T, E> => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -3769,11 +4017,11 @@ const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) 
       error: E_toJson(value.dtor_error)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Result variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json: any): any => {
+const errFromJson = (json: any): DafnyErr => {
   switch (json.type) {
     case 'NotMember': {
       return ClearSplit.Err.create_NotMember(
@@ -3792,7 +4040,7 @@ const errFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value: any): any => {
+const errToJson = (value: any): Err => {
   if (value.is_NotMember) {
     return {
       type: 'NotMember',
@@ -3803,11 +4051,11 @@ const errToJson = (value: any): any => {
   } else if (value.is_BadSettlement) {
     return { type: 'BadSettlement' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Err variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json: any): any => {
+const actionFromJson = (json: any): DafnyAction => {
   switch (json.type) {
     case 'AddExpense': {
       return ClearSplit.Action.create_AddExpense(
@@ -3825,7 +4073,7 @@ const actionFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value: any): any => {
+const actionToJson = (value: any): Action => {
   if (value.is_AddExpense) {
     return {
       type: 'AddExpense',
@@ -3837,11 +4085,11 @@ const actionToJson = (value: any): any => {
       s: settlementToJson(value.dtor_s)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Action variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const certificateFromJson = (json: any): any => {
+const certificateFromJson = (json: any): DafnyCertificate => {
   return ClearSplit.Certificate.create_Certificate(
     new BigNumber(json.memberCount),
     new BigNumber(json.expenseCount),
@@ -3851,7 +4099,7 @@ const certificateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const certificateToJson = (value: any): any => {
+const certificateToJson = (value: any): Certificate => {
   return {
     memberCount: toNumber(value.dtor_memberCount),
     expenseCount: toNumber(value.dtor_expenseCount),
@@ -3861,17 +4109,17 @@ const certificateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json: any): any => {
+const rejectreasonFromJson = (json: any): DafnyRejectReason => {
   return ClearSplitMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value: any): any => {
+const rejectreasonToJson = (value: any): RejectReason => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const replyFromJson = (json: any): any => {
+const replyFromJson = (json: any): DafnyReply => {
   switch (json.type) {
     case 'Accepted': {
       return ClearSplitMultiCollaboration.Reply.create_Accepted(
@@ -3893,7 +4141,7 @@ const replyFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const replyToJson = (value: any): any => {
+const replyToJson = (value: any): Reply => {
   if (value.is_Accepted) {
     return {
       type: 'Accepted',
@@ -3909,11 +4157,11 @@ const replyToJson = (value: any): any => {
       rebased: actionToJson(value.dtor_rebased)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Reply variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json: any): any => {
+const requestoutcomeFromJson = (json: any): DafnyRequestOutcome => {
   switch (json.type) {
     case 'AuditAccepted': {
       return ClearSplitMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -3933,7 +4181,7 @@ const requestoutcomeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value: any): any => {
+const requestoutcomeToJson = (value: any): RequestOutcome => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -3947,11 +4195,11 @@ const requestoutcomeToJson = (value: any): any => {
       rebased: actionToJson(value.dtor_rebased)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown RequestOutcome variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json: any): any => {
+const requestrecordFromJson = (json: any): DafnyRequestRecord => {
   return ClearSplitMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -3962,7 +4210,7 @@ const requestrecordFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value: any): any => {
+const requestrecordToJson = (value: any): RequestRecord => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -3973,7 +4221,7 @@ const requestrecordToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json: any): any => {
+const serverstateFromJson = (json: any): DafnyServerState => {
   return ClearSplitMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
     _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
@@ -3982,7 +4230,7 @@ const serverstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value: any): any => {
+const serverstateToJson = (value: any): ServerState => {
   return {
     present: modelToJson(value.dtor_present),
     appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
@@ -3991,7 +4239,7 @@ const serverstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json: any): any => {
+const clientstateFromJson = (json: any): DafnyClientState => {
   return ClearSplitMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
@@ -4000,7 +4248,7 @@ const clientstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value: any): any => {
+const clientstateToJson = (value: any): ClientState => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),
@@ -4009,7 +4257,7 @@ const clientstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusFromJson = (json: any): any => {
+const networkstatusFromJson = (json: any): DafnyNetworkStatus => {
   switch (json) {
     case 'Online':
       return ClearSplitEffectStateMachine.NetworkStatus.create_Online();
@@ -4021,17 +4269,17 @@ const networkstatusFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusToJson = (value: any): any => {
+const networkstatusToJson = (value: any): NetworkStatus => {
   if (value.is_Online) {
     return 'Online';
   } else if (value.is_Offline) {
     return 'Offline';
   }
-  return 'Unknown';
+  throw new Error('Unknown NetworkStatus variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeFromJson = (json: any): any => {
+const effectmodeFromJson = (json: any): DafnyEffectMode => {
   switch (json.type) {
     case 'Idle': {
       return ClearSplitEffectStateMachine.EffectMode.create_Idle();
@@ -4047,7 +4295,7 @@ const effectmodeFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeToJson = (value: any): any => {
+const effectmodeToJson = (value: any): EffectMode => {
   if (value.is_Idle) {
     return { type: 'Idle' };
   } else if (value.is_Dispatching) {
@@ -4056,11 +4304,11 @@ const effectmodeToJson = (value: any): any => {
       retries: toNumber(value.dtor_retries)
     };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown EffectMode variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateFromJson = (json: any): any => {
+const effectstateFromJson = (json: any): DafnyEffectState => {
   return ClearSplitEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
@@ -4070,7 +4318,7 @@ const effectstateFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateToJson = (value: any): any => {
+const effectstateToJson = (value: any): EffectState => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
@@ -4080,7 +4328,7 @@ const effectstateToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventFromJson = (json: any): any => {
+const eventFromJson = (json: any): DafnyEvent => {
   switch (json.type) {
     case 'UserAction': {
       return ClearSplitEffectStateMachine.Event.create_UserAction(
@@ -4126,7 +4374,7 @@ const eventFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventToJson = (value: any): any => {
+const eventToJson = (value: any): Event => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
@@ -4161,11 +4409,11 @@ const eventToJson = (value: any): any => {
   } else if (value.is_Tick) {
     return { type: 'Tick' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Event variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const commandFromJson = (json: any): any => {
+const commandFromJson = (json: any): DafnyCommand => {
   switch (json.type) {
     case 'NoOp': {
       return ClearSplitEffectStateMachine.Command.create_NoOp();
@@ -4185,7 +4433,7 @@ const commandFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandToJson = (value: any): any => {
+const commandToJson = (value: any): Command => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {
@@ -4197,11 +4445,11 @@ const commandToJson = (value: any): any => {
   } else if (value.is_FetchFreshState) {
     return { type: 'FetchFreshState' };
   }
-  return { type: 'Unknown' };
+  throw new Error('Unknown Command variant');
 };
 
 // deno-lint-ignore no-explicit-any
-const groupentryFromJson = (json: any): any => {
+const groupentryFromJson = (json: any): DafnyGroupEntry => {
   return ClearSplitCrossGroup.GroupEntry.create_GroupEntry(
     _dafny.Seq.UnicodeFromString(json.groupName),
     _dafny.Seq.UnicodeFromString(json.displayName),
@@ -4210,7 +4458,7 @@ const groupentryFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupentryToJson = (value: any): any => {
+const groupentryToJson = (value: any): GroupEntry => {
   return {
     groupName: dafnyStringToJs(value.dtor_groupName),
     displayName: dafnyStringToJs(value.dtor_displayName),
@@ -4219,7 +4467,7 @@ const groupentryToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupbalanceFromJson = (json: any): any => {
+const groupbalanceFromJson = (json: any): DafnyGroupBalance => {
   return ClearSplitCrossGroup.GroupBalance.create_GroupBalance(
     _dafny.Seq.UnicodeFromString(json.groupName),
     new BigNumber(json.balance)
@@ -4227,7 +4475,7 @@ const groupbalanceFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupbalanceToJson = (value: any): any => {
+const groupbalanceToJson = (value: any): GroupBalance => {
   return {
     groupName: dafnyStringToJs(value.dtor_groupName),
     balance: toNumber(value.dtor_balance)
@@ -4235,7 +4483,7 @@ const groupbalanceToJson = (value: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const crossgroupsummaryFromJson = (json: any): any => {
+const crossgroupsummaryFromJson = (json: any): DafnyCrossGroupSummary => {
   return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(
     new BigNumber(json.totalOwed),
     new BigNumber(json.totalOwes),
@@ -4245,7 +4493,7 @@ const crossgroupsummaryFromJson = (json: any): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const crossgroupsummaryToJson = (value: any): any => {
+const crossgroupsummaryToJson = (value: any): CrossGroupSummary => {
   return {
     totalOwed: toNumber(value.dtor_totalOwed),
     totalOwes: toNumber(value.dtor_totalOwes),

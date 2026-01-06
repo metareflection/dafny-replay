@@ -1,21 +1,24 @@
 // App-specific convenience wrappers
-// This file adds aliases and helpers on top of the generated app.js
+// This file adds aliases and helpers on top of the generated app.ts
 
-import GeneratedApp from './app.js';
+import GeneratedApp from './app.ts';
 import BigNumber from 'bignumber.js';
+
+// Cast _internal for access to Dafny runtime modules
+const { _dafny, KanbanDomain } = GeneratedApp._internal as any;
 
 // Re-export everything from generated app, plus extras
 const App = {
   ...GeneratedApp,
 
   // Aliases for ClientState management
-  GetPresent: (client) => GeneratedApp.ClientModel(client),
-  GetBaseVersion: (client) => GeneratedApp.ClientVersion(client),
-  GetPendingCount: (client) => GeneratedApp.PendingCount(client),
-  LocalDispatch: (client, action) => GeneratedApp.ClientLocalDispatch(client, action),
-  GetPendingActions: (client) => {
+  GetPresent: (client: any) => GeneratedApp.ClientModel(client),
+  GetBaseVersion: (client: any) => GeneratedApp.ClientVersion(client),
+  GetPendingCount: (client: any) => GeneratedApp.PendingCount(client),
+  LocalDispatch: (client: any, action: any) => GeneratedApp.ClientLocalDispatch(client, action),
+  GetPendingActions: (client: any) => {
     const pending = client.dtor_pending;
-    const arr = [];
+    const arr: any[] = [];
     for (let i = 0; i < pending.length; i++) {
       arr.push(pending[i]);
     }
@@ -23,32 +26,32 @@ const App = {
   },
 
   // Convenience wrapper that takes JSON model
-  InitClient: (version, modelJson) => {
+  InitClient: (version: number, modelJson: any) => {
     const model = GeneratedApp.modelFromJson(modelJson);
     return GeneratedApp.MakeClientState(version, model, []);
   },
 
   // Wrapper that takes JSON model for realtime updates
-  HandleRealtimeUpdateJson: (client, serverVersion, serverModelJson) => {
+  HandleRealtimeUpdateJson: (client: any, serverVersion: number, serverModelJson: any) => {
     const serverModel = GeneratedApp.modelFromJson(serverModelJson);
     return GeneratedApp.HandleRealtimeUpdate(client, serverVersion, serverModel);
   },
 
   // Model accessors using KanbanDomain functions (accessed via the raw module)
-  GetLane: (m, col) => {
+  GetLane: (m: any, col: string) => {
     // Access the Lane function from KanbanDomain
-    const lane = GeneratedApp._internal.KanbanDomain.__default.Lane(
+    const lane = KanbanDomain.__default.Lane(
       m,
-      GeneratedApp._internal._dafny.Seq.UnicodeFromString(col)
+      _dafny.Seq.UnicodeFromString(col)
     );
-    const arr = [];
+    const arr: number[] = [];
     for (let i = 0; i < lane.length; i++) {
       arr.push(lane[i].toNumber());
     }
     return arr;
   },
 
-  GetCardTitle: (m, id) => {
+  GetCardTitle: (m: any, id: number) => {
     const cardsMap = m.dtor_cards;
     const key = new BigNumber(id);
     if (cardsMap.contains(key)) {

@@ -1,19 +1,20 @@
 // App-specific convenience wrappers for canon
 // Provides naming aliases and persistence functions
 
-import GeneratedApp from './app.js';
+import GeneratedApp from './app.ts';
 import BigNumber from 'bignumber.js';
 
-const { _dafny, CanonDomain, CanonKernel, AppCore } = GeneratedApp._internal;
+// Cast _internal for access to Dafny runtime modules
+const { _dafny, CanonDomain, CanonKernel, AppCore } = GeneratedApp._internal as any;
 
 const App = {
   ...GeneratedApp,
 
   // Naming aliases (app uses GetX, generated has X)
-  GetPresent: (h) => GeneratedApp.Present(h),
-  GetNodes: (h) => {
+  GetPresent: (h: any) => GeneratedApp.Present(h),
+  GetNodes: (h: any) => {
     const nodesMap = AppCore.__default.Nodes(h);
-    const result = [];
+    const result: any[] = [];
     if (nodesMap && nodesMap.Keys) {
       for (const k of nodesMap.Keys.Elements) {
         const v = nodesMap.get(k);
@@ -22,11 +23,11 @@ const App = {
     }
     return result;
   },
-  GetEdges: (h) => GeneratedApp.Edges(h),
-  GetConstraints: (h) => GeneratedApp.Constraints(h),
+  GetEdges: (h: any) => GeneratedApp.Edges(h),
+  GetConstraints: (h: any) => GeneratedApp.Constraints(h),
 
   // Init with initial nodes array
-  Init: (initialNodes) => {
+  Init: (initialNodes?: { id: string; x: number; y: number }[]) => {
     if (!initialNodes || initialNodes.length === 0) {
       return AppCore.__default.Init();
     }
@@ -44,14 +45,14 @@ const App = {
   },
 
   // Canon - apply constraints to canonicalize positions
-  Canon: (h) => GeneratedApp.CanonHistory(h),
+  Canon: (h: any) => GeneratedApp.CanonHistory(h),
 
   // Persistence
-  Serialize: (model) => {
+  Serialize: (model: any) => {
     return GeneratedApp.modelToJson(model);
   },
 
-  Load: (data, existingHistory) => {
+  Load: (data: any, existingHistory?: any) => {
     try {
       const model = GeneratedApp.modelFromJson(data);
       // Create a new history with the loaded model (History is in CanonKernel)

@@ -22,7 +22,7 @@ public static class TypeMapper
   }
 
   /// <summary>
-  /// Convert a Dafny TypeRef to a TypeScript type string.
+  /// Convert a Dafny TypeRef to a TypeScript type string (JSON representation).
   /// </summary>
   public static string TypeRefToTypeScript(TypeRef type)
   {
@@ -46,6 +46,37 @@ public static class TypeMapper
       TypeKind.Datatype => type.TypeArgs.Count > 0
         ? $"{SanitizeForJs(type.Name)}<{string.Join(", ", type.TypeArgs.Select(TypeRefToTypeScript))}>"
         : SanitizeForJs(type.Name),
+      TypeKind.TypeParam => "unknown", // Type params not in scope, use unknown
+      _ => "unknown"
+    };
+  }
+
+  /// <summary>
+  /// Convert a Dafny TypeRef to a Dafny runtime TypeScript type string.
+  /// These types represent the actual Dafny runtime objects (with dtor_*, is_*, etc.).
+  /// </summary>
+  public static string TypeRefToDafnyRuntime(TypeRef type)
+  {
+    return type.Kind switch
+    {
+      TypeKind.Int => "DafnyInt",
+      TypeKind.Bool => "boolean",
+      TypeKind.String => "DafnySeq",
+      TypeKind.Seq => type.TypeArgs.Count > 0
+        ? $"DafnySeq<{TypeRefToDafnyRuntime(type.TypeArgs[0])}>"
+        : "DafnySeq",
+      TypeKind.Set => type.TypeArgs.Count > 0
+        ? $"DafnySet<{TypeRefToDafnyRuntime(type.TypeArgs[0])}>"
+        : "DafnySet",
+      TypeKind.Map => type.TypeArgs.Count >= 2
+        ? $"DafnyMap<{TypeRefToDafnyRuntime(type.TypeArgs[0])}, {TypeRefToDafnyRuntime(type.TypeArgs[1])}>"
+        : "DafnyMap",
+      TypeKind.Tuple => type.TypeArgs.Count > 0
+        ? $"DafnyTuple{type.TypeArgs.Count}<{string.Join(", ", type.TypeArgs.Select(TypeRefToDafnyRuntime))}>"
+        : "unknown",
+      TypeKind.Datatype => type.TypeArgs.Count > 0
+        ? $"Dafny{SanitizeForJs(type.Name)}<{string.Join(", ", type.TypeArgs.Select(TypeRefToDafnyRuntime))}>"
+        : $"Dafny{SanitizeForJs(type.Name)}",
       TypeKind.TypeParam => type.Name,
       _ => "unknown"
     };
