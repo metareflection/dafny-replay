@@ -14,12 +14,9 @@ import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
  * Uses MultiProjectEffectManager for verified state transitions.
  *
  * @param {string[]} projectIds - Array of project IDs to load
- * @param {object} options - Optional configuration
- * @param {function} options.logger - Optional callback to log operations
  * @returns {object} - Aggregated project data and dispatch functions
  */
-export function useAllProjects(projectIds, options = {}) {
-  const { logger } = options
+export function useAllProjects(projectIds) {
   const [status, setStatus] = useState('syncing')
   const [error, setError] = useState(null)
   const [manager, setManager] = useState(null)

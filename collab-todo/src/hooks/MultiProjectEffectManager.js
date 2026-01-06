@@ -20,22 +20,9 @@ export class MultiProjectEffectManager {
   #realtimeChannels = []  // One per project
   #statusCallback = null
   #errorCallback = null
-  #logger = null          // Operation log callback
-  #pendingActionContext = null // Context for the action being dispatched
 
   constructor(projectIds = []) {
     this.#projectIds = projectIds
-  }
-
-  // Set logger for operation log (called from React context)
-  setLogger(loggerFn) {
-    this.#logger = loggerFn
-  }
-
-  #log(entry) {
-    if (this.#logger) {
-      this.#logger(entry)
-    }
   }
 
   // For useSyncExternalStore - must be stable references
@@ -153,20 +140,6 @@ export class MultiProjectEffectManager {
           event = App.EffectEvent.DispatchAccepted(response.versions, response.states)
           this.#setStatus('synced')
           this.#setError(null)
-
-          // Log accepted
-          const ctx = this.#pendingActionContext || {}
-          const newVersion = Object.values(response.versions)[0]
-          this.#log({
-            type: 'dispatch_accepted',
-            user: 'you',
-            action: ctx.formattedAction || { type: 'Action', description: 'Action accepted' },
-            projectId: ctx.projectId,
-            projectName: ctx.projectName,
-            baseVersion: ctx.baseVersion,
-            newVersion,
-            details: { verified: true },
-          })
         } else if (response.status === 'conflict') {
           // Fetch fresh state for touched projects
           const { data: freshProjects } = await supabase
@@ -181,23 +154,6 @@ export class MultiProjectEffectManager {
             freshStates[p.id] = p.state
           }
           event = App.EffectEvent.DispatchConflict(freshVersions, freshStates)
-
-          // Log conflict (rebasing)
-          const ctx = this.#pendingActionContext || {}
-          const serverVersion = Object.values(freshVersions)[0]
-          const clientVersion = ctx.baseVersion || 0
-          this.#log({
-            type: 'dispatch_conflict',
-            user: 'you',
-            action: ctx.formattedAction || { type: 'Action', description: 'Rebasing...' },
-            projectId: ctx.projectId,
-            projectName: ctx.projectName,
-            baseVersion: clientVersion,
-            serverVersion,
-            details: {
-              rebaseReason: `Stale by ${serverVersion - clientVersion} version(s)`,
-            },
-          })
         } else if (response.status === 'rejected') {
           // Fetch fresh state for touched projects
           const { data: freshProjects } = await supabase
@@ -213,20 +169,6 @@ export class MultiProjectEffectManager {
           }
           event = App.EffectEvent.DispatchRejected(freshVersions, freshStates)
           this.#setError(`Action rejected: ${response.reason || 'Unknown'}`)
-
-          // Log rejection
-          const ctx = this.#pendingActionContext || {}
-          this.#log({
-            type: 'dispatch_rejected',
-            user: 'you',
-            action: ctx.formattedAction || { type: 'Action', description: 'Action rejected' },
-            projectId: ctx.projectId,
-            projectName: ctx.projectName,
-            baseVersion: ctx.baseVersion,
-            details: {
-              rejectionReason: response.reason || 'Unknown reason',
-            },
-          })
         } else if (response.error) {
           throw new Error(response.error)
         }
@@ -298,62 +240,24 @@ export class MultiProjectEffectManager {
   }
 
   // Public: dispatch user action (single-project)
-  dispatchSingle(projectId, action, actionContext = {}) {
+  dispatchSingle(projectId, action) {
     // DISABLED: Block all actions when offline (no queuing until conflict resolution is implemented)
     if (!this.isOnline) {
       console.warn('Cannot dispatch while offline')
       return
     }
     const multiAction = App.MultiAction.Single(projectId, action)
-    const baseVersion = this.getBaseVersions()[projectId] || 0
-
-    // Store context for logging in executeCommand
-    this.#pendingActionContext = {
-      action,
-      multiAction,
-      projectId,
-      baseVersion,
-      ...actionContext
-    }
-
-    // Log user action
-    this.#log({
-      type: 'user_action',
-      user: 'you',
-      action: actionContext.formattedAction || { type: action.type, description: action.type },
-      projectId,
-      projectName: actionContext.projectName,
-      baseVersion,
-    })
-
     const cmd = this.#transition(App.EffectEvent.UserAction(multiAction))
     if (cmd) this.#executeCommand(cmd)
   }
 
   // Public: dispatch user action (any MultiAction)
-  dispatch(multiAction, actionContext = {}) {
+  dispatch(multiAction) {
     // DISABLED: Block all actions when offline (no queuing until conflict resolution is implemented)
     if (!this.isOnline) {
       console.warn('Cannot dispatch while offline')
       return
     }
-    const baseVersions = this.getBaseVersions()
-
-    // Store context for logging in executeCommand
-    this.#pendingActionContext = {
-      multiAction,
-      baseVersions,
-      ...actionContext
-    }
-
-    // Log user action
-    this.#log({
-      type: 'user_action',
-      user: 'you',
-      action: actionContext.formattedAction || { type: multiAction.type, description: multiAction.type },
-      baseVersion: Object.values(baseVersions)[0], // Use first project's version for display
-    })
-
     const cmd = this.#transition(App.EffectEvent.UserAction(multiAction))
     if (cmd) this.#executeCommand(cmd)
   }
@@ -494,16 +398,6 @@ export class MultiProjectEffectManager {
         const serverVersion = currentVersions[projectId] || 0
 
         if (payload.new.version > serverVersion) {
-          // Log realtime update from another user
-          this.#log({
-            type: 'realtime_update',
-            user: 'collaborator', // Could be enhanced to show actual user if available
-            action: { type: 'Remote', description: 'Remote update received' },
-            projectId,
-            baseVersion: serverVersion,
-            newVersion: payload.new.version,
-          })
-
           // VERIFIED: Use RealtimeUpdate event (preserves pending actions)
           this.#transition(App.EffectEvent.RealtimeUpdate(
             projectId,
