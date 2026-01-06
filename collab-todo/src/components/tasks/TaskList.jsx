@@ -55,9 +55,6 @@ export function TaskList({
     }
   }, [showMoveDropdown])
 
-  const completedCount = tasks.filter(t => t.completed).length
-  const totalCount = tasks.length
-
   const handleRename = (e) => {
     e.preventDefault()
     if (editName.trim() && editName.trim() !== listName) {
@@ -118,7 +115,12 @@ export function TaskList({
             {showAddTask && (
               <button
                 className="task-list__action-btn task-list__action-btn--add"
-                onClick={() => setShowAddInput(true)}
+                onClick={() => {
+                  if (collapsed) {
+                    onToggleCollapse?.()
+                  }
+                  setShowAddInput(true)
+                }}
                 title="Add task"
               >
                 <Plus size={14} />
@@ -188,8 +190,6 @@ export function TaskList({
               <X size={12} />
             </button>
           </div>
-
-          <span className="task-list__count">{completedCount}/{totalCount}</span>
         </div>
       )}
 
