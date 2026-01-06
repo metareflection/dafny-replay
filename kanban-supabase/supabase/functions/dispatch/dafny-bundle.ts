@@ -3303,41 +3303,41 @@ const dafnyStringToJs = (seq: any): string => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const cardFromJson = (json): any => {
+const cardFromJson = (json: any): any => {
   return KanbanDomain.Card.create_Card(
     _dafny.Seq.UnicodeFromString(json.title)
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const cardToJson = (value): any => {
+const cardToJson = (value: any): any => {
   return {
     title: dafnyStringToJs(value.dtor_title)
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json): any => {
+const modelFromJson = (json: any): any => {
   let __lanes = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.lanes || {})) {
+  for (const [k, v] of (Object.entries(json.lanes || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
-    const val = _dafny.Seq.of(...(v || []).map(x => new BigNumber(x)));
+    const val = _dafny.Seq.of(...(v || []).map((x: any) => new BigNumber(x)));
     __lanes = __lanes.update(key, val);
   }
   let __wip = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.wip || {})) {
+  for (const [k, v] of (Object.entries(json.wip || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
     const val = new BigNumber(v);
     __wip = __wip.update(key, val);
   }
   let __cards = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.cards || {})) {
+  for (const [k, v] of (Object.entries(json.cards || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = cardFromJson(v);
     __cards = __cards.update(key, val);
   }
   return KanbanDomain.Model.create_Model(
-    _dafny.Seq.of(...(json.cols || []).map(x => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Seq.of(...(json.cols || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
     __lanes,
     __wip,
     __cards,
@@ -3346,22 +3346,22 @@ const modelFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value): any => {
-  const __lanesJson = {};
+const modelToJson = (value: any): any => {
+  const __lanesJson: Record<string, any> = {};
   if (value.dtor_lanes && value.dtor_lanes.Keys) {
     for (const k of value.dtor_lanes.Keys.Elements) {
       const v = value.dtor_lanes.get(k);
-      __lanesJson[dafnyStringToJs(k)] = seqToArray(v).map(x => toNumber(x));
+      __lanesJson[dafnyStringToJs(k)] = seqToArray(v).map((x: any) => toNumber(x));
     }
   }
-  const __wipJson = {};
+  const __wipJson: Record<string, any> = {};
   if (value.dtor_wip && value.dtor_wip.Keys) {
     for (const k of value.dtor_wip.Keys.Elements) {
       const v = value.dtor_wip.get(k);
       __wipJson[dafnyStringToJs(k)] = toNumber(v);
     }
   }
-  const __cardsJson = {};
+  const __cardsJson: Record<string, any> = {};
   if (value.dtor_cards && value.dtor_cards.Keys) {
     for (const k of value.dtor_cards.Keys.Elements) {
       const v = value.dtor_cards.get(k);
@@ -3369,7 +3369,7 @@ const modelToJson = (value): any => {
     }
   }
   return {
-    cols: seqToArray(value.dtor_cols).map(x => dafnyStringToJs(x)),
+    cols: seqToArray(value.dtor_cols).map((x: any) => dafnyStringToJs(x)),
     lanes: __lanesJson,
     wip: __wipJson,
     cards: __cardsJson,
@@ -3378,7 +3378,7 @@ const modelToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json): any => {
+const errFromJson = (json: any): any => {
   switch (json) {
     case 'MissingColumn':
       return KanbanDomain.Err.create_MissingColumn();
@@ -3396,7 +3396,7 @@ const errFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value): any => {
+const errToJson = (value: any): any => {
   if (value.is_MissingColumn) {
     return 'MissingColumn';
   } else if (value.is_MissingCard) {
@@ -3412,7 +3412,7 @@ const errToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = (json, T_fromJson): any => {
+const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
   switch (json.type) {
     case 'None': {
       return KanbanDomain.Option.create_None();
@@ -3428,7 +3428,7 @@ const optionFromJson = (json, T_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionToJson = (value, T_toJson): any => {
+const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
@@ -3441,7 +3441,7 @@ const optionToJson = (value, T_toJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json): any => {
+const placeFromJson = (json: any): any => {
   switch (json.type) {
     case 'AtEnd': {
       return KanbanDomain.Place.create_AtEnd();
@@ -3462,7 +3462,7 @@ const placeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeToJson = (value): any => {
+const placeToJson = (value: any): any => {
   if (value.is_AtEnd) {
     return { type: 'AtEnd' };
   } else if (value.is_Before) {
@@ -3480,7 +3480,7 @@ const placeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json): any => {
+const actionFromJson = (json: any): any => {
   switch (json.type) {
     case 'NoOp': {
       return KanbanDomain.Action.create_NoOp();
@@ -3522,7 +3522,7 @@ const actionFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value): any => {
+const actionToJson = (value: any): any => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_AddColumn) {
@@ -3561,7 +3561,7 @@ const actionToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json, T_fromJson, E_fromJson): any => {
+const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
   switch (json.type) {
     case 'Ok': {
       return KanbanDomain.Result.create_Ok(
@@ -3579,7 +3579,7 @@ const resultFromJson = (json, T_fromJson, E_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value, T_toJson, E_toJson): any => {
+const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -3595,17 +3595,17 @@ const resultToJson = (value, T_toJson, E_toJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json): any => {
+const rejectreasonFromJson = (json: any): any => {
   return KanbanMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value): any => {
+const rejectreasonToJson = (value: any): any => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const replyFromJson = (json): any => {
+const replyFromJson = (json: any): any => {
   switch (json.type) {
     case 'Accepted': {
       return KanbanMultiCollaboration.Reply.create_Accepted(
@@ -3627,7 +3627,7 @@ const replyFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const replyToJson = (value): any => {
+const replyToJson = (value: any): any => {
   if (value.is_Accepted) {
     return {
       type: 'Accepted',
@@ -3647,7 +3647,7 @@ const replyToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json): any => {
+const requestoutcomeFromJson = (json: any): any => {
   switch (json.type) {
     case 'AuditAccepted': {
       return KanbanMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -3667,7 +3667,7 @@ const requestoutcomeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value): any => {
+const requestoutcomeToJson = (value: any): any => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -3685,7 +3685,7 @@ const requestoutcomeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json): any => {
+const requestrecordFromJson = (json: any): any => {
   return KanbanMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -3696,7 +3696,7 @@ const requestrecordFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value): any => {
+const requestrecordToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -3707,43 +3707,43 @@ const requestrecordToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json): any => {
+const serverstateFromJson = (json: any): any => {
   return KanbanMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.appliedLog || []).map(x => actionFromJson(x))),
-    _dafny.Seq.of(...(json.auditLog || []).map(x => requestrecordFromJson(x)))
+    _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
+    _dafny.Seq.of(...(json.auditLog || []).map((x: any) => requestrecordFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value): any => {
+const serverstateToJson = (value: any): any => {
   return {
     present: modelToJson(value.dtor_present),
-    appliedLog: seqToArray(value.dtor_appliedLog).map(x => actionToJson(x)),
-    auditLog: seqToArray(value.dtor_auditLog).map(x => requestrecordToJson(x))
+    appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
+    auditLog: seqToArray(value.dtor_auditLog).map((x: any) => requestrecordToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json): any => {
+const clientstateFromJson = (json: any): any => {
   return KanbanMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.pending || []).map(x => actionFromJson(x)))
+    _dafny.Seq.of(...(json.pending || []).map((x: any) => actionFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value): any => {
+const clientstateToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),
-    pending: seqToArray(value.dtor_pending).map(x => actionToJson(x))
+    pending: seqToArray(value.dtor_pending).map((x: any) => actionToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusFromJson = (json): any => {
+const networkstatusFromJson = (json: any): any => {
   switch (json) {
     case 'Online':
       return KanbanEffectStateMachine.NetworkStatus.create_Online();
@@ -3755,7 +3755,7 @@ const networkstatusFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusToJson = (value): any => {
+const networkstatusToJson = (value: any): any => {
   if (value.is_Online) {
     return 'Online';
   } else if (value.is_Offline) {
@@ -3765,7 +3765,7 @@ const networkstatusToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeFromJson = (json): any => {
+const effectmodeFromJson = (json: any): any => {
   switch (json.type) {
     case 'Idle': {
       return KanbanEffectStateMachine.EffectMode.create_Idle();
@@ -3781,7 +3781,7 @@ const effectmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeToJson = (value): any => {
+const effectmodeToJson = (value: any): any => {
   if (value.is_Idle) {
     return { type: 'Idle' };
   } else if (value.is_Dispatching) {
@@ -3794,7 +3794,7 @@ const effectmodeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateFromJson = (json): any => {
+const effectstateFromJson = (json: any): any => {
   return KanbanEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
@@ -3804,7 +3804,7 @@ const effectstateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateToJson = (value): any => {
+const effectstateToJson = (value: any): any => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
@@ -3814,7 +3814,7 @@ const effectstateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventFromJson = (json): any => {
+const eventFromJson = (json: any): any => {
   switch (json.type) {
     case 'UserAction': {
       return KanbanEffectStateMachine.Event.create_UserAction(
@@ -3860,7 +3860,7 @@ const eventFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventToJson = (value): any => {
+const eventToJson = (value: any): any => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
@@ -3899,7 +3899,7 @@ const eventToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandFromJson = (json): any => {
+const commandFromJson = (json: any): any => {
   switch (json.type) {
     case 'NoOp': {
       return KanbanEffectStateMachine.Command.create_NoOp();
@@ -3919,7 +3919,7 @@ const commandFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandToJson = (value): any => {
+const commandToJson = (value: any): any => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {

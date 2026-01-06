@@ -4200,7 +4200,7 @@ const optionToJs = (opt: any, converter: (x: any) => any = (x) => x): any => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const optionFromJson = (json, T_fromJson): any => {
+const optionFromJson = (json: any, T_fromJson: (x: any) => any): any => {
   // Handle null/undefined (DB compatibility with --null-options)
   if (json === null || json === undefined) {
     return TodoDomain.Option.create_None();
@@ -4224,7 +4224,7 @@ const optionFromJson = (json, T_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const optionToJson = (value, T_toJson): any => {
+const optionToJson = (value: any, T_toJson: (x: any) => any): any => {
   if (value.is_None) {
     return { type: 'None' };
   } else if (value.is_Some) {
@@ -4237,7 +4237,7 @@ const optionToJson = (value, T_toJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const dateFromJson = (json): any => {
+const dateFromJson = (json: any): any => {
   return TodoDomain.Date.create_Date(
     new BigNumber(json.year),
     new BigNumber(json.month),
@@ -4246,7 +4246,7 @@ const dateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const dateToJson = (value): any => {
+const dateToJson = (value: any): any => {
   return {
     year: toNumber(value.dtor_year),
     month: toNumber(value.dtor_month),
@@ -4255,31 +4255,31 @@ const dateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const taskFromJson = (json): any => {
+const taskFromJson = (json: any): any => {
   return TodoDomain.Task.create_Task(
     _dafny.Seq.UnicodeFromString(json.title),
     _dafny.Seq.UnicodeFromString(json.notes),
     json.completed,
     json.starred,
     optionFromJson(json.dueDate, dateFromJson),
-    _dafny.Set.fromElements(...(json.assignees || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Set.fromElements(...(json.tags || []).map(x => new BigNumber(x))),
+    _dafny.Set.fromElements(...(json.assignees || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Set.fromElements(...(json.tags || []).map((x: any) => new BigNumber(x))),
     json.deleted,
-    optionFromJson(json.deletedBy, (x) => _dafny.Seq.UnicodeFromString(x)),
-    optionFromJson(json.deletedFromList, (x) => new BigNumber(x))
+    optionFromJson(json.deletedBy, (x: any) => _dafny.Seq.UnicodeFromString(x)),
+    optionFromJson(json.deletedFromList, (x: any) => new BigNumber(x))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const taskToJson = (value): any => {
+const taskToJson = (value: any): any => {
   return {
     title: dafnyStringToJs(value.dtor_title),
     notes: dafnyStringToJs(value.dtor_notes),
     completed: value.dtor_completed,
     starred: value.dtor_starred,
     dueDate: optionToJson(value.dtor_dueDate, dateToJson),
-    assignees: Array.from(value.dtor_assignees.Elements).map(x => dafnyStringToJs(x)),
-    tags: Array.from(value.dtor_tags.Elements).map(x => toNumber(x)),
+    assignees: Array.from(value.dtor_assignees.Elements).map((x: any) => dafnyStringToJs(x)),
+    tags: Array.from(value.dtor_tags.Elements).map((x: any) => toNumber(x)),
     deleted: value.dtor_deleted,
     deletedBy: optionToJson(value.dtor_deletedBy, dafnyStringToJs),
     deletedFromList: optionToJson(value.dtor_deletedFromList, toNumber)
@@ -4287,21 +4287,21 @@ const taskToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const tagFromJson = (json): any => {
+const tagFromJson = (json: any): any => {
   return TodoDomain.Tag.create_Tag(
     _dafny.Seq.UnicodeFromString(json.name)
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const tagToJson = (value): any => {
+const tagToJson = (value: any): any => {
   return {
     name: dafnyStringToJs(value.dtor_name)
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeFromJson = (json): any => {
+const projectmodeFromJson = (json: any): any => {
   switch (json) {
     case 'Personal':
       return TodoDomain.ProjectMode.create_Personal();
@@ -4313,7 +4313,7 @@ const projectmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const projectmodeToJson = (value): any => {
+const projectmodeToJson = (value: any): any => {
   if (value.is_Personal) {
     return 'Personal';
   } else if (value.is_Collaborative) {
@@ -4323,27 +4323,27 @@ const projectmodeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json): any => {
+const modelFromJson = (json: any): any => {
   let __listNames = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.listNames || {})) {
+  for (const [k, v] of (Object.entries(json.listNames || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = _dafny.Seq.UnicodeFromString(v);
     __listNames = __listNames.update(key, val);
   }
   let __tasks = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.tasks || {})) {
+  for (const [k, v] of (Object.entries(json.tasks || {}) as [string, any][])) {
     const key = new BigNumber(k);
-    const val = _dafny.Seq.of(...(v || []).map(x => new BigNumber(x)));
+    const val = _dafny.Seq.of(...(v || []).map((x: any) => new BigNumber(x)));
     __tasks = __tasks.update(key, val);
   }
   let __taskData = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.taskData || {})) {
+  for (const [k, v] of (Object.entries(json.taskData || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = taskFromJson(v);
     __taskData = __taskData.update(key, val);
   }
   let __tags = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.tags || {})) {
+  for (const [k, v] of (Object.entries(json.tags || {}) as [string, any][])) {
     const key = new BigNumber(k);
     const val = tagFromJson(v);
     __tags = __tags.update(key, val);
@@ -4351,8 +4351,8 @@ const modelFromJson = (json): any => {
   return TodoDomain.Model.create_Model(
     projectmodeFromJson(json.mode),
     _dafny.Seq.UnicodeFromString(json.owner),
-    _dafny.Set.fromElements(...(json.members || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Seq.of(...(json.lists || []).map(x => new BigNumber(x))),
+    _dafny.Set.fromElements(...(json.members || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Seq.of(...(json.lists || []).map((x: any) => new BigNumber(x))),
     __listNames,
     __tasks,
     __taskData,
@@ -4364,29 +4364,29 @@ const modelFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value): any => {
-  const __listNamesJson = {};
+const modelToJson = (value: any): any => {
+  const __listNamesJson: Record<string, any> = {};
   if (value.dtor_listNames && value.dtor_listNames.Keys) {
     for (const k of value.dtor_listNames.Keys.Elements) {
       const v = value.dtor_listNames.get(k);
       __listNamesJson[toNumber(k)] = dafnyStringToJs(v);
     }
   }
-  const __tasksJson = {};
+  const __tasksJson: Record<string, any> = {};
   if (value.dtor_tasks && value.dtor_tasks.Keys) {
     for (const k of value.dtor_tasks.Keys.Elements) {
       const v = value.dtor_tasks.get(k);
-      __tasksJson[toNumber(k)] = seqToArray(v).map(x => toNumber(x));
+      __tasksJson[toNumber(k)] = seqToArray(v).map((x: any) => toNumber(x));
     }
   }
-  const __taskDataJson = {};
+  const __taskDataJson: Record<string, any> = {};
   if (value.dtor_taskData && value.dtor_taskData.Keys) {
     for (const k of value.dtor_taskData.Keys.Elements) {
       const v = value.dtor_taskData.get(k);
       __taskDataJson[toNumber(k)] = taskToJson(v);
     }
   }
-  const __tagsJson = {};
+  const __tagsJson: Record<string, any> = {};
   if (value.dtor_tags && value.dtor_tags.Keys) {
     for (const k of value.dtor_tags.Keys.Elements) {
       const v = value.dtor_tags.get(k);
@@ -4396,8 +4396,8 @@ const modelToJson = (value): any => {
   return {
     mode: projectmodeToJson(value.dtor_mode),
     owner: dafnyStringToJs(value.dtor_owner),
-    members: Array.from(value.dtor_members.Elements).map(x => dafnyStringToJs(x)),
-    lists: seqToArray(value.dtor_lists).map(x => toNumber(x)),
+    members: Array.from(value.dtor_members.Elements).map((x: any) => dafnyStringToJs(x)),
+    lists: seqToArray(value.dtor_lists).map((x: any) => toNumber(x)),
     listNames: __listNamesJson,
     tasks: __tasksJson,
     taskData: __taskDataJson,
@@ -4409,7 +4409,7 @@ const modelToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json): any => {
+const errFromJson = (json: any): any => {
   switch (json) {
     case 'MissingList':
       return TodoDomain.Err.create_MissingList();
@@ -4447,7 +4447,7 @@ const errFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value): any => {
+const errToJson = (value: any): any => {
   if (value.is_MissingList) {
     return 'MissingList';
   } else if (value.is_MissingTask) {
@@ -4483,7 +4483,7 @@ const errToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeFromJson = (json): any => {
+const placeFromJson = (json: any): any => {
   switch (json.type) {
     case 'AtEnd': {
       return TodoDomain.Place.create_AtEnd();
@@ -4504,7 +4504,7 @@ const placeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const placeToJson = (value): any => {
+const placeToJson = (value: any): any => {
   if (value.is_AtEnd) {
     return { type: 'AtEnd' };
   } else if (value.is_Before) {
@@ -4522,7 +4522,7 @@ const placeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceFromJson = (json): any => {
+const listplaceFromJson = (json: any): any => {
   switch (json.type) {
     case 'ListAtEnd': {
       return TodoDomain.ListPlace.create_ListAtEnd();
@@ -4543,7 +4543,7 @@ const listplaceFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const listplaceToJson = (value): any => {
+const listplaceToJson = (value: any): any => {
   if (value.is_ListAtEnd) {
     return { type: 'ListAtEnd' };
   } else if (value.is_ListBefore) {
@@ -4561,7 +4561,7 @@ const listplaceToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json): any => {
+const actionFromJson = (json: any): any => {
   switch (json.type) {
     case 'NoOp': {
       return TodoDomain.Action.create_NoOp();
@@ -4704,7 +4704,7 @@ const actionFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value): any => {
+const actionToJson = (value: any): any => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_AddList) {
@@ -4843,7 +4843,7 @@ const actionToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeFromJson = (json): any => {
+const viewmodeFromJson = (json: any): any => {
   switch (json) {
     case 'SingleProject':
       return TodoDomain.ViewMode.create_SingleProject();
@@ -4855,7 +4855,7 @@ const viewmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const viewmodeToJson = (value): any => {
+const viewmodeToJson = (value: any): any => {
   if (value.is_SingleProject) {
     return 'SingleProject';
   } else if (value.is_AllProjects) {
@@ -4865,7 +4865,7 @@ const viewmodeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeFromJson = (json): any => {
+const smartlisttypeFromJson = (json: any): any => {
   switch (json) {
     case 'Priority':
       return TodoDomain.SmartListType.create_Priority();
@@ -4877,7 +4877,7 @@ const smartlisttypeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const smartlisttypeToJson = (value): any => {
+const smartlisttypeToJson = (value: any): any => {
   if (value.is_Priority) {
     return 'Priority';
   } else if (value.is_Logbook) {
@@ -4887,7 +4887,7 @@ const smartlisttypeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json, T_fromJson, E_fromJson): any => {
+const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
   switch (json.type) {
     case 'Ok': {
       return TodoDomain.Result.create_Ok(
@@ -4905,7 +4905,7 @@ const resultFromJson = (json, T_fromJson, E_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value, T_toJson, E_toJson): any => {
+const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -4921,17 +4921,17 @@ const resultToJson = (value, T_toJson, E_toJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json): any => {
+const rejectreasonFromJson = (json: any): any => {
   return TodoMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value): any => {
+const rejectreasonToJson = (value: any): any => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json): any => {
+const requestoutcomeFromJson = (json: any): any => {
   switch (json.type) {
     case 'AuditAccepted': {
       return TodoMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -4951,7 +4951,7 @@ const requestoutcomeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value): any => {
+const requestoutcomeToJson = (value: any): any => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -4969,7 +4969,7 @@ const requestoutcomeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json): any => {
+const requestrecordFromJson = (json: any): any => {
   return TodoMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -4980,7 +4980,7 @@ const requestrecordFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value): any => {
+const requestrecordToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -4991,38 +4991,38 @@ const requestrecordToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json): any => {
+const serverstateFromJson = (json: any): any => {
   return TodoMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.appliedLog || []).map(x => actionFromJson(x))),
-    _dafny.Seq.of(...(json.auditLog || []).map(x => requestrecordFromJson(x)))
+    _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
+    _dafny.Seq.of(...(json.auditLog || []).map((x: any) => requestrecordFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value): any => {
+const serverstateToJson = (value: any): any => {
   return {
     present: modelToJson(value.dtor_present),
-    appliedLog: seqToArray(value.dtor_appliedLog).map(x => actionToJson(x)),
-    auditLog: seqToArray(value.dtor_auditLog).map(x => requestrecordToJson(x))
+    appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
+    auditLog: seqToArray(value.dtor_auditLog).map((x: any) => requestrecordToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json): any => {
+const clientstateFromJson = (json: any): any => {
   return TodoMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.pending || []).map(x => actionFromJson(x)))
+    _dafny.Seq.of(...(json.pending || []).map((x: any) => actionFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value): any => {
+const clientstateToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),
-    pending: seqToArray(value.dtor_pending).map(x => actionToJson(x))
+    pending: seqToArray(value.dtor_pending).map((x: any) => actionToJson(x))
   };
 };
 

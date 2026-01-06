@@ -38,6 +38,7 @@ public class DenoEmitter : SharedEmitter
   public override string Generate()
   {
     Sb.Clear();
+    TypeMapper.EmitTypeScript = EmitTypeScript;
 
     var allTypesToGenerate = GetAllTypesToGenerate();
 

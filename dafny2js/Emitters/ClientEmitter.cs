@@ -25,6 +25,7 @@ public class ClientEmitter : SharedEmitter
   public override string Generate()
   {
     Sb.Clear();
+    TypeMapper.EmitTypeScript = EmitTypeScript;
 
     var allTypesToGenerate = GetAllTypesToGenerate();
     var allModules = allTypesToGenerate

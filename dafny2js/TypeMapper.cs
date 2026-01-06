@@ -6,6 +6,12 @@ namespace Dafny2Js;
 public static class TypeMapper
 {
   /// <summary>
+  /// Thread-local flag for whether to emit TypeScript type annotations.
+  /// Set this before calling conversion methods to control output.
+  /// </summary>
+  [ThreadStatic]
+  public static bool EmitTypeScript;
+  /// <summary>
   /// Sanitize a type name to be a valid JavaScript identifier.
   /// Replaces characters like # with underscores.
   /// </summary>
@@ -121,16 +127,17 @@ public static class TypeMapper
   /// </summary>
   static string GetFromJsonConverter(TypeRef type, string moduleName, Dictionary<string, string> typeParamConverters)
   {
+    var x = EmitTypeScript ? "(x: any)" : "(x)";
     return type.Kind switch
     {
-      TypeKind.Int => "(x) => new BigNumber(x)",
-      TypeKind.Bool => "(x) => x",
-      TypeKind.String => "(x) => _dafny.Seq.UnicodeFromString(x)",
+      TypeKind.Int => $"{x} => new BigNumber(x)",
+      TypeKind.Bool => $"{x} => x",
+      TypeKind.String => $"{x} => _dafny.Seq.UnicodeFromString(x)",
       TypeKind.Datatype => type.TypeArgs.Count > 0
-        ? $"(x) => {JsonToDafnyDatatype(type, "x", moduleName, typeParamConverters)}"
+        ? $"{x} => {JsonToDafnyDatatype(type, "x", moduleName, typeParamConverters)}"
         : $"{SanitizeForJs(type.Name).ToLowerInvariant()}FromJson",
-      TypeKind.TypeParam => typeParamConverters.TryGetValue(type.Name, out var conv) ? conv : "(x) => x",
-      _ => "(x) => x"
+      TypeKind.TypeParam => typeParamConverters.TryGetValue(type.Name, out var conv) ? conv : $"{x} => x",
+      _ => $"{x} => x"
     };
   }
 
@@ -139,16 +146,17 @@ public static class TypeMapper
   /// </summary>
   static string GetToJsonConverter(TypeRef type, string moduleName, Dictionary<string, string> typeParamConverters)
   {
+    var x = EmitTypeScript ? "(x: any)" : "(x)";
     return type.Kind switch
     {
       TypeKind.Int => "toNumber",
-      TypeKind.Bool => "(x) => x",
+      TypeKind.Bool => $"{x} => x",
       TypeKind.String => "dafnyStringToJs",
       TypeKind.Datatype => type.TypeArgs.Count > 0
-        ? $"(x) => {DafnyToJsonDatatype(type, "x", moduleName, typeParamConverters)}"
+        ? $"{x} => {DafnyToJsonDatatype(type, "x", moduleName, typeParamConverters)}"
         : $"{SanitizeForJs(type.Name).ToLowerInvariant()}ToJson",
-      TypeKind.TypeParam => typeParamConverters.TryGetValue(type.Name, out var conv) ? conv : "(x) => x",
-      _ => "(x) => x"
+      TypeKind.TypeParam => typeParamConverters.TryGetValue(type.Name, out var conv) ? conv : $"{x} => x",
+      _ => $"{x} => x"
     };
   }
 
@@ -197,7 +205,8 @@ public static class TypeMapper
     if (elemConvert == "x")
       return $"_dafny.Seq.of(...{jsVar})";
 
-    return $"_dafny.Seq.of(...({jsVar} || []).map(x => {elemConvert}))";
+    var x = EmitTypeScript ? "(x: any)" : "x";
+    return $"_dafny.Seq.of(...({jsVar} || []).map({x} => {elemConvert}))";
   }
 
   static string DafnyToJsonSeq(TypeRef type, string dafnyVar, string moduleName, Dictionary<string, string> typeParamConverters)
@@ -212,7 +221,8 @@ public static class TypeMapper
     if (elemConvert == "x")
       return $"seqToArray({dafnyVar})";
 
-    return $"seqToArray({dafnyVar}).map(x => {elemConvert})";
+    var x = EmitTypeScript ? "(x: any)" : "x";
+    return $"seqToArray({dafnyVar}).map({x} => {elemConvert})";
   }
 
   // =========================================================================
@@ -230,7 +240,8 @@ public static class TypeMapper
     if (elemConvert == "x")
       return $"_dafny.Set.fromElements(...{jsVar})";
 
-    return $"_dafny.Set.fromElements(...({jsVar} || []).map(x => {elemConvert}))";
+    var x = EmitTypeScript ? "(x: any)" : "x";
+    return $"_dafny.Set.fromElements(...({jsVar} || []).map({x} => {elemConvert}))";
   }
 
   static string DafnyToJsonSet(TypeRef type, string dafnyVar, string moduleName, Dictionary<string, string> typeParamConverters)
@@ -244,7 +255,8 @@ public static class TypeMapper
     if (elemConvert == "x")
       return $"Array.from({dafnyVar}.Elements)";
 
-    return $"Array.from({dafnyVar}.Elements).map(x => {elemConvert})";
+    var x = EmitTypeScript ? "(x: any)" : "x";
+    return $"Array.from({dafnyVar}.Elements).map({x} => {elemConvert})";
   }
 
   // =========================================================================
@@ -357,8 +369,13 @@ public static class TypeMapper
     var keyConvert = JsonToDafny(keyType, "k", moduleName, typeParamConverters);
     var valConvert = JsonToDafny(valType, "v", moduleName, typeParamConverters);
 
+    // TypeScript: cast Object.entries result for proper typing
+    var entriesExpr = EmitTypeScript
+      ? $"(Object.entries({jsVar} || {{}}) as [string, any][])"
+      : $"Object.entries({jsVar} || {{}})";
+
     return $@"{indent}let {resultVar} = _dafny.Map.Empty;
-{indent}for (const [k, v] of Object.entries({jsVar} || {{}})) {{
+{indent}for (const [k, v] of {entriesExpr}) {{
 {indent}  const key = {keyConvert};
 {indent}  const val = {valConvert};
 {indent}  {resultVar} = {resultVar}.update(key, val);

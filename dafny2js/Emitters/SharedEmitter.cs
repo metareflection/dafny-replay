@@ -282,9 +282,21 @@ public abstract class SharedEmitter
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}FromJson";
     var typeParams = dt.GetTypeParams();
 
-    var paramList = typeParams.Count > 0
-      ? $"json, {string.Join(", ", typeParams.Select(p => $"{p}_fromJson"))}"
-      : "json";
+    string paramList;
+    if (EmitTypeScript)
+    {
+      // TypeScript: add explicit type annotations
+      var typeParamParams = typeParams.Select(p => $"{p}_fromJson: (x: any) => any");
+      paramList = typeParams.Count > 0
+        ? $"json: any, {string.Join(", ", typeParamParams)}"
+        : "json: any";
+    }
+    else
+    {
+      paramList = typeParams.Count > 0
+        ? $"json, {string.Join(", ", typeParams.Select(p => $"{p}_fromJson"))}"
+        : "json";
+    }
 
     if (EmitTypeScript)
     {
@@ -388,9 +400,21 @@ public abstract class SharedEmitter
     var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}ToJson";
     var typeParams = dt.GetTypeParams();
 
-    var paramList = typeParams.Count > 0
-      ? $"value, {string.Join(", ", typeParams.Select(p => $"{p}_toJson"))}"
-      : "value";
+    string paramList;
+    if (EmitTypeScript)
+    {
+      // TypeScript: add explicit type annotations
+      var typeParamParams = typeParams.Select(p => $"{p}_toJson: (x: any) => any");
+      paramList = typeParams.Count > 0
+        ? $"value: any, {string.Join(", ", typeParamParams)}"
+        : "value: any";
+    }
+    else
+    {
+      paramList = typeParams.Count > 0
+        ? $"value, {string.Join(", ", typeParams.Select(p => $"{p}_toJson"))}"
+        : "value";
+    }
 
     if (EmitTypeScript)
     {
@@ -496,7 +520,11 @@ public abstract class SharedEmitter
     var keyConvert = TypeMapper.DafnyToJson(keyType, "k", DomainModule + ".", typeParamConverters);
     var valConvert = TypeMapper.DafnyToJson(valType, "v", DomainModule + ".", typeParamConverters);
 
-    Sb.AppendLine($"{indent}const {resultVar} = {{}};");
+    // Use Record type for TypeScript to allow indexing
+    var objDecl = EmitTypeScript
+      ? $"const {resultVar}: Record<string, any> = {{}};"
+      : $"const {resultVar} = {{}};";
+    Sb.AppendLine($"{indent}{objDecl}");
     Sb.AppendLine($"{indent}if ({dafnyVar} && {dafnyVar}.Keys) {{");
     Sb.AppendLine($"{indent}  for (const k of {dafnyVar}.Keys.Elements) {{");
     Sb.AppendLine($"{indent}    const v = {dafnyVar}.get(k);");

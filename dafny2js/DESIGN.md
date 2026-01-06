@@ -132,6 +132,7 @@ Extends `SharedEmitter` for Supabase Edge Functions:
   - Converts JSON inputs to Dafny types
   - Calls verified `Dispatch` function
   - Converts results back to JSON
+- All generated Deno bundles pass `deno check` with strict mode (explicit type annotations on all parameters and lambdas)
 
 ## Null-Option Handling
 
@@ -313,6 +314,5 @@ The bundle exports `dafnyStringToJs`, `seqToArray`, `toNumber` for use by `bundl
 
 ## Future Work
 
-1. **Fix TypeScript strict mode errors**: The generated `dafny-bundle.ts` has implicit `any` types. Check with `deno check bundle-extras.ts` (which imports the bundle). Add explicit type annotations to generated code.
-2. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
-3. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining
+1. **TypeScript client output**: Support `.ts` extension for `--client` with full type definitions
+2. **Shared runtime package**: Extract helpers to npm/deno package instead of inlining

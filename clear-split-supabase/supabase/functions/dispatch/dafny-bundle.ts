@@ -3668,9 +3668,9 @@ const dafnyStringToJs = (seq: any): string => {
 // ============================================================================
 
 // deno-lint-ignore no-explicit-any
-const expenseFromJson = (json): any => {
+const expenseFromJson = (json: any): any => {
   let __shares = _dafny.Map.Empty;
-  for (const [k, v] of Object.entries(json.shares || {})) {
+  for (const [k, v] of (Object.entries(json.shares || {}) as [string, any][])) {
     const key = _dafny.Seq.UnicodeFromString(k);
     const val = new BigNumber(v);
     __shares = __shares.update(key, val);
@@ -3679,13 +3679,13 @@ const expenseFromJson = (json): any => {
     _dafny.Seq.UnicodeFromString(json.paidBy),
     new BigNumber(json.amount),
     __shares,
-    _dafny.Seq.of(...(json.shareKeys || []).map(x => _dafny.Seq.UnicodeFromString(x)))
+    _dafny.Seq.of(...(json.shareKeys || []).map((x: any) => _dafny.Seq.UnicodeFromString(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const expenseToJson = (value): any => {
-  const __sharesJson = {};
+const expenseToJson = (value: any): any => {
+  const __sharesJson: Record<string, any> = {};
   if (value.dtor_shares && value.dtor_shares.Keys) {
     for (const k of value.dtor_shares.Keys.Elements) {
       const v = value.dtor_shares.get(k);
@@ -3696,12 +3696,12 @@ const expenseToJson = (value): any => {
     paidBy: dafnyStringToJs(value.dtor_paidBy),
     amount: toNumber(value.dtor_amount),
     shares: __sharesJson,
-    shareKeys: seqToArray(value.dtor_shareKeys).map(x => dafnyStringToJs(x))
+    shareKeys: seqToArray(value.dtor_shareKeys).map((x: any) => dafnyStringToJs(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const settlementFromJson = (json): any => {
+const settlementFromJson = (json: any): any => {
   return ClearSplit.Settlement.create_Settlement(
     _dafny.Seq.UnicodeFromString(json.from),
     _dafny.Seq.UnicodeFromString(json.to),
@@ -3710,7 +3710,7 @@ const settlementFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const settlementToJson = (value): any => {
+const settlementToJson = (value: any): any => {
   return {
     from: dafnyStringToJs(value.dtor_from),
     to: dafnyStringToJs(value.dtor_to),
@@ -3719,27 +3719,27 @@ const settlementToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const modelFromJson = (json): any => {
+const modelFromJson = (json: any): any => {
   return ClearSplit.Model.create_Model(
-    _dafny.Set.fromElements(...(json.members || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Seq.of(...(json.memberList || []).map(x => _dafny.Seq.UnicodeFromString(x))),
-    _dafny.Seq.of(...(json.expenses || []).map(x => expenseFromJson(x))),
-    _dafny.Seq.of(...(json.settlements || []).map(x => settlementFromJson(x)))
+    _dafny.Set.fromElements(...(json.members || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Seq.of(...(json.memberList || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))),
+    _dafny.Seq.of(...(json.expenses || []).map((x: any) => expenseFromJson(x))),
+    _dafny.Seq.of(...(json.settlements || []).map((x: any) => settlementFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const modelToJson = (value): any => {
+const modelToJson = (value: any): any => {
   return {
-    members: Array.from(value.dtor_members.Elements).map(x => dafnyStringToJs(x)),
-    memberList: seqToArray(value.dtor_memberList).map(x => dafnyStringToJs(x)),
-    expenses: seqToArray(value.dtor_expenses).map(x => expenseToJson(x)),
-    settlements: seqToArray(value.dtor_settlements).map(x => settlementToJson(x))
+    members: Array.from(value.dtor_members.Elements).map((x: any) => dafnyStringToJs(x)),
+    memberList: seqToArray(value.dtor_memberList).map((x: any) => dafnyStringToJs(x)),
+    expenses: seqToArray(value.dtor_expenses).map((x: any) => expenseToJson(x)),
+    settlements: seqToArray(value.dtor_settlements).map((x: any) => settlementToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const resultFromJson = (json, T_fromJson, E_fromJson): any => {
+const resultFromJson = (json: any, T_fromJson: (x: any) => any, E_fromJson: (x: any) => any): any => {
   switch (json.type) {
     case 'Ok': {
       return ClearSplit.Result.create_Ok(
@@ -3757,7 +3757,7 @@ const resultFromJson = (json, T_fromJson, E_fromJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const resultToJson = (value, T_toJson, E_toJson): any => {
+const resultToJson = (value: any, T_toJson: (x: any) => any, E_toJson: (x: any) => any): any => {
   if (value.is_Ok) {
     return {
       type: 'Ok',
@@ -3773,7 +3773,7 @@ const resultToJson = (value, T_toJson, E_toJson): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errFromJson = (json): any => {
+const errFromJson = (json: any): any => {
   switch (json.type) {
     case 'NotMember': {
       return ClearSplit.Err.create_NotMember(
@@ -3792,7 +3792,7 @@ const errFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const errToJson = (value): any => {
+const errToJson = (value: any): any => {
   if (value.is_NotMember) {
     return {
       type: 'NotMember',
@@ -3807,7 +3807,7 @@ const errToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionFromJson = (json): any => {
+const actionFromJson = (json: any): any => {
   switch (json.type) {
     case 'AddExpense': {
       return ClearSplit.Action.create_AddExpense(
@@ -3825,7 +3825,7 @@ const actionFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const actionToJson = (value): any => {
+const actionToJson = (value: any): any => {
   if (value.is_AddExpense) {
     return {
       type: 'AddExpense',
@@ -3841,7 +3841,7 @@ const actionToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const certificateFromJson = (json): any => {
+const certificateFromJson = (json: any): any => {
   return ClearSplit.Certificate.create_Certificate(
     new BigNumber(json.memberCount),
     new BigNumber(json.expenseCount),
@@ -3851,7 +3851,7 @@ const certificateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const certificateToJson = (value): any => {
+const certificateToJson = (value: any): any => {
   return {
     memberCount: toNumber(value.dtor_memberCount),
     expenseCount: toNumber(value.dtor_expenseCount),
@@ -3861,17 +3861,17 @@ const certificateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonFromJson = (json): any => {
+const rejectreasonFromJson = (json: any): any => {
   return ClearSplitMultiCollaboration.RejectReason.create_DomainInvalid();
 };
 
 // deno-lint-ignore no-explicit-any
-const rejectreasonToJson = (value): any => {
+const rejectreasonToJson = (value: any): any => {
   return {};
 };
 
 // deno-lint-ignore no-explicit-any
-const replyFromJson = (json): any => {
+const replyFromJson = (json: any): any => {
   switch (json.type) {
     case 'Accepted': {
       return ClearSplitMultiCollaboration.Reply.create_Accepted(
@@ -3893,7 +3893,7 @@ const replyFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const replyToJson = (value): any => {
+const replyToJson = (value: any): any => {
   if (value.is_Accepted) {
     return {
       type: 'Accepted',
@@ -3913,7 +3913,7 @@ const replyToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeFromJson = (json): any => {
+const requestoutcomeFromJson = (json: any): any => {
   switch (json.type) {
     case 'AuditAccepted': {
       return ClearSplitMultiCollaboration.RequestOutcome.create_AuditAccepted(
@@ -3933,7 +3933,7 @@ const requestoutcomeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestoutcomeToJson = (value): any => {
+const requestoutcomeToJson = (value: any): any => {
   if (value.is_AuditAccepted) {
     return {
       type: 'AuditAccepted',
@@ -3951,7 +3951,7 @@ const requestoutcomeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordFromJson = (json): any => {
+const requestrecordFromJson = (json: any): any => {
   return ClearSplitMultiCollaboration.RequestRecord.create_Req(
     new BigNumber(json.baseVersion),
     actionFromJson(json.orig),
@@ -3962,7 +3962,7 @@ const requestrecordFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const requestrecordToJson = (value): any => {
+const requestrecordToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     orig: actionToJson(value.dtor_orig),
@@ -3973,43 +3973,43 @@ const requestrecordToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateFromJson = (json): any => {
+const serverstateFromJson = (json: any): any => {
   return ClearSplitMultiCollaboration.ServerState.create_ServerState(
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.appliedLog || []).map(x => actionFromJson(x))),
-    _dafny.Seq.of(...(json.auditLog || []).map(x => requestrecordFromJson(x)))
+    _dafny.Seq.of(...(json.appliedLog || []).map((x: any) => actionFromJson(x))),
+    _dafny.Seq.of(...(json.auditLog || []).map((x: any) => requestrecordFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const serverstateToJson = (value): any => {
+const serverstateToJson = (value: any): any => {
   return {
     present: modelToJson(value.dtor_present),
-    appliedLog: seqToArray(value.dtor_appliedLog).map(x => actionToJson(x)),
-    auditLog: seqToArray(value.dtor_auditLog).map(x => requestrecordToJson(x))
+    appliedLog: seqToArray(value.dtor_appliedLog).map((x: any) => actionToJson(x)),
+    auditLog: seqToArray(value.dtor_auditLog).map((x: any) => requestrecordToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateFromJson = (json): any => {
+const clientstateFromJson = (json: any): any => {
   return ClearSplitMultiCollaboration.ClientState.create_ClientState(
     new BigNumber(json.baseVersion),
     modelFromJson(json.present),
-    _dafny.Seq.of(...(json.pending || []).map(x => actionFromJson(x)))
+    _dafny.Seq.of(...(json.pending || []).map((x: any) => actionFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const clientstateToJson = (value): any => {
+const clientstateToJson = (value: any): any => {
   return {
     baseVersion: toNumber(value.dtor_baseVersion),
     present: modelToJson(value.dtor_present),
-    pending: seqToArray(value.dtor_pending).map(x => actionToJson(x))
+    pending: seqToArray(value.dtor_pending).map((x: any) => actionToJson(x))
   };
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusFromJson = (json): any => {
+const networkstatusFromJson = (json: any): any => {
   switch (json) {
     case 'Online':
       return ClearSplitEffectStateMachine.NetworkStatus.create_Online();
@@ -4021,7 +4021,7 @@ const networkstatusFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const networkstatusToJson = (value): any => {
+const networkstatusToJson = (value: any): any => {
   if (value.is_Online) {
     return 'Online';
   } else if (value.is_Offline) {
@@ -4031,7 +4031,7 @@ const networkstatusToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeFromJson = (json): any => {
+const effectmodeFromJson = (json: any): any => {
   switch (json.type) {
     case 'Idle': {
       return ClearSplitEffectStateMachine.EffectMode.create_Idle();
@@ -4047,7 +4047,7 @@ const effectmodeFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectmodeToJson = (value): any => {
+const effectmodeToJson = (value: any): any => {
   if (value.is_Idle) {
     return { type: 'Idle' };
   } else if (value.is_Dispatching) {
@@ -4060,7 +4060,7 @@ const effectmodeToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateFromJson = (json): any => {
+const effectstateFromJson = (json: any): any => {
   return ClearSplitEffectStateMachine.EffectState.create_EffectState(
     networkstatusFromJson(json.network),
     effectmodeFromJson(json.mode),
@@ -4070,7 +4070,7 @@ const effectstateFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const effectstateToJson = (value): any => {
+const effectstateToJson = (value: any): any => {
   return {
     network: networkstatusToJson(value.dtor_network),
     mode: effectmodeToJson(value.dtor_mode),
@@ -4080,7 +4080,7 @@ const effectstateToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventFromJson = (json): any => {
+const eventFromJson = (json: any): any => {
   switch (json.type) {
     case 'UserAction': {
       return ClearSplitEffectStateMachine.Event.create_UserAction(
@@ -4126,7 +4126,7 @@ const eventFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const eventToJson = (value): any => {
+const eventToJson = (value: any): any => {
   if (value.is_UserAction) {
     return {
       type: 'UserAction',
@@ -4165,7 +4165,7 @@ const eventToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandFromJson = (json): any => {
+const commandFromJson = (json: any): any => {
   switch (json.type) {
     case 'NoOp': {
       return ClearSplitEffectStateMachine.Command.create_NoOp();
@@ -4185,7 +4185,7 @@ const commandFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const commandToJson = (value): any => {
+const commandToJson = (value: any): any => {
   if (value.is_NoOp) {
     return { type: 'NoOp' };
   } else if (value.is_SendDispatch) {
@@ -4201,7 +4201,7 @@ const commandToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupentryFromJson = (json): any => {
+const groupentryFromJson = (json: any): any => {
   return ClearSplitCrossGroup.GroupEntry.create_GroupEntry(
     _dafny.Seq.UnicodeFromString(json.groupName),
     _dafny.Seq.UnicodeFromString(json.displayName),
@@ -4210,7 +4210,7 @@ const groupentryFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupentryToJson = (value): any => {
+const groupentryToJson = (value: any): any => {
   return {
     groupName: dafnyStringToJs(value.dtor_groupName),
     displayName: dafnyStringToJs(value.dtor_displayName),
@@ -4219,7 +4219,7 @@ const groupentryToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupbalanceFromJson = (json): any => {
+const groupbalanceFromJson = (json: any): any => {
   return ClearSplitCrossGroup.GroupBalance.create_GroupBalance(
     _dafny.Seq.UnicodeFromString(json.groupName),
     new BigNumber(json.balance)
@@ -4227,7 +4227,7 @@ const groupbalanceFromJson = (json): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const groupbalanceToJson = (value): any => {
+const groupbalanceToJson = (value: any): any => {
   return {
     groupName: dafnyStringToJs(value.dtor_groupName),
     balance: toNumber(value.dtor_balance)
@@ -4235,22 +4235,22 @@ const groupbalanceToJson = (value): any => {
 };
 
 // deno-lint-ignore no-explicit-any
-const crossgroupsummaryFromJson = (json): any => {
+const crossgroupsummaryFromJson = (json: any): any => {
   return ClearSplitCrossGroup.CrossGroupSummary.create_CrossGroupSummary(
     new BigNumber(json.totalOwed),
     new BigNumber(json.totalOwes),
     new BigNumber(json.netBalance),
-    _dafny.Seq.of(...(json.groups || []).map(x => groupbalanceFromJson(x)))
+    _dafny.Seq.of(...(json.groups || []).map((x: any) => groupbalanceFromJson(x)))
   );
 };
 
 // deno-lint-ignore no-explicit-any
-const crossgroupsummaryToJson = (value): any => {
+const crossgroupsummaryToJson = (value: any): any => {
   return {
     totalOwed: toNumber(value.dtor_totalOwed),
     totalOwes: toNumber(value.dtor_totalOwes),
     netBalance: toNumber(value.dtor_netBalance),
-    groups: seqToArray(value.dtor_groups).map(x => groupbalanceToJson(x))
+    groups: seqToArray(value.dtor_groups).map((x: any) => groupbalanceToJson(x))
   };
 };
 
