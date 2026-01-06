@@ -14,6 +14,9 @@ import { ProjectHeader, FilterTabs } from './components/project'
 import { FilterBar } from './components/filters'
 import { MemberManagement } from './components/members'
 import { Trash2, RotateCcw } from 'lucide-react'
+import { OperationLogProvider, useOperationLog } from './contexts/OperationLogContext'
+import { OperationLog } from './components/OperationLog'
+import { formatAction } from './utils/formatAction'
 
 // Styles
 import './styles/global.css'
@@ -584,6 +587,9 @@ function TodoApp({ user, onSignOut }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [pendingUndo, setPendingUndo] = useState(null) // { projectId, taskId, taskTitle }
 
+  // Operation log
+  const { addEntry: logOperation, isOpen: isLogOpen } = useOperationLog()
+
   // Close sidebar on window resize to desktop
   useEffect(() => {
     const handleResize = () => {
@@ -627,7 +633,7 @@ function TodoApp({ user, onSignOut }) {
     status,
     isOffline,
     hasPending: isFlushing
-  } = useAllProjects(projectIds)
+  } = useAllProjects(projectIds, { logger: logOperation })
 
   // Restore selected project from localStorage on mount
   useEffect(() => {
@@ -1122,6 +1128,9 @@ function TodoApp({ user, onSignOut }) {
           </div>
         </div>
       )}
+
+      {/* Operation Log Panel - shows verified state machine transitions */}
+      <OperationLog isOnline={!isOffline} />
     </div>
   )
 }
@@ -1175,7 +1184,11 @@ function AppContainer() {
     )
   }
 
-  return <TodoApp user={user} onSignOut={handleSignOut} />
+  return (
+    <OperationLogProvider>
+      <TodoApp user={user} onSignOut={handleSignOut} />
+    </OperationLogProvider>
+  )
 }
 
 export default AppContainer
