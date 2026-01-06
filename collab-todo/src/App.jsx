@@ -11,6 +11,7 @@ import { Toast, UndoToast } from './components/common'
 import { TopBar, Sidebar, MainContent, EmptyState, LoadingState } from './components/layout'
 import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
+import { FilterBar } from './components/filters'
 import { MemberManagement } from './components/members'
 import { Trash2, RotateCcw } from 'lucide-react'
 
@@ -22,7 +23,54 @@ import './components/layout/layout.css'
 // Smart List Views
 // ============================================================================
 
-function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers }) {
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [] }) {
+  const [sortBy, setSortBy] = useState('created-desc')
+  const [selectedUserIds, setSelectedUserIds] = useState([])
+  const [selectedTagIds, setSelectedTagIds] = useState([])
+
+  // Apply filters and sorting
+  const filteredTasks = useMemo(() => {
+    let result = [...tasks]
+
+    // Apply user filter
+    if (selectedUserIds.length > 0) {
+      result = result.filter(t =>
+        t.assignees && t.assignees.some(userId => selectedUserIds.includes(userId))
+      )
+    }
+
+    // Apply tag filter - match by tag name for cross-project filtering
+    if (selectedTagIds.length > 0) {
+      result = result.filter(t => {
+        if (!t.tags || t.tags.length === 0) return false
+        const projectTags = getProjectTags(t.projectId)
+        return t.tags.some(tagId => {
+          const tag = projectTags[tagId]
+          // Match by name (cross-project) or by ID (single project)
+          return tag && selectedTagIds.includes(tag.name)
+        })
+      })
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      if (sortBy === 'due-date') {
+        if (!a.dueDate && !b.dueDate) return 0
+        if (!a.dueDate) return 1
+        if (!b.dueDate) return -1
+        const dateA = new Date(a.dueDate.year, a.dueDate.month - 1, a.dueDate.day)
+        const dateB = new Date(b.dueDate.year, b.dueDate.month - 1, b.dueDate.day)
+        return dateA - dateB
+      }
+      if (sortBy === 'created-asc') {
+        return (a.id || 0) - (b.id || 0)
+      }
+      return (b.id || 0) - (a.id || 0)
+    })
+
+    return result
+  }, [tasks, selectedUserIds, selectedTagIds, sortBy, getProjectTags])
+
   if (tasks.length === 0) {
     return <EmptyState icon={Star} message="No priority tasks. Star a task to add it here." />
   }
@@ -33,9 +81,26 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
         title="Priority"
         icon={Star}
         showNotes={false}
+        rightAction={
+          <FilterBar
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            allMembers={allProjectMembers}
+            selectedUserIds={selectedUserIds}
+            onUserFilterChange={setSelectedUserIds}
+            allTags={allProjectTags}
+            selectedTagIds={selectedTagIds}
+            onTagFilterChange={setSelectedTagIds}
+            showUserFilter={allProjectMembers.length > 0}
+            showTagFilter={Object.keys(allProjectTags).length > 0}
+          />
+        }
       />
+      {filteredTasks.length === 0 ? (
+        <EmptyState icon={Star} message="No tasks match the current filters." />
+      ) : (
       <div className="project-view__section">
-        {tasks.map(task => (
+        {filteredTasks.map(task => (
           <TaskItem
             key={`${task.projectId}-${task.id}`}
             taskId={task.id}
@@ -59,6 +124,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
           />
         ))}
       </div>
+      )}
     </div>
   )
 }
@@ -138,7 +204,54 @@ function TrashView({ tasks, onRestoreTask }) {
   )
 }
 
-function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers }) {
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [] }) {
+  const [sortBy, setSortBy] = useState('created-desc')
+  const [selectedUserIds, setSelectedUserIds] = useState([])
+  const [selectedTagIds, setSelectedTagIds] = useState([])
+
+  // Apply filters and sorting
+  const filteredTasks = useMemo(() => {
+    let result = [...tasks]
+
+    // Apply user filter
+    if (selectedUserIds.length > 0) {
+      result = result.filter(t =>
+        t.assignees && t.assignees.some(userId => selectedUserIds.includes(userId))
+      )
+    }
+
+    // Apply tag filter - match by tag name for cross-project filtering
+    if (selectedTagIds.length > 0) {
+      result = result.filter(t => {
+        if (!t.tags || t.tags.length === 0) return false
+        const projectTags = getProjectTags(t.projectId)
+        return t.tags.some(tagId => {
+          const tag = projectTags[tagId]
+          // Match by name (cross-project) or by ID (single project)
+          return tag && selectedTagIds.includes(tag.name)
+        })
+      })
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      if (sortBy === 'due-date') {
+        if (!a.dueDate && !b.dueDate) return 0
+        if (!a.dueDate) return 1
+        if (!b.dueDate) return -1
+        const dateA = new Date(a.dueDate.year, a.dueDate.month - 1, a.dueDate.day)
+        const dateB = new Date(b.dueDate.year, b.dueDate.month - 1, b.dueDate.day)
+        return dateA - dateB
+      }
+      if (sortBy === 'created-asc') {
+        return (a.id || 0) - (b.id || 0)
+      }
+      return (b.id || 0) - (a.id || 0)
+    })
+
+    return result
+  }, [tasks, selectedUserIds, selectedTagIds, sortBy, getProjectTags])
+
   if (tasks.length === 0) {
     return <EmptyState icon={Circle} message="No tasks yet. Create a task in a project to see it here." />
   }
@@ -149,9 +262,26 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
         title="All Tasks"
         icon={Circle}
         showNotes={false}
+        rightAction={
+          <FilterBar
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            allMembers={allProjectMembers}
+            selectedUserIds={selectedUserIds}
+            onUserFilterChange={setSelectedUserIds}
+            allTags={allProjectTags}
+            selectedTagIds={selectedTagIds}
+            onTagFilterChange={setSelectedTagIds}
+            showUserFilter={allProjectMembers.length > 0}
+            showTagFilter={Object.keys(allProjectTags).length > 0}
+          />
+        }
       />
+      {filteredTasks.length === 0 ? (
+        <EmptyState icon={Circle} message="No tasks match the current filters." />
+      ) : (
       <div className="project-view__section">
-        {tasks.map(task => (
+        {filteredTasks.map(task => (
           <TaskItem
             key={`${task.projectId}-${task.id}`}
             taskId={task.id}
@@ -175,6 +305,7 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
           />
         ))}
       </div>
+      )}
     </div>
   )
 }
@@ -206,6 +337,11 @@ function ProjectView({
   const [listCollapseState, setListCollapseState] = useState(new Map())
   const [showAddListForm, setShowAddListForm] = useState(false)
   const [newListName, setNewListName] = useState('')
+
+  // Filter state
+  const [sortBy, setSortBy] = useState('created-desc')
+  const [selectedUserIds, setSelectedUserIds] = useState([])
+  const [selectedTagIds, setSelectedTagIds] = useState([])
 
   const handleAddListSubmit = (e) => {
     e.preventDefault()
@@ -240,7 +376,7 @@ function ProjectView({
   const getTasksForList = useCallback((listId) => {
     if (!model) return []
     const taskIds = App.GetTasksInList(model, listId)
-    return taskIds
+    let tasks = taskIds
       .map(id => ({ id, ...App.GetTask(model, id) }))
       .filter(t => !t.deleted)
       .filter(t => {
@@ -248,7 +384,41 @@ function ProjectView({
         if (filterTab === 'important') return t.starred && !t.completed
         return !t.completed // 'all' tab shows incomplete tasks
       })
-  }, [model, filterTab])
+
+    // Apply user filter
+    if (selectedUserIds.length > 0) {
+      tasks = tasks.filter(t =>
+        t.assignees && t.assignees.some(userId => selectedUserIds.includes(userId))
+      )
+    }
+
+    // Apply tag filter
+    if (selectedTagIds.length > 0) {
+      tasks = tasks.filter(t =>
+        t.tags && t.tags.some(tagId => selectedTagIds.includes(tagId))
+      )
+    }
+
+    // Apply sorting
+    tasks.sort((a, b) => {
+      if (sortBy === 'due-date') {
+        // Tasks with due dates come first, sorted by date
+        if (!a.dueDate && !b.dueDate) return 0
+        if (!a.dueDate) return 1
+        if (!b.dueDate) return -1
+        const dateA = new Date(a.dueDate.year, a.dueDate.month - 1, a.dueDate.day)
+        const dateB = new Date(b.dueDate.year, b.dueDate.month - 1, b.dueDate.day)
+        return dateA - dateB
+      }
+      if (sortBy === 'created-asc') {
+        return (a.id || 0) - (b.id || 0)
+      }
+      // Default: created-desc (newest first)
+      return (b.id || 0) - (a.id || 0)
+    })
+
+    return tasks
+  }, [model, filterTab, selectedUserIds, selectedTagIds, sortBy])
 
   const isListCollapsed = useCallback((listId, taskCount) => {
     if (listCollapseState.has(listId)) {
@@ -280,6 +450,21 @@ function ProjectView({
         showNotes={false}
         canRename={project.isOwner}
         onRename={onRenameProject}
+        rightAction={
+          <FilterBar
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            allMembers={members}
+            selectedUserIds={selectedUserIds}
+            onUserFilterChange={setSelectedUserIds}
+            allTags={allTags}
+            selectedTagIds={selectedTagIds}
+            onTagFilterChange={setSelectedTagIds}
+            showUserFilter={members.length > 0}
+            showTagFilter={Object.keys(allTags).length > 0}
+            showDueDateSort={filterTab !== 'logbook'}
+          />
+        }
       />
 
       <FilterTabs
@@ -675,6 +860,43 @@ function TodoApp({ user, onSignOut }) {
     return App.GetAllTags(model)
   }, [getProjectModel])
 
+  // Aggregate all tags across projects for smart list filters
+  // Deduplicate by tag name since filtering is by name across projects
+  const allProjectTags = useMemo(() => {
+    const byName = new Map()
+    projects.forEach(project => {
+      const tags = getProjectTags(project.id)
+      Object.entries(tags).forEach(([id, tag]) => {
+        // Deduplicate by name - first occurrence wins
+        if (!byName.has(tag.name)) {
+          byName.set(tag.name, { ...tag })
+        }
+      })
+    })
+    // Convert to object with name as key (name used as ID for filtering)
+    const aggregated = {}
+    byName.forEach((tag, name) => {
+      aggregated[name] = tag
+    })
+    return aggregated
+  }, [projects, getProjectTags])
+
+  // Aggregate all members across projects for smart list filters
+  const allProjectMembers = useMemo(() => {
+    const memberMap = new Map()
+    projects.forEach(project => {
+      const projectMembers = getProjectMembers(project.id)
+      if (projectMembers) {
+        projectMembers.forEach(member => {
+          if (!memberMap.has(member.user_id)) {
+            memberMap.set(member.user_id, member)
+          }
+        })
+      }
+    })
+    return Array.from(memberMap.values())
+  }, [projects, getProjectMembers])
+
   // Count calculations for sidebar (smart lists always show all projects)
   const priorityCount = priorityTasks.length
   const logbookCount = logbookTasks.length
@@ -729,6 +951,8 @@ function TodoApp({ user, onSignOut }) {
           onAssignTask={handleAssignTaskAll}
           onUnassignTask={handleUnassignTaskAll}
           getProjectMembers={getProjectMembers}
+          allProjectTags={allProjectTags}
+          allProjectMembers={allProjectMembers}
         />
       )
     }
@@ -751,6 +975,8 @@ function TodoApp({ user, onSignOut }) {
           onAssignTask={handleAssignTaskAll}
           onUnassignTask={handleUnassignTaskAll}
           getProjectMembers={getProjectMembers}
+          allProjectTags={allProjectTags}
+          allProjectMembers={allProjectMembers}
         />
       )
     }

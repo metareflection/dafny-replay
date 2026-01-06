@@ -34,6 +34,11 @@
   padding-top: var(--space-xs);
 }
 
+.project-header__actions {
+  flex-shrink: 0;
+  padding-top: var(--space-sm);
+}
+
 .project-header__title {
   font-family: var(--font-family-display);
   font-size: var(--font-size-xxl);

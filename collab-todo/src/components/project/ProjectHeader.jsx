@@ -10,7 +10,8 @@ export function ProjectHeader({
   onNotesChange,
   showNotes = true,
   canRename = false,
-  onRename
+  onRename,
+  rightAction
 }) {
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(title)
@@ -77,6 +78,11 @@ export function ProjectHeader({
             <span className="project-header__subtitle">{subtitle}</span>
           )}
         </div>
+        {rightAction && (
+          <div className="project-header__actions">
+            {rightAction}
+          </div>
+        )}
       </div>
 
       {showNotes && (
