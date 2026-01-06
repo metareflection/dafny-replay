@@ -52,12 +52,6 @@ export function useAllProjects(projectIds, options = {}) {
     manager?.getSnapshot ?? (() => null)
   )
 
-  // Wire up logger for operation log
-  useEffect(() => {
-    if (!manager) return
-    manager.setLogger(logger || null)
-  }, [manager, logger])
-
   // Fetch members for all projects
   useEffect(() => {
     if (!projectIds?.length || !isSupabaseConfigured()) return
