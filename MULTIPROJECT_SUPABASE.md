@@ -287,6 +287,20 @@ If client goes offline:
 - On reconnect: fresh state fetched, pending reapplied
 - Verified `NetworkRestored` event handles this
 
+## Applied Log: Effective Single-Project Actions
+
+Each project's `applied_log` stores only single-project `Action` types. When `multi-dispatch` processes cross-project operations, it uses the verified `GetEffectiveAction` function to decompose the multi-action:
+
+```dafny
+function GetEffectiveAction(mm: MultiModel, a: MultiAction, projectId: ProjectId): Action
+```
+
+For `MoveListTo(src, dst, listId)`:
+- Source project log gets `DeleteList(listId)`
+- Destination project log gets `AddList(listName)`
+
+This ensures the single-project `dispatch` function can parse all log entries, and rebasing functions like `ListDeletedInLog` work correctly.
+
 ## Summary
 
 | Component | Guarantee |
@@ -295,5 +309,6 @@ If client goes offline:
 | `save_multi_update` | Atomic database transaction with version check |
 | `RealtimeUpdate` event | Preserves pending actions, checks invariants |
 | `RealtimeUpdatePreservesPendingExactly` | Verified lemma proving pending preservation |
+| `GetEffectiveAction` | Decomposes multi-project actions for single-project logs |
 | RLS | Users only see/modify accessible projects |
 | Version conflicts | Serializes concurrent writes, triggers rebase |
