@@ -281,16 +281,8 @@ export class MultiProjectEffectManager {
   }
 
   // Public: manual sync (reload all projects)
-  // Uses RealtimeUpdate events to preserve pending actions
   async sync() {
     if (!isSupabaseConfigured()) return
-
-    // Guard: Don't sync while dispatching - could cause state inconsistency
-    if (this.#state && App.EffectState.isDispatching(this.#state)) {
-      console.warn('Cannot sync while dispatching')
-      return
-    }
-
     this.#setStatus('syncing')
     try {
       const { data: projects, error } = await supabase
@@ -300,26 +292,14 @@ export class MultiProjectEffectManager {
 
       if (error) throw error
 
-      if (!this.#state) {
-        // Initial load - use EffectInit (no pending to preserve)
-        const versions = {}
-        const models = {}
-        for (const p of projects) {
-          versions[p.id] = p.version
-          models[p.id] = p.state
-        }
-        this.#state = App.EffectInit(versions, models)
-      } else {
-        // Existing state - use RealtimeUpdate events to preserve pending
-        for (const p of projects) {
-          this.#transition(App.EffectEvent.RealtimeUpdate(
-            p.id,
-            p.version,
-            p.state
-          ))
-        }
+      const versions = {}
+      const models = {}
+      for (const p of projects) {
+        versions[p.id] = p.version
+        models[p.id] = p.state
       }
 
+      this.#state = App.EffectInit(versions, models)
       this.#notify()
       this.#setStatus('synced')
       this.#setError(null)
@@ -330,7 +310,6 @@ export class MultiProjectEffectManager {
   }
 
   // Public: add a project to manage
-  // Uses RealtimeUpdate event to preserve pending actions
   async addProject(projectId) {
     if (this.#projectIds.includes(projectId)) return
 
@@ -346,13 +325,15 @@ export class MultiProjectEffectManager {
       this.#projectIds.push(projectId)
 
       if (this.#state) {
-        // Add to existing state using RealtimeUpdate (preserves pending)
-        // MergeModels in Dafny will add the new project to the map
-        this.#transition(App.EffectEvent.RealtimeUpdate(
-          projectId,
-          project.version,
-          project.state
-        ))
+        // Add to existing state - reinitialize with new project
+        const currentVersions = App.EffectState.getBaseVersions(this.#state)
+        const currentModelsJson = App.EffectState.getMultiModelJson(this.#state)
+
+        currentVersions[projectId] = project.version
+        currentModelsJson.projects[projectId] = project.state
+
+        this.#state = App.EffectInit(currentVersions, currentModelsJson.projects)
+        this.#notify()
       }
 
       // Subscribe to realtime for new project

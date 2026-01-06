@@ -685,13 +685,6 @@ module TodoMultiProjectDomain refines MultiProject {
       :: TaggedTaskId(pid, tid)
   }
 
-  // Get all deleted tasks across all projects (for trash view)
-  function GetAllDeletedTasks(mm: MultiModel): set<TaggedTaskId>
-  {
-    set pid, tid | pid in mm.projects && tid in MC.D.GetDeletedTaskIds(mm.projects[pid])
-      :: TaggedTaskId(pid, tid)
-  }
-
   // Count all visible tasks across all projects
   function CountAllVisibleTasks(mm: MultiModel): nat
   {

@@ -4,7 +4,7 @@
 // Now backed by MultiProjectEffectManager for verified state transitions,
 // offline support, and cross-project operations.
 
-import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import { isSupabaseConfigured, supabase } from '../supabase.js'
 import App from '../dafny/app-extras.ts'
 import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
@@ -19,28 +19,22 @@ import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 export function useAllProjects(projectIds) {
   const [status, setStatus] = useState('syncing')
   const [error, setError] = useState(null)
-  const [manager, setManager] = useState(null)
+  const managerRef = useRef(null)
+  const currentProjectIdsRef = useRef(null)
   const [projectMembers, setProjectMembers] = useState({}) // projectId -> member[]
 
-  // Stable key for projectIds to detect changes
+  // Create or recreate manager when projectIds change
   const projectIdsKey = projectIds?.sort().join(',') || ''
-
-  // Create/recreate manager in useEffect (proper React lifecycle)
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !projectIds?.length) {
-      setManager(null)
-      return
+  if (isSupabaseConfigured() && currentProjectIdsRef.current !== projectIdsKey) {
+    // Stop old manager if it exists
+    if (managerRef.current) {
+      managerRef.current.stop()
     }
+    managerRef.current = projectIds?.length > 0 ? new MultiProjectEffectManager(projectIds) : null
+    currentProjectIdsRef.current = projectIdsKey
+  }
 
-    const newManager = new MultiProjectEffectManager(projectIds)
-    newManager.setCallbacks(setStatus, setError)
-    newManager.start()
-    setManager(newManager)
-
-    return () => {
-      newManager.stop()
-    }
-  }, [projectIdsKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const manager = managerRef.current
 
   // Subscribe to multi-project state via useSyncExternalStore
   const multiModel = useSyncExternalStore(
@@ -48,6 +42,14 @@ export function useAllProjects(projectIds) {
     manager?.getSnapshot ?? (() => null),
     manager?.getSnapshot ?? (() => null)
   )
+
+  // Wire up callbacks and start/stop
+  useEffect(() => {
+    if (!manager) return
+    manager.setCallbacks(setStatus, setError)
+    manager.start()
+    return () => manager.stop()
+  }, [manager])
 
   // Fetch members for all projects
   useEffect(() => {
@@ -186,8 +188,9 @@ export function useAllProjects(projectIds) {
     return tagged.map(enrichTask).filter(t => t !== null && !t.completed)
   }, [multiModel, enrichTask])
 
-  // VERIFIED: Get all deleted tasks across all projects (for Trash view)
-  // Uses verified Dafny GetDeletedTaskIds function
+  // Get all deleted tasks across all projects (for Trash view)
+  // Note: No verified Dafny function for this, using direct model query
+  // Deleted tasks are removed from list sequences but remain in taskData
   const trashTasks = useMemo(() => {
     if (!multiModel) return []
     const tasks = []
@@ -197,12 +200,14 @@ export function useAllProjects(projectIds) {
       const model = App.MultiModel.getProject(multiModel, projectId)
       if (!model) continue
 
-      // Use verified Dafny function to get deleted task IDs
-      const deletedTaskIds = App.GetDeletedTaskIds(model)
+      // Iterate over taskData directly (deleted tasks are removed from list sequences)
+      const taskData = model.dtor_taskData
+      if (!taskData || !taskData.Keys) continue
 
-      for (const taskId of deletedTaskIds) {
+      for (const taskIdKey of taskData.Keys.Elements) {
+        const taskId = taskIdKey.toNumber ? taskIdKey.toNumber() : taskIdKey
         const task = App.GetTask(model, taskId)
-        if (task) {
+        if (task && task.deleted) {
           // Get original list from deletedFromList field
           const listId = task.deletedFromList
           const listName = listId !== null ? App.GetListName(model, listId) : ''

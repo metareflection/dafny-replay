@@ -1082,12 +1082,6 @@ abstract module {:compile false} TodoDomainSpec refines Domain {
     set id | id in m.taskData && IsLogbookTask(m.taskData[id]) :: id
   }
 
-  // Get deleted task IDs (for trash view)
-  function GetDeletedTaskIds(m: Model): set<TaskId>
-  {
-    set id | id in m.taskData && m.taskData[id].deleted :: id
-  }
-
   // Count tasks matching a smart list filter
   function CountSmartListTasks(m: Model, smartList: SmartListType): nat
   {

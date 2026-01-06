@@ -745,10 +745,9 @@ function TodoApp({ user, onSignOut }) {
   }
 
   const handleInviteMember = async (email) => {
-    // DB-first: add to project_members, then domain model
-    // If DB fails, domain is never updated (no inconsistency)
-    // If domain dispatch queues but server rejects, state machine handles conflict
+    // First add to Supabase project_members (for access control)
     const userId = await inviteMember(email)
+    // Then update domain model (so user can be assigned to tasks)
     if (userId) {
       singleDispatch(App.AddMember(userId))
     }
@@ -756,10 +755,10 @@ function TodoApp({ user, onSignOut }) {
   }
 
   const handleRemoveMember = async (userId) => {
-    // DB-first: remove from project_members, then domain model
-    // If DB fails, domain is never updated (no inconsistency)
-    await removeFromSupabase(userId)
+    // First update domain model (clears task assignments)
     singleDispatch(App.RemoveMember(userId))
+    // Then remove from Supabase project_members
+    await removeFromSupabase(userId)
     await refreshMembers()
   }
 
