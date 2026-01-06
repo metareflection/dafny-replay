@@ -11,11 +11,24 @@ For cross-project operations and Supabase integration details, see:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Supabase                                                       │
+│    • Auth (onAuthStateChange for cross-tab sync)                │
 │    • PostgreSQL (projects table)                                │
 │    • Realtime (postgres_changes)                                │
 │    • Edge Functions (/dispatch, /multi-dispatch)                │
 └─────────────────────────────────────────────────────────────────┘
                               ↕
+┌─────────────────────────────────────────────────────────────────┐
+│  AppContainer (App.jsx)                                         │
+│    • onAuthStateChange listener                                 │
+│    • Passes user to TodoApp                                     │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  useProjects(userId) (hooks/useCollaborativeProject.js)         │
+│    • Fetches project list for current user                      │
+│    • Re-fetches when userId changes (cross-tab auth sync)       │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │  MultiProjectEffectManager (hooks/MultiProjectEffectManager.js) │
 │    • Wraps verified Dafny EffectStateMachine                    │
@@ -181,6 +194,7 @@ App.GetTasksInList(model, listId)    // → TaskId[]
 | `src/dafny/TodoMultiProjectEffect.cjs` | Compiled Dafny runtime |
 | `src/dafny/app.js` | Generated API wrapper (dafny2js) |
 | `src/dafny/app-extras.js` | Convenience wrappers |
+| `src/hooks/useCollaborativeProject.js` | Project list + membership hooks |
 | `src/hooks/MultiProjectEffectManager.js` | Effect orchestration + I/O |
 | `src/hooks/useAllProjects.js` | React hook for multi-project state |
 

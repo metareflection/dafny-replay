@@ -8,8 +8,9 @@ import { supabase, isSupabaseConfigured } from '../supabase.js'
 
 /**
  * Hook for managing project list and membership
+ * @param {string} userId - Current user ID (triggers re-fetch when changed)
  */
-export function useProjects() {
+export function useProjects(userId) {
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -98,7 +99,7 @@ export function useProjects() {
 
   useEffect(() => {
     fetchProjects()
-  }, [fetchProjects])
+  }, [fetchProjects, userId])
 
   return { projects, loading, error, refresh: fetchProjects, createProject, renameProject, deleteProject }
 }

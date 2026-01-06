@@ -606,8 +606,8 @@ function TodoApp({ user, onSignOut }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isSidebarOpen])
 
-  // Projects list
-  const { projects, loading: projectsLoading, createProject, renameProject, deleteProject, refresh: refreshProjects } = useProjects()
+  // Projects list (re-fetches when user changes)
+  const { projects, loading: projectsLoading, createProject, renameProject, deleteProject, refresh: refreshProjects } = useProjects(user?.id)
 
   // Unified multi-project state (single source of truth)
   const projectIds = useMemo(() => projects.map(p => p.id), [projects])
