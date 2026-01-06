@@ -201,7 +201,9 @@ function ProjectView({
   onAddList,
   onDeleteTask
 }) {
-  const [collapsedLists, setCollapsedLists] = useState(new Set())
+  // Track user's explicit collapse preference: true = collapsed, false = expanded
+  // Lists not in map use default: empty lists collapsed, non-empty expanded
+  const [listCollapseState, setListCollapseState] = useState(new Map())
   const [showAddListForm, setShowAddListForm] = useState(false)
   const [newListName, setNewListName] = useState('')
 
@@ -248,14 +250,19 @@ function ProjectView({
       })
   }, [model, filterTab])
 
-  const toggleCollapse = (listId) => {
-    setCollapsedLists(prev => {
-      const next = new Set(prev)
-      if (next.has(listId)) {
-        next.delete(listId)
-      } else {
-        next.add(listId)
-      }
+  const isListCollapsed = useCallback((listId, taskCount) => {
+    if (listCollapseState.has(listId)) {
+      return listCollapseState.get(listId)
+    }
+    // Default: empty lists collapsed, non-empty expanded
+    return taskCount === 0
+  }, [listCollapseState])
+
+  const toggleCollapse = (listId, taskCount) => {
+    setListCollapseState(prev => {
+      const next = new Map(prev)
+      const currentlyCollapsed = isListCollapsed(listId, taskCount)
+      next.set(listId, !currentlyCollapsed)
       return next
     })
   }
@@ -309,14 +316,16 @@ function ProjectView({
       {lists.length === 0 ? (
         <EmptyState message={selectedListId !== null ? "List not found" : "No lists yet. Click '+ Add List' above."} />
       ) : (
-        lists.map(list => (
+        lists.map(list => {
+          const tasks = getTasksForList(list.id)
+          return (
           <TaskList
             key={list.id}
             listId={list.id}
             listName={list.name}
-            tasks={getTasksForList(list.id)}
-            collapsed={collapsedLists.has(list.id)}
-            onToggleCollapse={() => toggleCollapse(list.id)}
+            tasks={tasks}
+            collapsed={isListCollapsed(list.id, tasks.length)}
+            onToggleCollapse={() => toggleCollapse(list.id, tasks.length)}
             onAddTask={(listId, title) => dispatch(App.AddTask(listId, title))}
             onRenameList={onRenameList}
             onDeleteList={onDeleteList}
@@ -363,7 +372,8 @@ function ProjectView({
               dispatch(App.UnassignTask(taskId, userId))
             }
           />
-        ))
+          )
+        })
       )}
     </div>
   )
