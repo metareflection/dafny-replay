@@ -11,7 +11,7 @@
 // This class only handles I/O (network calls, browser events).
 
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-import App from '../dafny/app-extras.js'
+import App from '../dafny/app-extras.ts'
 
 export class EffectManager {
   #state = null           // EffectState (Dafny datatype)

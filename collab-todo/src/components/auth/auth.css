@@ -1,0 +1,175 @@
+/* Auth component styles - Refined and welcoming */
+
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-xl);
+  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-secondary) 100%);
+}
+
+.auth-container__title {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  margin-bottom: var(--space-xs);
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-container__subtitle {
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-xxl);
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-xl);
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border-light);
+}
+
+.auth-form__title {
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-xl);
+  text-align: center;
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.auth-form__error {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-lg);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 59, 48, 0.15);
+}
+
+.auth-form__warning {
+  color: var(--color-warning);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+}
+
+.auth-form__hint {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.auth-form__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.auth-form__input {
+  padding: var(--space-md) var(--space-lg);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid transparent;
+}
+
+.auth-form__input:focus {
+  background: var(--color-bg);
+  border-color: var(--color-accent);
+}
+
+.auth-form__submit {
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-sm);
+  transition: 
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.auth-form__submit:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-form__submit:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.auth-form__submit:disabled {
+  opacity: 0.6;
+}
+
+.auth-form__google {
+  width: 100%;
+  margin-top: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: #4285f4;
+  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  transition: 
+    background var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.auth-form__google:hover {
+  background: #3574e2;
+  box-shadow: var(--shadow-md);
+}
+
+.auth-form__google:active {
+  transform: scale(0.98);
+}
+
+.auth-form__toggle {
+  margin-top: var(--space-xl);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.auth-form__toggle-btn {
+  color: var(--color-accent);
+  margin-left: var(--space-xs);
+  font-weight: var(--font-weight-medium);
+  transition: color var(--transition-fast);
+}
+
+.auth-form__toggle-btn:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ============================================================================
+   RESPONSIVE - Auth Mobile
+   ============================================================================ */
+@media (max-width: 480px) {
+  .auth-container {
+    padding: var(--space-md);
+  }
+
+  .auth-form {
+    padding: var(--space-lg);
+    max-width: 100%;
+  }
+}

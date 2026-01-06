@@ -1,0 +1,1723 @@
+# Chat Summaries
+
+---
+
+# Task Location Navigation in All Tasks View
+
+**Date:** 2026-01-05
+
+## Goal
+
+Add a clickable location indicator to tasks in the "All Tasks" view that shows `[project]/[list]` and navigates to the task's list when clicked.
+
+## Implementation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added `locationPath` and `onNavigateToLocation` props, imported `FolderOpen` icon, render location button |
+| `src/components/tasks/tasks.css` | Added `.task-item__location` styles (22x22px icon button with hover state) |
+| `src/App.jsx` | Updated `AllTasksView` to accept `projects` and `onNavigateToList` props, compute location path, pass navigation callback |
+
+### Design Iterations
+
+| Iteration | Design | Issue |
+|-----------|--------|-------|
+| 1 | Full path text (`Project/List`) in title row | Took too much space |
+| 2 | Full path text right-aligned before controls | Still too much space |
+| 3 | Just "/" character | Too thin/small compared to other icons |
+| 4 | `FolderOpen` icon (12px) | Final - matches other indicator icons |
+
+### Final UI Behavior
+
+| Element | Behavior |
+|---------|----------|
+| Icon | `FolderOpen` at 12px, muted (opacity 0.4) |
+| Hover | Accent color, light background, full opacity |
+| Tooltip | Shows full path: `ProjectName/ListName` |
+| Click | Navigates to the list within the project |
+| Position | Between main content and indicator icons |
+
+### Key Code
+
+**TaskItem.jsx** - Location button:
+```jsx
+{locationPath && (
+  <button
+    className="task-item__location"
+    onClick={(e) => {
+      e.stopPropagation()
+      onNavigateToLocation?.()
+    }}
+    title={locationPath}
+  >
+    <FolderOpen size={12} />
+  </button>
+)}
+```
+
+**App.jsx** - AllTasksView location computation:
+```jsx
+{filteredTasks.map(task => {
+  const project = projects.find(p => p.id === task.projectId)
+  const projectName = project?.name || ''
+  const locationPath = projectName && task.listName
+    ? `${projectName}/${task.listName}`
+    : task.listName
+  return (
+    <TaskItem
+      locationPath={locationPath}
+      onNavigateToLocation={() => onNavigateToList?.(task.projectId, task.listId)}
+      ...
+    />
+  )
+})}
+```
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# Delete Project Feature
+
+**Date:** 2026-01-05
+
+## Goal
+
+Add ability to delete a project from the 3-dot dropdown menu in the sidebar.
+
+## Implementation
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/schema.sql` | Added `delete_project` RPC function (owner-only, SECURITY DEFINER) |
+| `src/hooks/useCollaborativeProject.js` | Added `deleteProject` function that calls RPC |
+| `src/components/sidebar/ProjectList.jsx` | Added "Delete Project" item to dropdown with Trash2 icon, confirmation dialog |
+| `src/components/sidebar/sidebar.css` | Added `.project-list__dropdown-item--danger` styles (red color) |
+| `src/components/layout/Sidebar.jsx` | Pass-through `onDeleteProject` prop |
+| `src/App.jsx` | Added `handleDeleteProject` handler with toast feedback, clears selection if deleted |
+
+### SQL Migration Required
+
+```sql
+CREATE OR REPLACE FUNCTION delete_project(p_project_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can delete a project';
+  END IF;
+  DELETE FROM projects WHERE id = p_project_id;
+END;
+$$;
+```
+
+## UI Behavior
+
+| Condition | Behavior |
+|-----------|----------|
+| Owner | "Delete Project" option visible in dropdown |
+| Non-owner | Option hidden |
+| Click delete | Confirmation dialog: `Delete "ProjectName"? This cannot be undone.` |
+| Confirm | Project deleted, selection cleared if needed, success toast |
+| Cancel | No action |
+| Error | Error toast with message |
+
+## Design Decisions
+
+1. **Owner-only** - Delete option only shown to project owners (presentational guard + RPC check)
+2. **Confirmation required** - `window.confirm()` prevents accidental deletion
+3. **CASCADE delete** - `project_members` automatically cleaned up via foreign key constraint
+4. **Clear selection** - If deleted project was selected, clears `selectedProjectId` and localStorage
+
+---
+
+# List Filtering + Project UI Improvements
+
+**Date:** 2026-01-05
+
+## Features Implemented
+
+### 1. Filter View by Selected List
+
+When clicking a list in the sidebar, the main view now filters to show only that list (instead of all lists in the project).
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `selectedListId` prop to ProjectView, split `lists` into `allLists` (unfiltered) and `lists` (filtered) |
+
+### 2. Rename Project by Clicking Title
+
+Owners can now click the project title to rename it inline.
+
+| File | Changes |
+|------|---------|
+| `src/components/project/ProjectHeader.jsx` | Added inline editing with `canRename` and `onRename` props |
+| `src/components/project/project.css` | Added `.project-header__title--editable` and `.project-header__title-input` styles |
+| `src/hooks/useCollaborativeProject.js` | Added `renameProject` function using RPC |
+| `supabase/schema.sql` | Added `rename_project` RPC function (owner-only, SECURITY DEFINER) |
+
+**Note:** Direct UPDATE on `projects` table is blocked by RLS - required creating an RPC function.
+
+### 3. Replace 3-dot Dropdown with "+ Add List" Button
+
+The useless 3-dot dropdown next to filter tabs was replaced with a functional "+ Add List" button.
+
+| File | Changes |
+|------|---------|
+| `src/components/project/FilterTabs.jsx` | Replaced `MoreHorizontal` with `Plus` + "Add List", added `onAddList` prop |
+| `src/components/project/project.css` | Added `.filter-tabs__add-list` styles, `.project-view__add-list-form` for inline form |
+| `src/App.jsx` | Added inline add list form state/handler in ProjectView |
+
+### 4. Move Sidebar Add List to Dropdown
+
+Removed the `+` button next to project names, added "Add List" to the project dropdown menu instead.
+
+| File | Changes |
+|------|---------|
+| `src/components/sidebar/ProjectList.jsx` | Removed inline `+` button, added "Add List" with `ListPlus` icon to dropdown menu |
+
+## Bug Fixes
+
+### Inline Editing Race Condition
+
+Initial implementation had Enter key calling `handleSubmit` directly, which raced with `onBlur` also calling it.
+
+**Fix:** On Enter, blur the input and let `onBlur` handle the submit (single call path).
+
+```javascript
+if (e.key === 'Enter') {
+  e.preventDefault()
+  inputRef.current?.blur() // Let onBlur handle the submit
+}
+```
+
+### Project Rename RLS Blocked
+
+Direct table update returned `data: Array(0)` because no UPDATE RLS policy existed.
+
+**Fix:** Created `rename_project` RPC function with `SECURITY DEFINER` that:
+- Checks ownership via `is_project_owner()`
+- Checks for duplicate names (case-insensitive)
+- Updates the project name
+
+## SQL Migration Required
+
+```sql
+CREATE OR REPLACE FUNCTION rename_project(p_project_id UUID, p_new_name TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT is_project_owner(p_project_id) THEN
+    RAISE EXCEPTION 'Only the owner can rename a project';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM projects
+    WHERE owner_id = auth.uid()
+    AND LOWER(name) = LOWER(p_new_name)
+    AND id != p_project_id
+  ) THEN
+    RAISE EXCEPTION 'Project with this name already exists';
+  END IF;
+  UPDATE projects SET name = p_new_name, updated_at = now() WHERE id = p_project_id;
+END;
+$$;
+```
+
+---
+
+# Task Item UI Refactor: Expanded Metadata View + Notes Modal
+
+**Date:** 2026-01-05
+
+## Context
+
+Reviewed commit 815f556 (UI style refinements) and found issues:
+- Dead imports: `TagList` and `AssigneeList` imported but never used
+- Loss of visual information: tags, assignees, and due dates only shown as icon indicators
+
+## Changes Requested
+
+User wanted to change task interaction model:
+1. Click on task → expand to show metadata (not inline edit form)
+2. Move notes editing to a modal
+
+## Implementation
+
+### New Component
+
+| File | Purpose |
+|------|---------|
+| `src/components/notes/NotesModal.jsx` | Modal for editing task notes |
+| `src/components/notes/notes.css` | Modal styles |
+| `src/components/notes/index.js` | Exports |
+
+### TaskItem Changes
+
+| Before | After |
+|--------|-------|
+| Click → inline edit form (title + notes) | Click → toggle expanded metadata view |
+| Notes edited inline | Notes edited via modal (FileText icon) |
+| TagList/AssigneeList imported but unused | Dead imports removed |
+
+### Expanded Metadata Format
+
+| Type | Display Format |
+|------|----------------|
+| Assignees | `@username, @username` |
+| Tags | `#tagname, #tagname` |
+| Due date | `Jan 5` (text, red if overdue) |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Replaced `editing` state with `expanded`, added metadata display, integrated NotesModal, removed dead imports |
+| `src/components/tasks/tasks.css` | Added `.task-item__main`, `.task-item__metadata`, metadata item styles |
+
+## Bug Fix: Modal Styling
+
+Initial modal had transparency and overflow issues. Fixed by:
+- Changed `--color-bg-primary` to `--color-bg` with `#fff` fallback
+- Added `overflow: hidden` to modal container
+- Wrapped textarea in `.notes-modal__content` div with explicit background
+- Added solid backgrounds to header, content, and actions sections
+
+## Note
+
+Inline title editing was removed. Title can only be changed via the task edit form or future enhancement (e.g., double-click to edit).
+
+---
+
+# Offline Mode Disabled (Pending Conflict Resolution)
+
+**Date:** 2026-01-04
+
+## Problem
+
+The current offline reconciliation policy has a critical flaw: if a user goes offline for an extended period (e.g., 24 hours), makes many changes, then comes online, their stale changes overwrite more recent work from other users.
+
+**Example scenario:**
+1. User A goes offline, makes 100 changes
+2. 12 hours later, User B makes 100 changes (more current)
+3. User A comes online → User B's changes get overwritten
+
+## Discussion: Potential Solutions
+
+| Approach | Description | Trade-offs |
+|----------|-------------|------------|
+| **LWW with client timestamps** | Each action gets timestamp; latest wins | Clock skew issues; can't trust client time |
+| **Server timestamps on arrival** | Actions timestamped when server receives | Makes offline changes MORE dominant |
+| **Conflict detection + manual resolution** | Detect conflicts; user chooses which to keep | Complex UX; many edge cases |
+| **Per-field CRDTs** | Auto-merge at field level | Major architectural change |
+
+## Decision
+
+For now: **Disable offline mode entirely** until proper conflict resolution is implemented.
+
+Future plan:
+- No reliance on client timestamps
+- Auto-apply non-conflicting changes
+- User resolves actual conflicts (like git merge)
+
+## Implementation
+
+### UI Changes
+
+| File | Changes |
+|------|---------|
+| `src/components/layout/TopBar.jsx` | Removed network toggle button (WiFi/WifiOff), removed pending count indicator |
+| `src/App.jsx` | Added offline blocking overlay, disabled content interaction when offline |
+| `src/components/layout/layout.css` | Added `.offline-overlay` styles |
+
+### Logic Changes
+
+| File | Changes |
+|------|---------|
+| `src/hooks/MultiProjectEffectManager.js` | `dispatchSingle()` and `dispatch()` return early when offline (no queuing) |
+
+### Behavior Now
+
+| State | Behavior |
+|-------|----------|
+| **Online** | App works normally |
+| **Offline** | Full-screen overlay blocks UI; `pointer-events: none` on content; dispatches silently blocked |
+
+### Defense in Depth
+
+1. **Visual**: Overlay with "You are offline" message
+2. **Interaction**: `pointer-events: none` + `opacity: 0.5` on content
+3. **Logic**: Manager rejects all dispatches when offline
+
+## Preserved for Later
+
+All offline infrastructure remains intact:
+- Network detection in `MultiProjectEffectManager.js`
+- Dafny state machine for offline handling
+- `toggleOffline`, `pendingCount`, `hasPending` still exposed (unused in UI)
+
+When conflict resolution is implemented, this can be re-enabled.
+
+---
+
+# SetDueDate UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Build UI for setting and displaying due dates on tasks, using the existing `SetDueDate` action from the Dafny spec.
+
+## Implementation
+
+### New Component
+
+Created `DueDatePicker` - a dropdown component with:
+- Calendar icon trigger (highlights when date is set)
+- Native HTML date input for selection
+- "Clear" button to remove due date
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/duedate/DueDatePicker.jsx` | Date picker dropdown component |
+| `src/components/duedate/duedate.css` | Styles (matches TagPicker pattern) |
+| `src/components/duedate/index.js` | Exports |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added DueDatePicker next to TagPicker |
+| `src/components/tasks/TaskList.jsx` | Pass-through `onSetDueDate` prop |
+| `src/App.jsx` | Added handlers for ProjectView + smart list views |
+| `docs/ACTIONS.md` | Updated counts (20/27 used), moved SetDueDate to implemented |
+
+## Bug Fix: Action Rejected
+
+### Problem
+
+Due date appeared briefly then disappeared - action was being rejected by the server.
+
+### Root Cause
+
+Format mismatch between client and server Option serialization:
+- **Client sends**: `{ type: 'Some', value: { year, month, day } }` (tagged Option format)
+- **Server expected**: `{ year, month, day }` or `null` (raw value format)
+
+### Fix
+
+Added `taggedOptionToValue` function in `build-bundle.js` to handle the tagged format:
+
+```javascript
+const taggedOptionToValue = (val, converter) => {
+  if (val === null || val === undefined) return Option.create_None();
+  if (val.type === 'None') return Option.create_None();
+  if (val.type === 'Some') return Option.create_Some(converter(val.value));
+  return Option.create_Some(converter(val)); // fallback
+};
+```
+
+Updated SetDueDate case to use `taggedOptionToValue(json.dueDate, jsToDate)`.
+
+### Deployment Required
+
+```bash
+cd collab-todo/supabase/functions/dispatch && node build-bundle.js
+supabase functions deploy dispatch
+```
+
+## Spec Functions Used
+
+- `App.SetDueDateValue(taskId, year, month, day)` - Set date
+- `App.ClearDueDate(taskId)` - Remove date
+
+## UI Behavior
+
+| Location | DueDatePicker Available |
+|----------|------------------------|
+| ProjectView | Yes |
+| PriorityView | Yes |
+| AllTasksView | Yes |
+| LogbookView | No (display only) |
+
+---
+
+# Project View Tabs Enhancement
+
+**Date:** 2026-01-04
+
+## Goal
+
+Improve project-level filtering by renaming "Important" to "Priority" and adding a project-specific "Logbook" tab.
+
+## Changes
+
+### Tab Labels
+- Renamed "Important" → "Priority" (label only)
+- Added "Logbook" tab for project-specific completed tasks
+
+### Filter Logic
+Updated `getTasksForList` to handle three mutually exclusive tabs:
+- **All**: Shows incomplete, non-deleted tasks
+- **Priority**: Shows starred, incomplete, non-deleted tasks (with count badge)
+- **Logbook**: Shows completed, non-deleted tasks
+
+### Priority Count Implementation
+
+Initially attempted to calculate the priority count directly in JSX by iterating through lists and tasks. However, the Dafny spec already had `CountPriorityTasks(m)` and `CountLogbookTasks(m)` functions verified in `TodoDomain`. Just needed thin wrappers in `app-extras.js`:
+
+```javascript
+CountPriorityTasks: (m) => toNumber(TodoDomain.__default.CountPriorityTasks(m))
+CountLogbookTasks: (m) => toNumber(TodoDomain.__default.CountLogbookTasks(m))
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/dafny/app-extras.js` | Added `CountPriorityTasks`, `CountLogbookTasks` wrappers |
+| `src/App.jsx` | Updated FilterTabs with Priority/Logbook, updated filter logic, added priority count to tab label |
+
+## UI Behavior
+
+| Tab | Shows | Count Badge |
+|-----|-------|-------------|
+| All | Incomplete tasks | No |
+| Priority | Starred + incomplete | Yes (when > 0) |
+| Logbook | Completed tasks | No |
+
+## Build Status
+
+No compilation needed - uses existing verified spec functions.
+
+---
+
+# All Tasks Smart List Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Add an "All Tasks" smart list that shows all non-deleted tasks across all projects, and simplify the UI by removing the Single/All view mode toggle.
+
+## Design Decision
+
+Instead of having a "Single" vs "All" toggle in the sidebar:
+- Smart lists (Priority, Logbook, All Tasks) **always** show tasks across all projects
+- Project view has its own filtering via existing tabs (All/Important)
+
+This is cleaner because the "All Tasks" smart list naturally provides the cross-project view.
+
+## Spec Changes
+
+Added to `TodoMultiProjectDomain.dfy`:
+```dafny
+function GetAllVisibleTasks(mm: MultiModel): set<TaggedTaskId>
+{
+  set pid, tid | pid in mm.projects && tid in MC.D.GetVisibleTaskIds(mm.projects[pid])
+    :: TaggedTaskId(pid, tid)
+}
+
+function CountAllVisibleTasks(mm: MultiModel): nat
+{
+  |GetAllVisibleTasks(mm)|
+}
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `GetAllVisibleTasks`, `CountAllVisibleTasks` |
+| `src/dafny/app-extras.js` | Added `getAllVisibleTasks`, `countVisibleTasks` wrappers |
+| `src/hooks/useAllProjects.js` | Added `allTasks` aggregation, exported it |
+| `src/components/sidebar/SmartLists.jsx` | Added "All Tasks" option with List icon |
+| `src/components/layout/Sidebar.jsx` | Removed viewMode toggle, added `allTasksCount` prop |
+| `src/App.jsx` | Added `AllTasksView` component, removed `viewMode` state, simplified filtering |
+
+## Compilation Steps
+
+1. `dafny verify TodoMultiProjectDomain.dfy` - Verify spec
+2. `dafny translate js --no-verify -o generated/TodoMulti --include-runtime TodoMultiCollaboration.dfy`
+3. `dafny translate js --no-verify -o generated/TodoMultiProjectEffect --include-runtime TodoMultiProjectEffectStateMachine.dfy`
+4. Copy to collab-todo: `cp generated/*.js collab-todo/src/dafny/*.cjs`
+5. Regenerate app.js: `cd dafny2js && dotnet run -- --file ../TodoMultiProjectEffectStateMachine.dfy ...`
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# LocalStorage Persistence for Selected Project
+
+**Date:** 2026-01-04
+
+## Problem
+
+On page refresh, the app always shows "Select a project or smart list to get started" - no project is pre-selected.
+
+## Investigation
+
+Explored two options:
+1. **Default to "All" view** - Show all lists/tasks across projects on first load
+2. **Remember last project** - Persist selected project in localStorage
+
+### Findings
+
+- `selectedProjectId` initialized to `null` in `App.jsx:229`
+- "All" is a `viewMode` toggle ('single' vs 'all'), not a standalone view - still requires selecting a smart list (Priority/Logbook)
+- No existing localStorage usage in the codebase
+- This is a UI/navigation concern → implement in React, not Dafny spec
+
+## Implementation
+
+User chose **localStorage persistence**.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added two `useEffect` hooks for localStorage save/restore |
+
+### Key Code
+
+```javascript
+// Restore selected project from localStorage on mount
+useEffect(() => {
+  if (projects.length === 0) return
+  const savedId = localStorage.getItem('collab-todo:selectedProjectId')
+  if (savedId && projects.find(p => p.id === savedId)) {
+    setSelectedProjectId(savedId)
+  }
+}, [projects])
+
+// Save selected project to localStorage
+useEffect(() => {
+  if (selectedProjectId) {
+    localStorage.setItem('collab-todo:selectedProjectId', selectedProjectId)
+  }
+}, [selectedProjectId])
+```
+
+### Design Decisions
+
+1. **Namespaced key** - `collab-todo:selectedProjectId` to avoid conflicts
+2. **Validation on restore** - Only restores if project still exists (handles deleted projects)
+3. **Wait for projects** - Restore runs after projects array loads from Supabase
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# Member Management UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Implement `AddMember`, `RemoveMember`, and `MakeCollaborative` actions in the UI to enable project member management.
+
+## Spec Findings
+
+Before implementation, researched the Dafny spec to clarify behavior:
+
+1. **AddMember does NOT auto-convert Personal → Collaborative** - `MakeCollaborative` is a separate action that must be called first
+2. **Owner is singular and immutable** - Set at project creation, never changes. No `SetOwner` or `TransferOwnership` actions exist
+3. **No role differentiation in domain model** - Just `owner: UserId` (singular) and `members: set<UserId>`
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/members/MemberList.jsx` | Display project members with remove button (hidden for owner) |
+| `src/components/members/MemberInvite.jsx` | Email input form to invite new members |
+| `src/components/members/members.css` | Styles for member components |
+| `src/components/members/index.js` | Exports |
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `useProjectMembers` hook, member handlers, member panel in ProjectView |
+| `docs/ACTIONS.md` | Updated counts (20/27 used), moved MakeCollaborative/AddMember/RemoveMember to implemented |
+
+## Key Code
+
+**App.jsx** - Member handlers:
+```javascript
+const handleMakeCollaborative = () => {
+  singleDispatch(App.MakeCollaborative())
+}
+
+const handleInviteMember = async (email) => {
+  await inviteMember(email)  // Supabase layer
+  await refreshMembers()
+}
+
+const handleRemoveMember = async (userId) => {
+  singleDispatch(App.RemoveMember(userId))  // Domain model (clears task assignments)
+  await removeFromSupabase(userId)  // Supabase layer
+  await refreshMembers()
+}
+```
+
+**ProjectView** - Member panel (conditional on mode):
+```javascript
+{projectMode === 'Personal' ? (
+  <div className="member-panel">
+    <button onClick={onMakeCollaborative}>Make Collaborative</button>
+  </div>
+) : (
+  <div className="member-panel">
+    <MemberList members={members} ownerId={projectOwner} ... />
+    {project.isOwner && <MemberInvite onInvite={onInviteMember} />}
+  </div>
+)}
+```
+
+## UI Behavior
+
+| Project Mode | UI |
+|-------------|-----|
+| Personal | "Make Collaborative" button only |
+| Collaborative | Member list + invite form (owner can manage) |
+
+| Member | Remove Button |
+|--------|---------------|
+| Owner | Hidden (presentational guard only) |
+| Other | Visible |
+
+## Design Decisions
+
+1. **Presentational guard for owner** - Hide remove button for owner in UI, but no guard on the action itself (spec returns `CannotRemoveOwner` error)
+2. **Two-layer sync** - Both Supabase `project_members` table (access control) and Dafny domain model `m.members` (task assignments) need updating
+3. **Invite by email** - Uses existing `inviteMember` from `useProjectMembers` hook which looks up userId
+
+## Spec Actions Used
+
+- `App.MakeCollaborative()` - Convert Personal → Collaborative (one-way)
+- `App.AddMember(userId)` - Add member (via `inviteMember` email lookup)
+- `App.RemoveMember(userId)` - Remove member (auto-clears task assignments)
+- `App.GetMode(model)` - Check Personal vs Collaborative
+- `App.GetMembers(model)` - Get member userId array
+- `App.GetOwner(model)` - Get owner userId
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# MoveListTo Edge Function Deployment & Debugging
+
+**Date:** 2026-01-03
+
+## Problem
+
+After implementing `MoveListTo` in the client, the edge function wasn't working. Multiple errors encountered during deployment and testing.
+
+## Error Chain & Fixes
+
+### 1. React Hooks Order Error
+
+**Symptom:**
+```
+React has detected a change in the order of Hooks called by TodoApp
+26. useMemo → useCallback
+```
+
+**Cause:** Added new `useCallback` for `moveListToProject` in `useAllProjects.js`. Hot Module Replacement (HMR) couldn't reconcile the changed hook order.
+
+**Fix:** Hard refresh (Cmd+Shift+R). This is an HMR artifact, not a code bug.
+
+---
+
+### 2. Edge Function 403 Forbidden
+
+**Symptom:**
+```
+POST .../functions/v1/multi-dispatch 403 (Forbidden)
+```
+
+**Cause:** The `multi-dispatch` edge function wasn't deployed, or was outdated.
+
+**Fix:** Deploy with `supabase functions deploy multi-dispatch`.
+
+---
+
+### 3. Missing `MoveListTo` in Edge Function Bundle
+
+**Symptom:**
+```
+Action rejected: TypeError: Cannot read properties of undefined (reading 'create_MultiModel')
+```
+
+**Cause:** The edge function's `build-bundle.js` was missing the `MoveListTo` case. It had:
+```typescript
+type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo'  // Missing MoveListTo!
+```
+
+**Fixes applied to `build-bundle.js`:**
+
+1. Added `MoveListTo` to interface:
+```typescript
+interface MultiAction {
+  type: 'Single' | 'MoveTaskTo' | 'CopyTaskTo' | 'MoveListTo';
+  listId?: number;  // Added
+  ...
+}
+```
+
+2. Added switch case:
+```typescript
+case 'MoveListTo':
+  return TodoMultiProjectDomain.MultiAction.create_MoveListTo(
+    _dafny.Seq.UnicodeFromString(json.srcProject!),
+    _dafny.Seq.UnicodeFromString(json.dstProject!),
+    new BigNumber(json.listId!)
+  );
+```
+
+3. Fixed wrong module reference:
+```typescript
+// Before (WRONG):
+return TodoDomain.MultiModel.create_MultiModel(projects);
+// After (CORRECT):
+return TodoMultiProjectDomain.MultiModel.create_MultiModel(projects);
+```
+
+4. Same changes applied to `index.ts` interface.
+
+5. Rebuilt bundle: `node build-bundle.js`
+
+---
+
+### 4. PostgreSQL "cannot extract elements from a scalar"
+
+**Symptom:**
+```json
+{"error": "Failed to save updates", "details": "cannot extract elements from a scalar"}
+```
+
+**Cause:** The `save_multi_update` function expected JSONB, but Supabase RPC was having issues with how the array was being serialized.
+
+**Fix:** Changed function to accept TEXT and parse internally:
+
+**index.ts:**
+```javascript
+.rpc('save_multi_update', { updates_json: JSON.stringify(updates) })
+```
+
+**schema.sql:**
+```sql
+CREATE OR REPLACE FUNCTION save_multi_update(updates_json TEXT)
+...
+DECLARE
+  updates JSONB := updates_json::jsonb;
+```
+
+---
+
+### 5. "Not a member of all projects" (409 Conflict)
+
+**Symptom:**
+```json
+{"status":"conflict","message":"Not a member of all projects"}
+```
+
+**Cause:** The SQL function used `auth.uid()` for membership check, but edge function uses **service role** (no auth context). `auth.uid()` returns NULL with service role.
+
+**Fix:** Removed the redundant membership check from `save_multi_update` since the edge function already verifies membership before calling it:
+
+```sql
+-- REMOVED these lines:
+-- SELECT array_agg((value->>'id')::UUID) INTO project_ids FROM jsonb_array_elements(updates);
+-- IF NOT is_member_of_all_projects(project_ids) THEN ...
+```
+
+---
+
+### 6. "record u has no field elem"
+
+**Symptom:**
+```json
+{"error": "Failed to save updates", "details": "record \"u\" has no field \"elem\""}
+```
+
+**Cause:** `jsonb_array_elements()` returns a column named `value`, not the alias `elem`. The alias was for the table, not the column.
+
+**Fix:**
+```sql
+-- Before (WRONG):
+FOR u IN SELECT * FROM jsonb_array_elements(updates) AS elem
+  ... u.elem->>'state' ...
+
+-- After (CORRECT):
+FOR u IN SELECT value FROM jsonb_array_elements(updates)
+  ... u.value->>'state' ...
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `supabase/functions/multi-dispatch/build-bundle.js` | Added `MoveListTo` to interface and switch, fixed `TodoMultiProjectDomain.MultiModel` |
+| `supabase/functions/multi-dispatch/index.ts` | Added `MoveListTo` to interface, changed to `updates_json: JSON.stringify(updates)` |
+| `supabase/functions/multi-dispatch/dafny-bundle.ts` | Regenerated with `node build-bundle.js` |
+| `supabase/schema.sql` | Changed `save_multi_update` to accept TEXT, removed auth check, fixed `u.value` |
+
+## Final Working SQL Function
+
+```sql
+CREATE OR REPLACE FUNCTION save_multi_update(updates_json TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  updates JSONB := updates_json::jsonb;
+  u RECORD;
+  updated_projects JSONB := '[]'::jsonb;
+BEGIN
+  FOR u IN SELECT value FROM jsonb_array_elements(updates)
+  LOOP
+    UPDATE projects
+    SET state = (u.value->>'state')::jsonb,
+        version = (u.value->>'newVersion')::int,
+        applied_log = applied_log || (u.value->'newLogEntry'),
+        updated_at = now()
+    WHERE id = (u.value->>'id')::uuid
+    AND version = (u.value->>'expectedVersion')::int;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Version conflict on project %', u.value->>'id';
+    END IF;
+
+    updated_projects := updated_projects || jsonb_build_object(
+      'id', u.value->>'id',
+      'version', (u.value->>'newVersion')::int
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object('success', true, 'updated', updated_projects);
+END;
+$$;
+```
+
+## Key Learnings
+
+1. **HMR + Hook changes = refresh needed** - Adding hooks mid-session causes React errors
+2. **Edge function bundles are separate** - Client bundle updates don't propagate to edge functions
+3. **Supabase RPC + JSONB arrays** - Safest to pass as TEXT and parse in SQL
+4. **Service role has no auth.uid()** - Don't use `auth.uid()` in functions called with service role
+5. **jsonb_array_elements returns 'value'** - Not a custom alias
+
+## Deployment Steps
+
+1. Run SQL in Supabase Dashboard (or migrate)
+2. `cd collab-todo/supabase/functions/multi-dispatch && node build-bundle.js`
+3. `supabase functions deploy multi-dispatch`
+
+---
+
+# MoveListTo (Cross-Project) Implementation
+
+**Date:** 2026-01-02
+
+## Goal
+
+Implement `MoveListTo` action to move an entire list (with all its tasks) from one project to another.
+
+## Spec Changes (TodoMultiProjectDomain.dfy)
+
+Added new `MultiAction` variant:
+```dafny
+| MoveListTo(
+    srcProject: ProjectId,
+    dstProject: ProjectId,
+    listId: ListId
+  )
+```
+
+### Helper Functions Added
+
+| Function | Purpose |
+|----------|---------|
+| `ExtractListTasks` | Get all non-deleted tasks from a list |
+| `ExtractTasksFromSeq` | Recursively extract tasks from ID sequence |
+| `CleanTaskForMove` | Clear tags/assignees (project-scoped data) |
+| `AddTasksToList` | Add multiple tasks to destination list |
+| `AddListWithTasks` | Create list and populate with tasks |
+| `ListDeletedInLog` | Check if list was deleted in log suffix |
+
+### MultiStep Logic
+
+1. Check source list exists and has a name
+2. Check destination doesn't have list with same name (hard error, no fallback)
+3. Extract tasks from source list
+4. Delete list from source project
+5. Create list with same name in destination
+6. Add cleaned tasks (no tags/assignees) to new list
+
+### Rebasing Rules
+
+- If list deleted in source log → becomes `NoOp`
+- Otherwise unchanged (list always placed at end)
+
+### Candidates
+
+No fallback candidates for `MoveListTo` - duplicate name in destination is a hard error.
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `MoveListTo` variant, helpers, MultiStep/Rebase/Candidates cases |
+| `TodoMultiProjectEffectStateMachine.dfy` | Added `MakeMoveListTo`, `IsMoveListTo` |
+| `src/dafny/app-extras.js` | Added `MoveListTo` constructor, `isMoveListTo` checker |
+| `src/hooks/MultiProjectEffectManager.js` | Added `moveListToProject` method |
+| `src/hooks/useAllProjects.js` | Exposed `moveListToProject` |
+| `src/components/tasks/TaskList.jsx` | Added Send icon dropdown with project menu |
+| `src/components/tasks/tasks.css` | Added dropdown styles |
+| `src/App.jsx` | Added `handleMoveListToProject`, wired props to ProjectView |
+| `docs/ACTIONS.md` | Updated counts, added MoveListTo as implemented |
+
+## Key Code
+
+**TaskList.jsx** - Send icon dropdown:
+```javascript
+{onMoveListToProject && otherProjects.length > 0 && (
+  <div className="task-list__move-dropdown" ref={moveDropdownRef}>
+    <button onClick={() => setShowMoveDropdown(!showMoveDropdown)}>
+      <Send size={12} />
+    </button>
+    {showMoveDropdown && (
+      <div className="task-list__move-menu">
+        <div className="task-list__move-menu-title">Move to project:</div>
+        {otherProjects.map(project => (
+          <button onClick={() => onMoveListToProject(listId, project.id)}>
+            {project.name}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+```
+
+**App.jsx** - Handler:
+```javascript
+const handleMoveListToProject = (listId, targetProjectId) => {
+  if (selectedProjectId) {
+    moveListToProject(selectedProjectId, targetProjectId, listId)
+  }
+}
+```
+
+## Design Decisions
+
+1. **Tags/assignees cleared** - These are project-scoped data
+2. **Duplicate name = hard error** - No automatic rename fallback
+3. **List placed at end** - No anchor parameter needed
+4. **Proof stubbed** - `assume {:axiom}` in `MultiStepPreservesInv`
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# MoveList Implementation
+
+**Date:** 2026-01-02
+
+## Goal
+
+Implement `MoveList` action to allow reordering lists within a project using up/down arrows.
+
+## Implementation
+
+Added up/down arrow buttons to each list header. Pressing up moves the list before the one above it; pressing down moves it after the one below it.
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskList.jsx` | Added `ArrowUp`/`ArrowDown` buttons, `onMoveList` and `allLists` props |
+| `src/App.jsx` | Added `handleMoveList(listId, anchorId, direction)` handler |
+| `docs/ACTIONS.md` | Updated counts (16/26 now used), moved MoveList to implemented |
+
+### Key Code
+
+**TaskList.jsx** - Arrow buttons:
+```javascript
+{onMoveList && allLists.length > 1 && (() => {
+  const idx = allLists.findIndex(l => l.id === listId)
+  return (
+    <>
+      <button onClick={() => onMoveList(listId, allLists[idx - 1]?.id, 'before')}>
+        <ArrowUp size={12} />
+      </button>
+      <button onClick={() => onMoveList(listId, allLists[idx + 1]?.id, 'after')}>
+        <ArrowDown size={12} />
+      </button>
+    </>
+  )
+})()}
+```
+
+**App.jsx** - Handler:
+```javascript
+const handleMoveList = (listId, anchorId, direction) => {
+  const listPlace = direction === 'before' ? App.ListBefore(anchorId) : App.ListAfter(anchorId)
+  singleDispatch(App.MoveList(listId, listPlace))
+}
+```
+
+## Design Decision: No UI Guards
+
+User insisted on not adding defensive checks in the UI (e.g., hiding arrows at boundaries). The Dafny spec handles invalid anchors via `BadAnchor` error.
+
+## Discovered Behavior: Asymmetric Boundary Handling
+
+When pressing "up" on the first list or "down" on the last list:
+- Both pass `undefined` as anchor → `BadAnchor` error
+- Conflict recovery falls back to `ListAtEnd`
+- **Result:** "Up" on first list moves it to the end; "Down" on last list is a no-op (already at end)
+
+This asymmetry exists because the spec's fallback candidates (`ListAtEnd`, `ListBefore(first)`) were designed for conflict resolution, not UI boundary cases.
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# Tag System Implementation
+
+**Date:** 2026-01-02
+
+## Goal
+
+Implement tag functionality in the collab-todo UI, exposing the tag actions already defined in the Dafny spec.
+
+## Context
+
+The collab-todo app uses a Dafny-verified domain model (`TodoMultiCollaboration.dfy`) that defines various actions. An audit revealed that many actions were defined in the spec but not exposed in the UI. Tags were chosen as the first feature to implement.
+
+## Audit Results
+
+Created [ACTIONS.md](./ACTIONS.md) comparing spec vs UI:
+- **Before:** 12 of 26 actions used in UI
+- **After:** 15 of 26 actions used in UI
+
+Tag actions now implemented:
+- `CreateTag(name)` - Create new tag
+- `AddTagToTask(taskId, tagId)` - Add tag to task
+- `RemoveTagFromTask(taskId, tagId)` - Remove tag from task
+
+Still missing: `RenameTag`, `DeleteTag` (would need a tag management panel)
+
+## Implementation Approach
+
+**Key insight from user:** The existing codebase uses Dafny actions directly without intermediate hooks. Example:
+```javascript
+// Direct use of compiled Dafny actions
+dispatch(App.StarTask(taskId))
+dispatch(App.AddTagToTask(taskId, tagId))
+```
+
+Pattern followed:
+1. UI components are presentational only
+2. Actions dispatched inline via callbacks
+3. Model passed as prop for data lookups (`App.GetAllTags(model)`)
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/tags/TagBadge.jsx` | Single tag chip display |
+| `src/components/tags/TagList.jsx` | List of tags with compact/overflow mode |
+| `src/components/tags/TagPicker.jsx` | Dropdown to add/remove/create tags |
+| `src/components/tags/tags.css` | Tag component styles |
+| `src/components/tags/index.js` | Exports |
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added TagList display, TagPicker in actions |
+| `src/components/tasks/TaskList.jsx` | Pass-through tag props to TaskItem |
+| `src/App.jsx` | Added `allTags`, tag handlers, passed to views |
+| `docs/ACTIONS.md` | Updated counts, moved tags from missing to implemented |
+
+## Key Code Patterns
+
+### Getting tags from model
+```javascript
+const allTags = useMemo(() => {
+  if (!model) return {}
+  return App.GetAllTags(model)
+}, [model])
+```
+
+### Dispatching tag actions
+```javascript
+onAddTag={(taskId, tagId) =>
+  dispatch(App.AddTagToTask(taskId, tagId))
+}
+onRemoveTag={(taskId, tagId) =>
+  dispatch(App.RemoveTagFromTask(taskId, tagId))
+}
+onCreateTag={(name) =>
+  dispatch(App.CreateTag(name))
+}
+```
+
+### Multi-project handlers (for PriorityView)
+```javascript
+const handleAddTagAll = (projectId, taskId, tagId) => {
+  const dispatch = createDispatch(projectId)
+  dispatch(App.AddTagToTask(taskId, tagId))
+}
+
+const getProjectTags = useCallback((projectId) => {
+  const model = getProjectModel(projectId)
+  if (!model) return {}
+  return App.GetAllTags(model)
+}, [getProjectModel])
+```
+
+## UI Features
+
+- Tags display as compact badges on tasks (max 2 visible, "+N" for overflow)
+- Tag icon button in task actions opens picker dropdown
+- Picker shows all project tags with checkmarks for selected ones
+- Type to search/filter existing tags
+- Create new tag inline by typing name and clicking "Create"
+- Works in:
+  - ProjectView (full functionality)
+  - PriorityView (full functionality)
+  - LogbookView (display only, no picker)
+
+## Build Status
+
+Build passes successfully with no errors.
+
+---
+
+# Authorization Layer for MoveListTo
+
+**Date:** 2026-01-04
+
+## Problem
+
+Security concern identified with MoveListTo:
+- X owns project A, invites member Z
+- Y owns project B, invites X as member
+- X can move a list from B to A, exposing B's content to Z (who has no access to B)
+
+This is a permission leak: members can "export" content from projects they don't own.
+
+## Options Considered
+
+### Option 1: Database-only authorization
+- Add permission checks in edge function TypeScript (before Dafny)
+- **Pro:** No spec changes, uses existing auth infrastructure
+- **Con:** Authorization logic unverified
+
+### Option 2: Bake authorization into MultiStep
+- Add `actingUser` parameter to `MultiStep` function
+- Check permissions inside before modifying state
+- **Pro:** Single function handles both
+- **Con:** Mixes domain logic with authorization; larger refactor affecting many actions
+
+### Option 3: Separate verified authorization layer (CHOSEN)
+- Add standalone `IsAuthorized` predicate, checked before `MultiStep`
+- **Pro:** Domain logic stays pure; authorization is verified; can add rules incrementally
+- **Con:** Two function calls instead of one
+
+## Decision
+
+Chose **Option 3**: Separate verified layer. Rationale:
+1. Keeps domain logic pure (what happens to state)
+2. Authorization is its own concern (who can do what)
+3. Can add per-action authorization rules incrementally
+4. Both layers are verified Dafny
+
+## Authorization Rules
+
+| Action | Who Can Perform |
+|--------|-----------------|
+| MoveListTo | Source project owner only |
+| Single, MoveTaskTo, CopyTaskTo | Any member (for now) |
+
+**Residual consideration:** Even owner moving lists could share with new members. Deemed acceptable as intentional owner behavior (similar to file sharing).
+
+## Implementation
+
+### Dafny Spec (`TodoMultiProjectDomain.dfy`)
+
+```dafny
+predicate IsAuthorized(mm: MultiModel, actingUser: UserId, a: MultiAction)
+{
+  match a
+  case MoveListTo(src, dst, listId) =>
+    src in mm.projects && actingUser == mm.projects[src].owner
+  case _ => true  // Other actions allowed for now
+}
+
+function CheckAuthorization(...): string  // Empty if OK, error message if not
+```
+
+### Defense in Depth
+
+1. **UI Layer** (`App.jsx`):
+   - `onMoveListToProject={project.isOwner ? handleMoveListToProject : undefined}`
+   - Move dropdown only shown to owners
+
+2. **Edge Function** (`multi-dispatch/index.ts`):
+   - Calls `checkAuthorization(mm, userId, action)` before `TryMultiStep`
+   - Returns 403 with reason if not authorized
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `TodoMultiProjectDomain.dfy` | Added `IsAuthorized`, `CheckAuthorization` |
+| `src/dafny/app-extras.js` | Added JS wrappers |
+| `src/App.jsx` | Conditional `onMoveListToProject` prop |
+| `supabase/functions/multi-dispatch/build-bundle.js` | Added `checkAuthorization` export |
+| `supabase/functions/multi-dispatch/index.ts` | Authorization check before TryMultiStep |
+| `docs/LATER.md` | Updated to reflect partial implementation |
+
+## Build Status
+
+- Dafny verification: 34 verified, 0 errors
+- Compilation: Success
+- Edge function: Needs redeployment (`supabase functions deploy multi-dispatch`)
+
+---
+
+# All Tasks View: Hide Completed Tasks
+
+**Date:** 2026-01-04
+
+## Problem
+
+The "All Tasks" smart list was showing completed tasks, which doesn't make sense since completed tasks belong in the Logbook.
+
+## Fix
+
+Added `!t.completed` filter to the `allTasks` memo in `useAllProjects.js`:
+
+```javascript
+const allTasks = useMemo(() => {
+  if (!multiModel) return []
+  const tagged = App.MultiModel.getAllVisibleTasks(multiModel)
+  return tagged.map(enrichTask).filter(t => t !== null && !t.completed)
+}, [multiModel, enrichTask])
+```
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useAllProjects.js` | Added `!t.completed` filter to `allTasks` memo |
+
+## Smart Lists Summary
+
+| Smart List | Shows |
+|------------|-------|
+| Priority | Starred + incomplete tasks |
+| All Tasks | All incomplete tasks (completed filtered out) |
+| Logbook | Completed tasks |
+
+## Build Status
+
+No compilation needed - React-only change.
+
+---
+
+---
+
+# Task Assignment UI Implementation
+
+**Date:** 2026-01-04
+
+## Goal
+
+Implement `AssignTask` and `UnassignTask` actions in the UI to enable task assignment to project members.
+
+## Implementation
+
+### New Components Created
+
+| File | Purpose |
+|------|---------|
+| `src/components/members/MemberPicker.jsx` | Dropdown for assigning/unassigning members (follows TagPicker pattern) |
+| `src/components/members/AssigneeList.jsx` | Display assignees as compact badges on tasks |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/members/members.css` | Added MemberPicker and AssigneeList styles |
+| `src/components/members/index.js` | Exported new components |
+| `src/components/tasks/TaskItem.jsx` | Added MemberPicker in actions, AssigneeList in meta section |
+| `src/components/tasks/TaskList.jsx` | Pass-through allMembers, onAssign, onUnassign props |
+| `src/App.jsx` | Added assignment handlers for ProjectView and smart list views |
+| `docs/ACTIONS.md` | Updated counts (22/27 used), moved AssignTask/UnassignTask to implemented |
+
+## UI Behavior
+
+| Location | Assignment Editable | Assignees Displayed |
+|----------|---------------------|---------------------|
+| ProjectView | Yes (MemberPicker shows) | Yes (with email names) |
+| PriorityView | No* | Yes (truncated user IDs) |
+| AllTasksView | No* | Yes (truncated user IDs) |
+| LogbookView | No | Yes (truncated user IDs) |
+
+*Smart list views have handlers wired up but no `getProjectMembers` callback yet - MemberPicker won't show because `allMembers` is empty. Assignment editing requires going to ProjectView.
+
+## Spec Actions Used
+
+- `App.AssignTask(taskId, userId)` - Add assignee to task
+- `App.UnassignTask(taskId, userId)` - Remove assignee from task
+
+## Design Decisions
+
+1. **Follows TagPicker pattern** - Consistent dropdown UX with search and checkmarks
+2. **Display in meta section** - Assignee badges shown alongside tags and due dates
+3. **Conditional MemberPicker** - Only shown when `allMembers.length > 0` and `onAssign` provided
+4. **Graceful degradation** - Smart lists show truncated user IDs when member emails unavailable
+
+## Future Enhancement
+
+To enable full assignment editing in smart list views:
+- Add `getProjectMembers(projectId)` callback similar to `getProjectTags`
+- Cache members per project (currently only selected project's members fetched)
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+---
+
+# Bug Fix: Members Cannot Be Assigned to Tasks
+
+**Date:** 2026-01-04
+
+## Problem
+
+After implementing AssignTask/UnassignTask UI, discovered that:
+- Owner can assign themselves to tasks (works)
+- Owner can assign other members (fails with `DomainInvalid`)
+- Members cannot assign anyone including themselves (fails with `DomainInvalid`)
+
+The error indicated `NotAMember` - the user wasn't in the domain model's `m.members` set.
+
+## Root Cause
+
+Two separate data stores for membership that were out of sync:
+
+| Store | Purpose | When Updated |
+|-------|---------|--------------|
+| Supabase `project_members` | Access control (who can see project) | On invite |
+| Domain model `m.members` | Task assignment eligibility | **Never** (bug!) |
+
+When `handleInviteMember` was called, it only inserted into Supabase but never dispatched `App.AddMember(userId)` to update the domain model.
+
+Compare to `handleRemoveMember` which correctly updated both:
+```javascript
+// handleRemoveMember - CORRECT
+singleDispatch(App.RemoveMember(userId))  // Domain model
+await removeFromSupabase(userId)           // Supabase
+
+// handleInviteMember - BUG (missing domain dispatch)
+await inviteMember(email)                  // Supabase only!
+```
+
+## Spec Invariant
+
+The spec at `TodoMultiCollaborationSpec.dfy:245` requires:
+```dafny
+&& m.owner in m.members
+```
+
+And the `AssignTask` action at line 718 checks:
+```dafny
+else if !(userId in m.members) then Err(NotAMember)
+```
+
+So any user not in `m.members` cannot be assigned to tasks.
+
+## Fix
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useCollaborativeProject.js:157` | `inviteMember` now returns `userData.id` |
+| `src/App.jsx:411-418` | `handleInviteMember` now dispatches `App.AddMember(userId)` |
+
+### Code Change
+
+```javascript
+// Before (bug)
+const handleInviteMember = async (email) => {
+  await inviteMember(email)
+  await refreshMembers()
+}
+
+// After (fixed)
+const handleInviteMember = async (email) => {
+  const userId = await inviteMember(email)
+  if (userId) {
+    singleDispatch(App.AddMember(userId))
+  }
+  await refreshMembers()
+}
+```
+
+## Migration Note
+
+Members invited **before this fix** exist in Supabase but not in the domain model. To fix:
+1. Remove and re-invite them, OR
+2. Manually patch the project's `state` JSON in the database to include their userId in the `members` array
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+# Task Restore with Undo Toast
+
+**Date:** 2026-01-05
+
+## Goal
+
+When user deletes a task, show a timed popup with an "Undo" button. If they don't click it within 5 seconds, the task goes to a Trash smart list where it can be restored later.
+
+## Implementation
+
+### New Components
+
+| File | Purpose |
+|------|---------|
+| `src/components/common/UndoToast.jsx` | Toast with progress bar and Undo button |
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/common/common.css` | Added `.undo-toast` styles with progress bar |
+| `src/components/common/index.js` | Export `UndoToast` |
+| `src/components/sidebar/SmartLists.jsx` | Added Trash smart list with Trash2 icon |
+| `src/components/layout/Sidebar.jsx` | Pass `trashCount` prop to SmartLists |
+| `src/components/project/project.css` | Added `.trash-item` styles |
+| `src/hooks/useAllProjects.js` | Added `trashTasks` memo for aggregating deleted tasks |
+| `src/App.jsx` | Added TrashView, UndoToast rendering, handleRestoreTask, pendingUndo state |
+
+## UI Behavior
+
+| Action | Result |
+|--------|--------|
+| Delete task | Task deleted, UndoToast appears at bottom |
+| Click "Undo" on toast | Task restored immediately, toast dismissed |
+| Toast times out (5s) | Toast dismissed, task remains in Trash |
+| Click Trash in sidebar | Shows all deleted tasks across projects |
+| Click "Restore" in Trash | Task restored to original list |
+
+## Spec Actions Used
+
+- `App.DeleteTask(taskId, userId)` - Soft delete (existing)
+- `App.RestoreTask(taskId)` - Restore deleted task
+
+## Design Decisions
+
+1. **Timed undo window** - 5 seconds matches standard undo patterns (Gmail, Slack)
+2. **Progress bar** - Visual countdown so user knows how much time remains
+3. **Cross-project Trash** - Shows deleted tasks from all projects in one view
+4. **Original list shown** - Trash items display which list they came from
+
+## Bug Fix: Trash Tasks Not Showing
+
+### Problem
+
+After the undo toast timed out, deleted tasks weren't appearing in the Trash view.
+
+### Root Cause
+
+The initial implementation tried to find deleted tasks by iterating through list sequences:
+```javascript
+for (const listId of App.GetLists(model)) {
+  for (const taskId of App.GetTasksInList(model, listId)) {
+    // Check if task.deleted...
+  }
+}
+```
+
+But `GetTasksInList()` only returns tasks in the list's task sequence. When a task is deleted, it's **removed from the list sequence** but remains in `taskData` with `deleted: true`.
+
+### Fix
+
+Iterate over `taskData` directly instead of list sequences:
+```javascript
+const taskData = model.dtor_taskData
+for (const taskIdKey of taskData.Keys.Elements) {
+  const taskId = taskIdKey.toNumber ? taskIdKey.toNumber() : taskIdKey
+  const task = App.GetTask(model, taskId)
+  if (task && task.deleted) {
+    // Found deleted task
+  }
+}
+```
+
+## Edge Case: Orphaned Tasks (List Deleted)
+
+### Scenario
+
+What happens to tasks in Trash whose original list has been deleted?
+
+### Spec Behavior
+
+The `RestoreTask` action in the Dafny spec **rejects** the restore if the original list no longer exists - it does not fall back to another list.
+
+### UI Solution
+
+Added `canRestore` flag based on whether the list name can be retrieved:
+```javascript
+const listName = listId !== null ? App.GetListName(model, listId) : ''
+const canRestore = listId !== null && listName !== ''
+tasks.push({
+  ...task,
+  listName: canRestore ? listName : '(list deleted)',
+  canRestore
+})
+```
+
+In the Trash view:
+- Tasks with `canRestore: true` show "Restore" button
+- Tasks with `canRestore: false` show disabled "Cannot restore" text
+
+## Build Status
+
+Build passes successfully.
+
+---
+
+## Next Steps (from ACTIONS.md)
+
+High value missing features:
+1. Cross-project operations (`MoveTaskTo`, `CopyTaskTo`)
+
+Medium value:
+2. Tag management panel (`RenameTag`, `DeleteTag`)
+
+---
+
+# Task Item UI + Condensed Filter Implementation
+
+**Date:** 2026-01-05
+
+## Features Implemented
+
+### 1. Task Item Icons Always Visible
+
+Changed task metadata icons (date, tags, assignees, notes) from hover-only to always visible with muted opacity. Set indicators highlighted in sage color.
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/tasks.css` | Removed conditional display, added muted opacity states, sage color for set indicators |
+| `src/components/tasks/TaskItem.jsx` | Always render icon wrappers, added `task-item__indicator-wrapper--set` class |
+| `src/styles/variables.css` | Added `--color-sage: #7C9E73` and `--color-sage-light` |
+
+### 2. 3-Dot Menu Click-Outside Fix
+
+Menu was disappearing on mouse-away. Fixed to stay open until user clicks outside or clicks the button again.
+
+| File | Changes |
+|------|---------|
+| `src/components/tasks/TaskItem.jsx` | Added `menuRef`, `useEffect` click-outside handler, `task-item--menu-open` class |
+| `src/components/tasks/tasks.css` | Added `.task-item--menu-open .task-item__menu-btn` selector |
+
+### 3. Star and 3-Dot Always Visible
+
+Extended always-visible treatment to star and menu buttons with muted opacity states.
+
+### 4. Empty Lists Collapsed by Default
+
+Changed from `collapsedLists` (Set) to `listCollapseState` (Map) to track explicit user preference.
+
+| File | Changes |
+|------|---------|
+| `src/App.jsx` | Added `isListCollapsed(listId, taskCount)` function that defaults empty lists to collapsed |
+
+### 5. FilterBar with Sort, User, and Tag Filters
+
+Added filtering capabilities to all views.
+
+| File | Purpose |
+|------|---------|
+| `src/components/filters/FilterBar.jsx` | Filter dropdowns for sort, user, tags |
+| `src/components/filters/filters.css` | Filter component styles |
+| `src/components/filters/index.js` | Exports |
+
+Filter state added to `PriorityView`, `AllTasksView`, and `ProjectView` in `App.jsx`.
+
+### 6. Cross-Project Tag Filter Fix
+
+**Problem:** In All Tasks view, clicking one tag selected all tags.
+
+**Root cause:** Aggregated tags used composite keys like `"projectId_123"`, and `Number("projectId_123")` returns `NaN`. All `NaN` values compared as equal in `includes()` check.
+
+**Fix:** Changed aggregation to deduplicate by tag name instead of composite keys. Updated filter logic to match by tag name using `getProjectTags` lookup.
+
+### 7. Condensed Filter Icon
+
+Replaced horizontal filter bar with a single icon button that opens a dropdown panel.
+
+| File | Changes |
+|------|---------|
+| `src/components/filters/FilterBar.jsx` | Replaced with single `SlidersHorizontal` icon, badge for active count, dropdown panel with sections |
+| `src/components/filters/filters.css` | New styles for `.filter-icon`, `.filter-panel` |
+| `src/components/project/ProjectHeader.jsx` | Added `rightAction` prop |
+| `src/components/project/project.css` | Added `.project-header__actions` class |
+| `src/App.jsx` | Moved `FilterBar` into `rightAction` prop of `ProjectHeader` in all views |
+
+## UI Summary
+
+| Feature | Behavior |
+|---------|----------|
+| Task icons | Always visible, muted; sage when set |
+| 3-dot menu | Stays open until click outside |
+| Star button | Always visible, muted; gold when starred |
+| Empty lists | Collapsed by default |
+| Filter icon | Single icon in header right corner |
+| Filter panel | Sort, assignee, and tag sections |
+| Active filters | Badge count on icon, sage highlight |
+
+## Build Status
+
+Build passes successfully.

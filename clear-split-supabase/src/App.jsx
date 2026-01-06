@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useCollaborativeProject } from './hooks/useCollaborativeProject.js'
 import { supabase, isSupabaseConfigured } from './supabase.js'
-import App from './dafny/app-extras.js'
+import App from './dafny/app-extras.ts'
 import './App.css'
 
 const formatMoney = (cents) => {
@@ -113,7 +113,7 @@ function GroupSelector({ user, onSelectGroup }) {
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [user?.id])
 
   const loadData = async () => {
     // Load user's groups with their states for cross-project balances

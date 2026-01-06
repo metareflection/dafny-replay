@@ -1,0 +1,388 @@
+/* Sidebar component styles - Refined and smooth */
+
+/* Sidebar Item */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  margin: 1px 0;
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.sidebar-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.sidebar-item--selected {
+  background: var(--color-bg-selected);
+  color: var(--color-accent);
+}
+
+.sidebar-item--selected:hover {
+  background: var(--color-bg-selected);
+}
+
+.sidebar-item--indent {
+  padding-left: var(--space-xxl);
+}
+
+.sidebar-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.sidebar-item--selected .sidebar-item__icon {
+  color: var(--color-accent);
+}
+
+.sidebar-item__label {
+  flex: 1;
+  font-size: var(--font-size-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Smart Lists */
+.smart-lists {
+  padding: var(--space-sm) var(--space-sm);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* Project List */
+.project-list {
+  padding: var(--space-sm) var(--space-sm);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.project-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.project-list__title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.project-list__add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.project-list__add-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+.project-list__form {
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.project-list__form input {
+  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+}
+
+.project-list__form-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.project-list__form-actions button {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.project-list__form-actions button:hover {
+  background: var(--color-bg-hover);
+}
+
+.project-list__form-actions button[type="submit"] {
+  background: var(--color-accent);
+  color: white;
+}
+
+.project-list__form-actions button[type="submit"]:hover {
+  background: var(--color-accent-hover);
+}
+
+.project-list__form-actions button[type="submit"]:disabled {
+  opacity: 0.5;
+}
+
+.project-list__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+
+.project-list__loading,
+.project-list__empty {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.project-list__items {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-list__project {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-list__project-row {
+  display: flex;
+  align-items: center;
+}
+
+.project-list__expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.project-list__expand-btn:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+}
+
+.project-list__project-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-sm);
+  text-align: left;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.project-list__project-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+.project-list__project-btn--selected {
+  background: var(--color-bg-selected);
+}
+
+.project-list__project-btn--selected:hover {
+  background: var(--color-bg-selected);
+}
+
+.project-list__project-icon {
+  color: var(--color-accent);
+  fill: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.project-list__project-name {
+  flex: 1;
+  font-size: var(--font-size-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-list__lists {
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--space-sm);
+}
+
+.project-list__add-list-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  margin-right: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.project-list__add-list-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+.project-list__add-list-form {
+  padding: var(--space-xs) var(--space-sm);
+  padding-left: var(--space-xl);
+}
+
+.project-list__add-list-form input {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.project-list__add-list-form input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Project Menu Dropdown */
+.project-list__menu-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.project-list__menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.project-list__project-row:hover .project-list__menu-btn,
+.project-list__menu-btn--active {
+  opacity: 1;
+}
+
+.project-list__menu-btn:hover,
+.project-list__menu-btn--active {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.project-list__dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 160px;
+  padding: var(--space-xs);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  margin-top: var(--space-xxs);
+}
+
+.project-list__dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  text-align: left;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.project-list__dropdown-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.project-list__dropdown-item svg {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.project-list__dropdown-item--danger {
+  color: var(--color-danger, #dc2626);
+}
+
+.project-list__dropdown-item--danger:hover {
+  background: var(--color-danger-bg, #fef2f2);
+}
+
+.project-list__dropdown-item--danger svg {
+  color: var(--color-danger, #dc2626);
+}
+
+/* ============================================================================
+   RESPONSIVE - Sidebar Mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .sidebar-item {
+    padding: var(--space-sm) var(--space-md);
+    min-height: 40px;
+  }
+
+  .project-list__menu-btn {
+    opacity: 1;
+  }
+
+  .project-list__dropdown {
+    min-width: 180px;
+  }
+
+  .project-list__dropdown-item {
+    padding: var(--space-sm) var(--space-md);
+    min-height: 40px;
+  }
+}

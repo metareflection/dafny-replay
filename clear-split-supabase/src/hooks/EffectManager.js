@@ -4,7 +4,7 @@
 // Exposes subscribe/getSnapshot for React's useSyncExternalStore.
 
 import { supabase, isSupabaseConfigured } from '../supabase.js'
-import App from '../dafny/app-extras.js'
+import App from '../dafny/app-extras.ts'
 
 export class EffectManager {
   #state = null

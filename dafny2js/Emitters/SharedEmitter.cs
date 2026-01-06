@@ -1,0 +1,991 @@
+using System.Text;
+
+namespace Dafny2Js.Emitters;
+
+/// <summary>
+/// Base class for code emitters. Contains shared logic for generating
+/// type converters, helpers, and datatype constructors.
+/// </summary>
+public abstract class SharedEmitter
+{
+  protected readonly List<DatatypeInfo> Datatypes;
+  protected readonly List<FunctionInfo> Functions;
+  protected readonly string DomainModule;
+  protected readonly string AppCoreModule;
+  protected readonly string CjsFileName;
+  protected readonly bool NullOptions;
+  protected readonly StringBuilder Sb = new();
+
+  protected SharedEmitter(
+    List<DatatypeInfo> datatypes,
+    List<FunctionInfo> functions,
+    string domainModule,
+    string appCoreModule,
+    string cjsFileName,
+    bool nullOptions = false)
+  {
+    Datatypes = datatypes;
+    Functions = functions;
+    DomainModule = domainModule;
+    AppCoreModule = appCoreModule;
+    CjsFileName = cjsFileName;
+    NullOptions = nullOptions;
+  }
+
+  /// <summary>
+  /// Generate the complete output. Implemented by subclasses.
+  /// </summary>
+  public abstract string Generate();
+
+  /// <summary>
+  /// Whether to emit TypeScript type annotations.
+  /// </summary>
+  protected virtual bool EmitTypeScript => false;
+
+  /// <summary>
+  /// Get all datatypes that need to be generated (domain + referenced).
+  /// </summary>
+  protected List<DatatypeInfo> GetAllTypesToGenerate()
+  {
+    var domainTypes = Datatypes
+      .Where(dt => dt.ModuleName == DomainModule)
+      .ToList();
+
+    var referencedTypes = CollectReferencedDatatypes();
+
+    // Find types from other modules that match referenced type names
+    var candidateAdditionalTypes = Datatypes
+      .Where(dt => dt.ModuleName != DomainModule && referencedTypes.Contains(dt.Name))
+      .ToList();
+
+    // Check for duplicate-named types and handle them
+    var domainTypesByName = domainTypes.ToDictionary(dt => dt.Name);
+    var additionalTypes = new List<DatatypeInfo>();
+    var additionalTypesByName = new Dictionary<string, DatatypeInfo>();
+
+    foreach (var candidate in candidateAdditionalTypes)
+    {
+      if (domainTypesByName.TryGetValue(candidate.Name, out var domainType))
+      {
+        if (!AreStructurallyIdentical(domainType, candidate))
+        {
+          throw new InvalidOperationException(
+            $"Error: Duplicate datatype name '{candidate.Name}' found in modules " +
+            $"'{domainType.ModuleName}' and '{candidate.ModuleName}' with different structures.");
+        }
+      }
+      else if (additionalTypesByName.TryGetValue(candidate.Name, out var existingAdditional))
+      {
+        if (!AreStructurallyIdentical(existingAdditional, candidate))
+        {
+          throw new InvalidOperationException(
+            $"Error: Duplicate datatype name '{candidate.Name}' found in modules " +
+            $"'{existingAdditional.ModuleName}' and '{candidate.ModuleName}' with different structures.");
+        }
+      }
+      else
+      {
+        additionalTypes.Add(candidate);
+        additionalTypesByName[candidate.Name] = candidate;
+      }
+    }
+
+    return domainTypes.Concat(additionalTypes).ToList();
+  }
+
+  /// <summary>
+  /// Collect all datatype names referenced in function parameters and return types.
+  /// </summary>
+  protected HashSet<string> CollectReferencedDatatypes()
+  {
+    var result = new HashSet<string>();
+
+    foreach (var func in Functions)
+    {
+      CollectDatatypesFromType(func.ReturnType, result);
+      foreach (var param in func.Parameters)
+      {
+        CollectDatatypesFromType(param.Type, result);
+      }
+    }
+
+    // Transitively collect datatypes from fields
+    var worklist = new Queue<string>(result);
+    while (worklist.Count > 0)
+    {
+      var typeName = worklist.Dequeue();
+      var dt = Datatypes.FirstOrDefault(d => d.Name == typeName);
+      if (dt == null) continue;
+
+      foreach (var ctor in dt.Constructors)
+      {
+        foreach (var field in ctor.Fields)
+        {
+          CollectDatatypesFromTypeWithWorklist(field.Type, result, worklist);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  void CollectDatatypesFromType(TypeRef type, HashSet<string> result)
+  {
+    if (type.Kind == TypeKind.Datatype)
+    {
+      result.Add(type.Name);
+    }
+    foreach (var arg in type.TypeArgs)
+    {
+      CollectDatatypesFromType(arg, result);
+    }
+  }
+
+  void CollectDatatypesFromTypeWithWorklist(TypeRef type, HashSet<string> result, Queue<string> worklist)
+  {
+    if (type.Kind == TypeKind.Datatype)
+    {
+      if (result.Add(type.Name))
+      {
+        worklist.Enqueue(type.Name);
+      }
+    }
+    foreach (var arg in type.TypeArgs)
+    {
+      CollectDatatypesFromTypeWithWorklist(arg, result, worklist);
+    }
+  }
+
+  bool AreStructurallyIdentical(DatatypeInfo a, DatatypeInfo b)
+  {
+    if (a.Constructors.Count != b.Constructors.Count)
+      return false;
+
+    for (int i = 0; i < a.Constructors.Count; i++)
+    {
+      var ctorA = a.Constructors[i];
+      var ctorB = b.Constructors[i];
+
+      if (ctorA.Name != ctorB.Name)
+        return false;
+
+      if (ctorA.Fields.Count != ctorB.Fields.Count)
+        return false;
+
+      for (int j = 0; j < ctorA.Fields.Count; j++)
+      {
+        var fieldA = ctorA.Fields[j];
+        var fieldB = ctorB.Fields[j];
+
+        if (fieldA.Name != fieldB.Name)
+          return false;
+        if (fieldA.Type.Name != fieldB.Type.Name)
+          return false;
+        if (fieldA.Type.Kind != fieldB.Type.Kind)
+          return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// <summary>
+  /// Check if a datatype is "enum-like" (all constructors have no fields).
+  /// </summary>
+  protected bool IsEnumLike(DatatypeInfo dt)
+  {
+    return dt.Constructors.Count > 1 && dt.Constructors.All(c => c.Fields.Count == 0);
+  }
+
+  // =========================================================================
+  // Helpers Generation
+  // =========================================================================
+
+  protected void EmitHelpers()
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// Helpers");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    if (EmitTypeScript)
+    {
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine("const seqToArray = (seq: any): any[] => {");
+    }
+    else
+    {
+      Sb.AppendLine("const seqToArray = (seq) => {");
+    }
+    Sb.AppendLine("  const arr = [];");
+    Sb.AppendLine("  for (let i = 0; i < seq.length; i++) {");
+    Sb.AppendLine("    arr.push(seq[i]);");
+    Sb.AppendLine("  }");
+    Sb.AppendLine("  return arr;");
+    Sb.AppendLine("};");
+    Sb.AppendLine();
+
+    if (EmitTypeScript)
+    {
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine("const toNumber = (bn: any): number => {");
+    }
+    else
+    {
+      Sb.AppendLine("const toNumber = (bn) => {");
+    }
+    Sb.AppendLine("  if (bn && typeof bn.toNumber === 'function') {");
+    Sb.AppendLine("    return bn.toNumber();");
+    Sb.AppendLine("  }");
+    Sb.AppendLine("  return bn;");
+    Sb.AppendLine("};");
+    Sb.AppendLine();
+
+    if (EmitTypeScript)
+    {
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine("const dafnyStringToJs = (seq: any): string => {");
+    }
+    else
+    {
+      Sb.AppendLine("const dafnyStringToJs = (seq) => {");
+    }
+    Sb.AppendLine("  if (typeof seq === 'string') return seq;");
+    Sb.AppendLine("  if (seq.toVerbatimString) return seq.toVerbatimString(false);");
+    Sb.AppendLine("  return Array.from(seq).join('');");
+    Sb.AppendLine("};");
+    Sb.AppendLine();
+  }
+
+  // =========================================================================
+  // TypeScript Interface Generation
+  // =========================================================================
+
+  /// <summary>
+  /// Emit TypeScript interface/type declarations for all datatypes.
+  /// </summary>
+  protected void EmitTypeScriptInterfaces(List<DatatypeInfo> allTypesToGenerate)
+  {
+    if (!EmitTypeScript) return;
+
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// TypeScript Type Definitions (JSON representation)");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      EmitTypeScriptType(dt);
+      Sb.AppendLine();
+    }
+
+    // Now emit Dafny runtime types
+    EmitDafnyRuntimeTypes(allTypesToGenerate);
+  }
+
+  /// <summary>
+  /// Emit Dafny runtime type declarations (types representing actual Dafny runtime objects).
+  /// </summary>
+  protected void EmitDafnyRuntimeTypes(List<DatatypeInfo> allTypesToGenerate)
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// Dafny Runtime Types (actual Dafny runtime object shapes)");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    // Base types for Dafny runtime
+    Sb.AppendLine("// Base Dafny runtime types");
+    Sb.AppendLine("type DafnyInt = InstanceType<typeof BigNumber>;");
+    Sb.AppendLine("interface DafnySeq<T = unknown> {");
+    Sb.AppendLine("  readonly length: number;");
+    Sb.AppendLine("  readonly [index: number]: T;");
+    Sb.AppendLine("  toVerbatimString?(asLiteral: boolean): string;");
+    Sb.AppendLine("  map<U>(fn: (x: T) => U): U[];");
+    Sb.AppendLine("}");
+    Sb.AppendLine("interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }");
+    Sb.AppendLine("interface DafnyMap<K = unknown, V = unknown> {");
+    Sb.AppendLine("  readonly Keys: DafnySet<K>;");
+    Sb.AppendLine("  get(key: K): V;");
+    Sb.AppendLine("  contains(key: K): boolean;");
+    Sb.AppendLine("}");
+    Sb.AppendLine("type DafnyTuple2<T0, T1> = readonly [T0, T1];");
+    Sb.AppendLine("type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];");
+    Sb.AppendLine();
+
+    // Generate Dafny runtime types for each datatype
+    foreach (var dt in allTypesToGenerate)
+    {
+      EmitDafnyRuntimeType(dt);
+      Sb.AppendLine();
+    }
+  }
+
+  /// <summary>
+  /// Emit a Dafny runtime type for a single datatype.
+  /// </summary>
+  void EmitDafnyRuntimeType(DatatypeInfo dt)
+  {
+    var name = $"Dafny{TypeMapper.SanitizeForJs(dt.Name)}";
+    var typeParams = dt.GetTypeParams();
+    var typeParamStr = typeParams.Count > 0
+      ? $"<{string.Join(", ", typeParams)}>"
+      : "";
+
+    if (IsEnumLike(dt))
+    {
+      // Enum-like: discriminated union with is_* flags
+      var variants = new List<string>();
+      foreach (var ctor in dt.Constructors)
+      {
+        var flags = dt.Constructors.Select(c =>
+          $"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+        variants.Add($"{{ {string.Join("; ", flags)} }}");
+      }
+      Sb.AppendLine($"type {name}{typeParamStr} = {string.Join(" | ", variants)};");
+    }
+    else if (dt.Constructors.Count == 1)
+    {
+      // Single constructor: interface with dtor_* fields
+      var ctor = dt.Constructors[0];
+      Sb.AppendLine($"interface {name}{typeParamStr} {{");
+      Sb.AppendLine($"  readonly is_{ctor.Name}: true;");
+      foreach (var field in ctor.Fields)
+      {
+        var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
+        Sb.AppendLine($"  readonly dtor_{field.Name}: {dafnyType};");
+      }
+      Sb.AppendLine("}");
+    }
+    else
+    {
+      // Multi-constructor: discriminated union
+      var variants = new List<string>();
+      foreach (var ctor in dt.Constructors)
+      {
+        var parts = new List<string>();
+        // Add is_* flags for all constructors
+        foreach (var c in dt.Constructors)
+        {
+          parts.Add($"readonly is_{c.Name}: {(c.Name == ctor.Name ? "true" : "false")}");
+        }
+        // Add dtor_* fields for this constructor's fields
+        foreach (var field in ctor.Fields)
+        {
+          var dafnyType = TypeMapper.TypeRefToDafnyRuntime(field.Type);
+          parts.Add($"readonly dtor_{field.Name}: {dafnyType}");
+        }
+        variants.Add($"{{ {string.Join("; ", parts)} }}");
+      }
+      Sb.AppendLine($"type {name}{typeParamStr} = {string.Join(" | ", variants)};");
+    }
+  }
+
+  /// <summary>
+  /// Emit a single TypeScript interface or type for a datatype.
+  /// </summary>
+  void EmitTypeScriptType(DatatypeInfo dt)
+  {
+    var name = TypeMapper.SanitizeForJs(dt.Name);
+    var typeParams = dt.GetTypeParams();
+    var typeParamStr = typeParams.Count > 0
+      ? $"<{string.Join(", ", typeParams)}>"
+      : "";
+
+    if (IsEnumLike(dt))
+    {
+      // Enum-like: all constructors have no fields
+      // export type ProjectMode = 'Single' | 'Multi';
+      var variants = string.Join(" | ", dt.Constructors.Select(c => $"'{c.Name}'"));
+      Sb.AppendLine($"export type {name}{typeParamStr} = {variants};");
+    }
+    else if (dt.Constructors.Count == 1)
+    {
+      // Single constructor: use interface
+      var ctor = dt.Constructors[0];
+      Sb.AppendLine($"export interface {name}{typeParamStr} {{");
+      foreach (var field in ctor.Fields)
+      {
+        var tsType = TypeMapper.TypeRefToTypeScript(field.Type);
+        Sb.AppendLine($"  {field.Name}: {tsType};");
+      }
+      Sb.AppendLine("}");
+    }
+    else
+    {
+      // Multi-constructor: discriminated union
+      Sb.AppendLine($"export type {name}{typeParamStr} =");
+      for (int i = 0; i < dt.Constructors.Count; i++)
+      {
+        var ctor = dt.Constructors[i];
+        var prefix = i == 0 ? "  | " : "  | ";
+        var suffix = i == dt.Constructors.Count - 1 ? ";" : "";
+
+        if (ctor.Fields.Count == 0)
+        {
+          Sb.AppendLine($"{prefix}{{ type: '{ctor.Name}' }}{suffix}");
+        }
+        else
+        {
+          var fields = string.Join("; ", ctor.Fields.Select(f =>
+            $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}"));
+          Sb.AppendLine($"{prefix}{{ type: '{ctor.Name}'; {fields} }}{suffix}");
+        }
+      }
+    }
+  }
+
+  // =========================================================================
+  // Datatype Conversions
+  // =========================================================================
+
+  protected void EmitDatatypeConversions(List<DatatypeInfo> allTypesToGenerate)
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// Datatype Conversions");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      EmitFromJson(dt);
+      Sb.AppendLine();
+      EmitToJson(dt);
+      Sb.AppendLine();
+    }
+  }
+
+  protected void EmitFromJson(DatatypeInfo dt)
+  {
+    var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}FromJson";
+    var typeName = TypeMapper.SanitizeForJs(dt.Name);
+    var typeParams = dt.GetTypeParams();
+
+    string paramList;
+    string returnType;
+
+    if (EmitTypeScript)
+    {
+      // TypeScript: returns Dafny runtime type (not JSON interface), input is any
+      var typeParamStr = typeParams.Count > 0
+        ? $"<{string.Join(", ", typeParams)}>"
+        : "";
+      // deno-lint-ignore needed for 'any' input parameter
+      var typeParamParams = typeParams.Select(p => $"{p}_fromJson: (x: any) => {p}");
+      paramList = typeParams.Count > 0
+        ? $"json: any, {string.Join(", ", typeParamParams)}"
+        : "json: any";
+      // fromJson returns Dafny runtime type (DafnyX), not JSON type (X)
+      returnType = $"Dafny{typeName}{typeParamStr}";
+
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine($"const {funcName} = {typeParamStr}({paramList}): {returnType} => {{");
+    }
+    else
+    {
+      paramList = typeParams.Count > 0
+        ? $"json, {string.Join(", ", typeParams.Select(p => $"{p}_fromJson"))}"
+        : "json";
+
+      Sb.AppendLine($"const {funcName} = ({paramList}) => {{");
+    }
+
+    // Special handling for Option type when null-options is enabled
+    // Handles: null -> None, raw value -> Some(value), tagged format -> as-is
+    if (NullOptions && dt.Name == "Option" && dt.Constructors.Count == 2)
+    {
+      Sb.AppendLine("  // Handle null/undefined (DB compatibility with --null-options)");
+      Sb.AppendLine("  if (json === null || json === undefined) {");
+      Sb.AppendLine($"    return {dt.ModuleName}.Option.create_None();");
+      Sb.AppendLine("  }");
+      Sb.AppendLine("  // Handle raw values without type tag (DB stores unwrapped Some values)");
+      Sb.AppendLine("  if (!json.type) {");
+      Sb.AppendLine($"    return {dt.ModuleName}.Option.create_Some(T_fromJson(json));");
+      Sb.AppendLine("  }");
+    }
+
+    var typeParamConverters = typeParams.ToDictionary(
+      p => p,
+      p => $"{p}_fromJson"
+    );
+
+    if (dt.Constructors.Count == 1)
+    {
+      var ctor = dt.Constructors[0];
+      EmitConstructorFromJson(dt, ctor, "  ", typeParamConverters);
+    }
+    else if (IsEnumLike(dt))
+    {
+      Sb.AppendLine("  switch (json) {");
+      foreach (var ctor in dt.Constructors)
+      {
+        Sb.AppendLine($"    case '{ctor.Name}':");
+        Sb.AppendLine($"      return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+      }
+      Sb.AppendLine("    default:");
+      Sb.AppendLine($"      throw new Error(`Unknown {dt.Name}: ${{json}}`);");
+      Sb.AppendLine("  }");
+    }
+    else
+    {
+      Sb.AppendLine("  switch (json.type) {");
+      foreach (var ctor in dt.Constructors)
+      {
+        Sb.AppendLine($"    case '{ctor.Name}': {{");
+        EmitConstructorFromJson(dt, ctor, "      ", typeParamConverters);
+        Sb.AppendLine($"    }}");
+      }
+      Sb.AppendLine("    default:");
+      Sb.AppendLine($"      throw new Error(`Unknown {dt.Name} type: ${{json.type}}`);");
+      Sb.AppendLine("  }");
+    }
+
+    Sb.AppendLine("};");
+  }
+
+  protected void EmitConstructorFromJson(DatatypeInfo dt, ConstructorInfo ctor, string indent, Dictionary<string, string> typeParamConverters)
+  {
+    if (ctor.Fields.Count == 0)
+    {
+      Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}();");
+      return;
+    }
+
+    var args = new List<string>();
+    foreach (var field in ctor.Fields)
+    {
+      var jsonAccess = $"json.{field.Name}";
+      var converted = TypeMapper.JsonToDafny(field.Type, jsonAccess, dt.ModuleName + ".", typeParamConverters);
+
+      if (field.Type.Kind == TypeKind.Map)
+      {
+        var tempVar = $"__{field.Name}";
+        var mapBlock = TypeMapper.GenerateMapFromJsonBlock(
+          field.Type, jsonAccess, tempVar, dt.ModuleName + ".", indent, typeParamConverters);
+        Sb.AppendLine(mapBlock);
+        args.Add(tempVar);
+      }
+      else
+      {
+        args.Add(converted);
+      }
+    }
+
+    var argList = string.Join(",\n" + indent + "  ", args);
+    Sb.AppendLine($"{indent}return {dt.ModuleName}.{dt.Name}.create_{ctor.Name}(");
+    Sb.AppendLine($"{indent}  {argList}");
+    Sb.AppendLine($"{indent});");
+  }
+
+  protected void EmitToJson(DatatypeInfo dt)
+  {
+    var funcName = $"{TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant()}ToJson";
+    var typeName = TypeMapper.SanitizeForJs(dt.Name);
+    var typeParams = dt.GetTypeParams();
+
+    string paramList;
+    string returnType;
+
+    if (EmitTypeScript)
+    {
+      // TypeScript: typed input (Dafny runtime type), any output (JSON)
+      var typeParamStr = typeParams.Count > 0
+        ? $"<{string.Join(", ", typeParams)}>"
+        : "";
+      // Value is a Dafny runtime object, use any
+      var typeParamParams = typeParams.Select(p => $"{p}_toJson: (x: any) => any");
+      paramList = typeParams.Count > 0
+        ? $"value: any, {string.Join(", ", typeParamParams)}"
+        : "value: any";
+      // Return the JSON type matching the interface
+      returnType = IsEnumLike(dt) ? typeName : $"{typeName}{typeParamStr}";
+
+      Sb.AppendLine("// deno-lint-ignore no-explicit-any");
+      Sb.AppendLine($"const {funcName} = {typeParamStr}({paramList}): {returnType} => {{");
+    }
+    else
+    {
+      paramList = typeParams.Count > 0
+        ? $"value, {string.Join(", ", typeParams.Select(p => $"{p}_toJson"))}"
+        : "value";
+
+      Sb.AppendLine($"const {funcName} = ({paramList}) => {{");
+    }
+
+    var typeParamConverters = typeParams.ToDictionary(
+      p => p,
+      p => $"{p}_toJson"
+    );
+
+    if (dt.Constructors.Count == 1)
+    {
+      var ctor = dt.Constructors[0];
+      EmitConstructorToJson(dt, ctor, "  ", false, typeParamConverters);
+    }
+    else if (IsEnumLike(dt))
+    {
+      for (int i = 0; i < dt.Constructors.Count; i++)
+      {
+        var ctor = dt.Constructors[i];
+        var prefix = i == 0 ? "if" : "} else if";
+        Sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        Sb.AppendLine($"    return '{ctor.Name}';");
+      }
+      Sb.AppendLine("  }");
+      Sb.AppendLine($"  throw new Error('Unknown {dt.Name} variant');");
+    }
+    else
+    {
+      for (int i = 0; i < dt.Constructors.Count; i++)
+      {
+        var ctor = dt.Constructors[i];
+        var prefix = i == 0 ? "if" : "} else if";
+        Sb.AppendLine($"  {prefix} (value.is_{ctor.Name}) {{");
+        EmitConstructorToJson(dt, ctor, "    ", true, typeParamConverters);
+      }
+      Sb.AppendLine("  }");
+      Sb.AppendLine($"  throw new Error('Unknown {dt.Name} variant');");
+    }
+
+    Sb.AppendLine("};");
+  }
+
+  protected void EmitConstructorToJson(DatatypeInfo dt, ConstructorInfo ctor, string indent, bool includeType, Dictionary<string, string> typeParamConverters)
+  {
+    if (ctor.Fields.Count == 0)
+    {
+      if (includeType)
+        Sb.AppendLine($"{indent}return {{ type: '{ctor.Name}' }};");
+      else
+        Sb.AppendLine($"{indent}return {{}};");
+      return;
+    }
+
+    var mapFields = ctor.Fields.Where(f => f.Type.Kind == TypeKind.Map).ToList();
+
+    foreach (var mapField in mapFields)
+    {
+      var dafnyAccess = $"value.dtor_{mapField.Name}";
+      var tempVar = $"__{mapField.Name}Json";
+      EmitMapToJsonBlock(mapField.Type, dafnyAccess, tempVar, indent, typeParamConverters);
+    }
+
+    Sb.AppendLine($"{indent}return {{");
+    if (includeType)
+      Sb.AppendLine($"{indent}  type: '{ctor.Name}',");
+
+    for (int i = 0; i < ctor.Fields.Count; i++)
+    {
+      var field = ctor.Fields[i];
+      var dafnyAccess = $"value.dtor_{field.Name}";
+      string converted;
+
+      if (field.Type.Kind == TypeKind.Map)
+      {
+        converted = $"__{field.Name}Json";
+      }
+      else
+      {
+        converted = TypeMapper.DafnyToJson(field.Type, dafnyAccess, DomainModule + ".", typeParamConverters);
+      }
+
+      var comma = i < ctor.Fields.Count - 1 ? "," : "";
+      Sb.AppendLine($"{indent}  {field.Name}: {converted}{comma}");
+    }
+
+    Sb.AppendLine($"{indent}}};");
+  }
+
+  protected void EmitMapToJsonBlock(TypeRef mapType, string dafnyVar, string resultVar, string indent, Dictionary<string, string> typeParamConverters)
+  {
+    if (mapType.TypeArgs.Count < 2) return;
+
+    var keyType = mapType.TypeArgs[0];
+    var valType = mapType.TypeArgs[1];
+
+    var keyConvert = TypeMapper.DafnyToJson(keyType, "k", DomainModule + ".", typeParamConverters);
+    var valConvert = TypeMapper.DafnyToJson(valType, "v", DomainModule + ".", typeParamConverters);
+
+    // Use Record type for TypeScript to allow indexing
+    var objDecl = EmitTypeScript
+      ? $"const {resultVar}: Record<string, any> = {{}};"
+      : $"const {resultVar} = {{}};";
+    Sb.AppendLine($"{indent}{objDecl}");
+    Sb.AppendLine($"{indent}if ({dafnyVar} && {dafnyVar}.Keys) {{");
+    Sb.AppendLine($"{indent}  for (const k of {dafnyVar}.Keys.Elements) {{");
+    Sb.AppendLine($"{indent}    const v = {dafnyVar}.get(k);");
+    Sb.AppendLine($"{indent}    {resultVar}[{keyConvert}] = {valConvert};");
+    Sb.AppendLine($"{indent}  }}");
+    Sb.AppendLine($"{indent}}}");
+  }
+
+  // =========================================================================
+  // API Wrapper Generation
+  // =========================================================================
+
+  protected void EmitApiWrapper()
+  {
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine("// API Wrapper");
+    Sb.AppendLine("// ============================================================================");
+    Sb.AppendLine();
+    Sb.AppendLine("const App = {");
+
+    // Generate constructors for helper datatypes
+    var helperTypes = Datatypes
+      .Where(dt => dt.ModuleName == DomainModule &&
+                   dt.Name != "Model" &&
+                   dt.Name != "Action")
+      .ToList();
+
+    foreach (var helperType in helperTypes)
+    {
+      Sb.AppendLine($"  // {helperType.Name} constructors");
+      foreach (var ctor in helperType.Constructors)
+      {
+        EmitDatatypeConstructor(helperType.Name, ctor);
+      }
+      Sb.AppendLine();
+    }
+
+    // Action constructors
+    var actionType = Datatypes.FirstOrDefault(dt =>
+      dt.ModuleName == DomainModule && dt.Name == "Action");
+
+    if (actionType != null)
+    {
+      Sb.AppendLine("  // Action constructors");
+      foreach (var ctor in actionType.Constructors)
+      {
+        EmitActionConstructor(ctor);
+      }
+      Sb.AppendLine();
+    }
+
+    // Model accessors
+    var modelType = Datatypes.FirstOrDefault(dt =>
+      dt.ModuleName == DomainModule && dt.Name == "Model");
+
+    if (modelType != null && modelType.Constructors.Count > 0)
+    {
+      Sb.AppendLine("  // Model accessors");
+      EmitModelAccessors(modelType);
+      Sb.AppendLine();
+    }
+
+    // AppCore functions
+    if (Functions.Count > 0)
+    {
+      var actionCtorNames = actionType?.Constructors.Select(c => c.Name).ToHashSet() ?? new HashSet<string>();
+      var modelAccessorNames = modelType?.Constructors.FirstOrDefault()?.Fields
+        .Select(f => "Get" + char.ToUpper(f.Name[0]) + f.Name.Substring(1))
+        .ToHashSet() ?? new HashSet<string>();
+
+      var filteredFuncs = Functions
+        .Where(f => !actionCtorNames.Contains(f.Name))
+        .Where(f => !modelAccessorNames.Contains(f.Name))
+        .ToList();
+
+      if (filteredFuncs.Count > 0)
+      {
+        Sb.AppendLine("  // AppCore functions");
+        foreach (var func in filteredFuncs)
+        {
+          EmitFunctionWrapper(func);
+        }
+        Sb.AppendLine();
+      }
+    }
+
+    // Conversion functions
+    Sb.AppendLine("  // Conversion functions");
+    var allTypesToGenerate = GetAllTypesToGenerate();
+    var exportedNames = new HashSet<string>();
+
+    foreach (var dt in allTypesToGenerate)
+    {
+      var lower = TypeMapper.SanitizeForJs(dt.Name).ToLowerInvariant();
+      if (!exportedNames.Add(lower)) continue;
+      Sb.AppendLine($"  {lower}ToJson: {lower}ToJson,");
+      Sb.AppendLine($"  {lower}FromJson: {lower}FromJson,");
+    }
+
+    Sb.AppendLine("};");
+    Sb.AppendLine();
+  }
+
+  protected void EmitDatatypeConstructor(string typeName, ConstructorInfo ctor)
+  {
+    if (ctor.Fields.Count == 0)
+    {
+      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.{typeName}.create_{ctor.Name}(),");
+      return;
+    }
+
+    string parms;
+    if (EmitTypeScript)
+    {
+      // Datatype constructors take JSON input types
+      var typedParams = ctor.Fields.Select(f =>
+        $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}");
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
+    }
+
+    var args = new List<string>();
+    foreach (var field in ctor.Fields)
+    {
+      args.Add(TypeMapper.JsonToDafny(field.Type, field.Name, DomainModule + "."));
+    }
+
+    var argList = string.Join(", ", args);
+    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.{typeName}.create_{ctor.Name}({argList}),");
+  }
+
+  protected void EmitModelAccessors(DatatypeInfo modelType)
+  {
+    var ctor = modelType.Constructors[0];
+    var modelTypeName = EmitTypeScript ? $"Dafny{TypeMapper.SanitizeForJs(modelType.Name)}" : "";
+
+    foreach (var field in ctor.Fields)
+    {
+      var accessorName = "Get" + char.ToUpper(field.Name[0]) + field.Name.Substring(1);
+      var dafnyAccess = $"m.dtor_{field.Name}";
+
+      if (field.Type.Kind == TypeKind.Map && field.Type.TypeArgs.Count >= 2)
+      {
+        var keyType = field.Type.TypeArgs[0];
+        var valType = field.Type.TypeArgs[1];
+
+        var keyConvert = TypeMapper.JsonToDafny(keyType, "key", DomainModule + ".");
+        var valConvert = TypeMapper.DafnyToJson(valType, "val", DomainModule + ".");
+
+        var keyTsType = EmitTypeScript ? TypeMapper.TypeRefToTypeScript(keyType) : "";
+        var mParam = EmitTypeScript ? $"m: {modelTypeName}" : "m";
+        var keyParam = EmitTypeScript ? $"key: {keyTsType}" : "key";
+
+        Sb.AppendLine($"  {accessorName}: ({mParam}, {keyParam}) => {{");
+        Sb.AppendLine($"    const dafnyKey = {keyConvert};");
+        Sb.AppendLine($"    if ({dafnyAccess}.contains(dafnyKey)) {{");
+        Sb.AppendLine($"      const val = {dafnyAccess}.get(dafnyKey);");
+        Sb.AppendLine($"      return {valConvert};");
+        Sb.AppendLine($"    }}");
+        Sb.AppendLine($"    return null;");
+        Sb.AppendLine($"  }},");
+      }
+      else
+      {
+        var converted = TypeMapper.DafnyToJson(field.Type, dafnyAccess, DomainModule + ".");
+        var mParam = EmitTypeScript ? $"m: {modelTypeName}" : "m";
+        Sb.AppendLine($"  {accessorName}: ({mParam}) => {converted},");
+      }
+    }
+  }
+
+  protected void EmitActionConstructor(ConstructorInfo ctor)
+  {
+    if (ctor.Fields.Count == 0)
+    {
+      Sb.AppendLine($"  {ctor.Name}: () => {DomainModule}.Action.create_{ctor.Name}(),");
+      return;
+    }
+
+    string parms;
+    if (EmitTypeScript)
+    {
+      // Action constructors take JSON input types (or Dafny runtime types for datatype fields)
+      var typedParams = ctor.Fields.Select(f =>
+      {
+        if (f.Type.Kind == TypeKind.Datatype)
+          return $"{f.Name}: {TypeMapper.TypeRefToDafnyRuntime(f.Type)}";
+        else
+          return $"{f.Name}: {TypeMapper.TypeRefToTypeScript(f.Type)}";
+      });
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", ctor.Fields.Select(f => f.Name));
+    }
+
+    var args = new List<string>();
+    foreach (var field in ctor.Fields)
+    {
+      if (field.Type.Kind == TypeKind.Datatype)
+      {
+        args.Add(field.Name);
+      }
+      else
+      {
+        args.Add(TypeMapper.JsonToDafny(field.Type, field.Name, DomainModule + "."));
+      }
+    }
+
+    var argList = string.Join(", ", args);
+    Sb.AppendLine($"  {ctor.Name}: ({parms}) => {DomainModule}.Action.create_{ctor.Name}({argList}),");
+  }
+
+  protected void EmitFunctionWrapper(FunctionInfo func)
+  {
+    string parms;
+    if (EmitTypeScript)
+    {
+      // For params that get converted inside (primitives), use JSON types (number, string, etc.)
+      // For datatypes that are passed through, use Dafny runtime types
+      var typedParams = func.Parameters.Select(p =>
+      {
+        if (p.Type.Kind == TypeKind.Datatype || p.Type.Kind == TypeKind.Other)
+          return $"{p.Name}: {TypeMapper.TypeRefToDafnyRuntime(p.Type)}";
+        else
+          return $"{p.Name}: {TypeMapper.TypeRefToTypeScript(p.Type)}";
+      });
+      parms = string.Join(", ", typedParams);
+    }
+    else
+    {
+      parms = string.Join(", ", func.Parameters.Select(p => p.Name));
+    }
+
+    var convertedArgs = new List<string>();
+    foreach (var p in func.Parameters)
+    {
+      if (p.Type.Kind == TypeKind.Datatype || p.Type.Kind == TypeKind.Other)
+      {
+        convertedArgs.Add(p.Name);
+      }
+      else
+      {
+        convertedArgs.Add(TypeMapper.JsonToDafny(p.Type, p.Name, DomainModule + "."));
+      }
+    }
+    var argsStr = string.Join(", ", convertedArgs);
+
+    var call = $"{AppCoreModule}.__default.{func.Name}({argsStr})";
+    var returnConvert = GetReturnConversion(func.ReturnType, call);
+
+    Sb.AppendLine($"  {func.Name}: ({parms}) => {returnConvert},");
+  }
+
+  protected string GetReturnConversion(TypeRef type, string expr)
+  {
+    if (type.Kind == TypeKind.Int)
+      return $"toNumber({expr})";
+    if (type.Kind == TypeKind.String)
+      return $"dafnyStringToJs({expr})";
+    if (type.Kind == TypeKind.Seq)
+    {
+      if (type.TypeArgs.Count > 0)
+      {
+        var elemConvert = TypeMapper.DafnyToJson(type.TypeArgs[0], "x", DomainModule + ".");
+        if (elemConvert == "x")
+          return $"seqToArray({expr})";
+        return $"seqToArray({expr}).map(x => {elemConvert})";
+      }
+      return $"seqToArray({expr})";
+    }
+
+    return expr;
+  }
+}

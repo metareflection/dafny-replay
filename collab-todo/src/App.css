@@ -1,0 +1,13 @@
+/* App-level styles - keeping minimal as most styles are now in components */
+
+/* Loading state for initial auth check */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-md);
+}
+
+/* Legacy styles removed - now handled by component CSS files */

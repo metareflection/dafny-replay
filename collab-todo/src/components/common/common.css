@@ -1,0 +1,240 @@
+/* Common component styles - Refined and smooth */
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+}
+
+.badge--sm {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+}
+
+.badge--md {
+  font-size: var(--font-size-sm);
+  padding: 3px 10px;
+}
+
+.badge--default {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.badge--accent {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
+.badge--success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.badge--warning {
+  background: rgba(255, 149, 0, 0.12);
+  color: var(--color-warning);
+}
+
+/* Count Badge - for sidebar items */
+.count-badge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  min-width: 20px;
+  text-align: right;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: toast-slide-up 300ms var(--ease-spring);
+}
+
+.toast--error {
+  background: var(--color-danger);
+  color: white;
+}
+
+.toast--success {
+  background: var(--color-success);
+  color: white;
+}
+
+.toast--warning {
+  background: var(--color-warning);
+  color: white;
+}
+
+.toast__message {
+  flex: 1;
+}
+
+.toast__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  opacity: 0.7;
+  border-radius: var(--radius-sm);
+  transition: opacity var(--transition-fast);
+}
+
+.toast__close:hover {
+  opacity: 1;
+}
+
+@keyframes toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* Icon button - reusable */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition: 
+    color var(--transition-fast),
+    background var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.icon-btn:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+}
+
+.icon-btn--danger:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.icon-btn--star:hover {
+  color: var(--color-star);
+  background: rgba(255, 179, 0, 0.1);
+}
+
+.icon-btn--star.active {
+  color: var(--color-star);
+}
+
+/* Loading spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: var(--radius-full);
+  animation: spin 600ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================================
+   RESPONSIVE - Common Components Mobile
+   ============================================================================ */
+@media (max-width: 480px) {
+  .toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    transform: none;
+    max-width: none;
+  }
+}
+
+/* Undo Toast - with progress bar */
+.undo-toast {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: toast-slide-up 300ms var(--ease-spring);
+  overflow: hidden;
+}
+
+.undo-toast__message {
+  flex: 1;
+}
+
+.undo-toast__button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.undo-toast__button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.undo-toast__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  transition: width 50ms linear;
+}
+
+@media (max-width: 480px) {
+  .undo-toast {
+    left: var(--space-md);
+    right: var(--space-md);
+    transform: none;
+    max-width: none;
+  }
+}

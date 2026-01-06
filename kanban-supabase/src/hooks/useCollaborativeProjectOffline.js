@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback, useRef, useSyncExternalStore } from 'react'
 import { isSupabaseConfigured } from '../supabase.js'
-import App from '../dafny/app-extras.js'
+import App from '../dafny/app-extras.ts'
 import { EffectManager } from './EffectManager.js'
 
 export function useCollaborativeProjectOffline(projectId) {

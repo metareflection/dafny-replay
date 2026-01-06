@@ -1,0 +1,103 @@
+/* Design tokens - Refined Things-inspired theme */
+/* Clean, minimal, with smooth transitions and subtle polish */
+
+:root {
+  /* Colors - keeping the same palette but refined */
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #f0f1f3;
+  --color-bg-hover: rgba(0, 0, 0, 0.04);
+  --color-bg-selected: rgba(0, 122, 255, 0.08);
+  --color-overlay: rgba(0, 0, 0, 0.4);
+
+  --color-text-primary: #1a1d21;
+  --color-text-secondary: #5f6368;
+  --color-text-tertiary: #8a8f98;
+  --color-text-placeholder: #b4b9c1;
+
+  --color-border: #e1e4e8;
+  --color-border-light: #eef0f2;
+
+  /* Accent colors - used sparingly */
+  --color-accent: #0881A6;
+  --color-accent-hover: #075F7A;
+  --color-accent-light: rgba(0, 122, 255, 0.1);
+  --color-star: #ffb300;
+  --color-success: #34c759;
+  --color-success-light: rgba(52, 199, 89, 0.1);
+  --color-danger: #ff3b30;
+  --color-danger-light: rgba(255, 59, 48, 0.1);
+  --color-warning: #ff9500;
+  --color-sage: #7C9E73;
+  --color-sage-light: rgba(124, 158, 115, 0.15);
+
+  /* Spacing - refined with better rhythm */
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-3xl: 48px;
+
+  /* Typography - refined for better readability */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  --font-family-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 15px;
+  --font-size-xl: 17px;
+  --font-size-xxl: 22px;
+  --font-size-3xl: 28px;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: -0.01em;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --topbar-height: 52px;
+
+  /* Breakpoints (for reference in JS - CSS uses media queries) */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+
+  /* Rounded corners - softer feel */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Shadows - refined depth */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(0, 122, 255, 0.25);
+
+  /* Transitions - smooth and buttery */
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  --transition-fast: 120ms var(--ease-out);
+  --transition-normal: 200ms var(--ease-out);
+  --transition-slow: 300ms var(--ease-in-out);
+  --transition-spring: 350ms var(--ease-spring);
+
+  /* Touch targets for mobile */
+  --touch-target-min: 44px;
+}

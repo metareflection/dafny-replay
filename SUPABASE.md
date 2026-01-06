@@ -337,6 +337,51 @@ See the "Verified Dispatch & Offline Support" section below for the full hook AP
 
 ---
 
+## Common Pitfalls
+
+### Cross-Tab Auth Sync
+
+When a user logs in as a different user in another browser tab, Supabase's `onAuthStateChange` should broadcast across tabs. However, **data-fetching hooks won't automatically re-fetch** unless they depend on the user.
+
+**Problem**: A hook that fetches on mount only:
+```javascript
+// BAD: only fetches once on mount
+useEffect(() => {
+  fetchProjects()
+}, [])
+```
+
+If auth changes in another tab, this component still shows the old user's data.
+
+**Solution**: Pass `userId` as a dependency:
+```javascript
+// GOOD: re-fetches when user changes
+useEffect(() => {
+  fetchProjects()
+}, [userId])
+```
+
+Or for custom hooks:
+```javascript
+// Hook accepts userId parameter
+export function useProjects(userId) {
+  // ...
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects, userId])
+}
+
+// Call site passes user.id
+const { projects } = useProjects(user?.id)
+```
+
+This pattern ensures data refreshes when:
+- User logs out and logs in as different user
+- Another tab changes the authenticated user
+- Session expires and user re-authenticates
+
+---
+
 ## Adapting for Other Domains
 
 To use this pattern with a different Dafny domain:

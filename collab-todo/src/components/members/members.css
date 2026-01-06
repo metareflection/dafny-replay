@@ -1,0 +1,554 @@
+/* Member components styles */
+
+/* ==========================================================================
+   MemberList
+   ========================================================================== */
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.member-list--empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  padding: var(--space-sm) 0;
+}
+
+.member-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.member-list__item:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.member-list__item--owner {
+  background: var(--color-bg-tertiary);
+}
+
+.member-list__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex: 1;
+}
+
+.member-list__email {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-list__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning);
+  background: var(--color-warning-light);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+
+.member-list__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.member-list__remove:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+/* ==========================================================================
+   MemberInvite
+   ========================================================================== */
+
+.member-invite {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.member-invite__input-group {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.member-invite__input {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.member-invite__input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-focus);
+}
+
+.member-invite__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.member-invite__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.member-invite__button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.member-invite__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-invite__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  padding: var(--space-xs) 0;
+}
+
+/* ==========================================================================
+   MemberPanel (container for list + invite)
+   ========================================================================== */
+
+.member-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.member-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.member-panel__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.member-panel__count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.member-panel__divider {
+  height: 1px;
+  background: var(--color-border-light);
+  margin: var(--space-xs) 0;
+}
+
+/* ==========================================================================
+   MakeCollaborative button
+   ========================================================================== */
+
+.make-collaborative {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  text-align: center;
+}
+
+.make-collaborative__text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.make-collaborative__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.make-collaborative__button:hover {
+  background: var(--color-accent-hover);
+}
+
+/* ==========================================================================
+   MemberManagement (full view)
+   ========================================================================== */
+
+.member-management {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.member-management__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.member-management__back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.member-management__back-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.member-management__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs);
+  min-width: 0;
+}
+
+.member-management__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.member-management__project-name {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Personal project state */
+.member-management__personal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-xxl) var(--space-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.member-management__icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-lg);
+}
+
+.member-management__subtitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-sm);
+}
+
+.member-management__description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  max-width: 360px;
+  margin: 0 0 var(--space-xl);
+}
+
+.member-management__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xl);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.member-management__action-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+/* Collaborative project state */
+.member-management__collaborative {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.member-management__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.member-management__section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.member-management__section-header svg {
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================================================
+   MemberPicker (for task assignment)
+   ========================================================================== */
+
+.member-picker {
+  position: relative;
+  display: inline-block;
+}
+
+.member-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.member-picker__trigger:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+}
+
+.member-picker__dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+  max-width: 300px;
+  margin-top: var(--space-xs);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: member-picker-appear 150ms var(--ease-out);
+}
+
+@keyframes member-picker-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.member-picker__search {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.member-picker__input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+}
+
+.member-picker__input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-focus);
+}
+
+.member-picker__list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-xs) 0;
+}
+
+.member-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  text-align: left;
+  border-radius: 0;
+  transition: background var(--transition-fast);
+}
+
+.member-picker__item:hover {
+  background: var(--color-bg-hover);
+}
+
+.member-picker__item--selected {
+  color: var(--color-accent);
+}
+
+.member-picker__item--selected .member-picker__item-name {
+  font-weight: var(--font-weight-medium);
+}
+
+.member-picker__item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-picker__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-picker__item-email {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-picker__empty {
+  padding: var(--space-lg) var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+/* ==========================================================================
+   AssigneeList (display assignees on task)
+   ========================================================================== */
+
+.assignee-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.assignee-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  border-radius: var(--radius-xs);
+  white-space: nowrap;
+}
+
+.assignee-list__overflow {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ============================================================================
+   RESPONSIVE - Members Mobile
+   ============================================================================ */
+@media (max-width: 768px) {
+  .member-management {
+    max-width: 100%;
+  }
+
+  .member-management__personal {
+    padding: var(--space-xl) var(--space-md);
+  }
+
+  .member-management__description {
+    max-width: 100%;
+  }
+
+  .member-invite__input-group {
+    flex-direction: column;
+  }
+
+  .member-invite__button {
+    width: 100%;
+    justify-content: center;
+  }
+}
