@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User, FileText } from 'lucide-react'
 import { TagPicker } from '../tags'
 import { DueDatePicker } from '../duedate'
@@ -30,6 +30,22 @@ export function TaskItem({
   const [showMenu, setShowMenu] = useState(false)
   const [showMoveMenu, setShowMoveMenu] = useState(false)
   const [showNotesModal, setShowNotesModal] = useState(false)
+  const menuRef = useRef(null)
+
+  // Click outside to close menu
+  useEffect(() => {
+    if (!showMenu) return
+
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false)
+        setShowMoveMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showMenu])
 
   const formatDueDate = (dueDate) => {
     if (!dueDate) return null
@@ -75,7 +91,7 @@ export function TaskItem({
   const hasMetadata = hasDueDate || hasTags || hasAssignees
 
   return (
-    <div className={`task-item ${task.completed ? 'task-item--completed' : ''} ${task.starred ? 'task-item--starred' : ''} ${expanded ? 'task-item--expanded' : ''}`}>
+    <div className={`task-item ${task.completed ? 'task-item--completed' : ''} ${task.starred ? 'task-item--starred' : ''} ${expanded ? 'task-item--expanded' : ''} ${showMenu ? 'task-item--menu-open' : ''}`}>
       <button
         className={`task-item__checkbox ${task.completed ? 'task-item__checkbox--checked' : ''}`}
         onClick={() => onComplete(taskId, !task.completed)}
@@ -115,10 +131,11 @@ export function TaskItem({
         )}
       </div>
 
-      {/* Meta indicators - collapsed shows only set, hover expands all */}
+      {/* Meta indicators - always show all icons, highlight set ones in sage */}
       <div className="task-item__indicators">
-        {onSetDueDate && (
-          <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--date ${hasDueDate ? 'task-item__indicator-wrapper--set' : ''}`}>
+        {/* Due date indicator */}
+        <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--date ${hasDueDate ? 'task-item__indicator-wrapper--set' : ''}`}>
+          {onSetDueDate ? (
             <DueDatePicker
               currentDate={task.dueDate}
               onSetDate={(date) => onSetDueDate(taskId, date)}
@@ -131,10 +148,18 @@ export function TaskItem({
                 </button>
               }
             />
-          </div>
-        )}
-        {onAddTag && (
-          <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--tags ${hasTags ? 'task-item__indicator-wrapper--set' : ''}`}>
+          ) : (
+            <span
+              className={`task-item__indicator ${hasDueDate ? 'task-item__indicator--set' : ''} ${hasDueDate && isOverdue(task.dueDate) ? 'task-item__indicator--overdue' : ''}`}
+              title={hasDueDate ? formatDueDate(task.dueDate) : 'Due date'}
+            >
+              <Calendar size={12} />
+            </span>
+          )}
+        </div>
+        {/* Tags indicator */}
+        <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--tags ${hasTags ? 'task-item__indicator-wrapper--set' : ''}`}>
+          {onAddTag ? (
             <TagPicker
               allTags={allTags}
               selectedIds={task.tags || []}
@@ -155,10 +180,18 @@ export function TaskItem({
                 </button>
               }
             />
-          </div>
-        )}
-        {onAssign && allMembers.length > 0 && (
-          <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--assignees ${hasAssignees ? 'task-item__indicator-wrapper--set' : ''}`}>
+          ) : (
+            <span
+              className={`task-item__indicator ${hasTags ? 'task-item__indicator--set' : ''}`}
+              title={hasTags ? `${task.tags.length} tag${task.tags.length > 1 ? 's' : ''}` : 'Tags'}
+            >
+              <Tag size={12} />
+            </span>
+          )}
+        </div>
+        {/* Assignees indicator */}
+        <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--assignees ${hasAssignees ? 'task-item__indicator-wrapper--set' : ''}`}>
+          {onAssign && allMembers.length > 0 ? (
             <MemberPicker
               allMembers={allMembers}
               selectedIds={task.assignees || []}
@@ -178,8 +211,15 @@ export function TaskItem({
                 </button>
               }
             />
-          </div>
-        )}
+          ) : (
+            <span
+              className={`task-item__indicator ${hasAssignees ? 'task-item__indicator--set' : ''}`}
+              title={hasAssignees ? `${task.assignees.length} assignee${task.assignees.length > 1 ? 's' : ''}` : 'Assignees'}
+            >
+              <User size={12} />
+            </span>
+          )}
+        </div>
         {/* Notes indicator */}
         <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--notes ${hasNotes ? 'task-item__indicator-wrapper--set' : ''}`}>
           <button
@@ -201,7 +241,7 @@ export function TaskItem({
           <Star size={14} fill={task.starred ? 'currentColor' : 'none'} />
         </button>
 
-        <div className="task-item__menu-container">
+        <div className="task-item__menu-container" ref={menuRef}>
           <button
             className="task-item__menu-btn"
             onClick={() => setShowMenu(!showMenu)}

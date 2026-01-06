@@ -28,6 +28,8 @@
   --color-danger: #ff3b30;
   --color-danger-light: rgba(255, 59, 48, 0.1);
   --color-warning: #ff9500;
+  --color-sage: #7C9E73;
+  --color-sage-light: rgba(124, 158, 115, 0.15);
 
   /* Spacing - refined with better rhythm */
   --space-xxs: 2px;

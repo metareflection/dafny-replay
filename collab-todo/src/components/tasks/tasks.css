@@ -152,16 +152,6 @@
   position: relative;
 }
 
-/* Unset wrappers are hidden by default */
-.task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) {
-  display: none;
-}
-
-/* On hover, show all wrappers */
-.task-item:hover .task-item__indicator-wrapper {
-  display: block;
-}
-
 .task-item__indicator {
   display: flex;
   align-items: center;
@@ -170,16 +160,16 @@
   height: 22px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: 
+  transition:
     color var(--transition-fast),
     background var(--transition-fast);
 }
 
-/* Unset state */
+/* Unset state - always visible but muted */
 .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator {
   color: var(--color-text-tertiary);
   background: transparent;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .task-item__indicator-wrapper:not(.task-item__indicator-wrapper--set) .task-item__indicator:hover {
@@ -187,15 +177,16 @@
   background: var(--color-bg-tertiary);
 }
 
-/* Set state */
+/* Set state - sage icon */
 .task-item__indicator--set {
-  color: var(--color-text-secondary);
-  background: var(--color-bg-tertiary);
+  color: var(--color-sage);
+  background: transparent;
+  opacity: 1;
 }
 
 .task-item__indicator--set:hover {
-  color: var(--color-text-primary);
-  background: var(--color-border);
+  color: var(--color-sage);
+  background: var(--color-bg-tertiary);
 }
 
 /* Overdue special state */
@@ -288,15 +279,11 @@
 }
 
 .task-item__actions {
-  display: none;
+  display: flex;
   align-items: center;
   gap: var(--space-xxs);
   flex-shrink: 0;
   height: 22px;
-}
-
-.task-item:hover .task-item__actions {
-  display: flex;
 }
 
 .task-item__star {
@@ -308,14 +295,17 @@
   color: var(--color-text-tertiary);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
-  transition: 
+  opacity: 0.4;
+  transition:
     color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    opacity var(--transition-fast);
 }
 
 .task-item__star:hover {
   color: var(--color-star);
   background: rgba(255, 179, 0, 0.1);
+  opacity: 1;
 }
 
 .task-item__star:active {
@@ -339,14 +329,18 @@
   height: 22px;
   color: var(--color-text-tertiary);
   border-radius: var(--radius-sm);
-  transition: 
+  opacity: 0.4;
+  transition:
     color var(--transition-fast),
-    background var(--transition-fast);
+    background var(--transition-fast),
+    opacity var(--transition-fast);
 }
 
-.task-item__menu-btn:hover {
+.task-item__menu-btn:hover,
+.task-item--menu-open .task-item__menu-btn {
   color: var(--color-text-secondary);
   background: var(--color-bg-hover);
+  opacity: 1;
 }
 
 .task-item__menu {
