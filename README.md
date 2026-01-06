@@ -36,6 +36,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Authority              | Client–server                  | State always satisfies invariants |
 | Multi-Collaboration    | Client–server, offline clients | State satisfies invariants; Anchor-based moves, candidate fallback, minimal rejection |
 | Effect State Machine   | Client-side effect orchestration | Bounded retries, mode consistency, pending preservation, no silent data loss |
+| Multi-Project          | Cross-project operations         | Per-project invariant preservation, pending preservation, bounded retries |
 
 ### List of Apps
 
@@ -45,6 +46,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | Canon       | Diagram constraint solver | Valid node/edge references, constraint integrity, undo/redo support |
 | ColorWheel  | Color palette generator   | Colors satisfy mood constraints (S/L bounds), hues follow harmony patterns |
 | ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
+| CollabTodo  | Collaborative task lists  | Task uniqueness per list, exact partition, membership constraints, soft delete semantics |
 
 ---
 
@@ -226,6 +228,61 @@ See kanban-supabase/ for a complete example using the Effect State Machine with 
 
 ---
 
+## The Multi-Project Kernel
+
+<details>
+<summary>A kernel for cross-project operations that builds on Multi-Collaboration.</summary>
+
+See the [MULTIPROJECT](MULTIPROJECT.md) design note and [MULTIPROJECT_SUPABASE](MULTIPROJECT_SUPABASE.md) for Supabase integration details.
+
+The Multi-Project kernel (`MultiProject.dfy`) is an abstract module that extends the Multi-Collaboration kernel to support operations spanning multiple projects (e.g., MoveTaskTo, CopyTaskTo). Concrete domains refine this module to add domain-specific cross-project actions.
+
+**Key insight:** The action itself declares which projects it touches via `TouchedProjects(action)`.
+
+**Data structures:**
+* `MultiModel` — map from project IDs to individual project models
+* `MultiAction` — actions that can span projects (Single, MoveTaskTo, CopyTaskTo)
+* `MultiClientState` — tracks versions per-project, not globally
+
+**Core functions:**
+* `TouchedProjects(action)` — returns set of project IDs the action affects
+* `MultiStep(mm, action)` — applies action; returns `Ok(newModel)` or `Err`
+* `MultiRebase` — rebases action through concurrent changes per project
+
+**Dafny-verified guarantees:**
+
+*MultiProject.dfy* — domain logic:
+```text
+MultiInv(mm) ∧ MultiStep(mm, a) = Ok(mm′) ⇒ MultiInv(mm′)
+```
+Where `MultiInv(mm)` means every project in `mm` satisfies its individual invariant.
+
+*MultiProjectEffectStateMachine.dfy* — client-side orchestration:
+* `StepPreservesInv` — all state transitions preserve the effect state invariant
+* `PendingNeverLost` — pending actions are never arbitrarily lost
+* `RealtimeUpdatePreservesPendingExactly` — realtime updates preserve pending exactly
+* `ConflictPreservesPendingExactly` — conflicts preserve pending exactly
+* `PendingSequencePreserved` — on accept/reject: `pending' == pending[1..]`
+* `RetriesAreBounded` — retries never exceed MaxRetries
+* `UserActionAppendsExact` — user actions append exactly the action to pending
+
+**Architectural properties (unverified, trusted):**
+
+The architecture uses the verified `MultiStep` function but adds unverified components:
+
+* **Server atomicity**: The database layer (`save_multi_update`) wraps updates in a single PostgreSQL transaction with optimistic locking. If any version check fails, the entire transaction rolls back.
+
+* **Realtime propagation**: Supabase Realtime sends per-row notifications separately. A cross-project operation updating two projects produces two events that arrive independently—clients may briefly see inconsistent state until both arrive.
+
+* **Edge function glue**: The edge function calls `MultiStep` and writes results to the database. This orchestration code is unverified.
+
+**Verification:** 43 proofs across MultiProject.dfy, TodoMultiProjectDomain.dfy, MultiProjectEffectStateMachine.dfy, and TodoMultiProjectEffectStateMachine.dfy.
+
+See collab-todo/ for a complete example using the Multi-Project kernel with Supabase.
+</details>
+
+---
+
 ## List of Apps/Domains
 
 ### Toy domain (counter)
@@ -374,6 +431,47 @@ The `Reach` function computes transitive closure via bounded iteration, with a p
 The code is structured as an abstract specification module (`ClearSplitSpec`) containing user-facing types, predicates, and theorem signatures, refined by an implementation module (`ClearSplit`) containing all helper lemmas and proofs.
 </details>
 
+### CollabTodo (collaborative task lists)
+
+<details>
+<summary>A verified collaborative todo application with projects, lists, and tasks.</summary>
+
+**Model:**
+* Projects (Personal or Collaborative mode)
+* Lists (ordered, unique names per project)
+* Tasks (belong to exactly one list, unique titles per list)
+* Tags (project-scoped, attachable to tasks)
+* Soft delete with restore capability
+
+**Key invariants:**
+
+1. **Exact partition**
+   Every non-deleted task exists in exactly one list (no orphans, no duplicates).
+
+2. **Unique list names**
+   List names are unique within a project (case-insensitive).
+
+3. **Unique task titles per list**
+   Task titles are unique within each list (case-insensitive).
+
+4. **Membership constraints**
+   Task assignees must be project members; owner always in members; personal projects have exactly one member.
+
+5. **Referential integrity**
+   Tags referenced by tasks must exist; allocators are fresh.
+
+6. **Valid dates**
+   All due dates are valid calendar dates.
+
+**Conflict resolution:**
+Uses anchor-based placement with candidate fallback for concurrent edits. DeleteTask conflicts honor the delete, with soft-delete enabling restore.
+
+**Architecture:**
+Uses the Multi-Project kernel (see [MULTIPROJECT.md](MULTIPROJECT.md)) for cross-project operations (MoveTaskTo, CopyTaskTo). Integrates with Supabase for user management, database persistence, and realtime updates (see [MULTIPROJECT_SUPABASE.md](MULTIPROJECT_SUPABASE.md)).
+
+See collab-todo/ for the full implementation.
+</details>
+
 ---
 
 ## Why this is interesting
@@ -419,6 +517,7 @@ cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
 cd clear-split       # ClearSplit app
 cd clear-split-supabase # clear-split with supabase (requires setup)
+cd collab-todo       # CollabTodo app (requires supabase setup)
 npm install
 npm run dev
 ```
