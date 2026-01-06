@@ -206,6 +206,30 @@ Assuming the obligation above:
 
 ---
 
+## Domain- and application-level guarantees (examples)
+
+Kernels are generic: they prove *how* invariants are preserved.
+Concrete domains determine *what* invariants mean by discharging the kernel obligations.
+
+The table below summarizes representative domains in this repository and the
+key invariants they prove, which are then preserved by the kernels that use them.
+
+| Domain / App | Primary invariants proved by the domain | Kernels lifting these invariants |
+|-------------|------------------------------------------|----------------------------------|
+| **Counter** | Non-negativity (`m ≥ 0`) | Replay, Authority |
+| **Kanban** | Exact card partition (no duplication or loss); per-column WIP limits | Replay, Multi-Collaboration, Effect State Machine |
+| **Canon** | Referential integrity of nodes/edges/constraints; allocator freshness | Replay |
+| **ColorWheel** | Mood bounds (S/L ranges); harmony coherence; graceful degradation to `Custom` | Replay |
+| **ClearSplit** | Conservation of money (sum of balances = 0); delta laws for expenses and settlements | Replay, Multi-Collaboration, Effect State Machine |
+| **Delegation Auth** | Referential integrity of grants/delegations; freshness of delegation IDs | Replay |
+| **CollabTodo** | Exact task partition; unique list names; membership constraints; referential integrity; soft-delete semantics | Multi-Project, Effect State Machine |
+
+In all cases, these invariants are **proved at the domain level** and then
+**preserved automatically** by the kernels listed, assuming the corresponding
+domain obligations are discharged.
+
+---
+
 ## How to interpret these guarantees
 
 This document draws a **precise boundary** around what is proved and what is not.
