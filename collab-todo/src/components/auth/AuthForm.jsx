@@ -65,6 +65,7 @@ export function AuthForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="auth-form__input"
+          autoComplete="email"
         />
         <input
           type="password"
@@ -73,15 +74,12 @@ export function AuthForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           className="auth-form__input"
+          autoComplete={isSignUp ? "new-password" : "current-password"}
         />
         <button type="submit" disabled={loading} className="auth-form__submit">
           {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
         </button>
       </form>
-
-      <button onClick={handleGoogleSignIn} className="auth-form__google">
-        Sign in with Google
-      </button>
 
       <p className="auth-form__toggle">
         {isSignUp ? 'Already have an account?' : "Don't have an account?"}
