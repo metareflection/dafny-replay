@@ -7,7 +7,15 @@
   justify-content: center;
   min-height: 100vh;
   padding: var(--space-xl);
+  padding-bottom: 0;
   background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-secondary) 100%);
+}
+
+.auth-container .app-footer {
+  margin-top: auto;
+  width: 100%;
+  background: transparent;
+  border-top: none;
 }
 
 .auth-container__title {
