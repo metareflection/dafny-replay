@@ -128,7 +128,7 @@ Inv(m) ∧ TryStep(m, action) = Ok(m′) ⇒ Inv(m′)
 
 The authority kernel is proved once to preserve the invariant of the authoritative state across all protocol interactions, regardless of client behavior.
 
-This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. More advanced scenarios (multi-client concurrency, offline synchronization, merging) are possible extensions.
+This kernel is intentionally minimal: it models a single authoritative state and versioned protocol. The Multi-Collaboration kernel generalizes it with rebasing and candidate fallback for handling stale clients.
 </details>
 
 ---
