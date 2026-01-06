@@ -23,6 +23,7 @@ This repository contains:
 * a **generic authority kernel** for server-authoritative client–server protocols,
 * a **generic multi-collaboration kernel** for server-authoritative protocols with offline clients,
 * a **generic effect state machine** for client-side effect orchestration with bounded retries,
+* a **generic multi-project kernel** for cross-project operations with per-project invariants,
 * multiple **concrete domains** proved against these kernels,
 * a **React demo pipeline** using the compiled JavaScript.
 
@@ -527,6 +528,8 @@ npm run dev
 See [HOWTO.md](HOWTO.md) for a walkthrough of how to build a Dafny-verified React app.
 
 See [INTEGRATION.md](INTEGRATION.md) for notes on integrating Dafny-compiled JavaScript into a JavaScript codebase.
+
+See [GUARANTEES.md](GUARANTEES.md) for a precise statement of what is proved, what is assumed, and what is trusted.
 
 ---
 
