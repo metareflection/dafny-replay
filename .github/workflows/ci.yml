@@ -34,6 +34,14 @@ jobs:
       - name: Check generated files are up to date
         run: git diff --exit-code
 
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: TypeCheck compiled files
+        run: ./typecheck.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
