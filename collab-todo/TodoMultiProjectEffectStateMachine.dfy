@@ -3,7 +3,7 @@
 // Concrete refinement of MultiProjectEffectStateMachine for the Todo domain.
 // This is compiled separately and used by MultiProjectEffectManager.js.
 
-include "MultiProjectEffectStateMachine.dfy"
+include "../kernels/MultiProjectEffectStateMachine.dfy"
 include "TodoMultiProjectDomain.dfy"
 
 module TodoMultiProjectEffectStateMachine refines MultiProjectEffectStateMachine {

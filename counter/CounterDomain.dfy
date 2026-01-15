@@ -1,4 +1,4 @@
-include "Replay.dfy"
+include "../kernels/Replay.dfy"
 
 module CounterDomain refines Domain {
   type Model = int

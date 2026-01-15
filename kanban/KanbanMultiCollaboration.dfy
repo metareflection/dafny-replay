@@ -1,4 +1,4 @@
-include "MultiCollaboration.dfy"
+include "../kernels/MultiCollaboration.dfy"
 
 module KanbanDomain refines Domain {
   type CardId = nat

@@ -3,8 +3,9 @@ set -e
 
 SKIP="${SKIP_VERIFY:-}"
 
-for f in *.dfy; do
-  if [[ " $SKIP " == *" $f "* ]]; then
+for f in */*.dfy; do
+  skip=false; for p in $SKIP; do [[ "$f" == *"$p"* ]] && skip=true; done
+  if $skip; then
     echo "=== $f === (skipped)"
   else
     echo "=== $f ==="

@@ -1,4 +1,4 @@
-include "Replay.dfy"
+include "../kernels/Replay.dfy"
 
 // Goal: prove preservation of
 // - A1 (exact partition, no duplicates)

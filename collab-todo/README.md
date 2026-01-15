@@ -40,8 +40,8 @@ App.jsx                             # React UI
 
 ### Verified Kernels (Dafny)
 
-- [TodoMultiCollaboration.dfy](../TodoMultiCollaboration.dfy)
-- [TodoMultiProjectDomain.dfy](../TodoMultiProjectDomain.dfy)
-- [MultiProjectEffectStateMachine.dfy](../MultiProjectEffectStateMachine.dfy)
+- [TodoMultiCollaboration.dfy](TodoMultiCollaboration.dfy)
+- [TodoMultiProjectDomain.dfy](TodoMultiProjectDomain.dfy)
+- [MultiProjectEffectStateMachine.dfy](../kernels/MultiProjectEffectStateMachine.dfy)
 
 

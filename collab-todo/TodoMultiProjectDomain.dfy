@@ -8,7 +8,7 @@
 //       ↓ refines
 //   TodoMultiProjectDomain (this module)
 
-include "MultiProject.dfy"
+include "../kernels/MultiProject.dfy"
 include "TodoMultiCollaboration.dfy"
 
 module TodoMultiProjectDomain refines MultiProject {

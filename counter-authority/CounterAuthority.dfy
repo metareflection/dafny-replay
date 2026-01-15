@@ -1,4 +1,4 @@
-include "Authority.dfy"
+include "../kernels/Authority.dfy"
 
 module CounterDomain refines Domain {
   type Model = int

@@ -1,4 +1,4 @@
-include "Replay.dfy"
+include "../kernels/Replay.dfy"
 include "ColorWheelSpec.dfy"
 include "ColorWheelProof.dfy"
 

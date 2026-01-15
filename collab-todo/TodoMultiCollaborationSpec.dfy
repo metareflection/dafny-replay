@@ -1,4 +1,4 @@
-include "MultiCollaboration.dfy"
+include "../kernels/MultiCollaboration.dfy"
 
 // =============================================================================
 // TodoDomain: A collaborative Todo app with projects, lists, tasks, and tags

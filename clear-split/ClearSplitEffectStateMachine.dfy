@@ -3,7 +3,7 @@
 // Concrete refinement of EffectStateMachine for the ClearSplit domain.
 // This is compiled separately and used by EffectManager.js.
 
-include "EffectStateMachine.dfy"
+include "../kernels/EffectStateMachine.dfy"
 include "ClearSplitMultiCollaboration.dfy"
 
 module ClearSplitEffectStateMachine refines EffectStateMachine {

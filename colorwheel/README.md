@@ -38,9 +38,9 @@ App.jsx                   # React UI
 
 ### Dafny files
 
-- [ColorWheelSpec.dfy](../ColorWheelSpec.dfy)
-- [ColorWheelDomain.dfy](../ColorWheelDomain.dfy)
-- [ColorWheelProof.dfy](../ColorWheelProof.dfy)
+- [ColorWheelSpec.dfy](ColorWheelSpec.dfy)
+- [ColorWheelDomain.dfy](ColorWheelDomain.dfy)
+- [ColorWheelProof.dfy](ColorWheelProof.dfy)
 
 ## Development
 

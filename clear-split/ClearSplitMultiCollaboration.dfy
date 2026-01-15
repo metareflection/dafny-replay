@@ -4,7 +4,7 @@
 // Since AddExpense and AddSettlement are append-only operations,
 // reconciliation is trivially simple: no conflicts can occur.
 
-include "MultiCollaboration.dfy"
+include "../kernels/MultiCollaboration.dfy"
 include "ClearSplit.dfy"
 
 module ClearSplitDomain refines Domain {

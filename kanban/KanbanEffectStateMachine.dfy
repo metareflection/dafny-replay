@@ -3,7 +3,7 @@
 // Concrete refinement of EffectStateMachine for the Kanban domain.
 // This is compiled separately and used by EffectManager.js.
 
-include "EffectStateMachine.dfy"
+include "../kernels/EffectStateMachine.dfy"
 include "KanbanMultiCollaboration.dfy"
 
 module KanbanEffectStateMachine refines EffectStateMachine {

@@ -3,7 +3,7 @@
 // Concrete refinement of EffectStateMachine for the Todo domain.
 // This is compiled separately and used by EffectManager.js.
 
-include "EffectStateMachine.dfy"
+include "../kernels/EffectStateMachine.dfy"
 include "TodoMultiCollaboration.dfy"
 
 module TodoEffectStateMachine refines EffectStateMachine {
