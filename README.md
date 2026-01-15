@@ -51,7 +51,7 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 
 ---
 
-## List of Kernels
+## List of [Kernels](kernels)
 
 ### The Replay Kernel
 
