@@ -4,8 +4,10 @@
 
 **Verified kernels, written in Dafny and compiled to JavaScript, for correct-by-construction state in interactive web applications.**
 
-**Check out our blog post**:
-[_From Intent to Proof: Dafny Verification for Web Apps_](https://midspiral.com/blog/from-intent-to-proof-dafny-verification-for-web-apps/)
+**Check out our blog posts**:
+- [_From Intent to Proof: Dafny Verification for Web Apps_](https://midspiral.com/blog/from-intent-to-proof-dafny-verification-for-web-apps/)
+- [_Building a React App with Formally Verified State_](https://midspiral.com/blog/building-a-react-app-with-formally-verified-state/)
+- [_Verifying State & Reconciliation in Collaborative Web Apps_](https://midspiral.com/blog/verifying-state-reconciliation-in-collaborative-web-apps/)
 
 This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.
 
