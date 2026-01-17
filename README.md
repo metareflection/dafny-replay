@@ -494,7 +494,7 @@ Using AI for code generation today means choosing between blind trust and heavy 
 ### 1. Verify the Dafny code
 
 ```bash
-dafny verify *.dfy
+./verify.sh
 ```
 
 All files should verify.
