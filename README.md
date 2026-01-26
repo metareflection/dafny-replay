@@ -8,6 +8,7 @@
 - [_From Intent to Proof: Dafny Verification for Web Apps_](https://midspiral.com/blog/from-intent-to-proof-dafny-verification-for-web-apps/)
 - [_Building a React App with Formally Verified State_](https://midspiral.com/blog/building-a-react-app-with-formally-verified-state/)
 - [_Verifying State & Reconciliation in Collaborative Web Apps_](https://midspiral.com/blog/verifying-state-reconciliation-in-collaborative-web-apps/)
+- [_The Intent Envelope: Proofs for Completeness, Not Just Soundness_](https://midspiral.com/blog/intent-envelope-proofs-for-completeness-not-just-soundness/)
 
 This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.
 
