@@ -4,7 +4,7 @@ set -e
 # Usage: ./compile.sh [project]
 # If no project specified, compiles all. Otherwise compiles only the specified project.
 # Projects: counter, kanban, delegation-auth, counter-authority, kanban-multi-collaboration,
-#           kanban-supabase, clear-split, clear-split-supabase, canon, colorwheel, collab-todo
+#           kanban-cloud, clear-split, clear-split-cloud, canon, colorwheel, collab-todo
 
 TARGET="$1"
 
@@ -94,24 +94,33 @@ if should_build kanban-multi-collaboration; then
         --client ../kanban-multi-collaboration/src/dafny/app.ts)
 fi
 
-if should_build kanban-supabase; then
-    echo "Copying to kanban-supabase project..."
-    cp generated/KanbanMulti.js kanban-supabase/src/dafny/KanbanMulti.cjs
+if should_build kanban-cloud; then
+    echo "Copying to kanban-cloud project..."
+    cp generated/KanbanMulti.js kanban-cloud/src/dafny/KanbanMulti.cjs
 
     echo "Compiling KanbanEffectStateMachine to JavaScript..."
     dafny translate js --no-verify -o generated/KanbanEffect --include-runtime kanban/KanbanEffectStateMachine.dfy
 
-    echo "Copying KanbanEffectStateMachine to kanban-supabase project..."
-    cp generated/KanbanEffect.js kanban-supabase/src/dafny/KanbanEffect.cjs
+    echo "Copying KanbanEffectStateMachine to kanban-cloud project..."
+    cp generated/KanbanEffect.js kanban-cloud/src/dafny/KanbanEffect.cjs
 
-    echo "Generating kanban-supabase app.ts and dafny-bundle.ts..."
+    echo "Generating kanban-cloud app.ts and supabase dafny-bundle.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../kanban/KanbanEffectStateMachine.dfy \
         --app-core KanbanEffectAppCore \
         --cjs-name KanbanEffect.cjs \
-        --client ../kanban-supabase/src/dafny/app.ts \
-        --deno ../kanban-supabase/supabase/functions/dispatch/dafny-bundle.ts \
-        --cjs-path ../kanban-supabase/src/dafny/KanbanEffect.cjs \
+        --client ../kanban-cloud/src/dafny/app.ts \
+        --deno ../kanban-cloud/supabase/functions/dispatch/dafny-bundle.ts \
+        --cjs-path ../kanban-cloud/src/dafny/KanbanEffect.cjs \
+        --dispatch KanbanMultiCollaboration.Dispatch)
+
+    echo "Generating kanban-cloud worker dafny-bundle.ts (cloudflare)..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../kanban/KanbanEffectStateMachine.dfy \
+        --app-core KanbanEffectAppCore \
+        --cjs-name KanbanEffect.cjs \
+        --cloudflare ../kanban-cloud/worker/src/dafny-bundle.ts \
+        --cjs-path ../kanban-cloud/src/dafny/KanbanEffect.cjs \
         --dispatch KanbanMultiCollaboration.Dispatch)
 fi
 
@@ -130,24 +139,34 @@ if should_build clear-split; then
         --client ../clear-split/src/dafny/app.ts)
 fi
 
-if should_build clear-split-supabase; then
+if should_build clear-split-cloud; then
     echo "Compiling ClearSplitMultiCollaboration to JavaScript..."
     dafny translate js --no-verify -o generated/ClearSplitMulti --include-runtime clear-split/ClearSplitMultiCollaboration.dfy
 
     echo "Compiling ClearSplitEffectStateMachine to JavaScript..."
     dafny translate js --no-verify -o generated/ClearSplitEffect --include-runtime clear-split/ClearSplitEffectStateMachine.dfy
 
-    echo "Copying to clear-split-supabase project..."
-    cp generated/ClearSplitEffect.js clear-split-supabase/src/dafny/ClearSplitEffect.cjs
+    echo "Copying to clear-split-cloud project..."
+    cp generated/ClearSplitEffect.js clear-split-cloud/src/dafny/ClearSplitEffect.cjs
+    cp generated/ClearSplitMulti.js clear-split-cloud/src/dafny/ClearSplitMulti.cjs
 
-    echo "Generating clear-split-supabase app.ts and dafny-bundle.ts..."
+    echo "Generating clear-split-cloud app.ts and supabase dafny-bundle.ts..."
     (cd dafny2js && dotnet run --no-build -- \
         --file ../clear-split/ClearSplitEffectStateMachine.dfy \
         --app-core ClearSplitEffectAppCore \
         --cjs-name ClearSplitEffect.cjs \
-        --client ../clear-split-supabase/src/dafny/app.ts \
-        --deno ../clear-split-supabase/supabase/functions/dispatch/dafny-bundle.ts \
-        --cjs-path ../clear-split-supabase/src/dafny/ClearSplitEffect.cjs \
+        --client ../clear-split-cloud/src/dafny/app.ts \
+        --deno ../clear-split-cloud/supabase/functions/dispatch/dafny-bundle.ts \
+        --cjs-path ../clear-split-cloud/src/dafny/ClearSplitEffect.cjs \
+        --dispatch ClearSplitMultiCollaboration.Dispatch)
+
+    echo "Generating clear-split-cloud worker dafny-bundle.ts (cloudflare)..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../clear-split/ClearSplitMultiCollaboration.dfy \
+        --app-core ClearSplitMultiAppCore \
+        --cjs-name ClearSplitMulti.cjs \
+        --cloudflare ../clear-split-cloud/worker/src/dafny-bundle.ts \
+        --cjs-path ../clear-split-cloud/src/dafny/ClearSplitMulti.cjs \
         --dispatch ClearSplitMultiCollaboration.Dispatch)
 fi
 
@@ -218,6 +237,25 @@ if should_build collab-todo; then
         --app-core TodoMultiProjectEffectAppCore \
         --cjs-name TodoMultiProjectEffect.cjs \
         --deno ../collab-todo/supabase/functions/multi-dispatch/dafny-bundle.ts \
+        --cjs-path ../collab-todo/src/dafny/TodoMultiProjectEffect.cjs \
+        --null-options)
+
+    echo "Generating collab-todo worker dafny-bundle.ts (cloudflare, single dispatch)..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../collab-todo/TodoMultiCollaboration.dfy \
+        --app-core TodoAppCore \
+        --cjs-name TodoMulti.cjs \
+        --cloudflare ../collab-todo/worker/src/dafny-bundle.ts \
+        --cjs-path ../collab-todo/src/dafny/TodoMulti.cjs \
+        --null-options \
+        --dispatch TodoMultiCollaboration.Dispatch)
+
+    echo "Generating collab-todo worker dafny-bundle-multi.ts (cloudflare, multi dispatch)..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../collab-todo/TodoMultiProjectEffectStateMachine.dfy \
+        --app-core TodoMultiProjectEffectAppCore \
+        --cjs-name TodoMultiProjectEffect.cjs \
+        --cloudflare ../collab-todo/worker/src/dafny-bundle-multi.ts \
         --cjs-path ../collab-todo/src/dafny/TodoMultiProjectEffect.cjs \
         --null-options)
 fi

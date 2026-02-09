@@ -1,7 +1,5 @@
-// useProjects: React hooks for project list and membership management
-// Uses backend abstraction for persistence
-//
-// For multi-project state with offline support, use useAllProjects instead.
+// Hooks for project list and membership management
+// For collaborative project state, use useCollaborativeProjectOffline
 
 import { useEffect, useState, useCallback } from 'react'
 import { backend, isBackendConfigured } from '../backend/index.ts'
@@ -61,29 +59,11 @@ export function useProjects(userId) {
     return projectId
   }, [fetchProjects])
 
-  const renameProject = useCallback(async (projectId, newName) => {
-    if (!isBackendConfigured()) throw new Error('Backend not configured')
-
-    await backend.projects.rename(projectId, newName)
-
-    // Refresh project list
-    await fetchProjects()
-  }, [fetchProjects])
-
-  const deleteProject = useCallback(async (projectId) => {
-    if (!isBackendConfigured()) throw new Error('Backend not configured')
-
-    await backend.projects.delete(projectId)
-
-    // Refresh project list
-    await fetchProjects()
-  }, [fetchProjects])
-
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects, userId])
 
-  return { projects, loading, error, refresh: fetchProjects, createProject, renameProject, deleteProject }
+  return { projects, loading, error, refresh: fetchProjects, createProject }
 }
 
 /**

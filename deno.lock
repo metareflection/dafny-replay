@@ -1,0 +1,19 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:bignumber.js@*": "9.3.1"
+  },
+  "npm": {
+    "bignumber.js@9.3.1": {
+      "integrity": "sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ=="
+    }
+  },
+  "remote": {
+    "https://esm.sh/bignumber.js@9.1.2": "ead43b40ad004b5868dc2f2f1548aa42390f9e5b8d576ad6e4e7bd1fc33f8cef"
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:bignumber.js@*"
+    ]
+  }
+}

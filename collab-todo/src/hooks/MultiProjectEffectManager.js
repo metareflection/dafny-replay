@@ -10,14 +10,14 @@
 //
 // This class only handles I/O (network calls, browser events).
 
-import { supabase, isSupabaseConfigured } from '../supabase.js'
+import { backend, isBackendConfigured } from '../backend/index.ts'
 import App from '../dafny/app-extras.ts'
 
 export class MultiProjectEffectManager {
   #state = null           // EffectState (Dafny datatype - multi-project)
   #projectIds = []        // Array of project IDs we're managing
   #listeners = new Set()  // For useSyncExternalStore
-  #realtimeChannels = []  // One per project
+  #realtimeUnsubscribers = []  // Cleanup functions for realtime subscriptions
   #statusCallback = null
   #errorCallback = null
 
@@ -101,15 +101,11 @@ export class MultiProjectEffectManager {
         if (isSingleProject) {
           // Use single-project dispatch for efficiency
           const projectId = touchedProjects[0]
-          const { data, error: invokeError } = await supabase.functions.invoke('dispatch', {
-            body: {
-              projectId,
-              baseVersion: baseVersions[projectId] || 0,
-              action: actionJson.action // Unwrap from Single wrapper
-            }
-          })
-
-          if (invokeError) throw invokeError
+          const data = await backend.dispatch.single(
+            projectId,
+            baseVersions[projectId] || 0,
+            actionJson.action // Unwrap from Single wrapper
+          )
 
           // Convert single-project response to multi-project format
           if (data.status === 'accepted') {
@@ -124,15 +120,7 @@ export class MultiProjectEffectManager {
           }
         } else {
           // Use multi-dispatch for cross-project operations
-          const { data, error: invokeError } = await supabase.functions.invoke('multi-dispatch', {
-            body: {
-              action: actionJson,
-              baseVersions
-            }
-          })
-
-          if (invokeError) throw invokeError
-          response = data
+          response = await backend.dispatch.multi(baseVersions, actionJson)
         }
 
         let event
@@ -142,33 +130,33 @@ export class MultiProjectEffectManager {
           this.#setError(null)
         } else if (response.status === 'conflict') {
           // Fetch fresh state for touched projects
-          const { data: freshProjects } = await supabase
-            .from('projects')
-            .select('id, state, version')
-            .in('id', touchedProjects)
-
           const freshVersions = {}
           const freshStates = {}
-          for (const p of (freshProjects || [])) {
-            freshVersions[p.id] = p.version
-            freshStates[p.id] = p.state
+          for (const projectId of touchedProjects) {
+            try {
+              const { state, version } = await backend.projects.load(projectId)
+              freshVersions[projectId] = version
+              freshStates[projectId] = state
+            } catch (e) {
+              console.error(`Failed to load project ${projectId}:`, e)
+            }
           }
           event = App.EffectEvent.DispatchConflict(freshVersions, freshStates)
         } else if (response.status === 'rejected') {
           // Fetch fresh state for touched projects
-          const { data: freshProjects } = await supabase
-            .from('projects')
-            .select('id, state, version')
-            .in('id', touchedProjects)
-
           const freshVersions = {}
           const freshStates = {}
-          for (const p of (freshProjects || [])) {
-            freshVersions[p.id] = p.version
-            freshStates[p.id] = p.state
+          for (const projectId of touchedProjects) {
+            try {
+              const { state, version } = await backend.projects.load(projectId)
+              freshVersions[projectId] = version
+              freshStates[projectId] = state
+            } catch (e) {
+              console.error(`Failed to load project ${projectId}:`, e)
+            }
           }
           event = App.EffectEvent.DispatchRejected(freshVersions, freshStates)
-          this.#setError(`Action rejected: ${response.reason || 'Unknown'}`)
+          this.#setError(`Action rejected: ${response.error || 'Unknown'}`)
         } else if (response.error) {
           throw new Error(response.error)
         }
@@ -193,25 +181,19 @@ export class MultiProjectEffectManager {
   }
 
   async start() {
-    if (!isSupabaseConfigured()) return
+    if (!isBackendConfigured()) return
     if (this.#projectIds.length === 0) return
 
     this.#setStatus('syncing')
     try {
       // Load all projects
-      const { data: projects, error } = await supabase
-        .from('projects')
-        .select('id, state, version')
-        .in('id', this.#projectIds)
-
-      if (error) throw error
-
-      // Build versions and models maps
       const versions = {}
       const models = {}
-      for (const p of projects) {
-        versions[p.id] = p.version
-        models[p.id] = p.state
+
+      for (const projectId of this.#projectIds) {
+        const { state, version } = await backend.projects.load(projectId)
+        versions[projectId] = version
+        models[projectId] = state
       }
 
       // Initialize via VERIFIED Init
@@ -231,10 +213,10 @@ export class MultiProjectEffectManager {
   }
 
   stop() {
-    for (const channel of this.#realtimeChannels) {
-      supabase.removeChannel(channel)
+    for (const unsubscribe of this.#realtimeUnsubscribers) {
+      unsubscribe()
     }
-    this.#realtimeChannels = []
+    this.#realtimeUnsubscribers = []
     window.removeEventListener('online', this.#handleOnline)
     window.removeEventListener('offline', this.#handleOffline)
   }
@@ -283,7 +265,7 @@ export class MultiProjectEffectManager {
   // Public: manual sync (reload all projects)
   // Uses RealtimeUpdate events to preserve pending actions
   async sync() {
-    if (!isSupabaseConfigured()) return
+    if (!isBackendConfigured()) return
 
     // Guard: Don't sync while dispatching - could cause state inconsistency
     if (this.#state && App.EffectState.isDispatching(this.#state)) {
@@ -293,30 +275,21 @@ export class MultiProjectEffectManager {
 
     this.#setStatus('syncing')
     try {
-      const { data: projects, error } = await supabase
-        .from('projects')
-        .select('id, state, version')
-        .in('id', this.#projectIds)
-
-      if (error) throw error
-
       if (!this.#state) {
         // Initial load - use EffectInit (no pending to preserve)
         const versions = {}
         const models = {}
-        for (const p of projects) {
-          versions[p.id] = p.version
-          models[p.id] = p.state
+        for (const projectId of this.#projectIds) {
+          const { state, version } = await backend.projects.load(projectId)
+          versions[projectId] = version
+          models[projectId] = state
         }
         this.#state = App.EffectInit(versions, models)
       } else {
         // Existing state - use RealtimeUpdate events to preserve pending
-        for (const p of projects) {
-          this.#transition(App.EffectEvent.RealtimeUpdate(
-            p.id,
-            p.version,
-            p.state
-          ))
+        for (const projectId of this.#projectIds) {
+          const { state, version } = await backend.projects.load(projectId)
+          this.#transition(App.EffectEvent.RealtimeUpdate(projectId, version, state))
         }
       }
 
@@ -335,24 +308,14 @@ export class MultiProjectEffectManager {
     if (this.#projectIds.includes(projectId)) return
 
     try {
-      const { data: project, error } = await supabase
-        .from('projects')
-        .select('id, state, version')
-        .eq('id', projectId)
-        .single()
-
-      if (error) throw error
+      const { state, version } = await backend.projects.load(projectId)
 
       this.#projectIds.push(projectId)
 
       if (this.#state) {
         // Add to existing state using RealtimeUpdate (preserves pending)
         // MergeModels in Dafny will add the new project to the map
-        this.#transition(App.EffectEvent.RealtimeUpdate(
-          projectId,
-          project.version,
-          project.state
-        ))
+        this.#transition(App.EffectEvent.RealtimeUpdate(projectId, version, state))
       }
 
       // Subscribe to realtime for new project
@@ -383,32 +346,20 @@ export class MultiProjectEffectManager {
   }
 
   #subscribeToProject(projectId) {
-    const channel = supabase
-      .channel(`project:${projectId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'projects',
-        filter: `id=eq.${projectId}`
-      }, (payload) => {
-        if (!this.#state) return
-        if (!App.EffectState.isOnline(this.#state)) return
+    const unsubscribe = backend.realtime.subscribe(projectId, (version, state) => {
+      if (!this.#state) return
+      if (!App.EffectState.isOnline(this.#state)) return
 
-        const currentVersions = App.EffectState.getBaseVersions(this.#state)
-        const serverVersion = currentVersions[projectId] || 0
+      const currentVersions = App.EffectState.getBaseVersions(this.#state)
+      const serverVersion = currentVersions[projectId] || 0
 
-        if (payload.new.version > serverVersion) {
-          // VERIFIED: Use RealtimeUpdate event (preserves pending actions)
-          this.#transition(App.EffectEvent.RealtimeUpdate(
-            projectId,
-            payload.new.version,
-            payload.new.state
-          ))
-        }
-      })
-      .subscribe()
+      if (version > serverVersion) {
+        // VERIFIED: Use RealtimeUpdate event (preserves pending actions)
+        this.#transition(App.EffectEvent.RealtimeUpdate(projectId, version, state))
+      }
+    })
 
-    this.#realtimeChannels.push(channel)
+    this.#realtimeUnsubscribers.push(unsubscribe)
   }
 
   #handleOnline = () => {

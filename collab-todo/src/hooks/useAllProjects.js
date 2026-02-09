@@ -5,7 +5,7 @@
 // offline support, and cross-project operations.
 
 import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react'
-import { isSupabaseConfigured, supabase } from '../supabase.js'
+import { isBackendConfigured, backend } from '../backend/index.ts'
 import App from '../dafny/app-extras.ts'
 import { MultiProjectEffectManager } from './MultiProjectEffectManager.js'
 
@@ -27,7 +27,7 @@ export function useAllProjects(projectIds) {
 
   // Create/recreate manager in useEffect (proper React lifecycle)
   useEffect(() => {
-    if (!isSupabaseConfigured() || !projectIds?.length) {
+    if (!isBackendConfigured() || !projectIds?.length) {
       setManager(null)
       return
     }
@@ -51,46 +51,25 @@ export function useAllProjects(projectIds) {
 
   // Fetch members for all projects
   useEffect(() => {
-    if (!projectIds?.length || !isSupabaseConfigured()) return
+    if (!projectIds?.length || !isBackendConfigured()) return
 
     const fetchAllMembers = async () => {
       try {
-        // Batch fetch all members for all projects
-        const { data: membersData, error: membersError } = await supabase
-          .from('project_members')
-          .select('project_id, user_id, role')
-          .in('project_id', projectIds)
-
-        if (membersError) throw membersError
-
-        // Get unique user IDs
-        const userIds = [...new Set((membersData || []).map(m => m.user_id))]
-
-        // Fetch profiles for these users
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .in('id', userIds)
-
-        if (profilesError) throw profilesError
-
-        // Create user_id -> email map
-        const emailMap = {}
-        for (const p of (profilesData || [])) {
-          emailMap[p.id] = p.email
-        }
-
-        // Group members by project
         const membersByProject = {}
-        for (const m of (membersData || [])) {
-          if (!membersByProject[m.project_id]) {
-            membersByProject[m.project_id] = []
+
+        // Fetch members for each project
+        for (const projectId of projectIds) {
+          try {
+            const members = await backend.members.list(projectId)
+            membersByProject[projectId] = members.map(m => ({
+              user_id: m.userId,
+              role: m.role,
+              email: m.email
+            }))
+          } catch (e) {
+            console.error(`Error fetching members for project ${projectId}:`, e)
+            membersByProject[projectId] = []
           }
-          membersByProject[m.project_id].push({
-            user_id: m.user_id,
-            role: m.role,
-            email: emailMap[m.user_id] || m.user_id.slice(0, 8) + '...'
-          })
         }
 
         setProjectMembers(membersByProject)

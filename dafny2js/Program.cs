@@ -46,6 +46,11 @@ class Program
       "Output path for Deno adapter (dafny-bundle.ts)"
     );
 
+    var cloudflareOpt = new Option<FileInfo?>(
+      new[] { "--cloudflare" },
+      "Output path for Cloudflare Workers adapter (dafny-bundle.ts)"
+    );
+
     var nullOptionsOpt = new Option<bool>(
       new[] { "--null-options" },
       "Enable null-based Option handling for DB compatibility"
@@ -64,7 +69,7 @@ class Program
     var root = new RootCommand("Generate app.js and dafny-bundle.ts adapters from Dafny sources")
     {
       fileOpt, appCoreOpt, outputOpt, cjsNameOpt, listOpt,
-      clientOpt, denoOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt
+      clientOpt, denoOpt, cloudflareOpt, nullOptionsOpt, dispatchOpt, cjsPathOpt
     };
 
     root.SetHandler(async (context) =>
@@ -76,6 +81,7 @@ class Program
       var list = context.ParseResult.GetValueForOption(listOpt);
       var client = context.ParseResult.GetValueForOption(clientOpt);
       var deno = context.ParseResult.GetValueForOption(denoOpt);
+      var cloudflare = context.ParseResult.GetValueForOption(cloudflareOpt);
       var nullOptions = context.ParseResult.GetValueForOption(nullOptionsOpt);
       var dispatchArgs = context.ParseResult.GetValueForOption(dispatchOpt) ?? Array.Empty<string>();
       var cjsPath = context.ParseResult.GetValueForOption(cjsPathOpt);
@@ -193,8 +199,63 @@ class Program
         Console.WriteLine($"Generated Deno bundle: {deno.FullName}");
       }
 
-      // If neither --client nor --deno specified, default to legacy behavior
-      if (clientOutput == null && deno == null)
+      // Generate Cloudflare output
+      if (cloudflare != null)
+      {
+        // Determine .cjs path for Cloudflare emitter
+        var cjsFilePath = cjsPath?.FullName;
+        if (cjsFilePath == null)
+        {
+          // Try to find the .cjs file relative to the output
+          var cloudflareDir = Path.GetDirectoryName(cloudflare.FullName) ?? ".";
+          cjsFilePath = Path.Combine(cloudflareDir, "../../../src/dafny", cjsFileName);
+
+          if (!File.Exists(cjsFilePath))
+          {
+            // Try current directory
+            cjsFilePath = Path.Combine(".", cjsFileName);
+          }
+
+          if (!File.Exists(cjsFilePath))
+          {
+            await Console.Error.WriteLineAsync($"Error: Cannot find .cjs file. Use --cjs-path to specify the path.");
+            await Console.Error.WriteLineAsync($"Tried: {cjsFilePath}");
+            context.ExitCode = 1;
+            return;
+          }
+        }
+
+        // Parse dispatch configurations
+        var dispatches = ParseDispatchConfigs(dispatchArgs, domainModule);
+        if (dispatches.Count == 0)
+        {
+          // Default dispatch using collaboration module pattern
+          var collaborationModule = domainModule.Replace("Domain", "MultiCollaboration");
+          if (domainModule.EndsWith("Domain"))
+          {
+            collaborationModule = domainModule.Substring(0, domainModule.Length - 6) + "MultiCollaboration";
+          }
+          dispatches.Add(new DispatchConfig("dispatch", $"{collaborationModule}.Dispatch", collaborationModule));
+        }
+
+        var cloudflareEmitter = new CloudflareEmitter(
+          datatypes,
+          functions,
+          domainModule,
+          appCoreModule,
+          cjsFileName,
+          cjsFilePath,
+          dispatches,
+          nullOptions
+        );
+
+        var generated = cloudflareEmitter.Generate();
+        await File.WriteAllTextAsync(cloudflare.FullName, generated);
+        Console.WriteLine($"Generated Cloudflare bundle: {cloudflare.FullName}");
+      }
+
+      // If neither --client nor --deno nor --cloudflare specified, default to legacy behavior
+      if (clientOutput == null && deno == null && cloudflare == null)
       {
         // Use legacy AppJsEmitter for backwards compatibility
         var emitter = new AppJsEmitter(
