@@ -39,7 +39,8 @@ export {
 // Realtime (Durable Object)
 export {
   RealtimeDurableObject,
-  broadcastUpdate
+  broadcastUpdate,
+  createRealtimeHandler
 } from './realtime'
 
 // Helpers
@@ -49,5 +50,6 @@ export {
   checkOwnership,
   notFound,
   forbidden,
-  badRequest
+  badRequest,
+  type RealtimeRouteConfig
 } from './helpers'

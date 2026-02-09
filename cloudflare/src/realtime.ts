@@ -1,6 +1,48 @@
 // Durable Object for WebSocket-based realtime updates
 // One instance per entity (project/group), manages all connected clients
 
+import type { Context } from 'hono'
+import type { BaseEnv } from './types'
+import { verifyToken } from './auth'
+import type { RealtimeRouteConfig } from './helpers'
+
+// Factory to create a realtime WebSocket route handler with auth + membership check
+export function createRealtimeHandler(config: RealtimeRouteConfig) {
+  const { paramName, memberTable, entityColumn, entityType } = config
+
+  return async (c: Context<{ Bindings: BaseEnv }>) => {
+    const entityId = c.req.param(paramName)
+    const token = c.req.query('token')
+
+    if (!token) {
+      return c.json({ error: 'Token required' }, 401)
+    }
+
+    // Verify the JWT token
+    let userId: string
+    try {
+      const payload = await verifyToken(token, c.env.JWT_SECRET)
+      userId = payload.userId
+    } catch {
+      return c.json({ error: 'Invalid token' }, 401)
+    }
+
+    // Check membership before allowing WebSocket upgrade
+    const member = await c.env.DB.prepare(
+      `SELECT role FROM ${memberTable} WHERE ${entityColumn} = ? AND user_id = ?`
+    ).bind(entityId, userId).first()
+
+    if (!member) {
+      return c.json({ error: `Not a member of this ${entityType}` }, 403)
+    }
+
+    // Pass to Durable Object for WebSocket handling
+    const id = c.env.REALTIME.idFromName(entityId)
+    const stub = c.env.REALTIME.get(id)
+    return stub.fetch(c.req.raw)
+  }
+}
+
 export class RealtimeDurableObject {
   private connections: Set<WebSocket> = new Set()
   private state: DurableObjectState

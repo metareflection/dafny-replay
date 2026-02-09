@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import {
   createAuthRoutes,
   createAuthMiddleware,
-  verifyToken,
+  createRealtimeHandler,
   RealtimeDurableObject,
   corsMiddleware,
   type BaseEnv,
@@ -46,37 +46,12 @@ app.route('/invites', inviteRoutes)
 app.route('/', dispatchRoutes)
 
 // WebSocket upgrade for realtime (with auth and membership check)
-app.get('/realtime/:groupId', async (c) => {
-  const groupId = c.req.param('groupId')
-  const token = c.req.query('token')
-
-  if (!token) {
-    return c.json({ error: 'Token required' }, 401)
-  }
-
-  // Verify the JWT token
-  let userId: string
-  try {
-    const payload = await verifyToken(token, c.env.JWT_SECRET)
-    userId = payload.userId
-  } catch {
-    return c.json({ error: 'Invalid token' }, 401)
-  }
-
-  // Check membership before allowing WebSocket upgrade
-  const member = await c.env.DB.prepare(
-    'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?'
-  ).bind(groupId, userId).first()
-
-  if (!member) {
-    return c.json({ error: 'Not a member of this group' }, 403)
-  }
-
-  // Pass to Durable Object for WebSocket handling
-  const id = c.env.REALTIME.idFromName(groupId)
-  const stub = c.env.REALTIME.get(id)
-  return stub.fetch(c.req.raw)
-})
+app.get('/realtime/:groupId', createRealtimeHandler({
+  paramName: 'groupId',
+  memberTable: 'group_members',
+  entityColumn: 'group_id',
+  entityType: 'group'
+}))
 
 // 404 handler
 app.notFound((c) => c.json({ error: 'Not found' }, 404))
