@@ -52,6 +52,13 @@ It also doubles as a **benchmark for Dafny + LLM proof assistance**, exercising 
 | ClearSplit  | Expense splitting         | Conservation of money (sum of balances = 0), delta laws for expenses/settlements |
 | CollabTodo  | Collaborative task lists  | Task uniqueness per list, exact partition, membership constraints, soft delete semantics |
 
+### List of [Backend](BACKEND.md)s
+
+| Backend                      | Features | Authorization | Trade-off |
+|------------------------------|----------|---------------|-----------|
+| [Supabase](SUPABASE.md)      | Managed auth (OAuth), RLS, built-in realtime | Database-level (RLS) | Batteries included, higher cost |
+| [Cloudflare](CLOUDFLARE.md)  | D1, Workers, Durable Objects, custom JWT | Application-level | Build your own, lower cost |
+
 ---
 
 ## List of [Kernels](kernels)
@@ -143,7 +150,7 @@ This kernel is intentionally minimal: it models a single authoritative state and
 <summary>A kernel for server-authoritative collaboration with offline clients.</summary>
 
 See also the [MULTICOLLAB](MULTICOLLAB.md) design note.
-See also the [SUPABASE](SUPABASE.md) design note for how this kernel can contribute the project model and the server reconciliation in a setup where Supabase contributes user management, database, and realtime.
+See also the original [SUPABASE](SUPABASE.md) design note for how this kernel can contribute the project model and the server reconciliation in a setup where Supabase contributes user management, database, and realtime.
 
 Clients may submit actions based on stale versions. The server reconciles each action against the intervening history using a domain-defined function, then either accepts it (updating the authoritative log) or rejects it.
 
@@ -164,7 +171,7 @@ The multi-collaboration kernel (`MultiCollaboration.dfy`) provides:
 The kernel is designed for domains where "intent" matters more than exact positioning, mirroring a common pattern in collaborative editors (e.g. Google Docs): preserve intent when possible, fall back deterministically, and reject only when no reasonable interpretation exists.
 
 - See the app kanban-multi-collaboration/ for an example with a non-persistent server.
-- See the app kanban-supabase/ for an example with user management and database persistence via Supabase.
+- See the app kanban-cloud/ for an example with user management and database persistence (supports Supabase or Cloudflare backends).
 </details>
 
 ---
@@ -174,7 +181,7 @@ The kernel is designed for domains where "intent" matters more than exact positi
 <details>
 <summary>A verified model of client-side effect orchestration.</summary>
 
-See also the [SUPABASE](SUPABASE.md) design note for how this kernel integrates with Supabase.
+See also the original [SUPABASE](SUPABASE.md) design note for how this kernel integrates with Supabase.
 
 The Effect State Machine (`EffectStateMachine.dfy`) models the client-side logic that governs:
 
@@ -227,7 +234,7 @@ Events include user actions, dispatch responses, network errors, and manual offl
 
 The JS layer only handles I/O (network calls, browser events) and converts responses to events that feed back into the verified `Step` function.
 
-See kanban-supabase/ for a complete example using the Effect State Machine with Supabase.
+See kanban-cloud/ for a complete example using the Effect State Machine.
 </details>
 
 ---
@@ -237,7 +244,7 @@ See kanban-supabase/ for a complete example using the Effect State Machine with 
 <details>
 <summary>A kernel for cross-project operations that builds on Multi-Collaboration.</summary>
 
-See the [MULTIPROJECT](MULTIPROJECT.md) design note and [MULTIPROJECT_SUPABASE](MULTIPROJECT_SUPABASE.md) for Supabase integration details.
+See the [MULTIPROJECT](MULTIPROJECT.md) design note and the original [MULTIPROJECT_SUPABASE](MULTIPROJECT_SUPABASE.md) for Supabase integration details.
 
 The Multi-Project kernel (`MultiProject.dfy`) is an abstract module that extends the Multi-Collaboration kernel to support operations spanning multiple projects (e.g., MoveTaskTo, CopyTaskTo). Concrete domains refine this module to add domain-specific cross-project actions.
 
@@ -282,7 +289,7 @@ The architecture uses the verified functions but adds unverified components:
 
 * **Edge function glue**: The edge function calls `MultiStep` and writes results to the database. This orchestration code is unverified.
 
-See collab-todo/ for a complete example using the Multi-Project kernel with Supabase.
+See collab-todo/ for a complete example using the Multi-Project kernel (supports Supabase or Cloudflare backends).
 </details>
 
 ---
@@ -323,7 +330,7 @@ See counter/ and counter-authority/.
 
 This domain requires substantial sequence and map reasoning and serves as a **stress test** for Dafny automation and LLM-assisted proof construction.
 
-See kanban/ (replay kernel) and kanban-multi-collaboration/ and kanban-supabase/ (both multi-collaboration kernel).
+See kanban/ (replay kernel) and kanban-multi-collaboration/ and kanban-cloud/ (both multi-collaboration kernel).
 </details>
 
 ### Delegation Auth (capability delegation)
@@ -516,12 +523,12 @@ cd kanban            # Kanban board
 cd delegation-auth   # capability delegation
 cd counter-authority # counter with client-server protocol
 cd kanban-multi-collaboration  # kanban with multi-collaboration
-cd kanban-supabase   # kanban with supabase (requires setup)
+cd kanban-cloud      # kanban with backend (requires setup)
 cd canon             # Canon diagram builder
 cd colorwheel        # color wheel app
 cd clear-split       # ClearSplit app
-cd clear-split-supabase # clear-split with supabase (requires setup)
-cd collab-todo       # CollabTodo app (requires supabase setup)
+cd clear-split-cloud # clear-split with backend (requires setup)
+cd collab-todo       # CollabTodo app (requires backend setup)
 npm install
 npm run dev
 ```
@@ -555,5 +562,5 @@ This is an experimental methodology that ensures **correctness by construction**
 * ✔ Generic effect state machine for client-side orchestration proved
 * ✔ JavaScript compilation
 * ✔ React integration
-* ✔ Supabase integration (experimental)
+* ✔ Backend integration: Supabase or Cloudflare (experimental)
 
