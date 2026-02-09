@@ -7,7 +7,7 @@ import type { Env, Variables } from './index'
 
 // Import from compiled Dafny bundles
 import { dispatch } from './dafny-bundle'
-import { tryMultiStep, getTouchedProjects, getEffectiveAction, checkAuthorization, modelToJson } from './bundle-extras'
+import { tryMultiStep, getTouchedProjects, getEffectiveAction, checkAuthorization } from './bundle-extras'
 
 export const dispatchRoutes = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -263,7 +263,7 @@ dispatchRoutes.post('/multi-dispatch', async (c) => {
     )
 
     newVersions[projectId] = newVersion
-    newStates[projectId] = modelToJson(newState)
+    newStates[projectId] = newState  // Already JSON from multimodelToJson
   }
 
   // Execute all updates atomically
