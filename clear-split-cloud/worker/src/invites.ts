@@ -69,12 +69,16 @@ inviteRoutes.post('/:groupId/accept', async (c) => {
     state.balances[trimmedName] = 0
   }
 
-  // Update group state and add member
+  // Update group state and add member (with optimistic locking)
   const newVersion = group.version + 1
-  await c.env.DB.prepare(`
+  const updateResult = await c.env.DB.prepare(`
     UPDATE groups SET state = ?, version = ?, updated_at = datetime('now')
-    WHERE id = ?
-  `).bind(JSON.stringify(state), newVersion, groupId).run()
+    WHERE id = ? AND version = ?
+  `).bind(JSON.stringify(state), newVersion, groupId, group.version).run()
+
+  if (updateResult.meta.changes === 0) {
+    return c.json({ error: 'Concurrent modification, please retry' }, 409)
+  }
 
   await c.env.DB.prepare(`
     INSERT INTO group_members (group_id, user_id, display_name, role)
