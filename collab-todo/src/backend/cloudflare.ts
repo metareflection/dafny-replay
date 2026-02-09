@@ -140,11 +140,12 @@ export function createCloudflareBackend(apiUrl: string): Backend {
         return api<Member[]>(`/projects/${projectId}/members`)
       },
 
-      add: async (projectId: string, email: string): Promise<void> => {
-        await api(`/projects/${projectId}/members`, {
+      add: async (projectId: string, email: string): Promise<string> => {
+        const { userId } = await api<{ userId: string }>(`/projects/${projectId}/members`, {
           method: 'POST',
           body: JSON.stringify({ email })
         })
+        return userId
       },
 
       remove: async (projectId: string, userId: string): Promise<void> => {

@@ -62,7 +62,7 @@ export interface Backend {
 
   members: {
     list(projectId: string): Promise<Member[]>
-    add(projectId: string, email: string): Promise<void>
+    add(projectId: string, email: string): Promise<string>  // Returns userId
     remove(projectId: string, userId: string): Promise<void>
   }
 

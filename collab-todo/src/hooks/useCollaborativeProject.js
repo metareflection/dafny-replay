@@ -124,8 +124,9 @@ export function useProjectMembers(projectId) {
   const inviteMember = useCallback(async (email) => {
     if (!projectId || !isBackendConfigured()) return
 
-    await backend.members.add(projectId, email)
+    const userId = await backend.members.add(projectId, email)
     await fetchMembers()
+    return userId
   }, [projectId, fetchMembers])
 
   const removeMember = useCallback(async (userId) => {

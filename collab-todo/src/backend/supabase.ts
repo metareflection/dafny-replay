@@ -182,7 +182,7 @@ export function createSupabaseBackend(): Backend {
         }))
       },
 
-      add: async (projectId: string, email: string): Promise<void> => {
+      add: async (projectId: string, email: string): Promise<string> => {
         if (!supabase) throw new Error('Supabase not configured')
 
         // Look up user by email
@@ -199,6 +199,8 @@ export function createSupabaseBackend(): Backend {
           .insert({ project_id: projectId, user_id: userData.id, role: 'member' })
 
         if (insertError) throw insertError
+
+        return userData.id
       },
 
       remove: async (projectId: string, userId: string): Promise<void> => {

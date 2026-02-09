@@ -198,7 +198,7 @@ projectRoutes.post('/:id/members', async (c) => {
     VALUES (?, ?, 'member')
   `).bind(projectId, user.id).run()
 
-  return c.json({ success: true })
+  return c.json({ userId: user.id })
 })
 
 // Remove a member from project (owner only)
