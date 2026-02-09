@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import {
   createAuthRoutes,
   createAuthMiddleware,
-  verifyToken,
+  createRealtimeHandler,
   RealtimeDurableObject,
   corsMiddleware,
   type BaseEnv,
@@ -43,27 +43,13 @@ app.use('/multi-dispatch', authMiddleware)
 app.route('/projects', projectRoutes)
 app.route('/', dispatchRoutes)
 
-// WebSocket upgrade for realtime (with auth)
-app.get('/realtime/:projectId', async (c) => {
-  const projectId = c.req.param('projectId')
-  const token = c.req.query('token')
-
-  if (!token) {
-    return c.json({ error: 'Token required' }, 401)
-  }
-
-  // Verify the JWT token
-  try {
-    await verifyToken(token, c.env.JWT_SECRET)
-  } catch {
-    return c.json({ error: 'Invalid token' }, 401)
-  }
-
-  // Pass to Durable Object for WebSocket handling
-  const id = c.env.REALTIME.idFromName(projectId)
-  const stub = c.env.REALTIME.get(id)
-  return stub.fetch(c.req.raw)
-})
+// WebSocket upgrade for realtime (with auth and membership check)
+app.get('/realtime/:projectId', createRealtimeHandler({
+  paramName: 'projectId',
+  memberTable: 'project_members',
+  entityColumn: 'project_id',
+  entityType: 'project'
+}))
 
 // 404 handler
 app.notFound((c) => c.json({ error: 'Not found' }, 404))

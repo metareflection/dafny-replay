@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import {
   createAuthRoutes,
   createAuthMiddleware,
-  verifyToken,
+  createRealtimeHandler,
   RealtimeDurableObject,
   corsMiddleware,
   type BaseEnv,
@@ -45,27 +45,13 @@ app.route('/groups', groupRoutes)
 app.route('/invites', inviteRoutes)
 app.route('/', dispatchRoutes)
 
-// WebSocket upgrade for realtime (with auth)
-app.get('/realtime/:groupId', async (c) => {
-  const groupId = c.req.param('groupId')
-  const token = c.req.query('token')
-
-  if (!token) {
-    return c.json({ error: 'Token required' }, 401)
-  }
-
-  // Verify the JWT token
-  try {
-    await verifyToken(token, c.env.JWT_SECRET)
-  } catch {
-    return c.json({ error: 'Invalid token' }, 401)
-  }
-
-  // Pass to Durable Object for WebSocket handling
-  const id = c.env.REALTIME.idFromName(groupId)
-  const stub = c.env.REALTIME.get(id)
-  return stub.fetch(c.req.raw)
-})
+// WebSocket upgrade for realtime (with auth and membership check)
+app.get('/realtime/:groupId', createRealtimeHandler({
+  paramName: 'groupId',
+  memberTable: 'group_members',
+  entityColumn: 'group_id',
+  entityType: 'group'
+}))
 
 // 404 handler
 app.notFound((c) => c.json({ error: 'Not found' }, 404))

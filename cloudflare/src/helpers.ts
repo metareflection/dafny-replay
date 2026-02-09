@@ -59,3 +59,15 @@ export function forbidden(c: Context, message = 'Forbidden') {
 export function badRequest(c: Context, message: string) {
   return c.json({ error: message }, 400)
 }
+
+// Configuration for realtime WebSocket route
+export interface RealtimeRouteConfig {
+  // URL param name (e.g., 'projectId' or 'groupId')
+  paramName: string
+  // Membership table name (e.g., 'project_members' or 'group_members')
+  memberTable: string
+  // Column name for entity ID (e.g., 'project_id' or 'group_id')
+  entityColumn: string
+  // Entity type for error messages (e.g., 'project' or 'group')
+  entityType: string
+}

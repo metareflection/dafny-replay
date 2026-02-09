@@ -221,7 +221,27 @@ The Dafny spec already has `members: set<UserId>` in the Model and `NotAMember` 
 
 Note: The worker code would still need to pass the correct `actingUser` from the JWT - the trust boundary remains there.
 
-### 2. CloudflareEmitter uses `@ts-nocheck`
+### 2. WebSocket auth uses token in query string
+
+The `/realtime/:id?token=JWT` pattern is used because browsers cannot set `Authorization` headers on WebSocket handshake requests. This is a common pattern, but the token can appear in:
+
+- Server logs (if URL logging is enabled)
+- Error reporting tools (Sentry, etc.)
+- Cloudflare analytics/Logpush (if enabled)
+
+**Mitigations in place:**
+- JWTs expire (7 days)
+- Membership is verified before WebSocket upgrade (token alone isn't enough)
+- WebSocket URLs don't leak via Referer headers like normal links
+
+**Future hardening options (if needed):**
+- Short-lived, project-scoped realtime tokens (minted via authenticated HTTP call)
+- Cookie-based auth (browser sends automatically)
+- First-message auth (connect unauthenticated, send token as first WS message)
+
+For now, avoid logging full request URLs in production.
+
+### 3. CloudflareEmitter uses `@ts-nocheck`
 
 The generated `dafny-bundle.ts` files use `// @ts-nocheck` because Dafny compiles to JavaScript, not TypeScript. Outputting TypeScript-compatible code from Dafny would be a bigger change.
 
