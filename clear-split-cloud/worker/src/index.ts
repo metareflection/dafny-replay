@@ -45,7 +45,7 @@ app.route('/groups', groupRoutes)
 app.route('/invites', inviteRoutes)
 app.route('/', dispatchRoutes)
 
-// WebSocket upgrade for realtime (with auth)
+// WebSocket upgrade for realtime (with auth and membership check)
 app.get('/realtime/:groupId', async (c) => {
   const groupId = c.req.param('groupId')
   const token = c.req.query('token')
@@ -55,10 +55,21 @@ app.get('/realtime/:groupId', async (c) => {
   }
 
   // Verify the JWT token
+  let userId: string
   try {
-    await verifyToken(token, c.env.JWT_SECRET)
+    const payload = await verifyToken(token, c.env.JWT_SECRET)
+    userId = payload.userId
   } catch {
     return c.json({ error: 'Invalid token' }, 401)
+  }
+
+  // Check membership before allowing WebSocket upgrade
+  const member = await c.env.DB.prepare(
+    'SELECT role FROM group_members WHERE group_id = ? AND user_id = ?'
+  ).bind(groupId, userId).first()
+
+  if (!member) {
+    return c.json({ error: 'Not a member of this group' }, 403)
   }
 
   // Pass to Durable Object for WebSocket handling
