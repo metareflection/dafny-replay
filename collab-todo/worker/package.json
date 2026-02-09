@@ -1,0 +1,22 @@
+{
+  "name": "collab-todo-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "d1:create": "wrangler d1 create collab-todo",
+    "d1:migrate": "wrangler d1 execute collab-todo --file=schema.sql",
+    "d1:migrate:local": "wrangler d1 execute collab-todo --local --file=schema.sql"
+  },
+  "dependencies": {
+    "@dafny-replay/cloudflare": "file:../../cloudflare",
+    "bignumber.js": "^9.1.2",
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^4.63.0"
+  }
+}

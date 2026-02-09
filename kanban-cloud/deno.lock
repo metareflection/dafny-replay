@@ -1,0 +1,26 @@
+{
+  "version": "5",
+  "remote": {
+    "https://esm.sh/bignumber.js@9.1.2": "ead43b40ad004b5868dc2f2f1548aa42390f9e5b8d576ad6e4e7bd1fc33f8cef"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@eslint/js@^9.39.1",
+        "npm:@supabase/supabase-js@^2.45.0",
+        "npm:@types/react-dom@^19.2.3",
+        "npm:@types/react@^19.2.5",
+        "npm:@vitejs/plugin-react@^5.1.1",
+        "npm:bignumber.js@^9.3.1",
+        "npm:eslint-plugin-react-hooks@^7.0.1",
+        "npm:eslint-plugin-react-refresh@~0.4.24",
+        "npm:eslint@^9.39.1",
+        "npm:globals@^16.5.0",
+        "npm:react-dom@^19.2.0",
+        "npm:react@^19.2.0",
+        "npm:vite@^7.2.4",
+        "npm:wrangler@^4.54.0"
+      ]
+    }
+  }
+}

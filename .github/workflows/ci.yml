@@ -34,6 +34,11 @@ jobs:
       - name: Check generated files are up to date
         run: git diff --exit-code
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
@@ -41,11 +46,6 @@ jobs:
 
       - name: TypeCheck compiled files
         run: ./typecheck.sh
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Install dependencies
         working-directory: kanban-multi-collaboration
@@ -55,10 +55,10 @@ jobs:
         working-directory: kanban-multi-collaboration
         run: npm test
 
-      - name: Install kanban-supabase dependencies
-        working-directory: kanban-supabase
+      - name: Install kanban-cloud dependencies
+        working-directory: kanban-cloud
         run: npm ci
 
-      - name: Run kanban-supabase tests
-        working-directory: kanban-supabase
+      - name: Run kanban-cloud tests
+        working-directory: kanban-cloud
         run: npm test

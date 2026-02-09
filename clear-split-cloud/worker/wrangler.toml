@@ -1,0 +1,35 @@
+# Cloudflare Worker configuration for clear-split
+name = "clearsplit-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# nodejs_compat needed for some Node.js APIs
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "api.clearsplit.metareflective.ink", custom_domain = true }
+]
+
+[vars]
+# Set JWT_SECRET in dashboard or via wrangler secret
+# JWT_SECRET = "change-me-in-production"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "clearsplit"
+database_id = "b135f593-42d2-4504-ab8c-bc20727d0688"
+
+# Durable Objects for realtime
+[[durable_objects.bindings]]
+name = "REALTIME"
+class_name = "RealtimeDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RealtimeDurableObject"]
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"

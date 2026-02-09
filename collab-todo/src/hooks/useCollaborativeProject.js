@@ -1,10 +1,10 @@
 // useProjects: React hooks for project list and membership management
-// Uses Supabase for persistence
+// Uses backend abstraction for persistence
 //
 // For multi-project state with offline support, use useAllProjects instead.
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../supabase.js'
+import { backend, isBackendConfigured } from '../backend/index.ts'
 
 /**
  * Hook for managing project list and membership
@@ -16,7 +16,7 @@ export function useProjects(userId) {
   const [error, setError] = useState(null)
 
   const fetchProjects = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
+    if (!isBackendConfigured()) {
       setLoading(false)
       return
     }
@@ -24,28 +24,24 @@ export function useProjects(userId) {
     setLoading(true)
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = await backend.auth.getCurrentUser()
       if (!user) {
         setProjects([])
         return
       }
 
       // Get projects where user is a member
-      const { data: memberships, error: memberError } = await supabase
-        .from('project_members')
-        .select('project_id, role, projects(id, name, owner_id)')
-        .eq('user_id', user.id)
+      const projectList = await backend.projects.list(user.id)
 
-      if (memberError) throw memberError
-
-      const projectList = (memberships || []).map(m => ({
-        id: m.projects.id,
-        name: m.projects.name,
-        isOwner: m.projects.owner_id === user.id,
-        role: m.role
+      // Map to expected format
+      const formattedProjects = projectList.map(p => ({
+        id: p.id,
+        name: p.name,
+        isOwner: p.role === 'owner',
+        role: p.role
       }))
 
-      setProjects(projectList)
+      setProjects(formattedProjects)
       setError(null)
     } catch (e) {
       console.error('Error fetching projects:', e)
@@ -56,42 +52,28 @@ export function useProjects(userId) {
   }, [])
 
   const createProject = useCallback(async (name) => {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+    if (!isBackendConfigured()) throw new Error('Backend not configured')
 
-    // Use RPC to create project (handles membership automatically)
-    const { data, error } = await supabase.rpc('create_project', {
-      project_name: name
-    })
-
-    if (error) throw error
+    const projectId = await backend.projects.create(name)
 
     // Refresh project list
     await fetchProjects()
-    return data // Returns project ID
+    return projectId
   }, [fetchProjects])
 
   const renameProject = useCallback(async (projectId, newName) => {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+    if (!isBackendConfigured()) throw new Error('Backend not configured')
 
-    const { error } = await supabase.rpc('rename_project', {
-      p_project_id: projectId,
-      p_new_name: newName
-    })
-
-    if (error) throw error
+    await backend.projects.rename(projectId, newName)
 
     // Refresh project list
     await fetchProjects()
   }, [fetchProjects])
 
   const deleteProject = useCallback(async (projectId) => {
-    if (!isSupabaseConfigured()) throw new Error('Supabase not configured')
+    if (!isBackendConfigured()) throw new Error('Backend not configured')
 
-    const { error } = await supabase.rpc('delete_project', {
-      p_project_id: projectId
-    })
-
-    if (error) throw error
+    await backend.projects.delete(projectId)
 
     // Refresh project list
     await fetchProjects()
@@ -113,43 +95,23 @@ export function useProjectMembers(projectId) {
   const [error, setError] = useState(null)
 
   const fetchMembers = useCallback(async () => {
-    if (!projectId || !isSupabaseConfigured()) {
+    if (!projectId || !isBackendConfigured()) {
       setLoading(false)
       return
     }
 
     setLoading(true)
     try {
-      // Fetch members
-      const { data: membersData, error: membersError } = await supabase
-        .from('project_members')
-        .select('user_id, role')
-        .eq('project_id', projectId)
+      const memberList = await backend.members.list(projectId)
 
-      if (membersError) throw membersError
-
-      // Fetch profiles for these users
-      const userIds = (membersData || []).map(m => m.user_id)
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .in('id', userIds)
-
-      if (profilesError) throw profilesError
-
-      // Create a map of user_id -> email
-      const emailMap = {}
-      for (const p of (profilesData || [])) {
-        emailMap[p.id] = p.email
-      }
-
-      // Combine members with emails
-      const memberList = (membersData || []).map(m => ({
-        user_id: m.user_id,
+      // Map to expected format
+      const formattedMembers = memberList.map(m => ({
+        user_id: m.userId,
         role: m.role,
-        email: emailMap[m.user_id] || m.user_id.slice(0, 8) + '...'
+        email: m.email
       }))
-      setMembers(memberList)
+
+      setMembers(formattedMembers)
       setError(null)
     } catch (e) {
       console.error('Error fetching members:', e)
@@ -160,42 +122,17 @@ export function useProjectMembers(projectId) {
   }, [projectId])
 
   const inviteMember = useCallback(async (email) => {
-    if (!projectId || !isSupabaseConfigured()) return
+    if (!projectId || !isBackendConfigured()) return
 
-    // This is a simplified version - in production you'd want to:
-    // 1. Look up user by email
-    // 2. Handle invitations for users who don't exist yet
-    // For now, we assume the user exists and we know their ID
-
-    const { data: userData, error: userError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .single()
-
-    if (userError) throw new Error(`User not found: ${email}`)
-
-    const { error: insertError } = await supabase
-      .from('project_members')
-      .insert({ project_id: projectId, user_id: userData.id, role: 'member' })
-
-    if (insertError) throw insertError
-
+    const userId = await backend.members.add(projectId, email)
     await fetchMembers()
-    return userData.id  // Return userId so caller can dispatch AddMember
+    return userId
   }, [projectId, fetchMembers])
 
   const removeMember = useCallback(async (userId) => {
-    if (!projectId || !isSupabaseConfigured()) return
+    if (!projectId || !isBackendConfigured()) return
 
-    const { error } = await supabase
-      .from('project_members')
-      .delete()
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-
-    if (error) throw error
-
+    await backend.members.remove(projectId, userId)
     await fetchMembers()
   }, [projectId, fetchMembers])
 

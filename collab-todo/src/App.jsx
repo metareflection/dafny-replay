@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Star, CheckSquare, Circle } from 'lucide-react'
-import { supabase, isSupabaseConfigured, signOut } from './supabase.js'
+import { backend, isBackendConfigured, signOut } from './backend/index.ts'
 import { useProjects, useProjectMembers } from './hooks/useCollaborativeProject.js'
 import { useAllProjects } from './hooks/useAllProjects.js'
 import App from './dafny/app-extras.ts'
@@ -1138,21 +1138,18 @@ function AppContainer() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) {
+    if (!isBackendConfigured()) {
       setLoading(false)
       return
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    // Use backend abstraction for auth state management
+    const unsubscribe = backend.auth.onAuthChange((user) => {
+      setUser(user)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    return () => unsubscribe()
   }, [])
 
   const handleSignOut = async () => {

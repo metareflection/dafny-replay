@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { signIn, signUp, signInWithGoogle, isSupabaseConfigured } from '../../supabase.js'
+import { signIn, signUp, signInWithGoogle, isBackendConfigured } from '../../backend/index.ts'
 import './auth.css'
 
 export function AuthForm() {
@@ -9,15 +9,16 @@ export function AuthForm() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  if (!isSupabaseConfigured()) {
+  if (!isBackendConfigured()) {
     return (
       <div className="auth-form">
         <h2 className="auth-form__title">Configuration Required</h2>
         <p className="auth-form__warning">
-          Supabase is not configured. Please copy .env.example to .env and fill in your Supabase credentials.
+          Backend is not configured. Please set up your environment variables.
         </p>
         <p className="auth-form__hint">
-          See the README for setup instructions.
+          For Supabase: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY<br/>
+          For Cloudflare: set VITE_BACKEND=cloudflare and VITE_API_URL
         </p>
       </div>
     )
@@ -31,7 +32,6 @@ export function AuthForm() {
     try {
       if (isSignUp) {
         await signUp(email, password)
-        setError('Check your email for confirmation link')
       } else {
         await signIn(email, password)
       }

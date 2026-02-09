@@ -1,0 +1,37 @@
+# Cloudflare Worker configuration for kanban-cloud
+name = "kanban-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# nodejs_compat needed for some Node.js APIs
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "api.kanban.metareflective.ink", custom_domain = true }
+]
+
+workers_dev = true
+preview_urls = true
+
+[vars]
+# Set JWT_SECRET in dashboard or via wrangler secret
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "kanban"
+database_id = "bc7591a8-0d11-48cb-a918-c779c56c7f72"
+
+# Durable Objects for realtime
+[[durable_objects.bindings]]
+name = "REALTIME"
+class_name = "RealtimeDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RealtimeDurableObject"]
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"
