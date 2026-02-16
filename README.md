@@ -499,6 +499,13 @@ Using AI for code generation today means choosing between blind trust and heavy 
 
 ## How to run
 
+### 0. Clone the repo
+
+```bash
+git clone --recursive https://github.com/metareflection/dafny-replay
+cd dafny-replay
+```
+
 ### 1. Verify the Dafny code
 
 ```bash

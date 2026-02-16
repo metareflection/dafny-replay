@@ -1,0 +1,3 @@
+[submodule "dafny2js"]
+	path = dafny2js
+	url = https://github.com/metareflection/dafny2js.git

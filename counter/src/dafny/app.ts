@@ -76,14 +76,6 @@ interface DafnySeq<T = unknown> {
   toVerbatimString?(asLiteral: boolean): string;
   map<U>(fn: (x: T) => U): U[];
 }
-interface DafnySet<T = unknown> { readonly Elements: Iterable<T>; }
-interface DafnyMap<K = unknown, V = unknown> {
-  readonly Keys: DafnySet<K>;
-  get(key: K): V;
-  contains(key: K): boolean;
-}
-type DafnyTuple2<T0, T1> = readonly [T0, T1];
-type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
 
 type DafnyAction = { readonly is_Inc: true; readonly is_Dec: false } | { readonly is_Inc: false; readonly is_Dec: true };
 

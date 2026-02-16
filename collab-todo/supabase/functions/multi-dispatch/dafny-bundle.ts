@@ -6548,8 +6548,6 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
-type DafnyTuple2<T0, T1> = readonly [T0, T1];
-type DafnyTuple3<T0, T1, T2> = readonly [T0, T1, T2];
 
 type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
 
