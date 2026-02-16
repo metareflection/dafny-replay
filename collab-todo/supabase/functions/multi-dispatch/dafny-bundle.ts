@@ -7471,7 +7471,7 @@ const multimodelFromJson = (json: any): DafnyMultiModel => {
 
 // deno-lint-ignore no-explicit-any
 const multimodelToJson = (value: any): MultiModel => {
-  return { projects: ((dm) => { const obj = {}; if (dm && dm.Keys) { for (const k of dm.Keys.Elements) { obj[dafnyStringToJs(k)] = modelToJson(dm.get(k)); } } return obj; })(value) };
+  return { projects: ((dm) => { const obj: Record<string, any> = {}; if (dm && dm.Keys) { for (const k of dm.Keys.Elements) { obj[dafnyStringToJs(k)] = modelToJson(dm.get(k)); } } return obj; })(value) };
 };
 
 // deno-lint-ignore no-explicit-any
