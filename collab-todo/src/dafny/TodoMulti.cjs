@@ -1575,7 +1575,7 @@ let TodoDomain = (function() {
     static TagNameExists(m, name, excludeTag) {
       return _dafny.Quantifier(((m).dtor_tags).Keys.Elements, false, function (_exists_var_0) {
         let _0_t = _exists_var_0;
-        return ((((m).dtor_tags).contains(_0_t)) && (((excludeTag).is_None) || (!(_0_t).isEqualTo((excludeTag).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_tags).get(_0_t)).dtor_name, name));
+        return ((((m).dtor_tags).contains(_0_t)) && (((excludeTag).is_None) || (!(_0_t).isEqualTo((excludeTag).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_tags).get(_0_t)), name));
       });
     };
     static TryStep(m, a) {
@@ -1928,7 +1928,7 @@ let TodoDomain = (function() {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
           } else {
             let _81_id = (m).dtor_nextTagId;
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_id, TodoDomain.Tag.create_Tag(_80_name)), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_id, _80_name), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
           }
         }
       }
@@ -1941,7 +1941,7 @@ let TodoDomain = (function() {
           } else if (TodoDomain.__default.TagNameExists(m, _83_newName, TodoDomain.Option.create_Some(_82_tagId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
           } else {
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_82_tagId, TodoDomain.Tag.create_Tag(_83_newName)), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_82_tagId, _83_newName), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
@@ -2550,7 +2550,7 @@ let TodoDomain = (function() {
     };
     static GetTagName(m, tagId) {
       if (((m).dtor_tags).contains(tagId)) {
-        return TodoDomain.Option.create_Some((((m).dtor_tags).get(tagId)).dtor_name);
+        return TodoDomain.Option.create_Some((((m).dtor_tags).get(tagId)));
       } else {
         return TodoDomain.Option.create_None();
       }
@@ -2752,7 +2752,7 @@ let TodoDomain = (function() {
       }
     }
     static Default() {
-      return TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString(""));
+      return _dafny.Seq.UnicodeFromString("");
     }
     static Rtd() {
       return class {

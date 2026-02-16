@@ -238,10 +238,7 @@ interface DafnyTask {
   readonly dtor_deletedFromList: DafnyOption<DafnyInt>;
 }
 
-interface DafnyTag {
-  readonly is_Tag: true;
-  readonly dtor_name: DafnySeq;
-}
+type DafnyTag = DafnySeq;
 
 type DafnyProjectMode = { readonly is_Personal: true; readonly is_Collaborative: false } | { readonly is_Personal: false; readonly is_Collaborative: true };
 
@@ -276,10 +273,7 @@ type DafnyResult<T, E> = { readonly is_Ok: true; readonly is_Err: false; readonl
 
 type DafnyMultiAction = { readonly is_Single: true; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: false; readonly is_MoveListTo: false; readonly dtor_project: DafnySeq; readonly dtor_action: DafnyAction } | { readonly is_Single: false; readonly is_MoveTaskTo: true; readonly is_CopyTaskTo: false; readonly is_MoveListTo: false; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_taskId: DafnyInt; readonly dtor_dstList: DafnyInt; readonly dtor_anchor: DafnyPlace } | { readonly is_Single: false; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: true; readonly is_MoveListTo: false; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_taskId: DafnyInt; readonly dtor_dstList: DafnyInt } | { readonly is_Single: false; readonly is_MoveTaskTo: false; readonly is_CopyTaskTo: false; readonly is_MoveListTo: true; readonly dtor_srcProject: DafnySeq; readonly dtor_dstProject: DafnySeq; readonly dtor_listId: DafnyInt };
 
-interface DafnyMultiModel {
-  readonly is_MultiModel: true;
-  readonly dtor_projects: DafnyMap<DafnySeq, DafnyModel>;
-}
+type DafnyMultiModel = DafnyMap<DafnySeq, DafnyModel>;
 
 type DafnyMultiErr = { readonly is_MissingProject: true; readonly is_SingleProjectError: false; readonly is_CrossProjectError: false; readonly dtor_projectId: DafnySeq } | { readonly is_MissingProject: false; readonly is_SingleProjectError: true; readonly is_CrossProjectError: false; readonly dtor_projectId: DafnySeq; readonly dtor_err: DafnyErr } | { readonly is_MissingProject: false; readonly is_SingleProjectError: false; readonly is_CrossProjectError: true; readonly dtor_message: DafnySeq };
 
@@ -398,16 +392,12 @@ const taskToJson = (value: any): Task => {
 
 // deno-lint-ignore no-explicit-any
 const tagFromJson = (json: any): DafnyTag => {
-  return TodoDomain.Tag.create_Tag(
-    _dafny.Seq.UnicodeFromString(json.name)
-  );
+  return _dafny.Seq.UnicodeFromString(json.name);
 };
 
 // deno-lint-ignore no-explicit-any
 const tagToJson = (value: any): Tag => {
-  return {
-    name: dafnyStringToJs(value.dtor_name)
-  };
+  return { name: dafnyStringToJs(value) };
 };
 
 // deno-lint-ignore no-explicit-any
@@ -1106,29 +1096,12 @@ const multiactionToJson = (value: any): MultiAction => {
 
 // deno-lint-ignore no-explicit-any
 const multimodelFromJson = (json: any): DafnyMultiModel => {
-  let __projects = _dafny.Map.Empty;
-  for (const [k, v] of (Object.entries(json.projects || {}) as [string, any][])) {
-    const key = _dafny.Seq.UnicodeFromString(k);
-    const val = modelFromJson(v);
-    __projects = __projects.update(key, val);
-  }
-  return TodoMultiProjectDomain.MultiModel.create_MultiModel(
-    __projects
-  );
+  return ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(json.projects);
 };
 
 // deno-lint-ignore no-explicit-any
 const multimodelToJson = (value: any): MultiModel => {
-  const __projectsJson: Record<string, any> = {};
-  if (value.dtor_projects && value.dtor_projects.Keys) {
-    for (const k of value.dtor_projects.Keys.Elements) {
-      const v = value.dtor_projects.get(k);
-      __projectsJson[dafnyStringToJs(k)] = modelToJson(v);
-    }
-  }
-  return {
-    projects: __projectsJson
-  };
+  return { projects: ((dm) => { const obj = {}; if (dm && dm.Keys) { for (const k of dm.Keys.Elements) { obj[dafnyStringToJs(k)] = modelToJson(dm.get(k)); } } return obj; })(value) };
 };
 
 // deno-lint-ignore no-explicit-any
@@ -1576,7 +1549,7 @@ const App = {
   Task: (title: string, notes: string, completed: boolean, starred: boolean, dueDate: Option<Date>, assignees: string[], tags: number[], deleted: boolean, deletedBy: Option<string>, deletedFromList: Option<number>) => TodoDomain.Task.create_Task(_dafny.Seq.UnicodeFromString(title), _dafny.Seq.UnicodeFromString(notes), completed, starred, optionFromJson(dueDate, dateFromJson), _dafny.Set.fromElements(...(assignees || []).map((x: any) => _dafny.Seq.UnicodeFromString(x))), _dafny.Set.fromElements(...(tags || []).map((x: any) => new BigNumber(x))), deleted, optionFromJson(deletedBy, (x: any) => _dafny.Seq.UnicodeFromString(x)), optionFromJson(deletedFromList, (x: any) => new BigNumber(x))),
 
   // Tag constructors
-  Tag: (name: string) => TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString(name)),
+  Tag: (name: string) => _dafny.Seq.UnicodeFromString(name),
 
   // ProjectMode constructors
   Personal: () => TodoDomain.ProjectMode.create_Personal(),
@@ -1728,13 +1701,13 @@ const App = {
   IsCopyTaskTo: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
   IsMoveListTo: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsMoveListTo(ma),
   GetTouchedProjects: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
-  GetProjectModel: (mm: DafnyMultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(mm, _dafny.Seq.UnicodeFromString(projectId)),
+  GetProjectModel: (mm: MultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
   FindListForTask: (m: DafnyModel, taskId: number) => TodoMultiProjectEffectAppCore.__default.FindListForTask(m, new BigNumber(taskId)),
-  HasProject: (mm: DafnyMultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.HasProject(mm, _dafny.Seq.UnicodeFromString(projectId)),
-  GetProjectIds: (mm: DafnyMultiModel) => TodoMultiProjectEffectAppCore.__default.GetProjectIds(mm),
-  TryMultiStep: (mm: DafnyMultiModel, action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.TryMultiStep(mm, action),
+  HasProject: (mm: MultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.HasProject(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
+  GetProjectIds: (mm: MultiModel) => TodoMultiProjectEffectAppCore.__default.GetProjectIds(multimodelFromJson(mm)),
+  TryMultiStep: (mm: MultiModel, action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.TryMultiStep(multimodelFromJson(mm), action),
   MultiRebase: (projectLogs: Record<string, Action[]>, baseVersions: Record<string, number>, action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.MultiRebase(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), _dafny.Seq.of(...(v || []).map((x: any) => actionFromJson(x)))); } return m; })(projectLogs), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(baseVersions), action),
-  MultiCandidates: (mm: DafnyMultiModel, action: DafnyMultiAction) => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(mm, action)).map(x => multiactionToJson(x)),
+  MultiCandidates: (mm: MultiModel, action: DafnyMultiAction) => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(multimodelFromJson(mm), action)).map(x => multiactionToJson(x)),
 
   // Conversion functions
   optionToJson,

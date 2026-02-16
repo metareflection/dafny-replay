@@ -1575,7 +1575,7 @@ let TodoDomain = (function() {
     static TagNameExists(m, name, excludeTag) {
       return _dafny.Quantifier(((m).dtor_tags).Keys.Elements, false, function (_exists_var_0) {
         let _0_t = _exists_var_0;
-        return ((((m).dtor_tags).contains(_0_t)) && (((excludeTag).is_None) || (!(_0_t).isEqualTo((excludeTag).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_tags).get(_0_t)).dtor_name, name));
+        return ((((m).dtor_tags).contains(_0_t)) && (((excludeTag).is_None) || (!(_0_t).isEqualTo((excludeTag).dtor_value)))) && (TodoDomain.__default.EqIgnoreCase((((m).dtor_tags).get(_0_t)), name));
       });
     };
     static TryStep(m, a) {
@@ -1928,7 +1928,7 @@ let TodoDomain = (function() {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
           } else {
             let _81_id = (m).dtor_nextTagId;
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_id, TodoDomain.Tag.create_Tag(_80_name)), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_81_id, _80_name), (m).dtor_nextListId, (m).dtor_nextTaskId, ((m).dtor_nextTagId).plus(_dafny.ONE)));
           }
         }
       }
@@ -1941,7 +1941,7 @@ let TodoDomain = (function() {
           } else if (TodoDomain.__default.TagNameExists(m, _83_newName, TodoDomain.Option.create_Some(_82_tagId))) {
             return TodoDomain.Result.create_Err(TodoDomain.Err.create_DuplicateTag());
           } else {
-            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_82_tagId, TodoDomain.Tag.create_Tag(_83_newName)), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
+            return TodoDomain.Result.create_Ok(TodoDomain.Model.create_Model((m).dtor_mode, (m).dtor_owner, (m).dtor_members, (m).dtor_lists, (m).dtor_listNames, (m).dtor_tasks, (m).dtor_taskData, ((m).dtor_tags).update(_82_tagId, _83_newName), (m).dtor_nextListId, (m).dtor_nextTaskId, (m).dtor_nextTagId));
           }
         }
       }
@@ -2550,7 +2550,7 @@ let TodoDomain = (function() {
     };
     static GetTagName(m, tagId) {
       if (((m).dtor_tags).contains(tagId)) {
-        return TodoDomain.Option.create_Some((((m).dtor_tags).get(tagId)).dtor_name);
+        return TodoDomain.Option.create_Some((((m).dtor_tags).get(tagId)));
       } else {
         return TodoDomain.Option.create_None();
       }
@@ -2752,7 +2752,7 @@ let TodoDomain = (function() {
       }
     }
     static Default() {
-      return TodoDomain.Tag.create_Tag(_dafny.Seq.UnicodeFromString(""));
+      return _dafny.Seq.UnicodeFromString("");
     }
     static Rtd() {
       return class {
@@ -4263,13 +4263,13 @@ let TodoMultiProjectDomain = (function() {
         if (_source0.is_Single) {
           let _0_pid = (_source0).project;
           let _1_action = (_source0).action;
-          let _2_model = ((mm).dtor_projects).get(_0_pid);
+          let _2_model = ((mm)).get(_0_pid);
           let _3_result = TodoDomain.__default.TryStep(_2_model, _1_action);
           let _source1 = _3_result;
           {
             if (_source1.is_Ok) {
               let _4_newModel = (_source1).value;
-              return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel(((mm).dtor_projects).update(_0_pid, _4_newModel)));
+              return TodoMultiProjectDomain.Result.create_Ok(((mm)).update(_0_pid, _4_newModel));
             }
           }
           {
@@ -4285,8 +4285,8 @@ let TodoMultiProjectDomain = (function() {
           let _8_taskId = (_source0).taskId;
           let _9_dstList = (_source0).dstList;
           let _10_anchor = (_source0).anchor;
-          let _11_srcModel = ((mm).dtor_projects).get(_6_src);
-          let _12_dstModel = ((mm).dtor_projects).get(_7_dst);
+          let _11_srcModel = ((mm)).get(_6_src);
+          let _12_dstModel = ((mm)).get(_7_dst);
           let _13_extractResult = TodoMultiProjectDomain.__default.ExtractTaskData(_11_srcModel, _8_taskId);
           if ((_13_extractResult).is_Err) {
             return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Task not in source")));
@@ -4305,7 +4305,7 @@ let TodoMultiProjectDomain = (function() {
                   return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_7_dst, (_17_addResult).dtor_error));
                 } else {
                   let _18_newDst = (_17_addResult).dtor_value;
-                  return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel((((mm).dtor_projects).update(_6_src, _16_newSrc)).update(_7_dst, _18_newDst)));
+                  return TodoMultiProjectDomain.Result.create_Ok((((mm)).update(_6_src, _16_newSrc)).update(_7_dst, _18_newDst));
                 }
               }
             }
@@ -4318,8 +4318,8 @@ let TodoMultiProjectDomain = (function() {
           let _20_dst = (_source0).dstProject;
           let _21_taskId = (_source0).taskId;
           let _22_dstList = (_source0).dstList;
-          let _23_srcModel = ((mm).dtor_projects).get(_19_src);
-          let _24_dstModel = ((mm).dtor_projects).get(_20_dst);
+          let _23_srcModel = ((mm)).get(_19_src);
+          let _24_dstModel = ((mm)).get(_20_dst);
           let _25_extractResult = TodoMultiProjectDomain.__default.ExtractTaskData(_23_srcModel, _21_taskId);
           if ((_25_extractResult).is_Err) {
             return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Task not in source")));
@@ -4333,7 +4333,7 @@ let TodoMultiProjectDomain = (function() {
                 return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_20_dst, (_27_addResult).dtor_error));
               } else {
                 let _28_newDst = (_27_addResult).dtor_value;
-                return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel(((mm).dtor_projects).update(_20_dst, _28_newDst)));
+                return TodoMultiProjectDomain.Result.create_Ok(((mm)).update(_20_dst, _28_newDst));
               }
             }
           }
@@ -4343,8 +4343,8 @@ let TodoMultiProjectDomain = (function() {
         let _29_src = (_source0).srcProject;
         let _30_dst = (_source0).dstProject;
         let _31_listId = (_source0).listId;
-        let _32_srcModel = ((mm).dtor_projects).get(_29_src);
-        let _33_dstModel = ((mm).dtor_projects).get(_30_dst);
+        let _32_srcModel = ((mm)).get(_29_src);
+        let _33_dstModel = ((mm)).get(_30_dst);
         if (!(TodoDomain.__default.SeqContains((_32_srcModel).dtor_lists, _31_listId))) {
           return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_CrossProjectError(_dafny.Seq.UnicodeFromString("Source list missing")));
         } else if (!((_32_srcModel).dtor_listNames).contains(_31_listId)) {
@@ -4365,7 +4365,7 @@ let TodoMultiProjectDomain = (function() {
                 return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_SingleProjectError(_30_dst, (_38_addResult).dtor_error));
               } else {
                 let _39_newDst = (_38_addResult).dtor_value;
-                return TodoMultiProjectDomain.Result.create_Ok(TodoMultiProjectDomain.MultiModel.create_MultiModel((((mm).dtor_projects).update(_29_src, _37_newSrc)).update(_30_dst, _39_newDst)));
+                return TodoMultiProjectDomain.Result.create_Ok((((mm)).update(_29_src, _37_newSrc)).update(_30_dst, _39_newDst));
               }
             }
           }
@@ -4385,7 +4385,7 @@ let TodoMultiProjectDomain = (function() {
           if (_source0.is_MoveTaskTo) {
             let _1_src = (_source0).srcProject;
             let _2_dst = (_source0).dstProject;
-            if (!((mm).dtor_projects).contains(_1_src)) {
+            if (!((mm)).contains(_1_src)) {
               return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_1_src));
             } else {
               return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_2_dst));
@@ -4396,7 +4396,7 @@ let TodoMultiProjectDomain = (function() {
           if (_source0.is_CopyTaskTo) {
             let _3_src = (_source0).srcProject;
             let _4_dst = (_source0).dstProject;
-            if (!((mm).dtor_projects).contains(_3_src)) {
+            if (!((mm)).contains(_3_src)) {
               return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_3_src));
             } else {
               return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_4_dst));
@@ -4406,7 +4406,7 @@ let TodoMultiProjectDomain = (function() {
         {
           let _5_src = (_source0).srcProject;
           let _6_dst = (_source0).dstProject;
-          if (!((mm).dtor_projects).contains(_5_src)) {
+          if (!((mm)).contains(_5_src)) {
             return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_5_src));
           } else {
             return TodoMultiProjectDomain.Result.create_Err(TodoMultiProjectDomain.MultiErr.create_MissingProject(_6_dst));
@@ -4546,10 +4546,10 @@ let TodoMultiProjectDomain = (function() {
         if (_source0.is_Single) {
           let _0_pid = (_source0).project;
           let _1_action = (_source0).action;
-          if (!((mm).dtor_projects).contains(_0_pid)) {
+          if (!((mm)).contains(_0_pid)) {
             return _dafny.Seq.of(a);
           } else {
-            let _2_candidates = TodoDomain.__default.Candidates(((mm).dtor_projects).get(_0_pid), _1_action);
+            let _2_candidates = TodoDomain.__default.Candidates(((mm)).get(_0_pid), _1_action);
             return _dafny.Seq.Create(new BigNumber((_2_candidates).length), ((_3_pid, _4_candidates) => function (_5_i) {
               return TodoMultiProjectDomain.MultiAction.create_Single(_3_pid, (_4_candidates)[_5_i]);
             })(_0_pid, _2_candidates));
@@ -4563,10 +4563,10 @@ let TodoMultiProjectDomain = (function() {
           let _8_taskId = (_source0).taskId;
           let _9_dstList = (_source0).dstList;
           let _10_anchor = (_source0).anchor;
-          if (!((mm).dtor_projects).contains(_7_dst)) {
+          if (!((mm)).contains(_7_dst)) {
             return _dafny.Seq.of(a);
           } else {
-            let _11_dstModel = ((mm).dtor_projects).get(_7_dst);
+            let _11_dstModel = ((mm)).get(_7_dst);
             if (!(TodoDomain.__default.SeqContains((_11_dstModel).dtor_lists, _9_dstList))) {
               if ((_dafny.ZERO).isLessThan(new BigNumber(((_11_dstModel).dtor_lists).length))) {
                 return _dafny.Seq.of(a, TodoMultiProjectDomain.MultiAction.create_MoveTaskTo(_6_src, _7_dst, _8_taskId, ((_11_dstModel).dtor_lists)[_dafny.ZERO], TodoDomain.Place.create_AtEnd()));
@@ -4587,10 +4587,10 @@ let TodoMultiProjectDomain = (function() {
           let _13_dst = (_source0).dstProject;
           let _14_taskId = (_source0).taskId;
           let _15_dstList = (_source0).dstList;
-          if (!((mm).dtor_projects).contains(_13_dst)) {
+          if (!((mm)).contains(_13_dst)) {
             return _dafny.Seq.of(a);
           } else {
-            let _16_dstModel = ((mm).dtor_projects).get(_13_dst);
+            let _16_dstModel = ((mm)).get(_13_dst);
             if (!(TodoDomain.__default.SeqContains((_16_dstModel).dtor_lists, _15_dstList))) {
               if ((_dafny.ZERO).isLessThan(new BigNumber(((_16_dstModel).dtor_lists).length))) {
                 return _dafny.Seq.of(a, TodoMultiProjectDomain.MultiAction.create_CopyTaskTo(_12_src, _13_dst, _14_taskId, ((_16_dstModel).dtor_lists)[_dafny.ZERO]));
@@ -4613,13 +4613,13 @@ let TodoMultiProjectDomain = (function() {
     static GetAllPriorityTasks(mm) {
       return function () {
         let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+        for (const _compr_0 of ((mm)).Keys.Elements) {
           let _0_pid = _compr_0;
-          if (((mm).dtor_projects).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetPriorityTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).Elements) {
               let _1_tid = _compr_1;
               if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetPriorityTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                if ((TodoDomain.__default.GetPriorityTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
                   _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
                 }
               }
@@ -4632,13 +4632,13 @@ let TodoMultiProjectDomain = (function() {
     static GetAllLogbookTasks(mm) {
       return function () {
         let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+        for (const _compr_0 of ((mm)).Keys.Elements) {
           let _0_pid = _compr_0;
-          if (((mm).dtor_projects).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetLogbookTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).Elements) {
               let _1_tid = _compr_1;
               if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetLogbookTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                if ((TodoDomain.__default.GetLogbookTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
                   _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
                 }
               }
@@ -4651,13 +4651,13 @@ let TodoMultiProjectDomain = (function() {
     static GetAllVisibleTasks(mm) {
       return function () {
         let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+        for (const _compr_0 of ((mm)).Keys.Elements) {
           let _0_pid = _compr_0;
-          if (((mm).dtor_projects).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetVisibleTaskIds(((mm)).get(_0_pid))).Elements) {
               let _1_tid = _compr_1;
               if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetVisibleTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                if ((TodoDomain.__default.GetVisibleTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
                   _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
                 }
               }
@@ -4670,13 +4670,13 @@ let TodoMultiProjectDomain = (function() {
     static GetAllDeletedTasks(mm) {
       return function () {
         let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((mm).dtor_projects).Keys.Elements) {
+        for (const _compr_0 of ((mm)).Keys.Elements) {
           let _0_pid = _compr_0;
-          if (((mm).dtor_projects).contains(_0_pid)) {
-            for (const _compr_1 of (TodoDomain.__default.GetDeletedTaskIds(((mm).dtor_projects).get(_0_pid))).Elements) {
+          if (((mm)).contains(_0_pid)) {
+            for (const _compr_1 of (TodoDomain.__default.GetDeletedTaskIds(((mm)).get(_0_pid))).Elements) {
               let _1_tid = _compr_1;
               if (_System.nat._Is(_1_tid)) {
-                if ((TodoDomain.__default.GetDeletedTaskIds(((mm).dtor_projects).get(_0_pid))).contains(_1_tid)) {
+                if ((TodoDomain.__default.GetDeletedTaskIds(((mm)).get(_0_pid))).contains(_1_tid)) {
                   _coll0.add(TodoMultiProjectDomain.TaggedTaskId.create_TaggedTaskId(_0_pid, _1_tid));
                 }
               }
@@ -4710,17 +4710,17 @@ let TodoMultiProjectDomain = (function() {
       return new BigNumber((TodoMultiProjectDomain.__default.GetAllSmartListTasks(mm, smartList)).length);
     };
     static GetProject(mm, projectId) {
-      if (((mm).dtor_projects).contains(projectId)) {
-        return TodoMultiProjectDomain.Option.create_Some(((mm).dtor_projects).get(projectId));
+      if (((mm)).contains(projectId)) {
+        return TodoMultiProjectDomain.Option.create_Some(((mm)).get(projectId));
       } else {
         return TodoMultiProjectDomain.Option.create_None();
       }
     };
     static GetProjectIds(mm) {
-      return ((mm).dtor_projects).Keys;
+      return ((mm)).Keys;
     };
     static CountProjects(mm) {
-      return new BigNumber(((mm).dtor_projects).length);
+      return new BigNumber(((mm)).length);
     };
     static IsAuthorized(mm, actingUser, a) {
       let _source0 = a;
@@ -4729,7 +4729,7 @@ let TodoMultiProjectDomain = (function() {
           let _0_src = (_source0).srcProject;
           let _1_dst = (_source0).dstProject;
           let _2_listId = (_source0).listId;
-          return (((mm).dtor_projects).contains(_0_src)) && (_dafny.areEqual(actingUser, (((mm).dtor_projects).get(_0_src)).dtor_owner));
+          return (((mm)).contains(_0_src)) && (_dafny.areEqual(actingUser, (((mm)).get(_0_src)).dtor_owner));
         }
       }
       {
@@ -4815,8 +4815,8 @@ let TodoMultiProjectDomain = (function() {
           if (_dafny.areEqual(projectId, _2_src)) {
             return TodoDomain.Action.create_DeleteTask(_4_taskId, _dafny.Seq.UnicodeFromString(""));
           } else if (_dafny.areEqual(projectId, _3_dst)) {
-            if ((((mm).dtor_projects).contains(_2_src)) && (((((mm).dtor_projects).get(_2_src)).dtor_taskData).contains(_4_taskId))) {
-              let _7_task = ((((mm).dtor_projects).get(_2_src)).dtor_taskData).get(_4_taskId);
+            if ((((mm)).contains(_2_src)) && (((((mm)).get(_2_src)).dtor_taskData).contains(_4_taskId))) {
+              let _7_task = ((((mm)).get(_2_src)).dtor_taskData).get(_4_taskId);
               return TodoDomain.Action.create_AddTask(_5_dstList, (_7_task).dtor_title);
             } else {
               return TodoDomain.Action.create_NoOp();
@@ -4833,8 +4833,8 @@ let TodoMultiProjectDomain = (function() {
           let _10_taskId = (_source0).taskId;
           let _11_dstList = (_source0).dstList;
           if (_dafny.areEqual(projectId, _9_dst)) {
-            if ((((mm).dtor_projects).contains(_8_src)) && (((((mm).dtor_projects).get(_8_src)).dtor_taskData).contains(_10_taskId))) {
-              let _12_task = ((((mm).dtor_projects).get(_8_src)).dtor_taskData).get(_10_taskId);
+            if ((((mm)).contains(_8_src)) && (((((mm)).get(_8_src)).dtor_taskData).contains(_10_taskId))) {
+              let _12_task = ((((mm)).get(_8_src)).dtor_taskData).get(_10_taskId);
               return TodoDomain.Action.create_AddTask(_11_dstList, (_12_task).dtor_title);
             } else {
               return TodoDomain.Action.create_NoOp();
@@ -4851,8 +4851,8 @@ let TodoMultiProjectDomain = (function() {
         if (_dafny.areEqual(projectId, _13_src)) {
           return TodoDomain.Action.create_DeleteList(_15_listId);
         } else if (_dafny.areEqual(projectId, _14_dst)) {
-          if ((((mm).dtor_projects).contains(_13_src)) && (((((mm).dtor_projects).get(_13_src)).dtor_listNames).contains(_15_listId))) {
-            let _16_listName = ((((mm).dtor_projects).get(_13_src)).dtor_listNames).get(_15_listId);
+          if ((((mm)).contains(_13_src)) && (((((mm)).get(_13_src)).dtor_listNames).contains(_15_listId))) {
+            let _16_listName = ((((mm)).get(_13_src)).dtor_listNames).get(_15_listId);
             return TodoDomain.Action.create_AddList(_16_listName);
           } else {
             return TodoDomain.Action.create_NoOp();
@@ -4865,15 +4865,15 @@ let TodoMultiProjectDomain = (function() {
     static AllProjectsLoaded(mm, a) {
       return _dafny.Quantifier((TodoMultiProjectDomain.__default.TouchedProjects(a)).Elements, true, function (_forall_var_0) {
         let _0_pid = _forall_var_0;
-        return !((TodoMultiProjectDomain.__default.TouchedProjects(a)).contains(_0_pid)) || (((mm).dtor_projects).contains(_0_pid));
+        return !((TodoMultiProjectDomain.__default.TouchedProjects(a)).contains(_0_pid)) || (((mm)).contains(_0_pid));
       });
     };
     static ChangedProjects(before, after) {
       return function () {
         let _coll0 = new _dafny.Set();
-        for (const _compr_0 of ((after).dtor_projects).Keys.Elements) {
+        for (const _compr_0 of ((after)).Keys.Elements) {
           let _0_pid = _compr_0;
-          if ((((after).dtor_projects).contains(_0_pid)) && ((!((before).dtor_projects).contains(_0_pid)) || (!_dafny.areEqual(((before).dtor_projects).get(_0_pid), ((after).dtor_projects).get(_0_pid))))) {
+          if ((((after)).contains(_0_pid)) && ((!((before)).contains(_0_pid)) || (!_dafny.areEqual(((before)).get(_0_pid), ((after)).get(_0_pid))))) {
             _coll0.add(_0_pid);
           }
         }
@@ -5120,7 +5120,7 @@ let TodoMultiProjectDomain = (function() {
       }
     }
     static Default() {
-      return TodoMultiProjectDomain.MultiModel.create_MultiModel(_dafny.Map.Empty);
+      return _dafny.Map.Empty;
     }
     static Rtd() {
       return class {
@@ -5334,7 +5334,7 @@ let TodoMultiProjectEffectStateMachine = (function() {
       }();
     };
     static InitClient(versions, models) {
-      return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(versions, TodoMultiProjectDomain.MultiModel.create_MultiModel(models), _dafny.Seq.of());
+      return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(versions, models, _dafny.Seq.of());
     };
     static ClientLocalDispatch(client, action) {
       if (!(TodoMultiProjectDomain.__default.AllProjectsLoaded((client).dtor_present, action))) {
@@ -5409,8 +5409,8 @@ let TodoMultiProjectEffectStateMachine = (function() {
     };
     static MergeUpdates(client, newVersions, newModels) {
       let _0_mergedVersions = TodoMultiProjectEffectStateMachine.__default.MergeVersions((client).dtor_baseVersions, newVersions);
-      let _1_mergedProjects = TodoMultiProjectEffectStateMachine.__default.MergeModels(((client).dtor_present).dtor_projects, newModels);
-      return _dafny.Tuple.of(_0_mergedVersions, TodoMultiProjectDomain.MultiModel.create_MultiModel(_1_mergedProjects));
+      let _1_mergedProjects = TodoMultiProjectEffectStateMachine.__default.MergeModels(((client).dtor_present), newModels);
+      return _dafny.Tuple.of(_0_mergedVersions, _1_mergedProjects);
     };
     static ClientAcceptReply(client, newVersions, newModels) {
       if ((new BigNumber(((client).dtor_pending).length)).isEqualTo(_dafny.ZERO)) {
@@ -5778,7 +5778,7 @@ let TodoMultiProjectEffectStateMachine = (function() {
       }
     }
     static Default() {
-      return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(_dafny.Map.Empty, TodoMultiProjectDomain.MultiModel.Default(), _dafny.Seq.of());
+      return TodoMultiProjectEffectStateMachine.MultiClientState.create_MultiClientState(_dafny.Map.Empty, _dafny.Map.Empty, _dafny.Seq.of());
     }
     static Rtd() {
       return class {
@@ -6258,16 +6258,16 @@ let TodoMultiProjectEffectAppCore = (function() {
       return TodoMultiProjectDomain.__default.TouchedProjects(ma);
     };
     static GetProjectModel(mm, projectId) {
-      return ((mm).dtor_projects).get(projectId);
+      return ((mm)).get(projectId);
     };
     static FindListForTask(m, taskId) {
       return TodoDomain.__default.FindListForTask(m, taskId);
     };
     static HasProject(mm, projectId) {
-      return ((mm).dtor_projects).contains(projectId);
+      return ((mm)).contains(projectId);
     };
     static GetProjectIds(mm) {
-      return ((mm).dtor_projects).Keys;
+      return ((mm)).Keys;
     };
     static TryMultiStep(mm, action) {
       return TodoMultiProjectDomain.__default.TryMultiStep(mm, action);

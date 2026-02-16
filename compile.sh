@@ -202,13 +202,13 @@ fi
 
 if should_build collab-todo; then
     echo "Compiling TodoMultiCollaboration to JavaScript..."
-    dafny translate js --no-verify --optimize-erasable-datatype-wrapper:false -o generated/TodoMulti --include-runtime collab-todo/TodoMultiCollaboration.dfy
+    dafny translate js --no-verify -o generated/TodoMulti --include-runtime collab-todo/TodoMultiCollaboration.dfy
 
     echo "Copying to collab-todo project..."
     cp generated/TodoMulti.js collab-todo/src/dafny/TodoMulti.cjs
 
     echo "Compiling TodoMultiProjectEffectStateMachine to JavaScript..."
-    dafny translate js --no-verify --optimize-erasable-datatype-wrapper:false -o generated/TodoMultiProjectEffect --include-runtime collab-todo/TodoMultiProjectEffectStateMachine.dfy
+    dafny translate js --no-verify -o generated/TodoMultiProjectEffect --include-runtime collab-todo/TodoMultiProjectEffectStateMachine.dfy
 
     echo "Copying TodoMultiProjectEffectStateMachine to collab-todo project..."
     cp generated/TodoMultiProjectEffect.js collab-todo/src/dafny/TodoMultiProjectEffect.cjs

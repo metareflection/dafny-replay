@@ -170,10 +170,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   contains(key: K): boolean;
 }
 
-interface DafnyCard {
-  readonly is_Card: true;
-  readonly dtor_title: DafnySeq;
-}
+type DafnyCard = DafnySeq;
 
 interface DafnyModel {
   readonly is_Model: true;
@@ -247,16 +244,12 @@ type DafnyCommand = { readonly is_NoOp: true; readonly is_SendDispatch: false; r
 
 // deno-lint-ignore no-explicit-any
 const cardFromJson = (json: any): DafnyCard => {
-  return KanbanDomain.Card.create_Card(
-    _dafny.Seq.UnicodeFromString(json.title)
-  );
+  return _dafny.Seq.UnicodeFromString(json.title);
 };
 
 // deno-lint-ignore no-explicit-any
 const cardToJson = (value: any): Card => {
-  return {
-    title: dafnyStringToJs(value.dtor_title)
-  };
+  return { title: dafnyStringToJs(value) };
 };
 
 // deno-lint-ignore no-explicit-any
@@ -885,7 +878,7 @@ interface AppInternal { _dafny: unknown; KanbanDomain: unknown; KanbanMultiColla
 
 const App = {
   // Card constructors
-  Card: (title: string) => KanbanDomain.Card.create_Card(_dafny.Seq.UnicodeFromString(title)),
+  Card: (title: string) => _dafny.Seq.UnicodeFromString(title),
 
   // Err constructors
   MissingColumn: () => KanbanDomain.Err.create_MissingColumn(),

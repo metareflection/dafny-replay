@@ -132,7 +132,7 @@ const App = {
     if (m.dtor_tags && m.dtor_tags.Keys) {
       for (const key of m.dtor_tags.Keys.Elements) {
         const tag = m.dtor_tags.get(key);
-        result[toNumber(key)] = { name: dafnyStringToJs(tag.dtor_name) };
+        result[toNumber(key)] = { name: dafnyStringToJs(tag) };
       }
     }
     return result;
@@ -270,17 +270,18 @@ const App = {
   MultiModel: {
     getProject: (mm: any, projectId: string) => {
       if (!projectId || !mm) return null;
-      if (GeneratedApp.HasProject(mm, projectId)) {
-        return GeneratedApp.GetProjectModel(mm, projectId);
+      const pid = _dafny.Seq.UnicodeFromString(projectId);
+      if (TodoMultiProjectEffectAppCore.__default.HasProject(mm, pid)) {
+        return TodoMultiProjectEffectAppCore.__default.GetProjectModel(mm, pid);
       }
       return null;
     },
     hasProject: (mm: any, projectId: string) => {
       if (!projectId || !mm) return false;
-      return GeneratedApp.HasProject(mm, projectId);
+      return TodoMultiProjectEffectAppCore.__default.HasProject(mm, _dafny.Seq.UnicodeFromString(projectId));
     },
     getProjectIds: (mm: any) => {
-      const set = GeneratedApp.GetProjectIds(mm);
+      const set = TodoMultiProjectEffectAppCore.__default.GetProjectIds(mm);
       return dafnySetToArray(set, dafnyStringToJs);
     },
     // VERIFIED: Get all priority tasks across all projects
@@ -343,7 +344,7 @@ const App = {
   // -------------------------------------------------------------------------
 
   TryMultiStep: (mm: any, action: any) => {
-    const result = GeneratedApp.TryMultiStep(mm, action);
+    const result = TodoMultiProjectEffectAppCore.__default.TryMultiStep(mm, action);
     return {
       is_Ok: result.is_Ok,
       value: result.is_Ok ? result.dtor_value : null,
@@ -354,7 +355,7 @@ const App = {
   MultiRebase: (projectLogs: any, baseVersions: any, action: any) =>
     GeneratedApp.MultiRebase(projectLogs, baseVersions, action),
 
-  MultiCandidates: (mm: any, action: any) => GeneratedApp.MultiCandidates(mm, action),
+  MultiCandidates: (mm: any, action: any) => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(mm, action)).map((x: any) => GeneratedApp.multiactionToJson(x)),
 };
 
 // ============================================================================
