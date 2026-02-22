@@ -426,17 +426,17 @@ const App = {
   MoveNode: (id: string, newX: number, newY: number) => CanonDomain.Action.create_MoveNode(_dafny.Seq.UnicodeFromString(id), new BigNumber(newX), new BigNumber(newY)),
 
   // AppCore functions
-  Init: () => AppCore.__default.Init(),
-  Dispatch: (h: DafnyHistory, a: DafnyAction) => AppCore.__default.Dispatch(h, a),
-  Undo: (h: DafnyHistory) => AppCore.__default.Undo(h),
-  Redo: (h: DafnyHistory) => AppCore.__default.Redo(h),
-  CanonHistory: (h: DafnyHistory) => AppCore.__default.CanonHistory(h),
-  Present: (h: DafnyHistory) => AppCore.__default.Present(h),
-  CanUndo: (h: DafnyHistory) => AppCore.__default.CanUndo(h),
-  CanRedo: (h: DafnyHistory) => AppCore.__default.CanRedo(h),
-  Nodes: (h: DafnyHistory) => AppCore.__default.Nodes(h),
-  Edges: (h: DafnyHistory) => seqToArray(AppCore.__default.Edges(h)).map(x => edgeToJson(x)),
-  Constraints: (h: DafnyHistory) => seqToArray(AppCore.__default.Constraints(h)).map(x => constraintToJson(x)),
+  Init: (): DafnyHistory => AppCore.__default.Init(),
+  Dispatch: (h: DafnyHistory, a: DafnyAction): DafnyHistory => AppCore.__default.Dispatch(h, a),
+  Undo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Undo(h),
+  Redo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Redo(h),
+  CanonHistory: (h: DafnyHistory): DafnyHistory => AppCore.__default.CanonHistory(h),
+  Present: (h: DafnyHistory): DafnyModel => AppCore.__default.Present(h),
+  CanUndo: (h: DafnyHistory): boolean => AppCore.__default.CanUndo(h),
+  CanRedo: (h: DafnyHistory): boolean => AppCore.__default.CanRedo(h),
+  Nodes: (h: DafnyHistory): DafnyMap<DafnySeq, DafnyNode> => AppCore.__default.Nodes(h),
+  Edges: (h: DafnyHistory): Edge[] => seqToArray(AppCore.__default.Edges(h)).map(x => edgeToJson(x)),
+  Constraints: (h: DafnyHistory): Constraint[] => seqToArray(AppCore.__default.Constraints(h)).map(x => constraintToJson(x)),
 
   // Conversion functions
   actionToJson,

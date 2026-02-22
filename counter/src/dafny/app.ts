@@ -135,13 +135,13 @@ const App = {
   Dec: () => CounterDomain.Action.create_Dec(),
 
   // AppCore functions
-  Init: () => AppCore.__default.Init(),
-  Dispatch: (h: DafnyHistory, a: DafnyAction) => AppCore.__default.Dispatch(h, a),
-  Undo: (h: DafnyHistory) => AppCore.__default.Undo(h),
-  Redo: (h: DafnyHistory) => AppCore.__default.Redo(h),
-  Present: (h: DafnyHistory) => toNumber(AppCore.__default.Present(h)),
-  CanUndo: (h: DafnyHistory) => AppCore.__default.CanUndo(h),
-  CanRedo: (h: DafnyHistory) => AppCore.__default.CanRedo(h),
+  Init: (): DafnyHistory => AppCore.__default.Init(),
+  Dispatch: (h: DafnyHistory, a: DafnyAction): DafnyHistory => AppCore.__default.Dispatch(h, a),
+  Undo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Undo(h),
+  Redo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Redo(h),
+  Present: (h: DafnyHistory): number => toNumber(AppCore.__default.Present(h)),
+  CanUndo: (h: DafnyHistory): boolean => AppCore.__default.CanUndo(h),
+  CanRedo: (h: DafnyHistory): boolean => AppCore.__default.CanRedo(h),
 
   // Conversion functions
   actionToJson,

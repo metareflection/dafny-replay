@@ -385,13 +385,13 @@ const App = {
   GetSettlements: (m: DafnyModel) => seqToArray(m.dtor_settlements).map((x: any) => settlementToJson(x)),
 
   // AppCore functions
-  MakeExpense: (paidBy: string, amount: number, shares: Record<string, number>, shareKeys: string[]) => ClearSplitAppCore.__default.MakeExpense(_dafny.Seq.UnicodeFromString(paidBy), new BigNumber(amount), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(shares), _dafny.Seq.of(...(shareKeys || []).map((x: any) => _dafny.Seq.UnicodeFromString(x)))),
-  MakeSettlement: (from: string, to: string, amount: number) => ClearSplitAppCore.__default.MakeSettlement(_dafny.Seq.UnicodeFromString(from), _dafny.Seq.UnicodeFromString(to), new BigNumber(amount)),
-  Balances: (model: DafnyModel) => ClearSplitAppCore.__default.Balances(model),
-  GetBalance: (model: DafnyModel, p: string) => toNumber(ClearSplitAppCore.__default.GetBalance(model, _dafny.Seq.UnicodeFromString(p))),
-  Members: (model: DafnyModel) => seqToArray(ClearSplitAppCore.__default.Members(model)).map(x => dafnyStringToJs(x)),
-  Expenses: (model: DafnyModel) => seqToArray(ClearSplitAppCore.__default.Expenses(model)).map(x => expenseToJson(x)),
-  Settlements: (model: DafnyModel) => seqToArray(ClearSplitAppCore.__default.Settlements(model)).map(x => settlementToJson(x)),
+  MakeExpense: (paidBy: string, amount: number, shares: Record<string, number>, shareKeys: string[]): DafnyExpense => ClearSplitAppCore.__default.MakeExpense(_dafny.Seq.UnicodeFromString(paidBy), new BigNumber(amount), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(shares), _dafny.Seq.of(...(shareKeys || []).map((x: any) => _dafny.Seq.UnicodeFromString(x)))),
+  MakeSettlement: (from: string, to: string, amount: number): DafnySettlement => ClearSplitAppCore.__default.MakeSettlement(_dafny.Seq.UnicodeFromString(from), _dafny.Seq.UnicodeFromString(to), new BigNumber(amount)),
+  Balances: (model: DafnyModel): DafnyMap<DafnySeq, DafnyInt> => ClearSplitAppCore.__default.Balances(model),
+  GetBalance: (model: DafnyModel, p: string): number => toNumber(ClearSplitAppCore.__default.GetBalance(model, _dafny.Seq.UnicodeFromString(p))),
+  Members: (model: DafnyModel): string[] => seqToArray(ClearSplitAppCore.__default.Members(model)).map(x => dafnyStringToJs(x)),
+  Expenses: (model: DafnyModel): Expense[] => seqToArray(ClearSplitAppCore.__default.Expenses(model)).map(x => expenseToJson(x)),
+  Settlements: (model: DafnyModel): Settlement[] => seqToArray(ClearSplitAppCore.__default.Settlements(model)).map(x => settlementToJson(x)),
 
   // Conversion functions
   expenseToJson,

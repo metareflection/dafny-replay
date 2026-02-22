@@ -447,15 +447,15 @@ const App = {
   GetAdjustmentL: (m: DafnyModel) => toNumber(m.dtor_adjustmentL),
 
   // AppCore functions
-  Init: () => AppCore.__default.Init(),
-  Dispatch: (h: DafnyHistory, a: DafnyAction) => AppCore.__default.Dispatch(h, a),
-  Preview: (h: DafnyHistory, a: DafnyAction) => AppCore.__default.Preview(h, a),
-  CommitFrom: (h: DafnyHistory, baseline: DafnyModel) => AppCore.__default.CommitFrom(h, baseline),
-  Undo: (h: DafnyHistory) => AppCore.__default.Undo(h),
-  Redo: (h: DafnyHistory) => AppCore.__default.Redo(h),
-  Present: (h: DafnyHistory) => AppCore.__default.Present(h),
-  CanUndo: (h: DafnyHistory) => AppCore.__default.CanUndo(h),
-  CanRedo: (h: DafnyHistory) => AppCore.__default.CanRedo(h),
+  Init: (): DafnyHistory => AppCore.__default.Init(),
+  Dispatch: (h: DafnyHistory, a: DafnyAction): DafnyHistory => AppCore.__default.Dispatch(h, a),
+  Preview: (h: DafnyHistory, a: DafnyAction): DafnyHistory => AppCore.__default.Preview(h, a),
+  CommitFrom: (h: DafnyHistory, baseline: DafnyModel): DafnyHistory => AppCore.__default.CommitFrom(h, baseline),
+  Undo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Undo(h),
+  Redo: (h: DafnyHistory): DafnyHistory => AppCore.__default.Redo(h),
+  Present: (h: DafnyHistory): DafnyModel => AppCore.__default.Present(h),
+  CanUndo: (h: DafnyHistory): boolean => AppCore.__default.CanUndo(h),
+  CanRedo: (h: DafnyHistory): boolean => AppCore.__default.CanRedo(h),
 
   // Conversion functions
   colorToJson,
