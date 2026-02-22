@@ -44,13 +44,6 @@ const toNumber = (bn: any): number => {
   return bn;
 };
 
-// deno-lint-ignore no-explicit-any
-const dafnyStringToJs = (seq: any): string => {
-  if (typeof seq === 'string') return seq;
-  if (seq.toVerbatimString) return seq.toVerbatimString(false);
-  return Array.from(seq).join('');
-};
-
 
 // ============================================================================
 // TypeScript Type Definitions (JSON representation)
