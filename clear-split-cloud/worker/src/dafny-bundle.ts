@@ -2756,6 +2756,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
 
 interface DafnyExpense {
   readonly is_Expense: true;
