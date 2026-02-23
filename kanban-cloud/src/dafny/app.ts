@@ -72,7 +72,7 @@ export type Err = 'MissingColumn' | 'MissingCard' | 'WipExceeded' | 'BadAnchor' 
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: unknown };
+  | { type: 'Some'; value: T };
 
 export type Place =
   | { type: 'AtEnd' }
@@ -88,8 +88,8 @@ export type Action =
   | { type: 'EditTitle'; id: number; title: string };
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Err'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
 
 export interface RejectReason {
 }

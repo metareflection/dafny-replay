@@ -6386,7 +6386,7 @@ const dafnyStringToJs = (seq: any): string => {
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: unknown };
+  | { type: 'Some'; value: T };
 
 export interface Date {
   year: number;
@@ -6471,8 +6471,8 @@ export type ViewMode = 'SingleProject' | 'AllProjects';
 export type SmartListType = 'Priority' | 'Logbook';
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Err'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
 
 export type MultiAction =
   | { type: 'Single'; project: string; action: Action }

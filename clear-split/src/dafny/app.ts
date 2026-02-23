@@ -77,8 +77,8 @@ export interface Model {
 }
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Error'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Error'; error: E };
 
 export type Err =
   | { type: 'NotMember'; p: string }
