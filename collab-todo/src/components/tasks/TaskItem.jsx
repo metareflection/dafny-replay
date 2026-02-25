@@ -32,6 +32,9 @@ export function TaskItem({
   const [showMenu, setShowMenu] = useState(false)
   const [showMoveMenu, setShowMoveMenu] = useState(false)
   const [showNotesModal, setShowNotesModal] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const editInputRef = useRef(null)
   const menuRef = useRef(null)
 
   // Click outside to close menu
@@ -86,6 +89,36 @@ export function TaskItem({
     onEdit(taskId, task.title, notes)
   }
 
+  const handleDoubleClick = (e) => {
+    e.stopPropagation()
+    setEditing(true)
+    setEditTitle(task.title)
+  }
+
+  const handleTitleSave = () => {
+    const trimmed = editTitle.trim()
+    if (trimmed && trimmed !== task.title) {
+      onEdit(taskId, trimmed, task.notes || '')
+    }
+    setEditing(false)
+  }
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleTitleSave()
+    } else if (e.key === 'Escape') {
+      setEditTitle(task.title)
+      setEditing(false)
+    }
+  }
+
+  useEffect(() => {
+    if (editing && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editing])
+
   const hasDueDate = !!task.dueDate
   const hasTags = task.tags && task.tags.length > 0
   const hasAssignees = task.assignees && task.assignees.length > 0
@@ -102,9 +135,20 @@ export function TaskItem({
       </button>
 
       <div className="task-item__main">
-        <div className="task-item__content" onClick={() => setExpanded(!expanded)}>
+        <div className="task-item__content" onClick={() => !editing && setExpanded(!expanded)}>
           <div className="task-item__title-row">
-            <span className="task-item__title">{task.title}</span>
+            {editing ? (
+              <input
+                ref={editInputRef}
+                className="task-item__title-input"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown}
+              />
+            ) : (
+              <span className="task-item__title" onDoubleClick={handleDoubleClick}>{task.title}</span>
+            )}
           </div>
         </div>
 
