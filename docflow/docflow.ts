@@ -1,11 +1,11 @@
 // Unverified glue connecting Workflow + Validation verified modules.
 // This is the boundary layer — thin, auditable, and the only unverified code.
 
-import Workflow from './generated/workflow.ts';
-import Validation from './generated/validation.ts';
+import Workflow from './src/dafny/workflow.ts';
+import Validation from './src/dafny/validation.ts';
 
-import type { Doc, State, Transition } from './generated/workflow.ts';
-import type { Rule, ValidationError } from './generated/validation.ts';
+import type { Doc, State, Transition } from './src/dafny/workflow.ts';
+import type { Rule, ValidationError } from './src/dafny/validation.ts';
 
 export type { Doc, State, Transition, Rule, ValidationError };
 
