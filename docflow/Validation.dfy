@@ -1,6 +1,5 @@
 module Validation {
-  // A field value is either absent or a string
-  datatype FieldValue = Absent | Value(s: string)
+  datatype Option<T> = None | Some(value: T)
 
   // Constraint types
   datatype Constraint =
@@ -16,31 +15,31 @@ module Validation {
   // A validation error
   datatype ValidationError = ValidationError(field: string, message: string)
 
-  // A form is a map from field names to values
-  type Form = map<string, FieldValue>
+  // A form is a map from field names to optional string values
+  type Form = map<string, Option<string>>
 
   // --- Core validation logic ---
 
   // Check a single constraint against a field value
-  predicate SatisfiesConstraint(form: Form, fieldName: string, value: FieldValue, c: Constraint) {
+  predicate SatisfiesConstraint(form: Form, fieldName: string, value: Option<string>, c: Constraint) {
     match c
     case Required =>
-      value.Value?
+      value.Some?
     case MinLength(min) =>
-      value.Absent? || |value.s| >= min
+      value.None? || |value.value| >= min
     case MaxLength(max) =>
-      value.Absent? || |value.s| <= max
+      value.None? || |value.value| <= max
     case OneOf(allowed) =>
-      value.Absent? || value.s in allowed
+      value.None? || value.value in allowed
     case DependsOn(depField, triggerValue) =>
-      var depValue := if depField in form then form[depField] else Absent;
+      var depValue := if depField in form then form[depField] else None;
       // If the dependency field has the trigger value, this field is required
-      !(depValue.Value? && depValue.s == triggerValue) || value.Value?
+      !(depValue.Some? && depValue.value == triggerValue) || value.Some?
   }
 
   // Check all constraints for a single rule
   predicate SatisfiesRule(form: Form, rule: Rule) {
-    var value := if rule.field in form then form[rule.field] else Absent;
+    var value := if rule.field in form then form[rule.field] else None;
     forall i :: 0 <= i < |rule.constraints| ==>
       SatisfiesConstraint(form, rule.field, value, rule.constraints[i])
   }
@@ -52,11 +51,11 @@ module Validation {
 
   // Collect errors for a single rule
   function ErrorsForRule(form: Form, rule: Rule): seq<ValidationError> {
-    var value := if rule.field in form then form[rule.field] else Absent;
+    var value := if rule.field in form then form[rule.field] else None;
     ErrorsForConstraints(form, rule.field, value, rule.constraints)
   }
 
-  function ErrorsForConstraints(form: Form, fieldName: string, value: FieldValue, constraints: seq<Constraint>): seq<ValidationError> {
+  function ErrorsForConstraints(form: Form, fieldName: string, value: Option<string>, constraints: seq<Constraint>): seq<ValidationError> {
     if |constraints| == 0 then []
     else
       var c := constraints[0];
@@ -85,11 +84,11 @@ module Validation {
   lemma RuleSatisfiedIffNoErrors(form: Form, rule: Rule)
     ensures SatisfiesRule(form, rule) <==> |ErrorsForRule(form, rule)| == 0
   {
-    var value := if rule.field in form then form[rule.field] else Absent;
+    var value := if rule.field in form then form[rule.field] else None;
     ConstraintsSatisfiedIffNoErrors(form, rule.field, value, rule.constraints);
   }
 
-  lemma ConstraintsSatisfiedIffNoErrors(form: Form, fieldName: string, value: FieldValue, constraints: seq<Constraint>)
+  lemma ConstraintsSatisfiedIffNoErrors(form: Form, fieldName: string, value: Option<string>, constraints: seq<Constraint>)
     ensures (forall i :: 0 <= i < |constraints| ==> SatisfiesConstraint(form, fieldName, value, constraints[i]))
             <==> |ErrorsForConstraints(form, fieldName, value, constraints)| == 0
   {
@@ -152,7 +151,7 @@ module Validation {
 
   // Adding a Required constraint to an empty form always produces an error
   lemma RequiredFieldOnEmptyForm(fieldName: string, otherConstraints: seq<Constraint>)
-    ensures !SatisfiesConstraint(map[], fieldName, Absent, Required)
+    ensures !SatisfiesConstraint(map[], fieldName, None, Required)
   {
   }
 
@@ -163,7 +162,7 @@ module Validation {
     requires SatisfiesRule(form, rule)
     ensures SatisfiesRule(form, Rule(rule.field, rule.constraints[..i] + rule.constraints[i+1..]))
   {
-    var value := if rule.field in form then form[rule.field] else Absent;
+    var value := if rule.field in form then form[rule.field] else None;
     var fewer := rule.constraints[..i] + rule.constraints[i+1..];
     forall j | 0 <= j < |fewer|
       ensures SatisfiesConstraint(form, rule.field, value, fewer[j])
@@ -195,7 +194,7 @@ module Validation {
   }
 
   // DependsOn: if the trigger field is absent, the constraint is satisfied
-  lemma DependsOnAbsentTrigger(form: Form, fieldName: string, value: FieldValue, depField: string, triggerValue: string)
+  lemma DependsOnAbsentTrigger(form: Form, fieldName: string, value: Option<string>, depField: string, triggerValue: string)
     requires depField !in form
     ensures SatisfiesConstraint(form, fieldName, value, DependsOn(depField, triggerValue))
   {

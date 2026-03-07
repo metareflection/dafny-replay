@@ -287,7 +287,8 @@ if should_build docflow; then
         --app-core Validation \
         --cjs-name Validation.cjs \
         --client ../docflow/generated/validation.ts \
-        --json-api)
+        --json-api \
+        --null-options)
 fi
 
 echo "Done."

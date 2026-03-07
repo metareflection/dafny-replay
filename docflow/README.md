@@ -35,8 +35,8 @@ The verified modules don't know about each other. The glue connects them. The UI
 **`docflow.ts`** — unverified boundary connecting both modules
 
 - `DocFlow` bundles `{ doc, form, rules }` as combined state
-- `transition(flow, t)` — calls `TryTransition` for guard/workflow errors, then validates form for gated transitions (Submit)
-- `setField` / `getField` — `string | null` ergonomics over the Dafny `FieldValue` type
+- `transition(flow, t)` — checks workflow guards via `TryTransition`, then validates form for configured transitions
+- `setField(flow, "title", "Hello")` / `getField(flow, "title")` — form fields are `string | null`, mapped to Dafny's `Option<string>` by `--null-options`
 - Error reasons come from the verified spec, not the glue
 
 ## Running
@@ -54,4 +54,4 @@ From the repo root:
 ./compile.sh docflow
 ```
 
-Uses `--app-core Workflow` / `--app-core Validation` (the module IS the AppCore) and `--json-api` for full JSON marshalling on the generated wrappers.
+Uses `--app-core Workflow` / `--app-core Validation` (the module IS the AppCore), `--json-api` for full JSON marshalling, and `--null-options` so `Option<string>` maps to `string | null` at the boundary.

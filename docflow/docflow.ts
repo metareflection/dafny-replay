@@ -5,26 +5,23 @@ import Workflow from './generated/workflow.ts';
 import Validation from './generated/validation.ts';
 
 import type { Doc, State, Transition } from './generated/workflow.ts';
-import type { FieldValue, Rule, ValidationError } from './generated/validation.ts';
+import type { Rule, ValidationError } from './generated/validation.ts';
 
-export type { Doc, State, Transition, FieldValue, Rule, ValidationError };
+export type { Doc, State, Transition, Rule, ValidationError };
+
+// With --null-options, the generated wrapper accepts string | null directly
+// for Option<string> fields — no manual conversion needed.
+type Form = Record<string, string | null>;
 
 export interface DocFlow {
   doc: Doc;
-  form: Record<string, FieldValue>;
+  form: Form;
   rules: Rule[];
 }
 
 export type DocFlowResult =
   | { ok: true; flow: DocFlow }
   | { ok: false; errors: ValidationError[]; reason?: string };
-
-// FieldValue ergonomics: string | null → FieldValue
-const toFieldValue = (v: string | null): FieldValue =>
-  v === null ? { type: 'Absent' } : { type: 'Value', s: v };
-
-const fromFieldValue = (fv: FieldValue): string | null =>
-  fv.type === 'Absent' ? null : fv.s;
 
 // Transitions that require form validation before proceeding
 const VALIDATION_GATED: Set<Transition> = new Set(['Submit']);
@@ -40,14 +37,12 @@ export function createDocFlow(rules: Rule[]): DocFlow {
 export function setField(flow: DocFlow, field: string, value: string | null): DocFlow {
   return {
     ...flow,
-    form: { ...flow.form, [field]: toFieldValue(value) },
+    form: { ...flow.form, [field]: value },
   };
 }
 
 export function getField(flow: DocFlow, field: string): string | null {
-  const fv = flow.form[field];
-  if (!fv) return null;
-  return fromFieldValue(fv);
+  return flow.form[field] ?? null;
 }
 
 export function validate(flow: DocFlow): ValidationError[] {
