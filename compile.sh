@@ -260,4 +260,34 @@ if should_build collab-todo; then
         --null-options)
 fi
 
+if should_build docflow; then
+    echo "Compiling Workflow to JavaScript..."
+    dafny translate js --no-verify -o generated/Workflow --include-runtime docflow/Workflow.dfy
+
+    echo "Copying Workflow to docflow project..."
+    cp generated/Workflow.js docflow/generated/Workflow.cjs
+
+    echo "Generating docflow workflow.ts..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../docflow/Workflow.dfy \
+        --app-core Workflow \
+        --cjs-name Workflow.cjs \
+        --client ../docflow/generated/workflow.ts \
+        --json-api)
+
+    echo "Compiling Validation to JavaScript..."
+    dafny translate js --no-verify -o generated/Validation --include-runtime docflow/Validation.dfy
+
+    echo "Copying Validation to docflow project..."
+    cp generated/Validation.js docflow/generated/Validation.cjs
+
+    echo "Generating docflow validation.ts..."
+    (cd dafny2js && dotnet run --no-build -- \
+        --file ../docflow/Validation.dfy \
+        --app-core Validation \
+        --cjs-name Validation.cjs \
+        --client ../docflow/generated/validation.ts \
+        --json-api)
+fi
+
 echo "Done."
