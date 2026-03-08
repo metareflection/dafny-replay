@@ -10,6 +10,8 @@
 - [_Verifying State & Reconciliation in Collaborative Web Apps_](https://midspiral.com/blog/verifying-state-reconciliation-in-collaborative-web-apps/)
 - [_The Intent Envelope: Proofs for Completeness, Not Just Soundness_](https://midspiral.com/blog/intent-envelope-proofs-for-completeness-not-just-soundness/)
 
+**Check out [lemmafit](https://github.com/midspiral/lemmafit)**, which streamlines the dafny-replay methodology.
+
 This project started as a verified replay (undo/redo) kernel for UI state—hence the name—and has grown into a broader exploration of verified state evolution across both local and client–server settings.
 
 `dafny-replay` provides small, reusable **verified kernels for application state**—including replayable (undo/redo, time-travel) state and experimental client–server authority kernels—where **global invariants are proved once and preserved by construction**.

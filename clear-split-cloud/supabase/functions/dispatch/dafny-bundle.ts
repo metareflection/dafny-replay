@@ -3688,8 +3688,8 @@ export interface Model {
 }
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Error'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Error'; error: E };
 
 export type Err =
   | { type: 'NotMember'; p: string }
@@ -3803,6 +3803,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
 
 interface DafnyExpense {
   readonly is_Expense: true;

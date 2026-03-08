@@ -6392,7 +6392,7 @@ const dafnyStringToJs = (seq: any): string => {
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: unknown };
+  | { type: 'Some'; value: T };
 
 export interface Date {
   year: number;
@@ -6477,8 +6477,8 @@ export type ViewMode = 'SingleProject' | 'AllProjects';
 export type SmartListType = 'Priority' | 'Logbook';
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Err'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
 
 export type MultiAction =
   | { type: 'Single'; project: string; action: Action }
@@ -6548,6 +6548,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
 
 type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
 

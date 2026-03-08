@@ -58,7 +58,7 @@ const dafnyStringToJs = (seq: any): string => {
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: unknown };
+  | { type: 'Some'; value: T };
 
 export interface Date {
   year: number;
@@ -143,8 +143,8 @@ export type ViewMode = 'SingleProject' | 'AllProjects';
 export type SmartListType = 'Priority' | 'Logbook';
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Err'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
 
 export type MultiAction =
   | { type: 'Single'; project: string; action: Action }
@@ -214,6 +214,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
 
 type DafnyOption<T> = { readonly is_None: true; readonly is_Some: false } | { readonly is_None: false; readonly is_Some: true; readonly dtor_value: T };
 
@@ -1663,51 +1664,51 @@ const App = {
   GetNextTagId: (m: DafnyModel) => toNumber(m.dtor_nextTagId),
 
   // AppCore functions
-  EffectInit: (versions: Record<string, number>, models: Record<string, Model>) => TodoMultiProjectEffectAppCore.__default.EffectInit(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(versions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(models)),
-  EffectStep: (es: DafnyEffectState, event: DafnyEvent) => TodoMultiProjectEffectAppCore.__default.EffectStep(es, event),
-  EffectIsOnline: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectIsOnline(es),
-  EffectIsIdle: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectIsIdle(es),
-  EffectHasPending: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectHasPending(es),
-  EffectPendingCount: (es: DafnyEffectState) => toNumber(TodoMultiProjectEffectAppCore.__default.EffectPendingCount(es)),
-  EffectIsDispatching: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectIsDispatching(es),
-  EffectGetClient: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectGetClient(es),
-  EffectGetMultiModel: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectGetMultiModel(es),
-  EffectGetBaseVersions: (es: DafnyEffectState) => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersions(es),
-  EffectGetPending: (es: DafnyEffectState) => seqToArray(TodoMultiProjectEffectAppCore.__default.EffectGetPending(es)).map(x => multiactionToJson(x)),
-  EffectUserAction: (action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.EffectUserAction(action),
-  EffectSingleUserAction: (projectId: string, action: DafnyAction) => TodoMultiProjectEffectAppCore.__default.EffectSingleUserAction(_dafny.Seq.UnicodeFromString(projectId), action),
-  GetDeletedTaskIds: (m: DafnyModel) => TodoMultiProjectEffectAppCore.__default.GetDeletedTaskIds(m),
-  EffectDispatchAccepted: (newVersions: Record<string, number>, newModels: Record<string, Model>) => TodoMultiProjectEffectAppCore.__default.EffectDispatchAccepted(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(newVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(newModels)),
-  EffectDispatchConflict: (freshVersions: Record<string, number>, freshModels: Record<string, Model>) => TodoMultiProjectEffectAppCore.__default.EffectDispatchConflict(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
-  EffectDispatchRejected: (freshVersions: Record<string, number>, freshModels: Record<string, Model>) => TodoMultiProjectEffectAppCore.__default.EffectDispatchRejected(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
-  EffectRealtimeUpdate: (projectId: string, version: number, model: DafnyModel) => TodoMultiProjectEffectAppCore.__default.EffectRealtimeUpdate(_dafny.Seq.UnicodeFromString(projectId), new BigNumber(version), model),
-  EffectNetworkError: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkError(),
-  EffectNetworkRestored: () => TodoMultiProjectEffectAppCore.__default.EffectNetworkRestored(),
-  EffectManualGoOffline: () => TodoMultiProjectEffectAppCore.__default.EffectManualGoOffline(),
-  EffectManualGoOnline: () => TodoMultiProjectEffectAppCore.__default.EffectManualGoOnline(),
-  EffectTick: () => TodoMultiProjectEffectAppCore.__default.EffectTick(),
-  EffectIsNoOp: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectIsNoOp(cmd),
-  EffectIsSendDispatch: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectIsSendDispatch(cmd),
-  EffectIsFetchFreshState: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectIsFetchFreshState(cmd),
-  EffectGetTouchedProjects: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectGetTouchedProjects(cmd),
-  EffectGetBaseVersionsFromCmd: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersionsFromCmd(cmd),
-  EffectGetMultiAction: (cmd: DafnyCommand) => TodoMultiProjectEffectAppCore.__default.EffectGetMultiAction(cmd),
-  MakeSingleAction: (projectId: string, action: DafnyAction) => TodoMultiProjectEffectAppCore.__default.MakeSingleAction(_dafny.Seq.UnicodeFromString(projectId), action),
-  MakeMoveTaskTo: (srcProject: string, dstProject: string, taskId: number, dstList: number, anchor: DafnyPlace) => TodoMultiProjectEffectAppCore.__default.MakeMoveTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList), anchor),
-  MakeCopyTaskTo: (srcProject: string, dstProject: string, taskId: number, dstList: number) => TodoMultiProjectEffectAppCore.__default.MakeCopyTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList)),
-  MakeMoveListTo: (srcProject: string, dstProject: string, listId: number) => TodoMultiProjectEffectAppCore.__default.MakeMoveListTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(listId)),
-  IsSingleAction: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsSingleAction(ma),
-  IsMoveTaskTo: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsMoveTaskTo(ma),
-  IsCopyTaskTo: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
-  IsMoveListTo: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.IsMoveListTo(ma),
-  GetTouchedProjects: (ma: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
-  GetProjectModel: (mm: MultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.GetProjectModel(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
-  FindListForTask: (m: DafnyModel, taskId: number) => TodoMultiProjectEffectAppCore.__default.FindListForTask(m, new BigNumber(taskId)),
-  HasProject: (mm: MultiModel, projectId: string) => TodoMultiProjectEffectAppCore.__default.HasProject(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
-  GetProjectIds: (mm: MultiModel) => TodoMultiProjectEffectAppCore.__default.GetProjectIds(multimodelFromJson(mm)),
-  TryMultiStep: (mm: MultiModel, action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.TryMultiStep(multimodelFromJson(mm), action),
-  MultiRebase: (projectLogs: Record<string, Action[]>, baseVersions: Record<string, number>, action: DafnyMultiAction) => TodoMultiProjectEffectAppCore.__default.MultiRebase(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), _dafny.Seq.of(...(v || []).map((x: any) => actionFromJson(x)))); } return m; })(projectLogs), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(baseVersions), action),
-  MultiCandidates: (mm: MultiModel, action: DafnyMultiAction) => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(multimodelFromJson(mm), action)).map(x => multiactionToJson(x)),
+  EffectInit: (versions: Record<string, number>, models: Record<string, Model>): DafnyEffectState => TodoMultiProjectEffectAppCore.__default.EffectInit(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(versions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(models)),
+  EffectStep: (es: DafnyEffectState, event: DafnyEvent): DafnyTuple2<DafnyEffectState, DafnyCommand> => TodoMultiProjectEffectAppCore.__default.EffectStep(es, event),
+  EffectIsOnline: (es: DafnyEffectState): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsOnline(es),
+  EffectIsIdle: (es: DafnyEffectState): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsIdle(es),
+  EffectHasPending: (es: DafnyEffectState): boolean => TodoMultiProjectEffectAppCore.__default.EffectHasPending(es),
+  EffectPendingCount: (es: DafnyEffectState): number => toNumber(TodoMultiProjectEffectAppCore.__default.EffectPendingCount(es)),
+  EffectIsDispatching: (es: DafnyEffectState): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsDispatching(es),
+  EffectGetClient: (es: DafnyEffectState): DafnyMultiClientState => TodoMultiProjectEffectAppCore.__default.EffectGetClient(es),
+  EffectGetMultiModel: (es: DafnyEffectState): DafnyMultiModel => TodoMultiProjectEffectAppCore.__default.EffectGetMultiModel(es),
+  EffectGetBaseVersions: (es: DafnyEffectState): DafnyMap<DafnySeq, DafnyInt> => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersions(es),
+  EffectGetPending: (es: DafnyEffectState): MultiAction[] => seqToArray(TodoMultiProjectEffectAppCore.__default.EffectGetPending(es)).map(x => multiactionToJson(x)),
+  EffectUserAction: (action: DafnyMultiAction): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectUserAction(action),
+  EffectSingleUserAction: (projectId: string, action: DafnyAction): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectSingleUserAction(_dafny.Seq.UnicodeFromString(projectId), action),
+  GetDeletedTaskIds: (m: DafnyModel): DafnySet<DafnyInt> => TodoMultiProjectEffectAppCore.__default.GetDeletedTaskIds(m),
+  EffectDispatchAccepted: (newVersions: Record<string, number>, newModels: Record<string, Model>): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectDispatchAccepted(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(newVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(newModels)),
+  EffectDispatchConflict: (freshVersions: Record<string, number>, freshModels: Record<string, Model>): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectDispatchConflict(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
+  EffectDispatchRejected: (freshVersions: Record<string, number>, freshModels: Record<string, Model>): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectDispatchRejected(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(freshVersions), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), modelFromJson(v)); } return m; })(freshModels)),
+  EffectRealtimeUpdate: (projectId: string, version: number, model: DafnyModel): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectRealtimeUpdate(_dafny.Seq.UnicodeFromString(projectId), new BigNumber(version), model),
+  EffectNetworkError: (): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectNetworkError(),
+  EffectNetworkRestored: (): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectNetworkRestored(),
+  EffectManualGoOffline: (): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectManualGoOffline(),
+  EffectManualGoOnline: (): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectManualGoOnline(),
+  EffectTick: (): DafnyEvent => TodoMultiProjectEffectAppCore.__default.EffectTick(),
+  EffectIsNoOp: (cmd: DafnyCommand): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsNoOp(cmd),
+  EffectIsSendDispatch: (cmd: DafnyCommand): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsSendDispatch(cmd),
+  EffectIsFetchFreshState: (cmd: DafnyCommand): boolean => TodoMultiProjectEffectAppCore.__default.EffectIsFetchFreshState(cmd),
+  EffectGetTouchedProjects: (cmd: DafnyCommand): DafnySet<DafnySeq> => TodoMultiProjectEffectAppCore.__default.EffectGetTouchedProjects(cmd),
+  EffectGetBaseVersionsFromCmd: (cmd: DafnyCommand): DafnyMap<DafnySeq, DafnyInt> => TodoMultiProjectEffectAppCore.__default.EffectGetBaseVersionsFromCmd(cmd),
+  EffectGetMultiAction: (cmd: DafnyCommand): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.EffectGetMultiAction(cmd),
+  MakeSingleAction: (projectId: string, action: DafnyAction): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.MakeSingleAction(_dafny.Seq.UnicodeFromString(projectId), action),
+  MakeMoveTaskTo: (srcProject: string, dstProject: string, taskId: number, dstList: number, anchor: DafnyPlace): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.MakeMoveTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList), anchor),
+  MakeCopyTaskTo: (srcProject: string, dstProject: string, taskId: number, dstList: number): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.MakeCopyTaskTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(taskId), new BigNumber(dstList)),
+  MakeMoveListTo: (srcProject: string, dstProject: string, listId: number): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.MakeMoveListTo(_dafny.Seq.UnicodeFromString(srcProject), _dafny.Seq.UnicodeFromString(dstProject), new BigNumber(listId)),
+  IsSingleAction: (ma: DafnyMultiAction): boolean => TodoMultiProjectEffectAppCore.__default.IsSingleAction(ma),
+  IsMoveTaskTo: (ma: DafnyMultiAction): boolean => TodoMultiProjectEffectAppCore.__default.IsMoveTaskTo(ma),
+  IsCopyTaskTo: (ma: DafnyMultiAction): boolean => TodoMultiProjectEffectAppCore.__default.IsCopyTaskTo(ma),
+  IsMoveListTo: (ma: DafnyMultiAction): boolean => TodoMultiProjectEffectAppCore.__default.IsMoveListTo(ma),
+  GetTouchedProjects: (ma: DafnyMultiAction): DafnySet<DafnySeq> => TodoMultiProjectEffectAppCore.__default.GetTouchedProjects(ma),
+  GetProjectModel: (mm: MultiModel, projectId: string): DafnyModel => TodoMultiProjectEffectAppCore.__default.GetProjectModel(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
+  FindListForTask: (m: DafnyModel, taskId: number): DafnyOption<DafnyInt> => TodoMultiProjectEffectAppCore.__default.FindListForTask(m, new BigNumber(taskId)),
+  HasProject: (mm: MultiModel, projectId: string): boolean => TodoMultiProjectEffectAppCore.__default.HasProject(multimodelFromJson(mm), _dafny.Seq.UnicodeFromString(projectId)),
+  GetProjectIds: (mm: MultiModel): DafnySet<DafnySeq> => TodoMultiProjectEffectAppCore.__default.GetProjectIds(multimodelFromJson(mm)),
+  TryMultiStep: (mm: MultiModel, action: DafnyMultiAction): DafnyResult<DafnyMultiModel, DafnyMultiErr> => TodoMultiProjectEffectAppCore.__default.TryMultiStep(multimodelFromJson(mm), action),
+  MultiRebase: (projectLogs: Record<string, Action[]>, baseVersions: Record<string, number>, action: DafnyMultiAction): DafnyMultiAction => TodoMultiProjectEffectAppCore.__default.MultiRebase(((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), _dafny.Seq.of(...(v || []).map((x: any) => actionFromJson(x)))); } return m; })(projectLogs), ((obj) => { let m = _dafny.Map.Empty; for (const [k, v] of Object.entries(obj || {})) { m = m.update(_dafny.Seq.UnicodeFromString(k), new BigNumber(v)); } return m; })(baseVersions), action),
+  MultiCandidates: (mm: MultiModel, action: DafnyMultiAction): MultiAction[] => seqToArray(TodoMultiProjectEffectAppCore.__default.MultiCandidates(multimodelFromJson(mm), action)).map(x => multiactionToJson(x)),
 
   // Conversion functions
   optionToJson,

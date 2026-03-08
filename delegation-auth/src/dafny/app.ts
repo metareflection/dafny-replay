@@ -288,15 +288,15 @@ const App = {
   GetNextEdge: (m: DafnyModel) => toNumber(m.dtor_nextEdge),
 
   // AppCore functions
-  Init: () => DelegationAuthAppCore.__default.Init(),
-  Dispatch: (h: DafnyHistory, a: DafnyAction) => DelegationAuthAppCore.__default.Dispatch(h, a),
-  Undo: (h: DafnyHistory) => DelegationAuthAppCore.__default.Undo(h),
-  Redo: (h: DafnyHistory) => DelegationAuthAppCore.__default.Redo(h),
-  Present: (h: DafnyHistory) => DelegationAuthAppCore.__default.Present(h),
-  CanUndo: (h: DafnyHistory) => DelegationAuthAppCore.__default.CanUndo(h),
-  CanRedo: (h: DafnyHistory) => DelegationAuthAppCore.__default.CanRedo(h),
-  CheckCan: (m: DafnyModel, s: string, cap: string) => DelegationAuthAppCore.__default.CheckCan(m, _dafny.Seq.UnicodeFromString(s), _dafny.Seq.UnicodeFromString(cap)),
-  GetReachable: (m: DafnyModel, cap: string) => DelegationAuthAppCore.__default.GetReachable(m, _dafny.Seq.UnicodeFromString(cap)),
+  Init: (): DafnyHistory => DelegationAuthAppCore.__default.Init(),
+  Dispatch: (h: DafnyHistory, a: DafnyAction): DafnyHistory => DelegationAuthAppCore.__default.Dispatch(h, a),
+  Undo: (h: DafnyHistory): DafnyHistory => DelegationAuthAppCore.__default.Undo(h),
+  Redo: (h: DafnyHistory): DafnyHistory => DelegationAuthAppCore.__default.Redo(h),
+  Present: (h: DafnyHistory): DafnyModel => DelegationAuthAppCore.__default.Present(h),
+  CanUndo: (h: DafnyHistory): boolean => DelegationAuthAppCore.__default.CanUndo(h),
+  CanRedo: (h: DafnyHistory): boolean => DelegationAuthAppCore.__default.CanRedo(h),
+  CheckCan: (m: DafnyModel, s: string, cap: string): boolean => DelegationAuthAppCore.__default.CheckCan(m, _dafny.Seq.UnicodeFromString(s), _dafny.Seq.UnicodeFromString(cap)),
+  GetReachable: (m: DafnyModel, cap: string): DafnySet<DafnySeq> => DelegationAuthAppCore.__default.GetReachable(m, _dafny.Seq.UnicodeFromString(cap)),
 
   // Conversion functions
   delegToJson,

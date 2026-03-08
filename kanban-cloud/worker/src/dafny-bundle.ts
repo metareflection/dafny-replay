@@ -3312,7 +3312,7 @@ export type Err = 'MissingColumn' | 'MissingCard' | 'WipExceeded' | 'BadAnchor' 
 
 export type Option<T> =
   | { type: 'None' }
-  | { type: 'Some'; value: unknown };
+  | { type: 'Some'; value: T };
 
 export type Place =
   | { type: 'AtEnd' }
@@ -3328,8 +3328,8 @@ export type Action =
   | { type: 'EditTitle'; id: number; title: string };
 
 export type Result<T, E> =
-  | { type: 'Ok'; value: unknown }
-  | { type: 'Err'; error: unknown };
+  | { type: 'Ok'; value: T }
+  | { type: 'Err'; error: E };
 
 export interface RejectReason {
 }
@@ -3409,6 +3409,7 @@ interface DafnyMap<K = unknown, V = unknown> {
   get(key: K): V;
   contains(key: K): boolean;
 }
+type DafnyTuple2<T0, T1> = readonly [T0, T1];
 
 type DafnyCard = DafnySeq;
 

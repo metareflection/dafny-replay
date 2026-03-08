@@ -321,15 +321,15 @@ const App = {
   GetNextId: (m: DafnyModel) => toNumber(m.dtor_nextId),
 
   // AppCore functions
-  Init: () => KanbanAppCore.__default.Init(),
-  Dispatch: (h: DafnyHistory, a: DafnyAction) => KanbanAppCore.__default.Dispatch(h, a),
-  Undo: (h: DafnyHistory) => KanbanAppCore.__default.Undo(h),
-  Redo: (h: DafnyHistory) => KanbanAppCore.__default.Redo(h),
-  Present: (h: DafnyHistory) => KanbanAppCore.__default.Present(h),
-  CanUndo: (h: DafnyHistory) => KanbanAppCore.__default.CanUndo(h),
-  CanRedo: (h: DafnyHistory) => KanbanAppCore.__default.CanRedo(h),
-  GetLane: (m: DafnyModel, col: string) => seqToArray(KanbanAppCore.__default.GetLane(m, _dafny.Seq.UnicodeFromString(col))).map(x => toNumber(x)),
-  GetCardTitle: (m: DafnyModel, id: number) => dafnyStringToJs(KanbanAppCore.__default.GetCardTitle(m, new BigNumber(id))),
+  Init: (): DafnyHistory => KanbanAppCore.__default.Init(),
+  Dispatch: (h: DafnyHistory, a: DafnyAction): DafnyHistory => KanbanAppCore.__default.Dispatch(h, a),
+  Undo: (h: DafnyHistory): DafnyHistory => KanbanAppCore.__default.Undo(h),
+  Redo: (h: DafnyHistory): DafnyHistory => KanbanAppCore.__default.Redo(h),
+  Present: (h: DafnyHistory): DafnyModel => KanbanAppCore.__default.Present(h),
+  CanUndo: (h: DafnyHistory): boolean => KanbanAppCore.__default.CanUndo(h),
+  CanRedo: (h: DafnyHistory): boolean => KanbanAppCore.__default.CanRedo(h),
+  GetLane: (m: DafnyModel, col: string): number[] => seqToArray(KanbanAppCore.__default.GetLane(m, _dafny.Seq.UnicodeFromString(col))).map(x => toNumber(x)),
+  GetCardTitle: (m: DafnyModel, id: number): string => dafnyStringToJs(KanbanAppCore.__default.GetCardTitle(m, new BigNumber(id))),
 
   // Conversion functions
   cardToJson,
