@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, ChevronRight, X, Edit2, Plus, ArrowUp, ArrowDown, Send } from 'lucide-react'
+import { ChevronDown, ChevronRight, X, Edit2, Plus, ArrowUp, ArrowDown, Send, Download, Upload } from 'lucide-react'
 import { TaskItem } from './TaskItem.jsx'
+import { exportListToMarkdown, downloadMarkdown, pickAndReadMarkdownFile, parseTasksFromMarkdown } from '../../utils/taskMarkdown.js'
 import './tasks.css'
 
 export function TaskList({
@@ -33,7 +34,9 @@ export function TaskList({
   onMoveListToProject,
   allMembers = [],
   onAssign,
-  onUnassign
+  onUnassign,
+  onSelectTask,
+  onImportTasks
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editName, setEditName] = useState(listName)
@@ -177,6 +180,30 @@ export function TaskList({
             )}
             <button
               className="task-list__action-btn"
+              onClick={() => {
+                const md = exportListToMarkdown(listName, tasks)
+                downloadMarkdown(`${listName}.md`, md)
+              }}
+              title="Export list as markdown"
+            >
+              <Download size={12} />
+            </button>
+            {onImportTasks && (
+              <button
+                className="task-list__action-btn"
+                onClick={async () => {
+                  const text = await pickAndReadMarkdownFile()
+                  if (!text) return
+                  const parsed = parseTasksFromMarkdown(text)
+                  if (parsed.length > 0) onImportTasks(listId, parsed)
+                }}
+                title="Import tasks from markdown"
+              >
+                <Upload size={12} />
+              </button>
+            )}
+            <button
+              className="task-list__action-btn"
               onClick={() => setEditingName(true)}
               title="Rename list"
             >
@@ -238,6 +265,7 @@ export function TaskList({
                 allMembers={allMembers}
                 onAssign={onAssign}
                 onUnassign={onUnassign}
+                onSelect={onSelectTask ? () => onSelectTask(task.id, task, listName) : undefined}
               />
             ))}
           </div>

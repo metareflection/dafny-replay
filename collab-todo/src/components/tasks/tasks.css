@@ -139,6 +139,20 @@
   color: var(--color-text-tertiary);
 }
 
+.task-item__edit-inline {
+  font-size: var(--font-size-md);
+  line-height: 22px;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--color-accent);
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+}
+
 /* Meta indicators - collapsed shows only set ones, hover expands all */
 .task-item__indicators {
   display: flex;

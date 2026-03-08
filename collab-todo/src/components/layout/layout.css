@@ -440,6 +440,23 @@
   }
 }
 
+/* Detail panel overlay (mobile) */
+.detail-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .detail-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: var(--topbar-height);
+    background: var(--color-overlay);
+    z-index: 199;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* Offline Overlay */
 .offline-overlay {
   position: fixed;

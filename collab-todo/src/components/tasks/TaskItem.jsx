@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User, FileText, FolderOpen } from 'lucide-react'
+import { Check, Star, MoreHorizontal, ArrowRight, Trash2, Calendar, Tag, User, FolderOpen, Paperclip } from 'lucide-react'
 import { TagPicker } from '../tags'
 import { DueDatePicker } from '../duedate'
 import { MemberPicker } from '../members'
-import { NotesModal } from '../notes'
 import './tasks.css'
 
 export function TaskItem({
@@ -26,12 +25,15 @@ export function TaskItem({
   onSetDueDate,
   allMembers = [],
   onAssign,
-  onUnassign
+  onUnassign,
+  onSelect
 }) {
   const [expanded, setExpanded] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [showMoveMenu, setShowMoveMenu] = useState(false)
-  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const editInputRef = useRef(null)
   const menuRef = useRef(null)
 
   // Click outside to close menu
@@ -82,14 +84,40 @@ export function TaskItem({
     }).join(', ')
   }
 
-  const handleSaveNotes = (notes) => {
-    onEdit(taskId, task.title, notes)
+  const handleTitleClick = (e) => {
+    e.stopPropagation()
+    setEditTitle(task.title)
+    setIsEditingTitle(true)
   }
+
+  const handleTitleSave = () => {
+    const trimmed = editTitle.trim()
+    if (trimmed && trimmed !== task.title) {
+      onEdit(taskId, trimmed, '')
+    }
+    setIsEditingTitle(false)
+  }
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleTitleSave()
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false)
+      setEditTitle(task.title)
+    }
+  }
+
+  useEffect(() => {
+    if (isEditingTitle && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [isEditingTitle])
 
   const hasDueDate = !!task.dueDate
   const hasTags = task.tags && task.tags.length > 0
   const hasAssignees = task.assignees && task.assignees.length > 0
-  const hasNotes = !!task.notes
   const hasMetadata = hasDueDate || hasTags || hasAssignees
 
   return (
@@ -104,7 +132,19 @@ export function TaskItem({
       <div className="task-item__main">
         <div className="task-item__content" onClick={() => setExpanded(!expanded)}>
           <div className="task-item__title-row">
-            <span className="task-item__title">{task.title}</span>
+            {isEditingTitle ? (
+              <input
+                ref={editInputRef}
+                className="task-item__edit-inline"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={handleTitleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className="task-item__title" onClick={handleTitleClick}>{task.title}</span>
+            )}
           </div>
         </div>
 
@@ -233,16 +273,18 @@ export function TaskItem({
             </span>
           )}
         </div>
-        {/* Notes indicator */}
-        <div className={`task-item__indicator-wrapper task-item__indicator-wrapper--notes ${hasNotes ? 'task-item__indicator-wrapper--set' : ''}`}>
-          <button
-            className={`task-item__indicator ${hasNotes ? 'task-item__indicator--set' : ''}`}
-            title={hasNotes ? 'Edit notes' : 'Add notes'}
-            onClick={() => setShowNotesModal(true)}
-          >
-            <FileText size={12} />
-          </button>
-        </div>
+        {/* Attachments / Details indicator */}
+        {onSelect && (
+          <div className="task-item__indicator-wrapper">
+            <button
+              className="task-item__indicator"
+              title="Open details & attachments"
+              onClick={onSelect}
+            >
+              <Paperclip size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="task-item__actions">
@@ -306,13 +348,6 @@ export function TaskItem({
         </div>
       </div>
 
-      {/* Notes Modal */}
-      <NotesModal
-        isOpen={showNotesModal}
-        notes={task.notes || ''}
-        onSave={handleSaveNotes}
-        onClose={() => setShowNotesModal(false)}
-      />
     </div>
   )
 }

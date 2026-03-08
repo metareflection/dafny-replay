@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, Download, Upload } from 'lucide-react'
 import './project.css'
 
 export function FilterTabs({
@@ -8,7 +8,9 @@ export function FilterTabs({
   ],
   activeTab,
   onTabChange,
-  onAddList
+  onAddList,
+  onExportProject,
+  onImportProject
 }) {
   return (
     <div className="filter-tabs">
@@ -23,12 +25,24 @@ export function FilterTabs({
           </button>
         ))}
       </div>
-      {onAddList && (
-        <button className="filter-tabs__add-list" onClick={onAddList}>
-          <Plus size={14} />
-          <span>Add List</span>
-        </button>
-      )}
+      <div className="filter-tabs__actions">
+        {onExportProject && (
+          <button className="filter-tabs__action-btn" onClick={onExportProject} title="Export project as markdown">
+            <Download size={13} />
+          </button>
+        )}
+        {onImportProject && (
+          <button className="filter-tabs__action-btn" onClick={onImportProject} title="Import lists from markdown">
+            <Upload size={13} />
+          </button>
+        )}
+        {onAddList && (
+          <button className="filter-tabs__add-list" onClick={onAddList}>
+            <Plus size={14} />
+            <span>Add List</span>
+          </button>
+        )}
+      </div>
     </div>
   )
 }

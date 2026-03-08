@@ -13,7 +13,9 @@ import { TaskList, TaskItem } from './components/tasks'
 import { ProjectHeader, FilterTabs } from './components/project'
 import { FilterBar } from './components/filters'
 import { MemberManagement } from './components/members'
+import { TaskDetailPanel } from './components/detail'
 import { Trash2, RotateCcw } from 'lucide-react'
+import { exportProjectToMarkdown, downloadMarkdown, pickAndReadMarkdownFile, parseProjectFromMarkdown, parseTasksFromMarkdown } from './utils/taskMarkdown.js'
 
 // Styles
 import './styles/global.css'
@@ -23,7 +25,7 @@ import './components/layout/layout.css'
 // Smart List Views
 // ============================================================================
 
-function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [] }) {
+function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [], onSelectTask }) {
   const [sortBy, setSortBy] = useState('created-desc')
   const [selectedUserIds, setSelectedUserIds] = useState([])
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -121,6 +123,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
             allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
             onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
             onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
+            onSelect={() => onSelectTask?.(task.projectId, task.id, task, task.listName)}
           />
         ))}
       </div>
@@ -129,7 +132,7 @@ function PriorityView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
   )
 }
 
-function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags, getProjectMembers }) {
+function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags, getProjectMembers, onSelectTask }) {
   if (tasks.length === 0) {
     return <EmptyState icon={CheckSquare} message="No completed tasks yet." />
   }
@@ -157,6 +160,7 @@ function LogbookView({ tasks, onCompleteTask, onStarTask, getProjectTags, getPro
             availableLists={[]}
             allTags={getProjectTags(task.projectId)}
             allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
+            onSelect={() => onSelectTask?.(task.projectId, task.id, task, task.listName)}
           />
         ))}
       </div>
@@ -204,7 +208,7 @@ function TrashView({ tasks, onRestoreTask }) {
   )
 }
 
-function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [], projects = [], onNavigateToList }) {
+function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteTask, onMoveTask, getAvailableLists, getProjectTags, onAddTag, onRemoveTag, onCreateTag, onSetDueDate, onAssignTask, onUnassignTask, getProjectMembers, allProjectTags = {}, allProjectMembers = [], projects = [], onNavigateToList, onSelectTask }) {
   const [sortBy, setSortBy] = useState('created-desc')
   const [selectedUserIds, setSelectedUserIds] = useState([])
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -306,6 +310,7 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
               allMembers={getProjectMembers ? getProjectMembers(task.projectId) : []}
               onAssign={onAssignTask ? (id, userId) => onAssignTask(task.projectId, id, userId) : undefined}
               onUnassign={onUnassignTask ? (id, userId) => onUnassignTask(task.projectId, id, userId) : undefined}
+              onSelect={() => onSelectTask?.(task.projectId, task.id, task, task.listName)}
             />
           )
         })}
@@ -318,6 +323,8 @@ function AllTasksView({ tasks, onCompleteTask, onStarTask, onEditTask, onDeleteT
 // ============================================================================
 // Project View
 // ============================================================================
+
+const toNumber = (bn) => bn && typeof bn.toNumber === 'function' ? bn.toNumber() : bn
 
 function ProjectView({
   project,
@@ -335,7 +342,8 @@ function ProjectView({
   selectedListId,
   onRenameProject,
   onAddList,
-  onDeleteTask
+  onDeleteTask,
+  onSelectTask
 }) {
   // Track user's explicit collapse preference: true = collapsed, false = expanded
   // Lists not in map use default: empty lists collapsed, non-empty expanded
@@ -442,6 +450,56 @@ function ProjectView({
     })
   }
 
+  // Export entire project as markdown
+  const handleExportProject = useCallback(() => {
+    if (!model) return
+    const listsData = allLists.map(list => {
+      const taskIds = App.GetTasksInList(model, list.id)
+      const tasks = taskIds
+        .map(id => ({ id, ...App.GetTask(model, id) }))
+        .filter(t => !t.deleted)
+      return { name: list.name, tasks }
+    })
+    const md = exportProjectToMarkdown(project.name, listsData)
+    downloadMarkdown(`${project.name}.md`, md)
+  }, [model, allLists, project.name])
+
+  // Import lists from a markdown file into the project
+  const handleImportProject = useCallback(async () => {
+    if (!model) return
+    const text = await pickAndReadMarkdownFile()
+    if (!text) return
+    const parsed = parseProjectFromMarkdown(text)
+    if (parsed.length === 0) return
+    // Pre-compute all IDs since model won't update between synchronous dispatches
+    let nextListId = toNumber(model.dtor_nextListId)
+    let nextTaskId = toNumber(model.dtor_nextTaskId)
+    for (const list of parsed) {
+      const listId = nextListId++
+      dispatch(App.AddList(list.name))
+      for (let i = 0; i < list.tasks.length; i++) {
+        const t = list.tasks[i]
+        const taskId = nextTaskId++
+        dispatch(App.AddTask(listId, t.title))
+        if (t.completed) dispatch(App.CompleteTask(taskId))
+        if (t.starred) dispatch(App.StarTask(taskId))
+      }
+    }
+  }, [model, dispatch])
+
+  // Import tasks from markdown into a specific list
+  const handleImportTasks = useCallback((listId, parsedTasks) => {
+    if (!model) return
+    let nextTaskId = toNumber(model.dtor_nextTaskId)
+    for (let i = 0; i < parsedTasks.length; i++) {
+      const t = parsedTasks[i]
+      dispatch(App.AddTask(listId, t.title))
+      const taskId = nextTaskId + i
+      if (t.completed) dispatch(App.CompleteTask(taskId))
+      if (t.starred) dispatch(App.StarTask(taskId))
+    }
+  }, [model, dispatch])
+
   if (!model) {
     return <LoadingState message="Loading project..." />
   }
@@ -481,6 +539,8 @@ function ProjectView({
         activeTab={filterTab}
         onTabChange={onFilterChange}
         onAddList={onAddList ? () => setShowAddListForm(true) : undefined}
+        onExportProject={handleExportProject}
+        onImportProject={handleImportProject}
       />
 
       {showAddListForm && (
@@ -561,6 +621,8 @@ function ProjectView({
             onUnassign={(taskId, userId) =>
               dispatch(App.UnassignTask(taskId, userId))
             }
+            onSelectTask={onSelectTask}
+            onImportTasks={handleImportTasks}
           />
           )
         })
@@ -583,6 +645,7 @@ function TodoApp({ user, onSignOut }) {
   const [showMemberManagement, setShowMemberManagement] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [pendingUndo, setPendingUndo] = useState(null) // { projectId, taskId, taskTitle }
+  const [selectedTask, setSelectedTask] = useState(null) // { projectId, taskId, task, projectName }
 
   // Close sidebar on window resize to desktop
   useEffect(() => {
@@ -595,16 +658,20 @@ function TodoApp({ user, onSignOut }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Close sidebar when pressing Escape
+  // Close sidebar or detail panel when pressing Escape
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isSidebarOpen) {
-        setIsSidebarOpen(false)
+      if (e.key === 'Escape') {
+        if (selectedTask) {
+          setSelectedTask(null)
+        } else if (isSidebarOpen) {
+          setIsSidebarOpen(false)
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isSidebarOpen])
+  }, [isSidebarOpen, selectedTask])
 
   // Projects list (re-fetches when user changes)
   const { projects, loading: projectsLoading, createProject, renameProject, deleteProject, refresh: refreshProjects } = useProjects(user?.id)
@@ -672,6 +739,30 @@ function TodoApp({ user, onSignOut }) {
   }, [error])
 
   // Handlers
+  const handleSelectTask = useCallback((projectId, taskId, task, projectName) => {
+    setSelectedTask({ projectId, taskId, task, projectName })
+  }, [])
+
+  // Keep selected task data fresh when model changes
+  useEffect(() => {
+    if (!selectedTask) return
+    const model = getProjectModel(selectedTask.projectId)
+    if (!model) return
+    try {
+      const freshTask = App.GetTask(model, selectedTask.taskId)
+      if (freshTask) {
+        setSelectedTask(prev => ({ ...prev, task: { id: prev.taskId, ...freshTask } }))
+      }
+    } catch {
+      // Task may have been deleted
+      setSelectedTask(null)
+    }
+  }, [getProjectModel, selectedTask?.projectId, selectedTask?.taskId])
+
+  const handleCloseDetail = useCallback(() => {
+    setSelectedTask(null)
+  }, [])
+
   const handleSelectProject = (projectId) => {
     setSelectedProjectId(projectId)
     setSelectedListId(null)
@@ -961,6 +1052,7 @@ function TodoApp({ user, onSignOut }) {
           allProjectMembers={allProjectMembers}
           projects={projects}
           onNavigateToList={handleSelectList}
+          onSelectTask={handleSelectTask}
         />
       )
     }
@@ -985,6 +1077,7 @@ function TodoApp({ user, onSignOut }) {
           getProjectMembers={getProjectMembers}
           allProjectTags={allProjectTags}
           allProjectMembers={allProjectMembers}
+          onSelectTask={handleSelectTask}
         />
       )
     }
@@ -997,6 +1090,7 @@ function TodoApp({ user, onSignOut }) {
           onStarTask={handleStarTaskAll}
           getProjectTags={getProjectTags}
           getProjectMembers={getProjectMembers}
+          onSelectTask={handleSelectTask}
         />
       )
     }
@@ -1033,6 +1127,7 @@ function TodoApp({ user, onSignOut }) {
           onRenameProject={project.isOwner ? handleRenameProject : undefined}
           onAddList={handleAddList}
           onDeleteTask={(taskId) => handleDeleteTaskAll(selectedProjectId, taskId)}
+          onSelectTask={(taskId, task, listName) => handleSelectTask(selectedProjectId, taskId, task, listName)}
         />
       )
     }
@@ -1097,6 +1192,28 @@ function TodoApp({ user, onSignOut }) {
         <MainContent>
           {renderContent()}
         </MainContent>
+
+        {/* Detail panel overlay for mobile */}
+        {selectedTask && (
+          <div
+            className="detail-overlay"
+            onClick={handleCloseDetail}
+            aria-hidden="true"
+          />
+        )}
+
+        {selectedTask && (
+          <TaskDetailPanel
+            task={selectedTask.task}
+            taskId={selectedTask.taskId}
+            projectId={selectedTask.projectId}
+            projectName={selectedTask.projectName}
+            onClose={handleCloseDetail}
+            allTags={getProjectTags(selectedTask.projectId)}
+            allMembers={getProjectMembers(selectedTask.projectId) || []}
+            userId={user.id}
+          />
+        )}
       </div>
 
       {toast && (

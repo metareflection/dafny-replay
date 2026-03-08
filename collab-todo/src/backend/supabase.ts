@@ -1,7 +1,7 @@
 // Supabase backend implementation
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import type { Backend, User, Project, ProjectState, Member, DispatchResult, MultiDispatchResult } from './types'
+import type { Backend, User, Project, ProjectState, Member, DispatchResult, MultiDispatchResult, Attachment } from './types'
 
 export function createSupabaseBackend(): Backend {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -259,6 +259,146 @@ export function createSupabaseBackend(): Backend {
         return () => {
           supabase.removeChannel(channel)
         }
+      }
+    },
+
+    attachments: {
+      list: async (projectId: string, taskId: number): Promise<Attachment[]> => {
+        if (!supabase) return []
+
+        const { data, error } = await supabase
+          .from('task_attachments')
+          .select('*')
+          .eq('project_id', projectId)
+          .eq('task_id', taskId)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        return data || []
+      },
+
+      uploadFile: async (projectId: string, taskId: number, file: File): Promise<Attachment> => {
+        if (!supabase) throw new Error('Supabase not configured')
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        // Upload to storage
+        const filePath = `${projectId}/${taskId}/${Date.now()}-${file.name}`
+        const { error: uploadError } = await supabase.storage
+          .from('task-attachments')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('task-attachments')
+          .getPublicUrl(filePath)
+
+        // Insert metadata
+        const { data, error } = await supabase
+          .from('task_attachments')
+          .insert({
+            project_id: projectId,
+            task_id: taskId,
+            type: 'file',
+            name: file.name,
+            url: publicUrl,
+            created_by: user.id
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        return data
+      },
+
+      addLink: async (projectId: string, taskId: number, name: string, url: string): Promise<Attachment> => {
+        if (!supabase) throw new Error('Supabase not configured')
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        const { data, error } = await supabase
+          .from('task_attachments')
+          .insert({
+            project_id: projectId,
+            task_id: taskId,
+            type: 'link',
+            name,
+            url,
+            created_by: user.id
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        return data
+      },
+
+      addMarkdown: async (projectId: string, taskId: number, name: string, content: string): Promise<Attachment> => {
+        if (!supabase) throw new Error('Supabase not configured')
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+
+        const { data, error } = await supabase
+          .from('task_attachments')
+          .insert({
+            project_id: projectId,
+            task_id: taskId,
+            type: 'markdown',
+            name,
+            content,
+            created_by: user.id
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        return data
+      },
+
+      updateMarkdown: async (attachmentId: string, name: string, content: string): Promise<void> => {
+        if (!supabase) throw new Error('Supabase not configured')
+
+        const { error } = await supabase
+          .from('task_attachments')
+          .update({ name, content })
+          .eq('id', attachmentId)
+
+        if (error) throw error
+      },
+
+      remove: async (attachmentId: string): Promise<void> => {
+        if (!supabase) throw new Error('Supabase not configured')
+
+        // Get attachment to check if it has a file to delete from storage
+        const { data: attachment, error: fetchError } = await supabase
+          .from('task_attachments')
+          .select('type, url')
+          .eq('id', attachmentId)
+          .single()
+
+        if (fetchError) throw fetchError
+
+        // Delete from storage if it's a file
+        if (attachment.type === 'file' && attachment.url) {
+          const urlObj = new URL(attachment.url)
+          const storagePath = urlObj.pathname.split('/task-attachments/')[1]
+          if (storagePath) {
+            await supabase.storage
+              .from('task-attachments')
+              .remove([decodeURIComponent(storagePath)])
+          }
+        }
+
+        const { error } = await supabase
+          .from('task_attachments')
+          .delete()
+          .eq('id', attachmentId)
+
+        if (error) throw error
       }
     }
   }

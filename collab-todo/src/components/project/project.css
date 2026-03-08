@@ -168,8 +168,32 @@
   color: var(--color-text-primary);
 }
 
-.filter-tabs__add-list {
+.filter-tabs__actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xxs);
+}
+
+.filter-tabs__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--color-text-tertiary);
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.filter-tabs__action-btn:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+}
+
+.filter-tabs__add-list {
   display: flex;
   align-items: center;
   gap: var(--space-xs);

@@ -1,6 +1,6 @@
 // Cloudflare Workers + D1 + Durable Objects backend implementation
 
-import type { Backend, User, Project, ProjectState, Member, DispatchResult, MultiDispatchResult } from './types'
+import type { Backend, User, Project, ProjectState, Member, DispatchResult, MultiDispatchResult, Attachment } from './types'
 
 export function createCloudflareBackend(apiUrl: string): Backend {
   let currentUser: User | null = null
@@ -201,6 +201,44 @@ export function createCloudflareBackend(apiUrl: string): Backend {
         return () => {
           ws.close()
         }
+      }
+    },
+
+    attachments: {
+      list: async (projectId: string, taskId: number): Promise<Attachment[]> => {
+        return api<Attachment[]>(`/projects/${projectId}/tasks/${taskId}/attachments`)
+      },
+      uploadFile: async (projectId: string, taskId: number, file: File): Promise<Attachment> => {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch(`${apiUrl}/projects/${projectId}/tasks/${taskId}/attachments/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
+          body: formData
+        })
+        if (!res.ok) throw new Error(await res.text())
+        return res.json()
+      },
+      addLink: async (projectId: string, taskId: number, name: string, url: string): Promise<Attachment> => {
+        return api<Attachment>(`/projects/${projectId}/tasks/${taskId}/attachments`, {
+          method: 'POST',
+          body: JSON.stringify({ type: 'link', name, url })
+        })
+      },
+      addMarkdown: async (projectId: string, taskId: number, name: string, content: string): Promise<Attachment> => {
+        return api<Attachment>(`/projects/${projectId}/tasks/${taskId}/attachments`, {
+          method: 'POST',
+          body: JSON.stringify({ type: 'markdown', name, content })
+        })
+      },
+      updateMarkdown: async (attachmentId: string, name: string, content: string): Promise<void> => {
+        await api(`/attachments/${attachmentId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ name, content })
+        })
+      },
+      remove: async (attachmentId: string): Promise<void> => {
+        await api(`/attachments/${attachmentId}`, { method: 'DELETE' })
       }
     }
   }

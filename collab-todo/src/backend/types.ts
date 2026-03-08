@@ -39,6 +39,18 @@ export interface MultiDispatchResult {
   error?: string
 }
 
+export interface Attachment {
+  id: string
+  project_id: string
+  task_id: number
+  type: 'file' | 'link' | 'markdown'
+  name: string
+  url: string | null
+  content: string | null
+  created_by: string
+  created_at: string
+}
+
 export interface Backend {
   readonly isConfigured: boolean
 
@@ -73,5 +85,14 @@ export interface Backend {
 
   realtime: {
     subscribe(projectId: string, onUpdate: (version: number, state: any) => void): () => void
+  }
+
+  attachments: {
+    list(projectId: string, taskId: number): Promise<Attachment[]>
+    uploadFile(projectId: string, taskId: number, file: File): Promise<Attachment>
+    addLink(projectId: string, taskId: number, name: string, url: string): Promise<Attachment>
+    addMarkdown(projectId: string, taskId: number, name: string, content: string): Promise<Attachment>
+    updateMarkdown(attachmentId: string, name: string, content: string): Promise<void>
+    remove(attachmentId: string): Promise<void>
   }
 }
