@@ -84,7 +84,7 @@ export function TaskItem({
     }).join(', ')
   }
 
-  const handleTitleClick = (e) => {
+  const handleDoubleClick = (e) => {
     e.stopPropagation()
     setEditTitle(task.title)
     setIsEditingTitle(true)
@@ -93,7 +93,7 @@ export function TaskItem({
   const handleTitleSave = () => {
     const trimmed = editTitle.trim()
     if (trimmed && trimmed !== task.title) {
-      onEdit(taskId, trimmed, '')
+      onEdit(taskId, trimmed, task.notes || '')
     }
     setIsEditingTitle(false)
   }
@@ -130,7 +130,7 @@ export function TaskItem({
       </button>
 
       <div className="task-item__main">
-        <div className="task-item__content" onClick={() => setExpanded(!expanded)}>
+        <div className="task-item__content" onClick={() => !isEditingTitle && setExpanded(!expanded)}>
           <div className="task-item__title-row">
             {isEditingTitle ? (
               <input
@@ -143,7 +143,7 @@ export function TaskItem({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className="task-item__title" onClick={handleTitleClick}>{task.title}</span>
+              <span className="task-item__title" onDoubleClick={handleDoubleClick}>{task.title}</span>
             )}
           </div>
         </div>
